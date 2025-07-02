@@ -232,3 +232,57 @@ export type InsertTipoCandidatoDocumento = z.infer<typeof insertTipoCandidatoDoc
 export type TipoCandidatoDocumento = typeof tiposCandidatosDocumentos.$inferSelect;
 export type InsertCandidatoDocumento = z.infer<typeof insertCandidatoDocumentoSchema>;
 export type CandidatoDocumento = typeof candidatosDocumentos.$inferSelect;
+
+// Menu management schemas
+export const menuNodes = pgTable("menu_nodes", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  tipo: varchar("tipo", { length: 10 }).notNull(), // 'folder' or 'file'
+  parentId: integer("parent_id").references(() => menuNodes.id),
+  order: integer("order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+export const menuPermissions = pgTable("menu_permissions", {
+  id: serial("id").primaryKey(),
+  nodeId: integer("node_id").references(() => menuNodes.id).notNull(),
+  nombreVista: varchar("nombre_vista", { length: 255 }).notNull(),
+  ruta: varchar("ruta", { length: 255 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+export const menuActions = pgTable("menu_actions", {
+  id: serial("id").primaryKey(),
+  permissionId: integer("permission_id").references(() => menuPermissions.id).notNull(),
+  codigo: varchar("codigo", { length: 100 }).notNull(),
+  nombre: varchar("nombre", { length: 255 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow()
+});
+
+// Insert schemas
+export const insertMenuNodeSchema = createInsertSchema(menuNodes).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+export const insertMenuPermissionSchema = createInsertSchema(menuPermissions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+export const insertMenuActionSchema = createInsertSchema(menuActions).omit({
+  id: true,
+  createdAt: true
+});
+
+// Types
+export type InsertMenuNode = z.infer<typeof insertMenuNodeSchema>;
+export type MenuNode = typeof menuNodes.$inferSelect;
+export type InsertMenuPermission = z.infer<typeof insertMenuPermissionSchema>;
+export type MenuPermission = typeof menuPermissions.$inferSelect;
+export type InsertMenuAction = z.infer<typeof insertMenuActionSchema>;
+export type MenuAction = typeof menuActions.$inferSelect;

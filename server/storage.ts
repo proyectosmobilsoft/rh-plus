@@ -7,6 +7,9 @@ import {
   documentosTipo,
   tiposCandidatosDocumentos,
   candidatosDocumentos,
+  menuNodes,
+  menuPermissions,
+  menuActions,
   type User, 
   type InsertUser,
   type Candidato,
@@ -24,7 +27,13 @@ import {
   type TipoCandidatoDocumento,
   type InsertTipoCandidatoDocumento,
   type CandidatoDocumento,
-  type InsertCandidatoDocumento
+  type InsertCandidatoDocumento,
+  type MenuNode,
+  type InsertMenuNode,
+  type MenuPermission,
+  type InsertMenuPermission,
+  type MenuAction,
+  type InsertMenuAction
 } from "@shared/schema";
 
 export interface IStorage {
@@ -85,6 +94,23 @@ export interface IStorage {
   createCandidatoDocumento(candidatoDocumento: InsertCandidatoDocumento): Promise<CandidatoDocumento>;
   updateCandidatoDocumento(id: number, candidatoDocumento: Partial<InsertCandidatoDocumento>): Promise<CandidatoDocumento>;
   deleteCandidatoDocumento(id: number): Promise<void>;
+  
+  // Menu operations
+  getAllMenuNodes(): Promise<MenuNode[]>;
+  createMenuNode(menuNode: InsertMenuNode): Promise<MenuNode>;
+  updateMenuNode(id: number, menuNode: Partial<InsertMenuNode>): Promise<MenuNode>;
+  deleteMenuNode(id: number): Promise<void>;
+  
+  // Menu permissions operations
+  getMenuPermissionByNodeId(nodeId: number): Promise<MenuPermission | undefined>;
+  createMenuPermission(permission: InsertMenuPermission): Promise<MenuPermission>;
+  updateMenuPermission(id: number, permission: Partial<InsertMenuPermission>): Promise<MenuPermission>;
+  deleteMenuPermission(id: number): Promise<void>;
+  
+  // Menu actions operations
+  getMenuActionsByPermissionId(permissionId: number): Promise<MenuAction[]>;
+  createMenuAction(action: InsertMenuAction): Promise<MenuAction>;
+  deleteMenuAction(id: number): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -96,6 +122,9 @@ export class MemStorage implements IStorage {
   private documentosTipo: Map<number, DocumentoTipo>;
   private tiposCandidatosDocumentos: Map<number, TipoCandidatoDocumento>;
   private candidatosDocumentos: Map<number, CandidatoDocumento>;
+  private menuNodes: Map<number, MenuNode>;
+  private menuPermissions: Map<number, MenuPermission>;
+  private menuActions: Map<number, MenuAction>;
   currentUserId: number;
   currentCandidatoId: number;
   currentPerfilId: number;
@@ -104,6 +133,9 @@ export class MemStorage implements IStorage {
   currentDocumentoTipoId: number;
   currentTipoCandidatoDocumentoId: number;
   currentCandidatoDocumentoId: number;
+  currentMenuNodeId: number;
+  currentMenuPermissionId: number;
+  currentMenuActionId: number;
 
   constructor() {
     this.users = new Map();
@@ -114,6 +146,9 @@ export class MemStorage implements IStorage {
     this.documentosTipo = new Map();
     this.tiposCandidatosDocumentos = new Map();
     this.candidatosDocumentos = new Map();
+    this.menuNodes = new Map();
+    this.menuPermissions = new Map();
+    this.menuActions = new Map();
     this.currentUserId = 1;
     this.currentCandidatoId = 1;
     this.currentPerfilId = 1;
@@ -122,6 +157,9 @@ export class MemStorage implements IStorage {
     this.currentDocumentoTipoId = 1;
     this.currentTipoCandidatoDocumentoId = 1;
     this.currentCandidatoDocumentoId = 1;
+    this.currentMenuNodeId = 1;
+    this.currentMenuPermissionId = 1;
+    this.currentMenuActionId = 1;
 
     // Create default profiles
     this.perfiles.set(1, {
@@ -798,6 +836,118 @@ export class MemStorage implements IStorage {
       empresaId: empresaId
     };
     return this.createCandidato(candidatoData);
+  }
+
+  // Menu operations
+  async getAllMenuNodes(): Promise<MenuNode[]> {
+    return Array.from(this.menuNodes.values());
+  }
+
+  async createMenuNode(insertMenuNode: InsertMenuNode): Promise<MenuNode> {
+    const menuNode: MenuNode = {
+      id: this.currentMenuNodeId++,
+      ...insertMenuNode,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    this.menuNodes.set(menuNode.id, menuNode);
+    return menuNode;
+  }
+
+  async updateMenuNode(id: number, updateData: Partial<InsertMenuNode>): Promise<MenuNode> {
+    const existing = this.menuNodes.get(id);
+    if (!existing) {
+      throw new Error(`MenuNode with id ${id} not found`);
+    }
+
+    const updated: MenuNode = {
+      ...existing,
+      ...updateData,
+      updatedAt: new Date()
+    };
+
+    this.menuNodes.set(id, updated);
+    return updated;
+  }
+
+  async deleteMenuNode(id: number): Promise<void> {
+    // Also delete any permissions and actions related to this node
+    const permission = Array.from(this.menuPermissions.values())
+      .find(p => p.nodeId === id);
+    
+    if (permission) {
+      await this.deleteMenuPermission(permission.id);
+    }
+
+    this.menuNodes.delete(id);
+  }
+
+  // Menu permissions operations
+  async getMenuPermissionByNodeId(nodeId: number): Promise<MenuPermission | undefined> {
+    return Array.from(this.menuPermissions.values())
+      .find(permission => permission.nodeId === nodeId);
+  }
+
+  async createMenuPermission(insertPermission: InsertMenuPermission): Promise<MenuPermission> {
+    const permission: MenuPermission = {
+      id: this.currentMenuPermissionId++,
+      ...insertPermission,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    this.menuPermissions.set(permission.id, permission);
+    return permission;
+  }
+
+  async updateMenuPermission(id: number, updateData: Partial<InsertMenuPermission>): Promise<MenuPermission> {
+    const existing = this.menuPermissions.get(id);
+    if (!existing) {
+      throw new Error(`MenuPermission with id ${id} not found`);
+    }
+
+    const updated: MenuPermission = {
+      ...existing,
+      ...updateData,
+      updatedAt: new Date()
+    };
+
+    this.menuPermissions.set(id, updated);
+    return updated;
+  }
+
+  async deleteMenuPermission(id: number): Promise<void> {
+    // Also delete any actions related to this permission
+    const actions = Array.from(this.menuActions.values())
+      .filter(action => action.permissionId === id);
+    
+    for (const action of actions) {
+      await this.deleteMenuAction(action.id);
+    }
+
+    this.menuPermissions.delete(id);
+  }
+
+  // Menu actions operations
+  async getMenuActionsByPermissionId(permissionId: number): Promise<MenuAction[]> {
+    return Array.from(this.menuActions.values())
+      .filter(action => action.permissionId === permissionId);
+  }
+
+  async createMenuAction(insertAction: InsertMenuAction): Promise<MenuAction> {
+    const action: MenuAction = {
+      id: this.currentMenuActionId++,
+      ...insertAction,
+      createdAt: new Date()
+    };
+
+    this.menuActions.set(action.id, action);
+    return action;
+  }
+
+  async deleteMenuAction(id: number): Promise<void> {
+    this.menuActions.delete(id);
   }
 }
 

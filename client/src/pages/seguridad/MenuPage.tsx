@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Plus, Trash2, ChevronRight, ChevronDown, Folder, FileText } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Plus, Trash2, ChevronRight, ChevronDown, Folder, FileText, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -9,114 +9,93 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 // Schema for the permission form
 const permissionSchema = z.object({
-  nodos: z.string().min(1, "Los nodos son requeridos"),
   nombreVista: z.string().min(1, "El nombre de la vista es requerido"),
   ruta: z.string().min(1, "La ruta es requerida"),
   acciones: z.array(z.object({
     codigo: z.string().min(1, "El código es requerido"),
-    nombre: z.string().min(1, "El nombre es requerido"),
-    tipo: z.string().min(1, "El tipo es requerido")
+    nombre: z.string().min(1, "El nombre es requerido")
   })).default([])
 });
 
 // Schema for adding new nodes
 const addNodeSchema = z.object({
-  nombre: z.string().min(1, "El nombre del nodo es requerido"),
+  name: z.string().min(1, "El nombre del nodo es requerido"),
   tipo: z.enum(["folder", "file"]).default("folder"),
-  parent: z.number().optional()
+  parentId: z.number().optional()
+});
+
+// Schema for node editing
+const editNodeSchema = z.object({
+  name: z.string().min(1, "El nombre del nodo es requerido")
 });
 
 type PermissionForm = z.infer<typeof permissionSchema>;
 type AddNodeForm = z.infer<typeof addNodeSchema>;
+type EditNodeForm = z.infer<typeof editNodeSchema>;
 
 // Define interfaces for type safety
-interface MenuChild {
+interface MenuNodeData {
   id: number;
   name: string;
-  icon: string;
-  parent: number;
+  tipo: string;
+  parentId: number | null;
+  order: number | null;
+  children?: MenuNodeData[];
+  expanded?: boolean;
 }
 
-interface MenuNode {
-  id: number;
-  name: string;
-  icon: string;
-  expanded: boolean;
-  selected?: boolean;
-  children: MenuChild[];
+interface PermissionData {
+  permission?: {
+    id: number;
+    nodeId: number;
+    nombreVista: string;
+    ruta: string;
+  };
+  actions: Array<{
+    id: number;
+    codigo: string;
+    nombre: string;
+  }>;
 }
-
-// Mock menu data structure
-const mockMenuData: MenuNode[] = [
-  {
-    id: 1,
-    name: "Gestión Almacenes",
-    icon: "folder",
-    expanded: true,
-    children: [
-      { id: 2, name: "Empresa", icon: "file", parent: 1 },
-      { id: 3, name: "Sucursales", icon: "file", parent: 1 },
-      { id: 4, name: "Bodegas", icon: "file", parent: 1 },
-      { id: 5, name: "Terceros/Empresas", icon: "file", parent: 1 }
-    ]
-  },
-  {
-    id: 6,
-    name: "Catalogos Generales",
-    icon: "folder",
-    expanded: false,
-    children: []
-  },
-  {
-    id: 7,
-    name: "Gestion Asistencial",
-    icon: "folder",
-    expanded: false,
-    children: []
-  },
-  {
-    id: 8,
-    name: "Gestión Clínica",
-    icon: "folder",
-    expanded: false,
-    children: []
-  },
-  {
-    id: 9,
-    name: "Gestión Optometría",
-    icon: "folder",
-    expanded: false,
-    children: []
-  },
-  {
-    id: 10,
-    name: "Gestión Comercial",
-    icon: "folder",
-    expanded: false,
-    children: []
-  },
-  {
-    id: 11,
-    name: "Seguridad",
-    icon: "folder",
-    expanded: true,
-    selected: true,
-    children: []
-  }
-];
 
 const MenuPage = () => {
-  const [menuData, setMenuData] = useState<MenuNode[]>(mockMenuData);
-  const [selectedNode, setSelectedNode] = useState<number | null>(11);
+  const [selectedNode, setSelectedNode] = useState<number | null>(null);
+  const [selectedNodeType, setSelectedNodeType] = useState<string | null>(null);
   const [isAddNodeModalOpen, setIsAddNodeModalOpen] = useState(false);
+  const [isCreatePermissionModalOpen, setIsCreatePermissionModalOpen] = useState(false);
+  const [expandedNodes, setExpandedNodes] = useState<Set<number>>(new Set());
+  
+  const queryClient = useQueryClient();
+
+  // Fetch menu nodes
+  const { data: nodes = [], isLoading } = useQuery({
+    queryKey: ['menu-nodes'],
+    queryFn: async () => {
+      const response = await fetch('/api/menu-nodes');
+      if (!response.ok) throw new Error('Failed to fetch nodes');
+      return response.json();
+    }
+  });
+
+  // Fetch permission data for selected node
+  const { data: permissionData } = useQuery({
+    queryKey: ['menu-permissions', selectedNode],
+    queryFn: async () => {
+      if (!selectedNode) return null;
+      const response = await fetch(`/api/menu-permissions/node/${selectedNode}`);
+      if (!response.ok) throw new Error('Failed to fetch permissions');
+      return response.json();
+    },
+    enabled: !!selectedNode && selectedNodeType === 'file'
+  });
 
   const form = useForm<PermissionForm>({
     resolver: zodResolver(permissionSchema),
     defaultValues: {
-      nodos: "",
       nombreVista: "",
       ruta: "",
       acciones: []
@@ -126,37 +105,154 @@ const MenuPage = () => {
   const addNodeForm = useForm<AddNodeForm>({
     resolver: zodResolver(addNodeSchema),
     defaultValues: {
-      nombre: "",
+      name: "",
       tipo: "folder",
-      parent: undefined
+      parentId: undefined
     }
   });
 
-  const toggleExpanded = (nodeId: number) => {
-    setMenuData(prev => prev.map(node => 
-      node.id === nodeId ? { ...node, expanded: !node.expanded } : node
-    ));
+  const editNodeForm = useForm<EditNodeForm>({
+    resolver: zodResolver(editNodeSchema),
+    defaultValues: {
+      name: ""
+    }
+  });
+
+  // Create node mutation
+  const createNodeMutation = useMutation({
+    mutationFn: async (data: AddNodeForm) => {
+      const response = await fetch('/api/menu-nodes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (!response.ok) throw new Error('Failed to create node');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['menu-nodes'] });
+      setIsAddNodeModalOpen(false);
+      addNodeForm.reset();
+    }
+  });
+
+  // Delete node mutation
+  const deleteNodeMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await fetch(`/api/menu-nodes/${id}`, {
+        method: 'DELETE'
+      });
+      if (!response.ok) throw new Error('Failed to delete node');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['menu-nodes'] });
+      setSelectedNode(null);
+      setSelectedNodeType(null);
+    }
+  });
+
+  // Update node mutation
+  const updateNodeMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: EditNodeForm }) => {
+      const response = await fetch(`/api/menu-nodes/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (!response.ok) throw new Error('Failed to update node');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['menu-nodes'] });
+    }
+  });
+
+  // Save permissions mutation
+  const savePermissionsMutation = useMutation({
+    mutationFn: async (data: PermissionForm & { nodeId: number }) => {
+      const response = await fetch('/api/menu-permissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (!response.ok) throw new Error('Failed to save permissions');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['menu-permissions', selectedNode] });
+    }
+  });
+
+  // Transform flat nodes into tree structure
+  const buildTree = (nodes: any[]): MenuNodeData[] => {
+    const nodeMap = new Map();
+    const roots: MenuNodeData[] = [];
+
+    // Create map of all nodes
+    nodes.forEach(node => {
+      nodeMap.set(node.id, { ...node, children: [] });
+    });
+
+    // Build tree structure
+    nodes.forEach(node => {
+      const nodeData = nodeMap.get(node.id);
+      if (node.parentId === null) {
+        roots.push(nodeData);
+      } else {
+        const parent = nodeMap.get(node.parentId);
+        if (parent) {
+          parent.children.push(nodeData);
+        }
+      }
+    });
+
+    return roots;
   };
 
-  const selectNode = (nodeId: number) => {
+  const treeData = buildTree(nodes);
+
+  const toggleExpanded = (nodeId: number) => {
+    const newExpanded = new Set(expandedNodes);
+    if (newExpanded.has(nodeId)) {
+      newExpanded.delete(nodeId);
+    } else {
+      newExpanded.add(nodeId);
+    }
+    setExpandedNodes(newExpanded);
+  };
+
+  const selectNode = (nodeId: number, nodeType: string, nodeName: string) => {
     setSelectedNode(nodeId);
-    // Load the selected node data into the form
-    const selectedNodeData = menuData.find(n => n.id === nodeId) || 
-                           menuData.flatMap(n => n.children || []).find(c => c.id === nodeId);
+    setSelectedNodeType(nodeType);
     
-    if (selectedNodeData) {
-      form.reset({
-        nodos: selectedNodeData.name,
-        nombreVista: selectedNodeData.name,
-        ruta: `/${selectedNodeData.name.toLowerCase().replace(/\s+/g, '-')}`,
-        acciones: []
-      });
+    if (nodeType === 'folder') {
+      // Load node data for editing
+      editNodeForm.reset({ name: nodeName });
     }
   };
 
+  // Load permission data into form when it changes
+  useEffect(() => {
+    if (permissionData && permissionData.permission) {
+      form.reset({
+        nombreVista: permissionData.permission.nombreVista,
+        ruta: permissionData.permission.ruta,
+        acciones: permissionData.actions || []
+      });
+    } else if (selectedNodeType === 'file') {
+      // Reset form for new permissions
+      form.reset({
+        nombreVista: "",
+        ruta: "",
+        acciones: []
+      });
+    }
+  }, [permissionData, selectedNodeType, form]);
+
   const addAction = () => {
     const currentActions = form.getValues("acciones");
-    form.setValue("acciones", [...currentActions, { codigo: "", nombre: "", tipo: "" }]);
+    form.setValue("acciones", [...currentActions, { codigo: "", nombre: "" }]);
   };
 
   const removeAction = (index: number) => {
@@ -164,110 +260,217 @@ const MenuPage = () => {
     form.setValue("acciones", currentActions.filter((_, i) => i !== index));
   };
 
-  const onSubmit = (data: PermissionForm) => {
-    console.log("Permission data:", data);
-    // Save the permission data
+  const onSubmitPermissions = (data: PermissionForm) => {
+    if (selectedNode) {
+      savePermissionsMutation.mutate({ ...data, nodeId: selectedNode });
+    }
   };
 
-  const onAddNode = (data: AddNodeForm) => {
-    const newId = Math.max(...menuData.map(n => n.id), ...menuData.flatMap(n => n.children?.map(c => c.id) || [])) + 1;
-    
-    if (data.parent && selectedNode) {
-      // Add as child to selected parent
-      setMenuData(prev => prev.map(node => {
-        if (node.id === selectedNode) {
-          const newChild = {
-            id: newId,
-            name: data.nombre,
-            icon: data.tipo,
-            parent: selectedNode
-          };
-          return {
-            ...node,
-            children: [...(node.children || []), newChild]
-          };
-        }
-        return node;
-      }));
-    } else {
-      // Add as root level node
-      const newNode = {
-        id: newId,
-        name: data.nombre,
-        icon: data.tipo,
-        expanded: false,
-        children: []
-      };
-      setMenuData(prev => [...prev, newNode]);
+  const onSubmitAddNode = (data: AddNodeForm) => {
+    const nodeData = {
+      ...data,
+      parentId: data.parentId && selectedNode ? selectedNode : undefined
+    };
+    createNodeMutation.mutate(nodeData);
+  };
+
+  const onSubmitEditNode = (data: EditNodeForm) => {
+    if (selectedNode) {
+      updateNodeMutation.mutate({ id: selectedNode, data });
     }
-    
-    setIsAddNodeModalOpen(false);
-    addNodeForm.reset();
-    setSelectedNode(newId);
   };
 
   const deleteSelectedNode = () => {
-    if (!selectedNode) return;
-    
-    // Check if it's a root node
-    const isRootNode = menuData.some(node => node.id === selectedNode);
-    
-    if (isRootNode) {
-      setMenuData(prev => prev.filter(node => node.id !== selectedNode));
-    } else {
-      // It's a child node
-      setMenuData(prev => prev.map(node => ({
-        ...node,
-        children: node.children?.filter(child => child.id !== selectedNode) || []
-      })));
+    if (selectedNode) {
+      deleteNodeMutation.mutate(selectedNode);
     }
-    
-    setSelectedNode(null);
   };
 
-  const renderTreeNode = (node: MenuNode) => (
+  const renderTreeNode = (node: MenuNodeData): React.ReactNode => (
     <div key={node.id} className="border-b border-gray-100 last:border-0">
       <div 
         className={`flex items-center py-2 px-3 hover:bg-gray-50 cursor-pointer ${
           selectedNode === node.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
         }`}
-        onClick={() => selectNode(node.id)}
+        onClick={() => selectNode(node.id, node.tipo, node.name)}
       >
         <div className="flex items-center flex-1 min-w-0">
-          <Button 
-            variant="ghost" 
-            size="sm"
-            className="p-0 h-auto mr-1"
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleExpanded(node.id);
-            }}
-          >
-            {node.expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-          </Button>
-          {node.icon === "folder" ? <Folder size={16} className="mr-2" /> : <FileText size={16} className="mr-2" />}
+          {node.children && node.children.length > 0 && (
+            <Button 
+              variant="ghost" 
+              size="sm"
+              className="p-0 h-auto mr-1"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleExpanded(node.id);
+              }}
+            >
+              {expandedNodes.has(node.id) ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+            </Button>
+          )}
+          {node.tipo === "folder" ? <Folder size={16} className="mr-2" /> : <FileText size={16} className="mr-2" />}
           <span className="text-sm truncate">{node.name}</span>
         </div>
       </div>
       
-      {node.expanded && node.children && (
+      {expandedNodes.has(node.id) && node.children && (
         <div className="ml-4">
-          {node.children.map(child => (
-            <div 
-              key={child.id}
-              className={`flex items-center py-2 px-3 hover:bg-gray-50 cursor-pointer ${
-                selectedNode === child.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
-              }`}
-              onClick={() => selectNode(child.id)}
-            >
-              <FileText size={16} className="mr-2" />
-              <span className="text-sm">{child.name}</span>
-            </div>
-          ))}
+          {node.children.map(child => renderTreeNode(child))}
         </div>
       )}
     </div>
   );
+
+  const renderRightPanel = () => {
+    if (!selectedNode) {
+      return (
+        <div className="text-center text-gray-500 py-8">
+          Selecciona un elemento del árbol de menús para ver su configuración
+        </div>
+      );
+    }
+
+    if (selectedNodeType === 'folder') {
+      // Show node edit form for folders
+      return (
+        <Form {...editNodeForm}>
+          <form onSubmit={editNodeForm.handleSubmit(onSubmitEditNode)} className="space-y-4">
+            <FormField
+              control={editNodeForm.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nombre del Módulo</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Nombre del módulo" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button type="submit" className="bg-green-600 hover:bg-green-700">
+                💾 Guardar
+              </Button>
+            </div>
+          </form>
+        </Form>
+      );
+    }
+
+    if (selectedNodeType === 'file') {
+      // Show permission management form for files
+      return (
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmitPermissions)} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="nombreVista"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nombre Vista *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Nombre de la vista" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="ruta"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Ruta *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ruta del formulario" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium text-center w-full">LISTADO DE ACCIONES RELACIONADAS</h3>
+              </div>
+              
+              <div className="grid grid-cols-3 gap-2 text-sm font-medium text-center">
+                <div>Código</div>
+                <div>Nombre</div>
+                <div></div>
+              </div>
+
+              {form.watch("acciones").map((_, index) => (
+                <div key={index} className="grid grid-cols-3 gap-2 items-end">
+                  <FormField
+                    control={form.control}
+                    name={`acciones.${index}.codigo`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name={`acciones.${index}.nombre`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => removeAction(index)}
+                  >
+                    <Trash2 size={16} />
+                  </Button>
+                </div>
+              ))}
+
+              <Button
+                type="button"
+                size="sm"
+                onClick={addAction}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <Plus size={16} className="mr-1" />
+              </Button>
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button type="submit" className="bg-green-600 hover:bg-green-700">
+                💾 Guardar
+              </Button>
+              <Button 
+                type="button" 
+                variant="secondary"
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                ⚠️ Inactivar
+              </Button>
+            </div>
+          </form>
+        </Form>
+      );
+    }
+
+    return null;
+  };
+
+  if (isLoading) {
+    return <div className="p-6">Cargando...</div>;
+  }
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -295,10 +498,10 @@ const MenuPage = () => {
               <DialogTitle>Adicionar Nodo</DialogTitle>
             </DialogHeader>
             <Form {...addNodeForm}>
-              <form onSubmit={addNodeForm.handleSubmit(onAddNode)} className="space-y-4">
+              <form onSubmit={addNodeForm.handleSubmit(onSubmitAddNode)} className="space-y-4">
                 <FormField
                   control={addNodeForm.control}
-                  name="nombre"
+                  name="name"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Nombre del Nodo</FormLabel>
@@ -330,10 +533,10 @@ const MenuPage = () => {
                     </FormItem>
                   )}
                 />
-                {selectedNode && (
+                {selectedNode && selectedNodeType === 'folder' && (
                   <FormField
                     control={addNodeForm.control}
-                    name="parent"
+                    name="parentId"
                     render={({ field }) => (
                       <FormItem className="flex flex-row items-center space-x-3 space-y-0">
                         <FormControl>
@@ -378,6 +581,23 @@ const MenuPage = () => {
           <Trash2 size={16} className="mr-1" />
           Eliminar
         </Button>
+
+        <Dialog open={isCreatePermissionModalOpen} onOpenChange={setIsCreatePermissionModalOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+              <Settings size={16} className="mr-1" />
+              Gestión de Permisos
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Crear Gestión de Permisos</DialogTitle>
+            </DialogHeader>
+            <div className="text-center text-gray-500 py-8">
+              Selecciona un formulario del árbol de menús para gestionar sus permisos
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Main Content Area */}
@@ -390,7 +610,13 @@ const MenuPage = () => {
             </CardHeader>
             <CardContent className="p-0">
               <div className="max-h-96 overflow-y-auto border rounded-md">
-                {menuData.map(node => renderTreeNode(node))}
+                {treeData.length === 0 ? (
+                  <div className="p-4 text-center text-gray-500">
+                    No hay nodos creados. Usa el botón "Nodo" para agregar elementos.
+                  </div>
+                ) : (
+                  treeData.map(node => renderTreeNode(node))
+                )}
               </div>
             </CardContent>
           </Card>
@@ -400,154 +626,20 @@ const MenuPage = () => {
         <div className="col-span-8">
           <Card>
             <CardHeader>
-              <CardTitle>Gestión de Permisos</CardTitle>
+              <CardTitle>
+                {selectedNodeType === 'folder' ? 'Configuración del Módulo' : 
+                 selectedNodeType === 'file' ? 'Gestión de Permisos' : 'Configuración'}
+              </CardTitle>
               <CardDescription>
-                {selectedNode ? `Configuración para el nodo seleccionado` : 'Selecciona un nodo del árbol para configurar sus permisos'}
+                {selectedNode ? 
+                  (selectedNodeType === 'folder' ? 'Edita la información del módulo seleccionado' : 
+                   selectedNodeType === 'file' ? 'Configura los permisos del formulario seleccionado' : 
+                   'Configuración del elemento seleccionado') : 
+                  'Selecciona un elemento del árbol para ver su configuración'}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {selectedNode ? (
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                    <div className="grid grid-cols-3 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="nodos"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Nodos</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Nodos" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="nombreVista"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Nombre Vista *</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Nombre" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="ruta"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Ruta *</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Ruta" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-medium text-center w-full">LISTADO DE ACCIONES RELACIONADAS</h3>
-                      </div>
-                      
-                      <div className="grid grid-cols-4 gap-2 text-sm font-medium text-center">
-                        <div>Código</div>
-                        <div>Nombre</div>
-                        <div>Tipo</div>
-                        <div></div>
-                      </div>
-
-                      {form.watch("acciones").map((_, index) => (
-                        <div key={index} className="grid grid-cols-4 gap-2 items-end">
-                          <FormField
-                            control={form.control}
-                            name={`acciones.${index}.codigo`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormControl>
-                                  <Input {...field} />
-                                </FormControl>
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={form.control}
-                            name={`acciones.${index}.nombre`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormControl>
-                                  <Input {...field} />
-                                </FormControl>
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={form.control}
-                            name={`acciones.${index}.tipo`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormControl>
-                                  <Select onValueChange={field.onChange} value={field.value}>
-                                    <SelectTrigger>
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="crear">Crear</SelectItem>
-                                      <SelectItem value="editar">Editar</SelectItem>
-                                      <SelectItem value="eliminar">Eliminar</SelectItem>
-                                      <SelectItem value="visualizar">Visualizar</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                </FormControl>
-                              </FormItem>
-                            )}
-                          />
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => removeAction(index)}
-                          >
-                            <Trash2 size={16} />
-                          </Button>
-                        </div>
-                      ))}
-
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={addAction}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        <Plus size={16} className="mr-1" />
-                      </Button>
-                    </div>
-
-                    <div className="flex justify-end space-x-2 pt-4">
-                      <Button type="submit" className="bg-green-600 hover:bg-green-700">
-                        💾 Guardar
-                      </Button>
-                      <Button 
-                        type="button" 
-                        variant="secondary"
-                        className="bg-red-600 hover:bg-red-700 text-white"
-                      >
-                        ⚠️ Inactivar
-                      </Button>
-                    </div>
-                  </form>
-                </Form>
-              ) : (
-                <p className="text-center text-gray-500 py-8">
-                  Selecciona un elemento del árbol de menús para configurar sus permisos
-                </p>
-              )}
+              {renderRightPanel()}
             </CardContent>
           </Card>
         </div>

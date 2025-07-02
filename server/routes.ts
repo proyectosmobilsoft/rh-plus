@@ -644,6 +644,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // Menu API routes
+  app.get("/api/menu-nodes", async (req, res, next) => {
+    try {
+      const nodes = await storage.getAllMenuNodes();
+      res.json(nodes);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/menu-nodes", async (req, res, next) => {
+    try {
+      const node = await storage.createMenuNode(req.body);
+      res.json(node);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.put("/api/menu-nodes/:id", async (req, res, next) => {
+    try {
+      const node = await storage.updateMenuNode(parseInt(req.params.id), req.body);
+      res.json(node);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.delete("/api/menu-nodes/:id", async (req, res, next) => {
+    try {
+      await storage.deleteMenuNode(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Menu permissions API routes
+  app.get("/api/menu-permissions/node/:nodeId", async (req, res, next) => {
+    try {
+      const permission = await storage.getMenuPermissionByNodeId(parseInt(req.params.nodeId));
+      const actions = permission ? await storage.getMenuActionsByPermissionId(permission.id) : [];
+      res.json({ permission, actions });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/menu-permissions", async (req, res, next) => {
+    try {
+      const { nodeId, nombreVista, ruta, acciones } = req.body;
+      
+      // Create or update permission
+      let permission = await storage.getMenuPermissionByNodeId(nodeId);
+      if (permission) {
+        permission = await storage.updateMenuPermission(permission.id, { nombreVista, ruta });
+      } else {
+        permission = await storage.createMenuPermission({ nodeId, nombreVista, ruta });
+      }
+
+      // Delete existing actions and create new ones
+      const existingActions = await storage.getMenuActionsByPermissionId(permission.id);
+      for (const action of existingActions) {
+        await storage.deleteMenuAction(action.id);
+      }
+
+      // Create new actions
+      for (const actionData of acciones || []) {
+        if (actionData.codigo && actionData.nombre) {
+          await storage.createMenuAction({
+            permissionId: permission.id,
+            codigo: actionData.codigo,
+            nombre: actionData.nombre
+          });
+        }
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
