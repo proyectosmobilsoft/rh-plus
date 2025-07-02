@@ -29,10 +29,16 @@ import CrearCandidatoPage from "./pages/seguridad/CrearCandidatoPage";
 import CrearAdministradorPage from "./pages/seguridad/CrearAdministradorPage";
 import CrearCoordinadorPage from "./pages/seguridad/CrearCoordinadorPage";
 import CrearAdminGeneralPage from "./pages/seguridad/CrearAdminGeneralPage";
+import CrearClientePage from "./pages/seguridad/CrearClientePage";
 import MenuPage from "./pages/seguridad/MenuPage";
 
 // Maestro pages
 import TiposCandidatosPage from "./pages/maestro/TiposCandidatosPage";
+
+// Analistas pages
+import AnalistasPage from "./pages/analistas/AnalistasPage";
+import CrearAnalistaPage from "./pages/analistas/CrearAnalistaPage";
+import EditarAnalistaPage from "./pages/analistas/EditarAnalistaPage";
 
 // Candidate portal pages
 import LoginCandidato from "./pages/candidatos/LoginCandidato";
@@ -110,10 +116,16 @@ const App = () => (
             <Route path="/seguridad/perfiles/crear-administrador" element={<CrearAdministradorPage />} />
             <Route path="/seguridad/perfiles/crear-coordinador" element={<CrearCoordinadorPage />} />
             <Route path="/seguridad/perfiles/crear-admin-general" element={<CrearAdminGeneralPage />} />
+            <Route path="/seguridad/perfiles/crear-cliente" element={<CrearClientePage />} />
             <Route path="/seguridad/menu" element={<MenuPage />} />
             
             {/* Maestro */}
             <Route path="/maestro/tipos-candidatos" element={<TiposCandidatosPage />} />
+            
+            {/* Analistas */}
+            <Route path="/analistas" element={<AnalistasPage />} />
+            <Route path="/analistas/crear" element={<CrearAnalistaPage />} />
+            <Route path="/analistas/:id/editar" element={<EditarAnalistaPage />} />
           </Route>
           
           {/* Ruta 404 */}
