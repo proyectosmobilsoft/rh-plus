@@ -105,6 +105,14 @@ This is a full-stack medical practice management application built with modern w
 
 ```
 Changelog:
+- June 27, 2025. Menu management system and company visible fields implementation
+  * Implemented comprehensive menu management interface with tree view navigation
+  * Added visible fields checklist to company form (cargo, salario, celular, correo, fecha_ingreso, direccion, jornada_laboral)
+  * Created interactive tree structure for menu configuration with expand/collapse functionality
+  * Built permission management form with dynamic action fields (código, nombre, tipo)
+  * Added action buttons for menu node management (crear, eliminar, visualizar, vista/nom)
+  * Integrated proper form validation and submission handling for menu permissions
+  * Menu system includes drag-and-drop preparation for future organization features
 - December 30, 2024. Complete enterprise portal implementation
   * Built complete portal de empresas with authentication, dashboard, and candidate management
   * Implemented enterprise-specific candidate creation and isolation (companies only see their own candidates)  
