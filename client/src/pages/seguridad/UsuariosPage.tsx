@@ -12,6 +12,7 @@ import { Link } from "wouter";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -21,6 +22,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Checkbox } from "@/components/ui/checkbox";
+import { MultiSelect } from "@/components/ui/multi-select";
+import { PasswordStrength } from "@/components/ui/password-strength";
+// Los tipos se importan automáticamente desde el schema
 
 // Esquema de validación para crear usuario
 const crearUsuarioSchema = z.object({
@@ -34,6 +38,7 @@ const crearUsuarioSchema = z.object({
   username: z.string().min(3, "El username debe tener al menos 3 caracteres"),
   password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
   perfilIds: z.array(z.number()).min(1, "Debe seleccionar al menos un perfil"),
+  empresaIds: z.array(z.number()).optional(),
 });
 
 type CrearUsuarioForm = z.infer<typeof crearUsuarioSchema>;
@@ -81,6 +86,11 @@ const UsuariosPage = () => {
     queryKey: ["/api/perfiles"],
   });
 
+  // Query para obtener empresas disponibles
+  const { data: empresas = [] } = useQuery<any[]>({
+    queryKey: ["/api/empresas"],
+  });
+
   // Formulario para crear usuario
   const form = useForm<CrearUsuarioForm>({
     resolver: zodResolver(crearUsuarioSchema),
@@ -95,6 +105,7 @@ const UsuariosPage = () => {
       username: "",
       password: "",
       perfilIds: [],
+      empresaIds: [],
     },
   });
 
@@ -201,6 +212,9 @@ const UsuariosPage = () => {
               <DialogTitle className="text-xl font-semibold text-green-700">
                 Crear Nuevo Usuario
               </DialogTitle>
+              <DialogDescription>
+                Complete la información del usuario incluyendo sus datos personales, credenciales y perfiles asignados.
+              </DialogDescription>
             </DialogHeader>
             
             <Form {...form}>
@@ -336,6 +350,7 @@ const UsuariosPage = () => {
                           <FormControl>
                             <Input type="password" placeholder="Contraseña (mín. 6 caracteres)" {...field} />
                           </FormControl>
+                          <PasswordStrength password={field.value} />
                           <FormMessage />
                         </FormItem>
                       )}
@@ -343,57 +358,53 @@ const UsuariosPage = () => {
                   </div>
                 </div>
 
-                {/* Perfiles */}
-                <div className="bg-green-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Perfiles Asignados</h3>
+                {/* Perfiles y Almacenes - layout como en la imagen */}
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Perfiles Asociados */}
                   <FormField
                     control={form.control}
                     name="perfilIds"
-                    render={() => (
+                    render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Seleccionar Perfiles *</FormLabel>
-                        <div className="grid grid-cols-2 gap-3">
-                          {perfiles.map((perfil) => (
-                            <FormField
-                              key={perfil.id}
-                              control={form.control}
-                              name="perfilIds"
-                              render={({ field }) => {
-                                return (
-                                  <FormItem
-                                    key={perfil.id}
-                                    className="flex flex-row items-start space-x-3 space-y-0"
-                                  >
-                                    <FormControl>
-                                      <Checkbox
-                                        checked={field.value?.includes(perfil.id)}
-                                        onCheckedChange={(checked) => {
-                                          return checked
-                                            ? field.onChange([...field.value, perfil.id])
-                                            : field.onChange(
-                                                field.value?.filter(
-                                                  (value) => value !== perfil.id
-                                                )
-                                              )
-                                        }}
-                                      />
-                                    </FormControl>
-                                    <div className="space-y-1 leading-none">
-                                      <FormLabel className="text-sm font-normal">
-                                        {perfil.nombre}
-                                      </FormLabel>
-                                      {perfil.descripcion && (
-                                        <p className="text-xs text-gray-500">
-                                          {perfil.descripcion}
-                                        </p>
-                                      )}
-                                    </div>
-                                  </FormItem>
-                                )
-                              }}
-                            />
-                          ))}
-                        </div>
+                        <FormLabel>Perfiles Asociados *</FormLabel>
+                        <FormControl>
+                          <MultiSelect
+                            options={perfiles.map(perfil => ({
+                              value: perfil.id.toString(),
+                              label: perfil.nombre
+                            }))}
+                            selected={field.value?.map(id => id.toString()) || []}
+                            onChange={(selected) => {
+                              field.onChange(selected.map(id => parseInt(id)));
+                            }}
+                            placeholder="Seleccione un Perfil"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Almacenes Asociados */}
+                  <FormField
+                    control={form.control}
+                    name="empresaIds"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Almacenes Asociados *</FormLabel>
+                        <FormControl>
+                          <MultiSelect
+                            options={empresas.map(empresa => ({
+                              value: empresa.id.toString(),
+                              label: empresa.nombreEmpresa
+                            }))}
+                            selected={field.value?.map(id => id.toString()) || []}
+                            onChange={(selected) => {
+                              field.onChange(selected.map(id => parseInt(id)));
+                            }}
+                            placeholder="Seleccione un almacén"
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
