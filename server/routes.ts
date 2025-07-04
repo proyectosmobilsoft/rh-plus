@@ -1367,6 +1367,194 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== MÓDULO DE REPORTES =====
+
+  // Dashboard principal - métricas generales
+  app.get("/api/reportes/dashboard", async (req, res) => {
+    try {
+      const dashboardData = await storage.getDashboardData();
+      res.json(dashboardData);
+    } catch (error) {
+      console.error("Error obteniendo datos del dashboard:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Lead time por analista
+  app.get("/api/reportes/leadtime-analistas", async (req, res) => {
+    try {
+      const leadTimeData = await storage.getLeadTimeByAnalista();
+      res.json(leadTimeData);
+    } catch (error) {
+      console.error("Error obteniendo lead time por analista:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // === ÓRDENES ===
+
+  // Obtener todas las órdenes
+  app.get("/api/ordenes", async (req, res) => {
+    try {
+      const ordenes = await storage.getAllOrdenes();
+      res.json(ordenes);
+    } catch (error) {
+      console.error("Error obteniendo órdenes:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Crear nueva orden
+  app.post("/api/ordenes", async (req, res) => {
+    try {
+      const ordenData = req.body;
+      const orden = await storage.createOrden(ordenData);
+      
+      // Crear entrada en historial
+      await storage.createHistorialEntry({
+        ordenId: orden.id,
+        estadoAnterior: null,
+        estadoNuevo: orden.estado,
+        motivo: "Orden creada"
+      });
+
+      res.status(201).json(orden);
+    } catch (error) {
+      console.error("Error creando orden:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Obtener orden por ID
+  app.get("/api/ordenes/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const orden = await storage.getOrdenById(id);
+      
+      if (!orden) {
+        return res.status(404).json({ message: "Orden no encontrada" });
+      }
+      
+      res.json(orden);
+    } catch (error) {
+      console.error("Error obteniendo orden:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Actualizar estado de orden
+  app.put("/api/ordenes/:id/estado", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { estado, motivo } = req.body;
+      
+      const ordenActual = await storage.getOrdenById(id);
+      if (!ordenActual) {
+        return res.status(404).json({ message: "Orden no encontrada" });
+      }
+
+      const orden = await storage.updateOrden(id, { estado });
+      
+      // Crear entrada en historial
+      await storage.createHistorialEntry({
+        ordenId: id,
+        estadoAnterior: ordenActual.estado,
+        estadoNuevo: estado,
+        motivo: motivo || `Cambio de estado a ${estado}`
+      });
+
+      res.json(orden);
+    } catch (error) {
+      console.error("Error actualizando estado de orden:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Obtener historial de una orden
+  app.get("/api/ordenes/:id/historial", async (req, res) => {
+    try {
+      const ordenId = parseInt(req.params.id);
+      const historial = await storage.getHistorialByOrden(ordenId);
+      res.json(historial);
+    } catch (error) {
+      console.error("Error obteniendo historial de orden:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // === ALERTAS ===
+
+  // Obtener todas las alertas
+  app.get("/api/alertas", async (req, res) => {
+    try {
+      const alertas = await storage.getAllAlertas();
+      res.json(alertas);
+    } catch (error) {
+      console.error("Error obteniendo alertas:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Obtener alertas activas
+  app.get("/api/alertas/activas", async (req, res) => {
+    try {
+      const alertas = await storage.getAlertasActivas();
+      res.json(alertas);
+    } catch (error) {
+      console.error("Error obteniendo alertas activas:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Crear nueva alerta
+  app.post("/api/alertas", async (req, res) => {
+    try {
+      const alertaData = req.body;
+      const alerta = await storage.createAlerta(alertaData);
+      res.status(201).json(alerta);
+    } catch (error) {
+      console.error("Error creando alerta:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Resolver alerta
+  app.put("/api/alertas/:id/resolver", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const alerta = await storage.resolverAlerta(id);
+      res.json(alerta);
+    } catch (error) {
+      console.error("Error resolviendo alerta:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // === NOTIFICACIONES ===
+
+  // Obtener todas las notificaciones
+  app.get("/api/notificaciones", async (req, res) => {
+    try {
+      const notificaciones = await storage.getAllNotificaciones();
+      res.json(notificaciones);
+    } catch (error) {
+      console.error("Error obteniendo notificaciones:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Crear nueva notificación
+  app.post("/api/notificaciones", async (req, res) => {
+    try {
+      const notificacionData = req.body;
+      const notificacion = await storage.createNotificacion(notificacionData);
+      res.status(201).json(notificacion);
+    } catch (error) {
+      console.error("Error creando notificación:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

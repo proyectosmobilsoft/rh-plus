@@ -50,6 +50,22 @@ import {
   type InsertPerfilAccion,
   type Analista,
   type InsertAnalista,
+  // Nuevos imports para reportes
+  ordenes,
+  ordenesHistorial,
+  notificaciones,
+  alertas,
+  metricas,
+  type Orden,
+  type InsertOrden,
+  type OrdenHistorial,
+  type InsertOrdenHistorial,
+  type Notificacion,
+  type InsertNotificacion,
+  type Alerta,
+  type InsertAlerta,
+  type Metrica,
+  type InsertMetrica,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -205,6 +221,56 @@ export interface IStorage {
   deletePerfilAccionesByPerfilMenuId(perfilMenuId: number): Promise<void>;
   getPerfilMenusByPerfilId(perfilId: number): Promise<PerfilMenu[]>;
   getPerfilAccionesByPerfilMenuId(perfilMenuId: number): Promise<PerfilAccion[]>;
+
+  // Operaciones de órdenes
+  getAllOrdenes(): Promise<Orden[]>;
+  getOrdenById(id: number): Promise<Orden | undefined>;
+  getOrdenesByCliente(clienteId: number): Promise<Orden[]>;
+  getOrdenesByAnalista(analistaId: number): Promise<Orden[]>;
+  createOrden(orden: InsertOrden): Promise<Orden>;
+  updateOrden(id: number, orden: Partial<InsertOrden>): Promise<Orden>;
+  deleteOrden(id: number): Promise<void>;
+
+  // Operaciones de historial de órdenes
+  getHistorialByOrden(ordenId: number): Promise<OrdenHistorial[]>;
+  createHistorialEntry(historial: InsertOrdenHistorial): Promise<OrdenHistorial>;
+
+  // Operaciones de notificaciones
+  getAllNotificaciones(): Promise<Notificacion[]>;
+  getNotificacionesByOrden(ordenId: number): Promise<Notificacion[]>;
+  createNotificacion(notificacion: InsertNotificacion): Promise<Notificacion>;
+  updateNotificacionEstado(id: number, estado: string, motivoFallo?: string): Promise<Notificacion>;
+
+  // Operaciones de alertas
+  getAllAlertas(): Promise<Alerta[]>;
+  getAlertasActivas(): Promise<Alerta[]>;
+  createAlerta(alerta: InsertAlerta): Promise<Alerta>;
+  resolverAlerta(id: number): Promise<Alerta>;
+
+  // Operaciones de métricas y reportes
+  getMetricasByFecha(fecha: Date): Promise<Metrica[]>;
+  getMetricasByAnalista(analistaId: number, fechaInicio: Date, fechaFin: Date): Promise<Metrica[]>;
+  createMetrica(metrica: InsertMetrica): Promise<Metrica>;
+  updateMetrica(id: number, metrica: Partial<InsertMetrica>): Promise<Metrica>;
+
+  // Reportes específicos
+  getDashboardData(): Promise<{
+    ordenesTotales: number;
+    ordenesHoy: number;
+    ordenesEnProceso: number;
+    alertasActivas: number;
+    leadTimePromedio: number;
+    ordenesPorEstado: { estado: string; cantidad: number }[];
+    ordenesPorAnalista: { analista: string; cantidad: number }[];
+  }>;
+  
+  getLeadTimeByAnalista(): Promise<{
+    analistaId: number;
+    nombre: string;
+    ordenesAbiertas: number;
+    ordenesCerradas: number;
+    leadTimePromedio: number;
+  }[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -225,6 +291,13 @@ export class MemStorage implements IStorage {
   private perfilMenus: Map<number, PerfilMenu>;
   private perfilAcciones: Map<number, PerfilAccion>;
   private analistas: Map<number, Analista>;
+  
+  // Nuevas tablas para reportes
+  private ordenes: Map<number, Orden>;
+  private ordenesHistorial: Map<number, OrdenHistorial>;
+  private notificaciones: Map<number, Notificacion>;
+  private alertas: Map<number, Alerta>;
+  private metricas: Map<number, Metrica>;
 
   currentUserId: number;
   currentUserPerfilId: number;
@@ -242,6 +315,11 @@ export class MemStorage implements IStorage {
   currentPerfilMenuId: number;
   currentPerfilAccionId: number;
   currentAnalistaId: number;
+  currentOrdenId: number;
+  currentHistorialId: number;
+  currentNotificacionId: number;
+  currentAlertaId: number;
+  currentMetricaId: number;
 
   constructor() {
     this.users = new Map();
@@ -260,6 +338,14 @@ export class MemStorage implements IStorage {
     this.perfilMenus = new Map();
     this.perfilAcciones = new Map();
     this.analistas = new Map();
+    
+    // Inicializar las nuevas Maps para reportes
+    this.ordenes = new Map();
+    this.ordenesHistorial = new Map();
+    this.notificaciones = new Map();
+    this.alertas = new Map();
+    this.metricas = new Map();
+    
     this.currentUserId = 1;
     this.currentUserPerfilId = 1;
     this.currentCandidatoId = 1;
@@ -276,6 +362,14 @@ export class MemStorage implements IStorage {
     this.currentPerfilMenuId = 1;
     this.currentPerfilAccionId = 1;
     this.currentAnalistaId = 1;
+    this.currentOrdenId = 1;
+    this.currentHistorialId = 1;
+    this.currentNotificacionId = 1;
+    this.currentAlertaId = 1;
+    this.currentMetricaId = 1;
+
+    // Agregar datos de muestra para el dashboard
+    this.initializeSampleData();
 
     // Create default profiles
     this.perfiles.set(1, {
@@ -1575,6 +1669,438 @@ export class MemStorage implements IStorage {
     return Array.from(this.perfilAcciones.values()).filter(
       (accion) => accion.perfilMenuId === perfilMenuId,
     );
+  }
+
+  // ===== REPORTES Y ÓRDENES =====
+  
+  // Operaciones de órdenes
+  async getAllOrdenes(): Promise<Orden[]> {
+    return Array.from(this.ordenes.values());
+  }
+
+  async getOrdenById(id: number): Promise<Orden | undefined> {
+    return this.ordenes.get(id);
+  }
+
+  async getOrdenesByCliente(clienteId: number): Promise<Orden[]> {
+    return Array.from(this.ordenes.values()).filter(
+      (orden) => orden.clienteId === clienteId
+    );
+  }
+
+  async getOrdenesByAnalista(analistaId: number): Promise<Orden[]> {
+    return Array.from(this.ordenes.values()).filter(
+      (orden) => orden.analistaId === analistaId
+    );
+  }
+
+  async createOrden(orden: InsertOrden): Promise<Orden> {
+    const newOrden: Orden = {
+      id: this.currentOrdenId++,
+      ...orden,
+      fechaCreacion: new Date(),
+      fechaAsignacion: null,
+      fechaInicioExamenes: null,
+      fechaFinalizacion: null,
+      fechaVencimiento: null,
+      leadTime: null,
+    };
+
+    this.ordenes.set(newOrden.id, newOrden);
+    return newOrden;
+  }
+
+  async updateOrden(id: number, orden: Partial<InsertOrden>): Promise<Orden> {
+    const existing = this.ordenes.get(id);
+    if (!existing) throw new Error("Orden not found");
+
+    const updated: Orden = { ...existing, ...orden };
+    this.ordenes.set(id, updated);
+    return updated;
+  }
+
+  async deleteOrden(id: number): Promise<void> {
+    this.ordenes.delete(id);
+  }
+
+  // Operaciones de historial de órdenes
+  async getHistorialByOrden(ordenId: number): Promise<OrdenHistorial[]> {
+    return Array.from(this.ordenesHistorial.values()).filter(
+      (historial) => historial.ordenId === ordenId
+    );
+  }
+
+  async createHistorialEntry(historial: InsertOrdenHistorial): Promise<OrdenHistorial> {
+    const newHistorial: OrdenHistorial = {
+      id: this.currentHistorialId++,
+      ...historial,
+      fechaCambio: new Date(),
+    };
+
+    this.ordenesHistorial.set(newHistorial.id, newHistorial);
+    return newHistorial;
+  }
+
+  // Operaciones de notificaciones
+  async getAllNotificaciones(): Promise<Notificacion[]> {
+    return Array.from(this.notificaciones.values());
+  }
+
+  async getNotificacionesByOrden(ordenId: number): Promise<Notificacion[]> {
+    return Array.from(this.notificaciones.values()).filter(
+      (notificacion) => notificacion.ordenId === ordenId
+    );
+  }
+
+  async createNotificacion(notificacion: InsertNotificacion): Promise<Notificacion> {
+    const newNotificacion: Notificacion = {
+      id: this.currentNotificacionId++,
+      ...notificacion,
+      fechaCreacion: new Date(),
+      fechaEnvio: null,
+      motivoFallo: null,
+    };
+
+    this.notificaciones.set(newNotificacion.id, newNotificacion);
+    return newNotificacion;
+  }
+
+  async updateNotificacionEstado(id: number, estado: string, motivoFallo?: string): Promise<Notificacion> {
+    const existing = this.notificaciones.get(id);
+    if (!existing) throw new Error("Notificacion not found");
+
+    const updated: Notificacion = {
+      ...existing,
+      estado,
+      fechaEnvio: estado === "enviado" ? new Date() : existing.fechaEnvio,
+      motivoFallo: motivoFallo || existing.motivoFallo,
+    };
+    
+    this.notificaciones.set(id, updated);
+    return updated;
+  }
+
+  // Operaciones de alertas
+  async getAllAlertas(): Promise<Alerta[]> {
+    return Array.from(this.alertas.values());
+  }
+
+  async getAlertasActivas(): Promise<Alerta[]> {
+    return Array.from(this.alertas.values()).filter(
+      (alerta) => alerta.estado === "activa"
+    );
+  }
+
+  async createAlerta(alerta: InsertAlerta): Promise<Alerta> {
+    const newAlerta: Alerta = {
+      id: this.currentAlertaId++,
+      ...alerta,
+      fechaCreacion: new Date(),
+      fechaResolucion: null,
+    };
+
+    this.alertas.set(newAlerta.id, newAlerta);
+    return newAlerta;
+  }
+
+  async resolverAlerta(id: number): Promise<Alerta> {
+    const existing = this.alertas.get(id);
+    if (!existing) throw new Error("Alerta not found");
+
+    const updated: Alerta = {
+      ...existing,
+      estado: "resuelta",
+      fechaResolucion: new Date(),
+    };
+    
+    this.alertas.set(id, updated);
+    return updated;
+  }
+
+  // Operaciones de métricas
+  async getMetricasByFecha(fecha: Date): Promise<Metrica[]> {
+    const fechaStr = fecha.toISOString().split('T')[0];
+    return Array.from(this.metricas.values()).filter(
+      (metrica) => metrica.fecha === fechaStr
+    );
+  }
+
+  async getMetricasByAnalista(analistaId: number, fechaInicio: Date, fechaFin: Date): Promise<Metrica[]> {
+    const inicioStr = fechaInicio.toISOString().split('T')[0];
+    const finStr = fechaFin.toISOString().split('T')[0];
+    
+    return Array.from(this.metricas.values()).filter(
+      (metrica) => 
+        metrica.analistaId === analistaId &&
+        metrica.fecha >= inicioStr &&
+        metrica.fecha <= finStr
+    );
+  }
+
+  async createMetrica(metrica: InsertMetrica): Promise<Metrica> {
+    const newMetrica: Metrica = {
+      id: this.currentMetricaId++,
+      ...metrica,
+      fechaActualizacion: new Date(),
+    };
+
+    this.metricas.set(newMetrica.id, newMetrica);
+    return newMetrica;
+  }
+
+  async updateMetrica(id: number, metrica: Partial<InsertMetrica>): Promise<Metrica> {
+    const existing = this.metricas.get(id);
+    if (!existing) throw new Error("Metrica not found");
+
+    const updated: Metrica = {
+      ...existing,
+      ...metrica,
+      fechaActualizacion: new Date(),
+    };
+    
+    this.metricas.set(id, updated);
+    return updated;
+  }
+
+  // Reportes específicos
+  async getDashboardData(): Promise<{
+    ordenesTotales: number;
+    ordenesHoy: number;
+    ordenesEnProceso: number;
+    alertasActivas: number;
+    leadTimePromedio: number;
+    ordenesPorEstado: { estado: string; cantidad: number }[];
+    ordenesPorAnalista: { analista: string; cantidad: number }[];
+  }> {
+    const ordenes = Array.from(this.ordenes.values());
+    const alertas = Array.from(this.alertas.values());
+    const analistas = Array.from(this.analistas.values());
+    
+    const hoy = new Date().toISOString().split('T')[0];
+    const ordenesHoy = ordenes.filter(o => 
+      o.fechaCreacion?.toISOString().split('T')[0] === hoy
+    ).length;
+
+    const ordenesEnProceso = ordenes.filter(o => 
+      !["finalizada", "rechazada"].includes(o.estado)
+    ).length;
+
+    const alertasActivas = alertas.filter(a => a.estado === "activa").length;
+
+    // Calcular lead time promedio
+    const ordenesConLeadTime = ordenes.filter(o => o.leadTime !== null);
+    const leadTimePromedio = ordenesConLeadTime.length > 0 
+      ? ordenesConLeadTime.reduce((sum, o) => sum + (o.leadTime || 0), 0) / ordenesConLeadTime.length
+      : 0;
+
+    // Agrupar por estado
+    const estadoCounts = ordenes.reduce((acc, orden) => {
+      acc[orden.estado] = (acc[orden.estado] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const ordenesPorEstado = Object.entries(estadoCounts).map(([estado, cantidad]) => ({
+      estado,
+      cantidad
+    }));
+
+    // Agrupar por analista
+    const analistaCounts = ordenes.reduce((acc, orden) => {
+      if (orden.analistaId) {
+        const analista = analistas.find(a => a.id === orden.analistaId);
+        const nombre = analista ? `${analista.nombre} ${analista.apellido}` : "Sin asignar";
+        acc[nombre] = (acc[nombre] || 0) + 1;
+      }
+      return acc;
+    }, {} as Record<string, number>);
+
+    const ordenesPorAnalista = Object.entries(analistaCounts).map(([analista, cantidad]) => ({
+      analista,
+      cantidad
+    }));
+
+    return {
+      ordenesTotales: ordenes.length,
+      ordenesHoy,
+      ordenesEnProceso,
+      alertasActivas,
+      leadTimePromedio: Math.round(leadTimePromedio * 100) / 100,
+      ordenesPorEstado,
+      ordenesPorAnalista,
+    };
+  }
+
+  async getLeadTimeByAnalista(): Promise<{
+    analistaId: number;
+    nombre: string;
+    ordenesAbiertas: number;
+    ordenesCerradas: number;
+    leadTimePromedio: number;
+  }[]> {
+    const ordenes = Array.from(this.ordenes.values());
+    const analistas = Array.from(this.analistas.values());
+
+    return analistas.map(analista => {
+      const ordenesAnalista = ordenes.filter(o => o.analistaId === analista.id);
+      const ordenesAbiertas = ordenesAnalista.filter(o => 
+        !["finalizada", "rechazada"].includes(o.estado)
+      ).length;
+      const ordenesCerradas = ordenesAnalista.filter(o => 
+        ["finalizada", "rechazada"].includes(o.estado)
+      ).length;
+      
+      const ordenesConLeadTime = ordenesAnalista.filter(o => o.leadTime !== null);
+      const leadTimePromedio = ordenesConLeadTime.length > 0
+        ? ordenesConLeadTime.reduce((sum, o) => sum + (o.leadTime || 0), 0) / ordenesConLeadTime.length
+        : 0;
+
+      return {
+        analistaId: analista.id,
+        nombre: `${analista.nombre} ${analista.apellido}`,
+        ordenesAbiertas,
+        ordenesCerradas,
+        leadTimePromedio: Math.round(leadTimePromedio * 100) / 100,
+      };
+    });
+  }
+
+  // Método para inicializar datos de muestra para el dashboard
+  private initializeSampleData() {
+    // Crear órdenes de muestra
+    const ordenesData = [
+      {
+        numeroOrden: "ORD-2025-001",
+        clienteId: 1,
+        candidatoId: 1,
+        analistaId: 1,
+        cargo: "Desarrollador Frontend",
+        ciudad: "Bogotá",
+        estado: "en_proceso",
+        prioridad: "alta",
+        fechaIngreso: "2025-02-01",
+        tipoContrato: "Término indefinido",
+        observaciones: "Candidato con experiencia en React",
+        centroTrabajo: "Sede Principal",
+        areaFuncional: "Tecnología",
+        tipoExamen: "Examen básico de ingreso"
+      },
+      {
+        numeroOrden: "ORD-2025-002", 
+        clienteId: 1,
+        candidatoId: 2,
+        analistaId: 2,
+        cargo: "Analista de Datos",
+        ciudad: "Medellín", 
+        estado: "documentos_completos",
+        prioridad: "media",
+        fechaIngreso: "2025-02-15",
+        tipoContrato: "Término fijo",
+        observaciones: "Requiere conocimientos en SQL",
+        centroTrabajo: "Sede Medellín",
+        areaFuncional: "Análisis",
+        tipoExamen: "Examen técnico especializado"
+      },
+      {
+        numeroOrden: "ORD-2025-003",
+        clienteId: 1, 
+        candidatoId: 3,
+        analistaId: 3,
+        cargo: "Contador Junior",
+        ciudad: "Cali",
+        estado: "finalizada",
+        prioridad: "baja",
+        fechaIngreso: "2025-01-15",
+        tipoContrato: "Tiempo parcial",
+        observaciones: "Aprobado para contratación",
+        centroTrabajo: "Sede Cali",
+        areaFuncional: "Contabilidad", 
+        tipoExamen: "Examen de aptitudes básicas",
+        leadTime: 15
+      }
+    ];
+
+    ordenesData.forEach(ordenData => {
+      const orden: Orden = {
+        id: this.currentOrdenId++,
+        ...ordenData,
+        empresaId: null,
+        salario: null,
+        fechaCreacion: new Date(),
+        fechaAsignacion: ordenData.analistaId ? new Date() : null,
+        fechaInicioExamenes: ordenData.estado === "examenes_medicos" || ordenData.estado === "finalizada" ? new Date() : null,
+        fechaFinalizacion: ordenData.estado === "finalizada" ? new Date() : null,
+        fechaVencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 días
+        notasInternas: null,
+        leadTime: ordenData.leadTime || null
+      };
+      this.ordenes.set(orden.id, orden);
+    });
+
+    // Crear alertas de muestra
+    const alertasData = [
+      {
+        tipo: "vencimiento_orden",
+        titulo: "Orden próxima a vencer",
+        descripcion: "La orden ORD-2025-001 vence en 5 días",
+        ordenId: 1,
+        prioridad: "alta"
+      },
+      {
+        tipo: "documento_pendiente",
+        titulo: "Documentos pendientes",
+        descripcion: "Candidato ID 2 tiene documentos pendientes por cargar",
+        candidatoId: 2,
+        prioridad: "media"
+      }
+    ];
+
+    alertasData.forEach(alertaData => {
+      const alerta: Alerta = {
+        id: this.currentAlertaId++,
+        ...alertaData,
+        estado: "activa",
+        fechaCreacion: new Date(),
+        fechaVencimiento: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 días
+        fechaResolucion: null,
+        candidatoId: alertaData.candidatoId || null,
+        ordenId: alertaData.ordenId || null
+      };
+      this.alertas.set(alerta.id, alerta);
+    });
+
+    // Crear notificaciones de muestra
+    const notificacionesData = [
+      {
+        tipo: "email",
+        asunto: "Orden creada exitosamente",
+        mensaje: "Su orden ORD-2025-001 ha sido creada y asignada",
+        destinatario: "candidato1@example.com",
+        ordenId: 1,
+        candidatoId: 1,
+        estado: "enviado"
+      },
+      {
+        tipo: "email", 
+        asunto: "Documentos requeridos",
+        mensaje: "Por favor complete la documentación pendiente",
+        destinatario: "candidato2@example.com",
+        ordenId: 2,
+        candidatoId: 2,
+        estado: "pendiente"
+      }
+    ];
+
+    notificacionesData.forEach(notifData => {
+      const notificacion: Notificacion = {
+        id: this.currentNotificacionId++,
+        ...notifData,
+        clienteId: null,
+        fechaCreacion: new Date(),
+        fechaEnvio: notifData.estado === "enviado" ? new Date() : null,
+        motivoFallo: null
+      };
+      this.notificaciones.set(notificacion.id, notificacion);
+    });
   }
 }
 

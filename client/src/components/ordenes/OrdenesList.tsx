@@ -103,7 +103,7 @@ const OrdenesList = ({ ordenes, onEdit, onDelete, onView, onApprove }: OrdenesLi
             <TableHead className="w-[80px] font-semibold">N° Orden</TableHead>
             <TableHead className="font-semibold">Fecha</TableHead>
             <TableHead className="font-semibold">Prestador</TableHead>
-            <TableHead className="font-semibold">Aspirante</TableHead>
+            <TableHead className="font-semibold">Candidato</TableHead>
             <TableHead className="font-semibold">Estado</TableHead>
             <TableHead className="text-right font-semibold">Acciones</TableHead>
           </TableRow>
@@ -177,7 +177,6 @@ const OrdenesList = ({ ordenes, onEdit, onDelete, onView, onApprove }: OrdenesLi
           )}
         </TableBody>
       </Table>
-
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
         <AlertDialogContent className="bg-white max-w-md">
@@ -200,7 +199,6 @@ const OrdenesList = ({ ordenes, onEdit, onDelete, onView, onApprove }: OrdenesLi
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
       {/* Approve Confirmation Dialog */}
       <AlertDialog open={confirmApproveOpen} onOpenChange={setConfirmApproveOpen}>
         <AlertDialogContent className="bg-white max-w-md">

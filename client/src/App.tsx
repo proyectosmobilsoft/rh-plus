@@ -42,6 +42,9 @@ import AnalistasPage from "./pages/analistas/AnalistasPage";
 import CrearAnalistaPage from "./pages/analistas/CrearAnalistaPage";
 import EditarAnalistaPage from "./pages/analistas/EditarAnalistaPage";
 
+// Reportes pages
+import DashboardReportes from "./pages/reportes/DashboardReportes";
+
 // Test pages
 import TestCascadingSelects from "./pages/TestCascadingSelects";
 

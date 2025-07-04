@@ -472,3 +472,152 @@ export const insertAnalistaSchema = createInsertSchema(analistas).omit({
 // Tipos TypeScript para analistas
 export type InsertAnalista = z.infer<typeof insertAnalistaSchema>;
 export type Analista = typeof analistas.$inferSelect;
+
+// Tabla de órdenes de ingreso
+export const ordenes = pgTable("ordenes", {
+  id: serial("id").primaryKey(),
+  numeroOrden: varchar("numero_orden", { length: 50 }).notNull().unique(),
+  
+  // Relaciones
+  clienteId: integer("cliente_id").references(() => clientes.id).notNull(),
+  candidatoId: integer("candidato_id").references(() => candidatos.id).notNull(),
+  analistaId: integer("analista_id").references(() => analistas.id),
+  empresaId: integer("empresa_id").references(() => empresas.id),
+  
+  // Información de la orden
+  cargo: varchar("cargo", { length: 100 }).notNull(),
+  salario: varchar("salario", { length: 50 }),
+  ciudad: varchar("ciudad", { length: 100 }).notNull(),
+  fechaIngreso: date("fecha_ingreso"),
+  tipoContrato: varchar("tipo_contrato", { length: 50 }),
+  
+  // Estado y seguimiento
+  estado: varchar("estado", { length: 50 }).notNull().default("creada"),
+  // Estados: creada, asignada, en_proceso, documentos_completos, examenes_medicos, aprobada, finalizada, rechazada
+  prioridad: varchar("prioridad", { length: 20 }).notNull().default("media"), // alta, media, baja
+  
+  // Fechas de seguimiento
+  fechaCreacion: timestamp("fecha_creacion").defaultNow(),
+  fechaAsignacion: timestamp("fecha_asignacion"),
+  fechaInicioExamenes: timestamp("fecha_inicio_examenes"),
+  fechaFinalizacion: timestamp("fecha_finalizacion"),
+  fechaVencimiento: timestamp("fecha_vencimiento"),
+  
+  // Metadatos
+  observaciones: text("observaciones"),
+  notasInternas: text("notas_internas"),
+  leadTime: integer("lead_time"), // días transcurridos hasta finalización
+  
+  // Campos adicionales
+  centroTrabajo: varchar("centro_trabajo", { length: 100 }),
+  areaFuncional: varchar("area_funcional", { length: 100 }),
+  tipoExamen: varchar("tipo_examen", { length: 100 }),
+});
+
+// Tabla de historial de cambios de estado
+export const ordenesHistorial = pgTable("ordenes_historial", {
+  id: serial("id").primaryKey(),
+  ordenId: integer("orden_id").references(() => ordenes.id).notNull(),
+  estadoAnterior: varchar("estado_anterior", { length: 50 }),
+  estadoNuevo: varchar("estado_nuevo", { length: 50 }).notNull(),
+  usuarioId: integer("usuario_id").references(() => users.id),
+  motivo: text("motivo"),
+  fechaCambio: timestamp("fecha_cambio").defaultNow(),
+});
+
+// Tabla de notificaciones enviadas
+export const notificaciones = pgTable("notificaciones", {
+  id: serial("id").primaryKey(),
+  ordenId: integer("orden_id").references(() => ordenes.id),
+  candidatoId: integer("candidato_id").references(() => candidatos.id),
+  clienteId: integer("cliente_id").references(() => clientes.id),
+  
+  tipo: varchar("tipo", { length: 50 }).notNull(), // email, sms, whatsapp
+  asunto: varchar("asunto", { length: 255 }),
+  mensaje: text("mensaje"),
+  destinatario: varchar("destinatario", { length: 255 }).notNull(),
+  
+  estado: varchar("estado", { length: 20 }).notNull().default("pendiente"), // pendiente, enviado, fallido
+  fechaEnvio: timestamp("fecha_envio"),
+  fechaCreacion: timestamp("fecha_creacion").defaultNow(),
+  motivoFallo: text("motivo_fallo"),
+});
+
+// Tabla de alertas del sistema
+export const alertas = pgTable("alertas", {
+  id: serial("id").primaryKey(),
+  tipo: varchar("tipo", { length: 50 }).notNull(), // vencimiento_orden, vencimiento_poliza, documento_pendiente
+  titulo: varchar("titulo", { length: 255 }).notNull(),
+  descripcion: text("descripcion"),
+  
+  // Relaciones opcionales según el tipo de alerta
+  ordenId: integer("orden_id").references(() => ordenes.id),
+  candidatoId: integer("candidato_id").references(() => candidatos.id),
+  
+  prioridad: varchar("prioridad", { length: 20 }).notNull().default("media"), // alta, media, baja
+  estado: varchar("estado", { length: 20 }).notNull().default("activa"), // activa, resuelta, ignorada
+  
+  fechaVencimiento: timestamp("fecha_vencimiento"),
+  fechaCreacion: timestamp("fecha_creacion").defaultNow(),
+  fechaResolucion: timestamp("fecha_resolucion"),
+});
+
+// Tabla de métricas de rendimiento
+export const metricas = pgTable("metricas", {
+  id: serial("id").primaryKey(),
+  fecha: date("fecha").notNull(),
+  analistaId: integer("analista_id").references(() => analistas.id),
+  clienteId: integer("cliente_id").references(() => clientes.id),
+  
+  // Métricas diarias
+  ordenesCreadas: integer("ordenes_creadas").default(0),
+  ordenesFinalizadas: integer("ordenes_finalizadas").default(0),
+  ordenesEnProceso: integer("ordenes_en_proceso").default(0),
+  leadTimePromedio: integer("lead_time_promedio").default(0), // en días
+  
+  // Métricas de calidad
+  ordenesRechazadas: integer("ordenes_rechazadas").default(0),
+  documentosRechazados: integer("documentos_rechazados").default(0),
+  tiempoRespuestaPromedio: integer("tiempo_respuesta_promedio").default(0), // en horas
+  
+  fechaActualizacion: timestamp("fecha_actualizacion").defaultNow(),
+});
+
+// Esquemas de inserción
+export const insertOrdenSchema = createInsertSchema(ordenes).omit({
+  id: true,
+  fechaCreacion: true,
+  leadTime: true,
+});
+
+export const insertOrdenHistorialSchema = createInsertSchema(ordenesHistorial).omit({
+  id: true,
+  fechaCambio: true,
+});
+
+export const insertNotificacionSchema = createInsertSchema(notificaciones).omit({
+  id: true,
+  fechaCreacion: true,
+});
+
+export const insertAlertaSchema = createInsertSchema(alertas).omit({
+  id: true,
+  fechaCreacion: true,
+});
+
+export const insertMetricaSchema = createInsertSchema(metricas).omit({
+  id: true,
+  fechaActualizacion: true,
+});
+
+// Tipos TypeScript para las nuevas tablas
+export type InsertOrden = z.infer<typeof insertOrdenSchema>;
+export type Orden = typeof ordenes.$inferSelect;
+export type InsertOrdenHistorial = z.infer<typeof insertOrdenHistorialSchema>;
+export type OrdenHistorial = typeof ordenesHistorial.$inferSelect;
+export type InsertNotificacion = z.infer<typeof insertNotificacionSchema>;
+export type Notificacion = typeof notificaciones.$inferSelect;
+export type InsertAlerta = z.infer<typeof insertAlertaSchema>;
+export type Alerta = typeof alertas.$inferSelect;
+export type InsertMetrica = z.infer<typeof insertMetricaSchema>;
+export type Metrica = typeof metricas.$inferSelect;
