@@ -621,3 +621,17 @@ export type InsertAlerta = z.infer<typeof insertAlertaSchema>;
 export type Alerta = typeof alertas.$inferSelect;
 export type InsertMetrica = z.infer<typeof insertMetricaSchema>;
 export type Metrica = typeof metricas.$inferSelect;
+
+// Tabla para tokens de recuperación de contraseña
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  token: varchar("token", { length: 255 }).notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  used: boolean("used").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+export const insertPasswordResetTokenSchema = createInsertSchema(passwordResetTokens).omit({ id: true });
+export type InsertPasswordResetToken = z.infer<typeof insertPasswordResetTokenSchema>;

@@ -155,6 +155,12 @@ export default function LoginAdmin() {
               </form>
             </Form>
 
+            <div className="text-center mt-4">
+              <Link to="/forgot-password" className="text-sm text-green-600 hover:text-green-800">
+                ¿Olvidó su contraseña?
+              </Link>
+            </div>
+
             <div className="mt-6 p-4 bg-gray-50 rounded-lg">
               <p className="text-sm text-gray-700 font-medium mb-2">Credenciales de prueba:</p>
               <p className="text-sm text-gray-600">

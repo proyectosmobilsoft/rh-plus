@@ -106,6 +106,18 @@ This is a full-stack medical practice management application built with modern w
 ```
 Changelog:
 
+- January 4, 2025. Complete password recovery system implementation
+  * Implemented comprehensive password recovery system with token-based authentication
+  * Added passwordResetTokens table schema with expiration and single-use token functionality
+  * Created database storage methods for token creation, validation, cleanup, and user lookup
+  * Built backend API routes: forgot-password, validate-reset-token, and reset-password
+  * Added ForgotPasswordPage component with email input and professional UI design
+  * Created ResetPasswordPage with password validation, strength requirements, and confirmation
+  * Integrated password recovery into LoginAdmin with "¿Olvidó su contraseña?" link
+  * Added secure token generation with 1-hour expiration and automatic cleanup
+  * Implemented proper error handling and user feedback for all recovery scenarios
+  * Enhanced storage interface with getUserByEmail method for email-based user lookup
+  * Complete frontend routing integration in App.tsx for seamless user experience
 - January 3, 2025. Enhanced candidate management with approval system and quick send features
   * Added candidate approval/rejection system with notes functionality for hiring decisions
   * Implemented quick send buttons for WhatsApp and Email in candidate list using stored QR configuration

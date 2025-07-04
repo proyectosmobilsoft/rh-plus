@@ -71,6 +71,10 @@ import QrWhatsAppPage from "./pages/empresa/QrWhatsAppPage";
 import QrEmailPage from "./pages/empresa/QrEmailPage";
 import EmpresaLayout from "./components/EmpresaLayout";
 
+// Auth pages
+import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -82,6 +86,10 @@ const App = () => (
         <Routes>
           {/* Admin Login - First View */}
           <Route path="/" element={<LoginAdmin />} />
+          
+          {/* Auth Routes - No Layout */}
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           
           {/* Candidate Portal Routes - No Layout */}
           <Route path="/candidato/login" element={<LoginCandidato />} />
@@ -149,6 +157,9 @@ const App = () => (
             <Route path="/analistas" element={<AnalistasPage />} />
             <Route path="/analistas/crear" element={<CrearAnalistaPage />} />
             <Route path="/analistas/:id/editar" element={<EditarAnalistaPage />} />
+            
+            {/* Reportes */}
+            <Route path="/reportes/dashboard" element={<DashboardReportes />} />
             
             {/* Test page for cascading selects */}
             <Route path="/test-cascading" element={<TestCascadingSelects />} />

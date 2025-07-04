@@ -1555,6 +1555,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rutas para recuperación de contraseña
+
+  // Generar y enviar token de recuperación de contraseña
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ message: "Email es requerido" });
+      }
+
+      // Buscar usuario por email
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        // Por seguridad, no revelamos si el email existe o no
+        return res.json({ message: "Si el email existe, se ha enviado un enlace de recuperación" });
+      }
+
+      // Generar token único
+      const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // Expira en 1 hora
+
+      // Guardar token en la base de datos
+      await storage.createPasswordResetToken({
+        userId: user.id,
+        token,
+        expiresAt,
+        used: false,
+      });
+
+      // Aquí normalmente enviarías un email real con el enlace
+      // Para desarrollo, solo logueamos el token
+      console.log(`Token de recuperación para ${email}: ${token}`);
+      console.log(`Enlace: http://localhost:5000/reset-password?token=${token}`);
+
+      res.json({ 
+        message: "Si el email existe, se ha enviado un enlace de recuperación",
+        // Solo para desarrollo - en producción no enviarías el token
+        developmentToken: token 
+      });
+    } catch (error) {
+      console.error("Error en forgot-password:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Validar token de recuperación
+  app.get("/api/auth/validate-reset-token/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+
+      const resetToken = await storage.getPasswordResetToken(token);
+      if (!resetToken) {
+        return res.status(400).json({ message: "Token inválido o expirado" });
+      }
+
+      const user = await storage.getUser(resetToken.userId);
+      if (!user) {
+        return res.status(400).json({ message: "Usuario no encontrado" });
+      }
+
+      res.json({ 
+        valid: true,
+        email: user.email,
+        username: user.username
+      });
+    } catch (error) {
+      console.error("Error validando token:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Restablecer contraseña con token
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { token, newPassword } = req.body;
+
+      if (!token || !newPassword) {
+        return res.status(400).json({ message: "Token y nueva contraseña son requeridos" });
+      }
+
+      if (newPassword.length < 8) {
+        return res.status(400).json({ message: "La contraseña debe tener al menos 8 caracteres" });
+      }
+
+      const resetToken = await storage.getPasswordResetToken(token);
+      if (!resetToken) {
+        return res.status(400).json({ message: "Token inválido o expirado" });
+      }
+
+      // Actualizar contraseña del usuario
+      await storage.updateUser(resetToken.userId, { password: newPassword });
+
+      // Marcar token como usado
+      await storage.markTokenAsUsed(resetToken.id);
+
+      // Limpiar tokens expirados
+      await storage.cleanExpiredTokens();
+
+      res.json({ message: "Contraseña actualizada exitosamente" });
+    } catch (error) {
+      console.error("Error restableciendo contraseña:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

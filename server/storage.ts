@@ -66,12 +66,16 @@ import {
   type InsertAlerta,
   type Metrica,
   type InsertMetrica,
+  passwordResetTokens,
+  type PasswordResetToken,
+  type InsertPasswordResetToken,
 } from "@shared/schema";
 
 export interface IStorage {
   // Admin user operations
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   getAllUsers(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, user: Partial<InsertUser>): Promise<User>;
@@ -271,6 +275,12 @@ export interface IStorage {
     ordenesCerradas: number;
     leadTimePromedio: number;
   }[]>;
+
+  // Operaciones de tokens de recuperación de contraseña
+  createPasswordResetToken(token: InsertPasswordResetToken): Promise<PasswordResetToken>;
+  getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined>;
+  markTokenAsUsed(id: number): Promise<void>;
+  cleanExpiredTokens(): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -298,6 +308,9 @@ export class MemStorage implements IStorage {
   private notificaciones: Map<number, Notificacion>;
   private alertas: Map<number, Alerta>;
   private metricas: Map<number, Metrica>;
+  
+  // Tokens de recuperación de contraseña
+  private passwordResetTokens: Map<number, PasswordResetToken>;
 
   currentUserId: number;
   currentUserPerfilId: number;
@@ -320,6 +333,7 @@ export class MemStorage implements IStorage {
   currentNotificacionId: number;
   currentAlertaId: number;
   currentMetricaId: number;
+  currentPasswordResetTokenId: number;
 
   constructor() {
     this.users = new Map();
@@ -345,6 +359,7 @@ export class MemStorage implements IStorage {
     this.notificaciones = new Map();
     this.alertas = new Map();
     this.metricas = new Map();
+    this.passwordResetTokens = new Map();
     
     this.currentUserId = 1;
     this.currentUserPerfilId = 1;
@@ -367,6 +382,7 @@ export class MemStorage implements IStorage {
     this.currentNotificacionId = 1;
     this.currentAlertaId = 1;
     this.currentMetricaId = 1;
+    this.currentPasswordResetTokenId = 1;
 
     // Agregar datos de muestra para el dashboard
     this.initializeSampleData();
@@ -835,6 +851,12 @@ export class MemStorage implements IStorage {
   async getUserByUsername(username: string): Promise<User | undefined> {
     return Array.from(this.users.values()).find(
       (user) => user.username === username,
+    );
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(
+      (user) => user.email === email,
     );
   }
 
@@ -2101,6 +2123,43 @@ export class MemStorage implements IStorage {
       };
       this.notificaciones.set(notificacion.id, notificacion);
     });
+  }
+
+  // Métodos para tokens de recuperación de contraseña
+  async createPasswordResetToken(tokenData: InsertPasswordResetToken): Promise<PasswordResetToken> {
+    const token: PasswordResetToken = {
+      id: this.currentPasswordResetTokenId++,
+      ...tokenData,
+      createdAt: new Date(),
+    };
+    this.passwordResetTokens.set(token.id, token);
+    return token;
+  }
+
+  async getPasswordResetToken(tokenValue: string): Promise<PasswordResetToken | undefined> {
+    for (const token of this.passwordResetTokens.values()) {
+      if (token.token === tokenValue && !token.used && token.expiresAt > new Date()) {
+        return token;
+      }
+    }
+    return undefined;
+  }
+
+  async markTokenAsUsed(id: number): Promise<void> {
+    const token = this.passwordResetTokens.get(id);
+    if (token) {
+      const updatedToken = { ...token, used: true };
+      this.passwordResetTokens.set(id, updatedToken);
+    }
+  }
+
+  async cleanExpiredTokens(): Promise<void> {
+    const now = new Date();
+    for (const [id, token] of this.passwordResetTokens.entries()) {
+      if (token.expiresAt <= now || token.used) {
+        this.passwordResetTokens.delete(id);
+      }
+    }
   }
 }
 

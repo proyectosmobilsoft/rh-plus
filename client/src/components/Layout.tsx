@@ -25,6 +25,8 @@ import {
   Menu,
   LogOut,
   UserCheck,
+  BarChart3,
+  Activity,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -63,6 +65,13 @@ const menuItems = [
     icon: <UserCheck className="h-5 w-5" />,
     path: "/analistas",
     subItems: [],
+  },
+  {
+    title: "Reportes",
+    icon: <BarChart3 className="h-5 w-5" />,
+    subItems: [
+      { title: "Dashboard", path: "/reportes/dashboard", icon: <Activity className="h-4 w-4" /> },
+    ],
   },
   {
     title: "Maestro",
