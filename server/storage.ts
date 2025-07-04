@@ -331,7 +331,92 @@ export class MemStorage implements IStorage {
       fechaCreacion: new Date(),
       activo: true,
     });
-    this.currentUserId = 2;
+
+    // Create additional sample users
+    this.users.set(2, {
+      id: 2,
+      identificacion: "87654321",
+      primerNombre: "María",
+      segundoNombre: "Isabel",
+      primerApellido: "González",
+      segundoApellido: "Torres",
+      telefono: "300-123-4567",
+      email: "maria.gonzalez@empresa.com",
+      username: "mgonzalez",
+      password: "password123",
+      fechaCreacion: new Date(),
+      activo: true,
+    });
+
+    this.users.set(3, {
+      id: 3,
+      identificacion: "11223344",
+      primerNombre: "Carlos",
+      segundoNombre: null,
+      primerApellido: "Rodríguez",
+      segundoApellido: "Pérez",
+      telefono: "301-987-6543",
+      email: "carlos.rodriguez@empresa.com",
+      username: "crodriguez",
+      password: "secure456",
+      fechaCreacion: new Date(),
+      activo: true,
+    });
+
+    this.users.set(4, {
+      id: 4,
+      identificacion: "55667788",
+      primerNombre: "Ana",
+      segundoNombre: "Lucia",
+      primerApellido: "Martínez",
+      segundoApellido: "López",
+      telefono: "302-555-7890",
+      email: "ana.martinez@empresa.com",
+      username: "amartinez",
+      password: "admin789",
+      fechaCreacion: new Date(),
+      activo: false,
+    });
+
+    this.currentUserId = 5;
+
+    // Create user-profile relationships
+    this.userPerfiles.set(1, {
+      id: 1,
+      userId: 1,
+      perfilId: 1,
+      fechaCreacion: new Date(),
+    });
+
+    this.userPerfiles.set(2, {
+      id: 2,
+      userId: 2,
+      perfilId: 1,
+      fechaCreacion: new Date(),
+    });
+
+    this.userPerfiles.set(3, {
+      id: 3,
+      userId: 2,
+      perfilId: 3,
+      fechaCreacion: new Date(),
+    });
+
+    this.userPerfiles.set(4, {
+      id: 4,
+      userId: 3,
+      perfilId: 3,
+      fechaCreacion: new Date(),
+    });
+
+    this.userPerfiles.set(5, {
+      id: 5,
+      userId: 4,
+      perfilId: 4,
+      fechaCreacion: new Date(),
+    });
+
+    this.currentUserPerfilId = 6;
 
     // Create some test candidatos
     this.candidatos.set(1, {

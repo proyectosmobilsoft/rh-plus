@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,8 +35,10 @@ const UsuariosPage = () => {
   const queryClient = useQueryClient();
 
   // Query para obtener usuarios
-  const { data: usuarios = [], isLoading } = useQuery<Usuario[]>({
+  const { data: usuarios = [], isLoading, error } = useQuery<Usuario[]>({
     queryKey: ["/api/usuarios"],
+    staleTime: 30000, // Cache por 30 segundos
+    refetchOnWindowFocus: false,
   });
 
   // Mutation para eliminar usuario
@@ -49,31 +51,35 @@ const UsuariosPage = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/usuarios"] });
       toast({
-        title: "Usuario eliminado",
+        title: "✅ Usuario eliminado",
         description: "El usuario ha sido eliminado exitosamente.",
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
+        title: "❌ Error",
         description: error.message || "No se pudo eliminar el usuario.",
         variant: "destructive",
       });
     },
   });
 
-  // Filtrar usuarios basado en búsqueda
-  const usuariosFiltrados = usuarios.filter((usuario) => {
-    const searchLower = searchTerm.toLowerCase();
-    const nombreCompleto = `${usuario.primerNombre} ${usuario.segundoNombre || ""} ${usuario.primerApellido} ${usuario.segundoApellido || ""}`.toLowerCase();
+  // Filtrar usuarios basado en búsqueda con useMemo para optimización
+  const usuariosFiltrados = useMemo(() => {
+    if (!usuarios.length) return [];
     
-    return (
-      nombreCompleto.includes(searchLower) ||
-      usuario.email.toLowerCase().includes(searchLower) ||
-      usuario.username.toLowerCase().includes(searchLower) ||
-      usuario.identificacion.includes(searchTerm)
-    );
-  });
+    return usuarios.filter((usuario) => {
+      const searchLower = searchTerm.toLowerCase();
+      const nombreCompleto = `${usuario.primerNombre} ${usuario.segundoNombre || ""} ${usuario.primerApellido} ${usuario.segundoApellido || ""}`.toLowerCase();
+      
+      return (
+        nombreCompleto.includes(searchLower) ||
+        usuario.email.toLowerCase().includes(searchLower) ||
+        usuario.username.toLowerCase().includes(searchLower) ||
+        usuario.identificacion.includes(searchTerm)
+      );
+    });
+  }, [usuarios, searchTerm]);
 
   const handleEliminarUsuario = async (id: number) => {
     deleteUsuarioMutation.mutate(id);
@@ -81,10 +87,50 @@ const UsuariosPage = () => {
 
   if (isLoading) {
     return (
+      <div className="p-6 space-y-6">
+        <div className="animate-pulse">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-gray-200 rounded"></div>
+              <div>
+                <div className="h-6 bg-gray-200 rounded w-48 mb-2"></div>
+                <div className="h-4 bg-gray-200 rounded w-64"></div>
+              </div>
+            </div>
+            <div className="h-10 bg-gray-200 rounded w-32"></div>
+          </div>
+          <div className="h-10 bg-gray-200 rounded mb-4"></div>
+          <div className="bg-white rounded-lg border">
+            <div className="p-4 border-b">
+              <div className="h-6 bg-gray-200 rounded w-48"></div>
+            </div>
+            <div className="p-4 space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="h-16 bg-gray-100 rounded"></div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
       <div className="p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="h-64 bg-gray-200 rounded"></div>
+        <div className="text-center">
+          <h1 className="text-2xl font-semibold text-gray-900 mb-4">
+            Error al cargar usuarios
+          </h1>
+          <p className="text-gray-600 mb-6">
+            Hubo un problema al obtener la información de usuarios.
+          </p>
+          <Button
+            onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/usuarios"] })}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            Reintentar
+          </Button>
         </div>
       </div>
     );

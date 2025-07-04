@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, Save, UserCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { useLocation } from "wouter";
+import { useLocation, useParams } from "wouter";
 import PasswordStrengthIndicator from "@/components/PasswordStrengthIndicator";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -58,16 +58,13 @@ interface Usuario {
   }>;
 }
 
-interface EditarUsuarioPageProps {
-  id: string;
-}
-
-const EditarUsuarioPage = ({ id }: EditarUsuarioPageProps) => {
+const EditarUsuarioPage = () => {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedPerfiles, setSelectedPerfiles] = useState<number[]>([]);
-  const userId = parseInt(id);
+  const params = useParams();
+  const userId = parseInt(params.id || "0");
 
   // Query para obtener el usuario
   const { data: usuario, isLoading: loadingUsuario } = useQuery<Usuario>({
@@ -144,16 +141,17 @@ const EditarUsuarioPage = ({ id }: EditarUsuarioPageProps) => {
     },
     onSuccess: () => {
       toast({
-        title: "Usuario actualizado",
-        description: "El usuario ha sido actualizado exitosamente.",
+        title: "✅ Usuario actualizado exitosamente",
+        description: "Los cambios han sido guardados correctamente.",
+        className: "bg-blue-50 border-blue-200",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/usuarios"] });
       setLocation("/seguridad/usuarios");
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "No se pudo actualizar el usuario.",
+        title: "❌ Error al actualizar usuario",
+        description: error.message || "No se pudieron guardar los cambios. Verifica los datos e intenta nuevamente.",
         variant: "destructive",
       });
     },

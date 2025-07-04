@@ -81,16 +81,17 @@ const CrearUsuarioPage = () => {
     },
     onSuccess: () => {
       toast({
-        title: "Usuario creado",
-        description: "El usuario ha sido creado exitosamente.",
+        title: "✅ Usuario creado exitosamente",
+        description: "El nuevo usuario ha sido registrado en el sistema.",
+        className: "bg-green-50 border-green-200",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/usuarios"] });
       setLocation("/seguridad/usuarios");
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "No se pudo crear el usuario.",
+        title: "❌ Error al crear usuario",
+        description: error.message || "No se pudo crear el usuario. Verifica los datos e intenta nuevamente.",
         variant: "destructive",
       });
     },
