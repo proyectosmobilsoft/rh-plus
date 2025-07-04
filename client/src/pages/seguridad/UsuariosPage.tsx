@@ -86,10 +86,15 @@ const UsuariosPage = () => {
     queryKey: ["/api/perfiles"],
   });
 
-  // Query para obtener empresas disponibles
-  const { data: empresas = [] } = useQuery<any[]>({
-    queryKey: ["/api/empresas"],
-  });
+  // Mock data para empresas/almacenes
+  const empresas = [
+    { id: 1, nombreEmpresa: "Almacén Central Bogotá" },
+    { id: 2, nombreEmpresa: "Sucursal Norte" },
+    { id: 3, nombreEmpresa: "Depósito Sur" },
+    { id: 4, nombreEmpresa: "Centro Logístico Medellín" },
+    { id: 5, nombreEmpresa: "Bodega Principal Cali" },
+    { id: 6, nombreEmpresa: "Almacén Zona Industrial" },
+  ];
 
   // Formulario para crear usuario
   const form = useForm<CrearUsuarioForm>({
@@ -207,44 +212,37 @@ const UsuariosPage = () => {
               Crear Usuario
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-6xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-xl font-semibold text-green-700">
                 Crear Nuevo Usuario
               </DialogTitle>
               <DialogDescription>
-                Complete la información del usuario incluyendo sus datos personales, credenciales y perfiles asignados.
+                Complete la información del usuario
               </DialogDescription>
             </DialogHeader>
             
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleCrearUsuario)} className="space-y-6">
-                {/* Información Personal */}
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Información Personal</h3>
-                  <div className="grid grid-cols-2 gap-4">
+              <form onSubmit={form.handleSubmit(handleCrearUsuario)} className="space-y-4">
+                
+                {/* Grid principal más compacto - 3 columnas */}
+                <div className="grid grid-cols-3 gap-6">
+                  {/* Columna 1 - Datos personales */}
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Datos Personales</h4>
+                    
                     <FormField
                       control={form.control}
                       name="identificacion"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Identificación *</FormLabel>
+                          <FormLabel className="text-sm font-medium">Identificación *</FormLabel>
                           <FormControl>
-                            <Input placeholder="Número de identificación" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email *</FormLabel>
-                          <FormControl>
-                            <Input type="email" placeholder="correo@ejemplo.com" {...field} />
+                            <Input 
+                              className="h-11 border-2 border-gray-300 focus:border-green-500 focus:ring-green-500 text-base" 
+                              placeholder="Número de identificación" 
+                              {...field} 
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -256,9 +254,13 @@ const UsuariosPage = () => {
                       name="primerNombre"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Primer Nombre *</FormLabel>
+                          <FormLabel className="text-sm font-medium">Primer Nombre *</FormLabel>
                           <FormControl>
-                            <Input placeholder="Primer nombre" {...field} />
+                            <Input 
+                              className="h-11 border-2 border-gray-300 focus:border-green-500 focus:ring-green-500 text-base" 
+                              placeholder="Primer nombre" 
+                              {...field} 
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -270,9 +272,13 @@ const UsuariosPage = () => {
                       name="segundoNombre"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Segundo Nombre</FormLabel>
+                          <FormLabel className="text-sm font-medium">Segundo Nombre</FormLabel>
                           <FormControl>
-                            <Input placeholder="Segundo nombre (opcional)" {...field} />
+                            <Input 
+                              className="h-11 border-2 border-gray-300 focus:border-green-500 focus:ring-green-500 text-base" 
+                              placeholder="Segundo nombre" 
+                              {...field} 
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -284,9 +290,13 @@ const UsuariosPage = () => {
                       name="primerApellido"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Primer Apellido *</FormLabel>
+                          <FormLabel className="text-sm font-medium">Primer Apellido *</FormLabel>
                           <FormControl>
-                            <Input placeholder="Primer apellido" {...field} />
+                            <Input 
+                              className="h-11 border-2 border-gray-300 focus:border-green-500 focus:ring-green-500 text-base" 
+                              placeholder="Primer apellido" 
+                              {...field} 
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -298,43 +308,73 @@ const UsuariosPage = () => {
                       name="segundoApellido"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Segundo Apellido</FormLabel>
+                          <FormLabel className="text-sm font-medium">Segundo Apellido</FormLabel>
                           <FormControl>
-                            <Input placeholder="Segundo apellido (opcional)" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="telefono"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Teléfono</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Número de teléfono" {...field} />
+                            <Input 
+                              className="h-11 border-2 border-gray-300 focus:border-green-500 focus:ring-green-500 text-base" 
+                              placeholder="Segundo apellido" 
+                              {...field} 
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                   </div>
-                </div>
 
-                {/* Credenciales de Acceso */}
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Credenciales de Acceso</h3>
-                  <div className="grid grid-cols-2 gap-4">
+                  {/* Columna 2 - Contacto y credenciales */}
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Contacto y Acceso</h4>
+                    
+                    <FormField
+                      control={form.control}
+                      name="telefono"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm font-medium">Teléfono</FormLabel>
+                          <FormControl>
+                            <Input 
+                              className="h-11 border-2 border-gray-300 focus:border-green-500 focus:ring-green-500 text-base" 
+                              placeholder="Número de teléfono" 
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm font-medium">Email *</FormLabel>
+                          <FormControl>
+                            <Input 
+                              className="h-11 border-2 border-gray-300 focus:border-green-500 focus:ring-green-500 text-base" 
+                              type="email" 
+                              placeholder="correo@ejemplo.com" 
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
                     <FormField
                       control={form.control}
                       name="username"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Nombre de Usuario *</FormLabel>
+                          <FormLabel className="text-sm font-medium">Username *</FormLabel>
                           <FormControl>
-                            <Input placeholder="username" {...field} />
+                            <Input 
+                              className="h-11 border-2 border-gray-300 focus:border-green-500 focus:ring-green-500 text-base" 
+                              placeholder="Nombre de usuario" 
+                              {...field} 
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -346,9 +386,14 @@ const UsuariosPage = () => {
                       name="password"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Contraseña *</FormLabel>
+                          <FormLabel className="text-sm font-medium">Contraseña *</FormLabel>
                           <FormControl>
-                            <Input type="password" placeholder="Contraseña (mín. 6 caracteres)" {...field} />
+                            <Input 
+                              className="h-11 border-2 border-gray-300 focus:border-green-500 focus:ring-green-500 text-base" 
+                              type="password" 
+                              placeholder="Contraseña (mín. 6 caracteres)" 
+                              {...field} 
+                            />
                           </FormControl>
                           <PasswordStrength password={field.value} />
                           <FormMessage />
@@ -356,59 +401,63 @@ const UsuariosPage = () => {
                       )}
                     />
                   </div>
-                </div>
 
-                {/* Perfiles y Almacenes - layout como en la imagen */}
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Perfiles Asociados */}
-                  <FormField
-                    control={form.control}
-                    name="perfilIds"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Perfiles Asociados *</FormLabel>
-                        <FormControl>
-                          <MultiSelect
-                            options={perfiles.map(perfil => ({
-                              value: perfil.id.toString(),
-                              label: perfil.nombre
-                            }))}
-                            selected={field.value?.map(id => id.toString()) || []}
-                            onChange={(selected) => {
-                              field.onChange(selected.map(id => parseInt(id)));
-                            }}
-                            placeholder="Seleccione un Perfil"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {/* Columna 3 - Perfiles y Almacenes */}
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Asignaciones</h4>
+                    
+                    <FormField
+                      control={form.control}
+                      name="perfilIds"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm font-medium">Perfiles Asociados *</FormLabel>
+                          <FormControl>
+                            <div className="border-2 border-gray-300 rounded-md">
+                              <MultiSelect
+                                options={perfiles.map(perfil => ({
+                                  value: perfil.id.toString(),
+                                  label: perfil.nombre
+                                }))}
+                                selected={field.value?.map(id => id.toString()) || []}
+                                onChange={(selected) => {
+                                  field.onChange(selected.map(id => parseInt(id)));
+                                }}
+                                placeholder="Seleccione perfiles"
+                              />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                  {/* Almacenes Asociados */}
-                  <FormField
-                    control={form.control}
-                    name="empresaIds"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Almacenes Asociados *</FormLabel>
-                        <FormControl>
-                          <MultiSelect
-                            options={empresas.map(empresa => ({
-                              value: empresa.id.toString(),
-                              label: empresa.nombreEmpresa
-                            }))}
-                            selected={field.value?.map(id => id.toString()) || []}
-                            onChange={(selected) => {
-                              field.onChange(selected.map(id => parseInt(id)));
-                            }}
-                            placeholder="Seleccione un almacén"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                    <FormField
+                      control={form.control}
+                      name="empresaIds"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm font-medium">Almacenes (Opcional)</FormLabel>
+                          <FormControl>
+                            <div className="border-2 border-gray-300 rounded-md">
+                              <MultiSelect
+                                options={empresas.map(empresa => ({
+                                  value: empresa.id.toString(),
+                                  label: empresa.nombreEmpresa
+                                }))}
+                                selected={field.value?.map(id => id.toString()) || []}
+                                onChange={(selected) => {
+                                  field.onChange(selected.map(id => parseInt(id)));
+                                }}
+                                placeholder="Seleccione almacenes"
+                              />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
 
                 {/* Botones */}
