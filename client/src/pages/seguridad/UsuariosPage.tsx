@@ -9,6 +9,40 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Link } from "wouter";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Checkbox } from "@/components/ui/checkbox";
+
+// Esquema de validación para crear usuario
+const crearUsuarioSchema = z.object({
+  identificacion: z.string().min(1, "La identificación es requerida"),
+  primerNombre: z.string().min(1, "El primer nombre es requerido"),
+  segundoNombre: z.string().optional(),
+  primerApellido: z.string().min(1, "El primer apellido es requerido"),
+  segundoApellido: z.string().optional(),
+  telefono: z.string().optional(),
+  email: z.string().email("Email inválido"),
+  username: z.string().min(3, "El username debe tener al menos 3 caracteres"),
+  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
+  perfilIds: z.array(z.number()).min(1, "Debe seleccionar al menos un perfil"),
+});
+
+type CrearUsuarioForm = z.infer<typeof crearUsuarioSchema>;
+
+interface Perfil {
+  id: number;
+  nombre: string;
+  descripcion?: string;
+}
 
 interface Usuario {
   id: number;
@@ -31,6 +65,7 @@ interface Usuario {
 
 const UsuariosPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -39,6 +74,56 @@ const UsuariosPage = () => {
     queryKey: ["/api/usuarios"],
     staleTime: 30000, // Cache por 30 segundos
     refetchOnWindowFocus: false,
+  });
+
+  // Query para obtener perfiles disponibles
+  const { data: perfiles = [] } = useQuery<Perfil[]>({
+    queryKey: ["/api/perfiles"],
+  });
+
+  // Formulario para crear usuario
+  const form = useForm<CrearUsuarioForm>({
+    resolver: zodResolver(crearUsuarioSchema),
+    defaultValues: {
+      identificacion: "",
+      primerNombre: "",
+      segundoNombre: "",
+      primerApellido: "",
+      segundoApellido: "",
+      telefono: "",
+      email: "",
+      username: "",
+      password: "",
+      perfilIds: [],
+    },
+  });
+
+  // Mutation para crear usuario
+  const createUsuarioMutation = useMutation({
+    mutationFn: async (data: CrearUsuarioForm) => {
+      const response = await apiRequest("/api/usuarios", {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+      return response;
+    },
+    onSuccess: () => {
+      toast({
+        title: "✅ Usuario creado",
+        description: "El usuario se ha creado exitosamente",
+        variant: "default",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/usuarios"] });
+      setIsModalOpen(false);
+      form.reset();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "❌ Error al crear usuario",
+        description: error.message || "No se pudo crear el usuario",
+        variant: "destructive",
+      });
+    },
   });
 
   // Mutation para eliminar usuario
@@ -85,6 +170,10 @@ const UsuariosPage = () => {
     deleteUsuarioMutation.mutate(id);
   };
 
+  const handleCrearUsuario = (data: CrearUsuarioForm) => {
+    createUsuarioMutation.mutate(data);
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -100,12 +189,238 @@ const UsuariosPage = () => {
             </p>
           </div>
         </div>
-        <Link href="/seguridad/usuarios/crear">
-          <Button className="bg-green-600 hover:bg-green-700 text-white">
-            <Plus className="w-4 h-4 mr-2" />
-            Crear Usuario
-          </Button>
-        </Link>
+        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+          <DialogTrigger asChild>
+            <Button className="bg-green-600 hover:bg-green-700 text-white">
+              <Plus className="w-4 h-4 mr-2" />
+              Crear Usuario
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-semibold text-green-700">
+                Crear Nuevo Usuario
+              </DialogTitle>
+            </DialogHeader>
+            
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(handleCrearUsuario)} className="space-y-6">
+                {/* Información Personal */}
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Información Personal</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="identificacion"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Identificación *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Número de identificación" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email *</FormLabel>
+                          <FormControl>
+                            <Input type="email" placeholder="correo@ejemplo.com" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="primerNombre"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Primer Nombre *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Primer nombre" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="segundoNombre"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Segundo Nombre</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Segundo nombre (opcional)" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="primerApellido"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Primer Apellido *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Primer apellido" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="segundoApellido"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Segundo Apellido</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Segundo apellido (opcional)" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="telefono"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Teléfono</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Número de teléfono" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                {/* Credenciales de Acceso */}
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Credenciales de Acceso</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="username"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nombre de Usuario *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="username" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Contraseña *</FormLabel>
+                          <FormControl>
+                            <Input type="password" placeholder="Contraseña (mín. 6 caracteres)" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                {/* Perfiles */}
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Perfiles Asignados</h3>
+                  <FormField
+                    control={form.control}
+                    name="perfilIds"
+                    render={() => (
+                      <FormItem>
+                        <FormLabel>Seleccionar Perfiles *</FormLabel>
+                        <div className="grid grid-cols-2 gap-3">
+                          {perfiles.map((perfil) => (
+                            <FormField
+                              key={perfil.id}
+                              control={form.control}
+                              name="perfilIds"
+                              render={({ field }) => {
+                                return (
+                                  <FormItem
+                                    key={perfil.id}
+                                    className="flex flex-row items-start space-x-3 space-y-0"
+                                  >
+                                    <FormControl>
+                                      <Checkbox
+                                        checked={field.value?.includes(perfil.id)}
+                                        onCheckedChange={(checked) => {
+                                          return checked
+                                            ? field.onChange([...field.value, perfil.id])
+                                            : field.onChange(
+                                                field.value?.filter(
+                                                  (value) => value !== perfil.id
+                                                )
+                                              )
+                                        }}
+                                      />
+                                    </FormControl>
+                                    <div className="space-y-1 leading-none">
+                                      <FormLabel className="text-sm font-normal">
+                                        {perfil.nombre}
+                                      </FormLabel>
+                                      {perfil.descripcion && (
+                                        <p className="text-xs text-gray-500">
+                                          {perfil.descripcion}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </FormItem>
+                                )
+                              }}
+                            />
+                          ))}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Botones */}
+                <div className="flex justify-end gap-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsModalOpen(false)}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={createUsuarioMutation.isPending}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    {createUsuarioMutation.isPending ? "Creando..." : "Crear Usuario"}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Barra de búsqueda */}
