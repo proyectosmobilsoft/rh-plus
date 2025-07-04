@@ -74,6 +74,10 @@ import EmpresaLayout from "./components/EmpresaLayout";
 // Auth pages
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
+import ForgotPasswordEmpresa from "./pages/empresa/ForgotPasswordEmpresa";
+import ResetPasswordEmpresa from "./pages/empresa/ResetPasswordEmpresa";
+import ForgotPasswordCandidato from "./pages/candidatos/ForgotPasswordCandidato";
+import ResetPasswordCandidato from "./pages/candidatos/ResetPasswordCandidato";
 
 const queryClient = new QueryClient();
 
@@ -96,9 +100,13 @@ const App = () => (
           <Route path="/candidato/registro" element={<RegistroCandidato />} />
           <Route path="/candidato/cambiar-password" element={<CambiarPassword />} />
           <Route path="/candidato/perfil" element={<PerfilCandidato />} />
+          <Route path="/candidato/forgot-password" element={<ForgotPasswordCandidato />} />
+          <Route path="/candidato/reset-password" element={<ResetPasswordCandidato />} />
           
-          {/* Empresa Portal Login */}
+          {/* Empresa Portal Login & Auth */}
           <Route path="/empresa/login" element={<LoginEmpresa />} />
+          <Route path="/empresa/forgot-password" element={<ForgotPasswordEmpresa />} />
+          <Route path="/empresa/reset-password" element={<ResetPasswordEmpresa />} />
           
           {/* Empresa Portal Routes - With Layout */}
           <Route element={<SidebarProvider><EmpresaLayout /></SidebarProvider>}>

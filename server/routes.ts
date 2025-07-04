@@ -9,6 +9,8 @@ import {
   insertUserSchema,
 } from "@shared/schema";
 import { z } from "zod";
+import crypto from "crypto";
+import bcrypt from "bcrypt";
 
 // Session middleware for simple login
 declare module "express-session" {
@@ -1657,6 +1659,220 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Contraseña actualizada exitosamente" });
     } catch (error) {
       console.error("Error restableciendo contraseña:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // === EMPRESA RECUPERACIÓN DE CONTRASEÑA ===
+
+  // Generar token para empresa
+  app.post("/api/empresa/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ message: "Email es requerido" });
+      }
+
+      // Buscar empresa por email
+      const empresa = await storage.getEmpresaByEmail(email);
+      if (!empresa) {
+        // Por seguridad, no revelamos si el email existe o no
+        return res.json({ message: "Si el email existe, se ha enviado un enlace de recuperación" });
+      }
+
+      // Generar token
+      const token = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
+
+      // Guardar token en la base de datos
+      await storage.createPasswordResetToken({
+        userId: empresa.id,
+        token,
+        expiresAt
+      });
+
+      // En un entorno real, aquí enviarías el email
+      console.log(`Token de recuperación para empresa ${empresa.email}: ${token}`);
+      console.log(`URL de recuperación: ${req.protocol}://${req.get('host')}/empresa/reset-password?token=${token}`);
+
+      res.json({ message: "Si el email existe, se ha enviado un enlace de recuperación" });
+    } catch (error) {
+      console.error("Error generando token de recuperación para empresa:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Validar token de empresa
+  app.get("/api/empresa/validate-reset-token/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+
+      const resetToken = await storage.getPasswordResetToken(token);
+      if (!resetToken || resetToken.used || new Date() > resetToken.expiresAt) {
+        return res.status(400).json({ 
+          valid: false, 
+          message: "Token inválido o expirado" 
+        });
+      }
+
+      // Obtener información de la empresa
+      const empresa = await storage.getEmpresaById(resetToken.userId);
+      if (!empresa) {
+        return res.status(400).json({ 
+          valid: false, 
+          message: "Empresa no encontrada" 
+        });
+      }
+
+      res.json({ 
+        valid: true, 
+        email: empresa.email,
+        username: empresa.nombreEmpresa 
+      });
+    } catch (error) {
+      console.error("Error validando token de empresa:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Restablecer contraseña de empresa
+  app.post("/api/empresa/reset-password", async (req, res) => {
+    try {
+      const { token, newPassword } = req.body;
+
+      if (!token || !newPassword) {
+        return res.status(400).json({ message: "Token y contraseña son requeridos" });
+      }
+
+      // Validar token
+      const resetToken = await storage.getPasswordResetToken(token);
+      if (!resetToken || resetToken.used || new Date() > resetToken.expiresAt) {
+        return res.status(400).json({ message: "Token inválido o expirado" });
+      }
+
+      // Encriptar nueva contraseña
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      // Actualizar contraseña de empresa
+      await storage.updateEmpresaPassword(resetToken.userId, hashedPassword);
+
+      // Marcar token como usado
+      await storage.markTokenAsUsed(resetToken.id);
+
+      // Limpiar tokens expirados
+      await storage.cleanExpiredTokens();
+
+      res.json({ message: "Contraseña actualizada exitosamente" });
+    } catch (error) {
+      console.error("Error restableciendo contraseña de empresa:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // === CANDIDATO RECUPERACIÓN DE CONTRASEÑA ===
+
+  // Generar token para candidato
+  app.post("/api/candidato/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ message: "Email es requerido" });
+      }
+
+      // Buscar candidato por email
+      const candidato = await storage.getCandidatoByEmail(email);
+      if (!candidato) {
+        // Por seguridad, no revelamos si el email existe o no
+        return res.json({ message: "Si el email existe, se ha enviado un enlace de recuperación" });
+      }
+
+      // Generar token
+      const token = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
+
+      // Guardar token en la base de datos
+      await storage.createPasswordResetToken({
+        userId: candidato.id,
+        token,
+        expiresAt
+      });
+
+      // En un entorno real, aquí enviarías el email
+      console.log(`Token de recuperación para candidato ${candidato.email}: ${token}`);
+      console.log(`URL de recuperación: ${req.protocol}://${req.get('host')}/candidato/reset-password?token=${token}`);
+
+      res.json({ message: "Si el email existe, se ha enviado un enlace de recuperación" });
+    } catch (error) {
+      console.error("Error generando token de recuperación para candidato:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Validar token de candidato
+  app.get("/api/candidato/validate-reset-token/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+
+      const resetToken = await storage.getPasswordResetToken(token);
+      if (!resetToken || resetToken.used || new Date() > resetToken.expiresAt) {
+        return res.status(400).json({ 
+          valid: false, 
+          message: "Token inválido o expirado" 
+        });
+      }
+
+      // Obtener información del candidato
+      const candidato = await storage.getCandidatoById(resetToken.userId);
+      if (!candidato) {
+        return res.status(400).json({ 
+          valid: false, 
+          message: "Candidato no encontrado" 
+        });
+      }
+
+      res.json({ 
+        valid: true, 
+        email: candidato.email,
+        username: candidato.username || `${candidato.primerNombre} ${candidato.primerApellido}`
+      });
+    } catch (error) {
+      console.error("Error validando token de candidato:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Restablecer contraseña de candidato
+  app.post("/api/candidato/reset-password", async (req, res) => {
+    try {
+      const { token, newPassword } = req.body;
+
+      if (!token || !newPassword) {
+        return res.status(400).json({ message: "Token y contraseña son requeridos" });
+      }
+
+      // Validar token
+      const resetToken = await storage.getPasswordResetToken(token);
+      if (!resetToken || resetToken.used || new Date() > resetToken.expiresAt) {
+        return res.status(400).json({ message: "Token inválido o expirado" });
+      }
+
+      // Encriptar nueva contraseña
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      // Actualizar contraseña de candidato
+      await storage.updateCandidatoPassword(resetToken.userId, hashedPassword);
+
+      // Marcar token como usado
+      await storage.markTokenAsUsed(resetToken.id);
+
+      // Limpiar tokens expirados
+      await storage.cleanExpiredTokens();
+
+      res.json({ message: "Contraseña actualizada exitosamente" });
+    } catch (error) {
+      console.error("Error restableciendo contraseña de candidato:", error);
       res.status(500).json({ message: "Error interno del servidor" });
     }
   });

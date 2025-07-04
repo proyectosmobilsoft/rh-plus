@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { AlertCircle, CheckCircle2, Mail } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
-export default function ForgotPasswordPage() {
+export default function ForgotPasswordCandidato() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -20,10 +20,10 @@ export default function ForgotPasswordPage() {
     setError("");
 
     try {
-      const response = await fetch("/api/auth/forgot-password", {
-        method: "POST",
+      const response = await fetch('/api/candidato/forgot-password', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({ email }),
       });
@@ -32,16 +32,11 @@ export default function ForgotPasswordPage() {
 
       if (response.ok) {
         setIsSuccess(true);
-        // En desarrollo, mostramos el token
-        if (data.developmentToken) {
-          console.log("Token de desarrollo:", data.developmentToken);
-        }
       } else {
-        setError(data.message || "Error al enviar enlace de recuperación");
+        setError(data.message || 'Error al enviar el enlace de recuperación');
       }
     } catch (error) {
-      console.error("Error:", error);
-      setError("Error de conexión. Intente nuevamente.");
+      setError('Error de conexión. Inténtelo de nuevo.');
     } finally {
       setIsSubmitting(false);
     }
@@ -61,7 +56,7 @@ export default function ForgotPasswordPage() {
           </CardHeader>
           <CardContent className="space-y-4 text-center">
             <p className="text-gray-600">
-              Si el email existe en nuestro sistema, hemos enviado un enlace de recuperación de contraseña.
+              Se ha enviado un enlace de recuperación de contraseña a su email.
             </p>
             <p className="text-sm text-gray-500">
               Revise su bandeja de entrada y carpeta de spam.
@@ -70,7 +65,7 @@ export default function ForgotPasswordPage() {
               <Button 
                 variant="outline" 
                 className="w-full"
-                onClick={() => navigate('/')}
+                onClick={() => navigate('/candidato/login')}
               >
                 Volver al inicio de sesión
               </Button>
@@ -91,34 +86,39 @@ export default function ForgotPasswordPage() {
           <CardTitle className="text-2xl text-green-800">
             Recuperar contraseña
           </CardTitle>
+          <p className="text-gray-600 mt-2">
+            Portal de Candidatos
+          </p>
         </CardHeader>
         <CardContent>
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Correo electrónico</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Ingrese su correo electrónico"
-                required
-                disabled={isSubmitting}
-                className="focus:ring-green-500 focus:border-green-500"
-              />
+              <Label htmlFor="email">Email</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="tu.email@ejemplo.com"
+                  className="pl-10"
+                  required
+                />
+              </div>
             </div>
 
-            {error && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            <Button
-              type="submit"
-              disabled={isSubmitting || !email}
-              className="w-full bg-green-600 hover:bg-green-700"
+            <Button 
+              type="submit" 
+              className="w-full bg-green-600 hover:bg-green-700" 
+              disabled={isSubmitting}
             >
               {isSubmitting ? "Enviando..." : "Enviar enlace de recuperación"}
             </Button>
@@ -126,7 +126,7 @@ export default function ForgotPasswordPage() {
             <div className="text-center">
               <button 
                 type="button"
-                onClick={() => navigate('/')} 
+                onClick={() => navigate('/candidato/login')} 
                 className="text-sm text-green-600 hover:text-green-800"
               >
                 ← Volver al inicio de sesión

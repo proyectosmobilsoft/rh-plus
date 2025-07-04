@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { AlertCircle, CheckCircle2, Lock, Eye, EyeOff } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
-export default function ResetPasswordPage() {
+export default function ResetPasswordEmpresa() {
   const location = useLocation();
   const navigate = useNavigate();
   const [token, setToken] = useState("");
@@ -21,26 +21,24 @@ export default function ResetPasswordPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState("");
-  const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   useEffect(() => {
-    // Extraer token de la URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlToken = urlParams.get("token");
+    const urlParams = new URLSearchParams(location.search);
+    const tokenParam = urlParams.get('token');
     
-    if (!urlToken) {
-      setError("Token de recuperación no encontrado en la URL");
+    if (!tokenParam) {
+      setError("Token de recuperación no válido");
       setIsLoading(false);
       return;
     }
 
-    setToken(urlToken);
-    validateToken(urlToken);
-  }, [location]);
+    setToken(tokenParam);
+    validateToken(tokenParam);
+  }, [location.search]);
 
-  const validateToken = async (tokenValue: string) => {
+  const validateToken = async (tokenToValidate: string) => {
     try {
-      const response = await fetch(`/api/auth/validate-reset-token/${tokenValue}`);
+      const response = await fetch(`/api/empresa/validate-reset-token/${tokenToValidate}`);
       const data = await response.json();
 
       if (response.ok && data.valid) {
@@ -50,68 +48,42 @@ export default function ResetPasswordPage() {
         setError(data.message || "Token inválido o expirado");
       }
     } catch (error) {
-      console.error("Error validando token:", error);
-      setError("Error de conexión. Intente nuevamente.");
+      setError("Error de conexión. Inténtelo de nuevo.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const validatePassword = (password: string): string[] => {
-    const errors = [];
-    
-    if (password.length < 8) {
-      errors.push("La contraseña debe tener al menos 8 caracteres");
-    }
-    
-    if (!/[A-Z]/.test(password)) {
-      errors.push("Debe contener al menos una letra mayúscula");
-    }
-    
-    if (!/[a-z]/.test(password)) {
-      errors.push("Debe contener al menos una letra minúscula");
-    }
-    
-    if (!/\d/.test(password)) {
-      errors.push("Debe contener al menos un número");
-    }
-    
-    return errors;
-  };
-
-  const handlePasswordChange = (password: string) => {
-    setNewPassword(password);
-    setValidationErrors(validatePassword(password));
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
     setError("");
-
-    // Validaciones finales
-    const passwordErrors = validatePassword(newPassword);
-    if (passwordErrors.length > 0) {
-      setValidationErrors(passwordErrors);
-      setIsSubmitting(false);
-      return;
-    }
 
     if (newPassword !== confirmPassword) {
       setError("Las contraseñas no coinciden");
-      setIsSubmitting(false);
       return;
     }
 
+    if (newPassword.length < 8) {
+      setError("La contraseña debe tener al menos 8 caracteres");
+      return;
+    }
+
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(newPassword)) {
+      setError("La contraseña debe contener al menos una letra mayúscula, una minúscula y un número");
+      return;
+    }
+
+    setIsSubmitting(true);
+
     try {
-      const response = await fetch("/api/auth/reset-password", {
-        method: "POST",
+      const response = await fetch('/api/empresa/reset-password', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           token,
-          newPassword,
+          newPassword
         }),
       });
 
@@ -120,11 +92,10 @@ export default function ResetPasswordPage() {
       if (response.ok) {
         setIsSuccess(true);
       } else {
-        setError(data.message || "Error al restablecer la contraseña");
+        setError(data.message || 'Error al actualizar la contraseña');
       }
     } catch (error) {
-      console.error("Error:", error);
-      setError("Error de conexión. Intente nuevamente.");
+      setError('Error de conexión. Inténtelo de nuevo.');
     } finally {
       setIsSubmitting(false);
     }
@@ -132,12 +103,12 @@ export default function ResetPasswordPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-green-100 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 p-4">
         <Card className="w-full max-w-md">
-          <CardContent className="flex items-center justify-center p-8">
+          <CardContent className="pt-6">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Validando token...</p>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-4 text-gray-600">Validando token...</p>
             </div>
           </CardContent>
         </Card>
@@ -147,7 +118,7 @@ export default function ResetPasswordPage() {
 
   if (error && !token) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-green-100 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
@@ -163,7 +134,7 @@ export default function ResetPasswordPage() {
               <Button 
                 variant="outline" 
                 className="w-full"
-                onClick={() => navigate('/')}
+                onClick={() => navigate('/empresa/login')}
               >
                 Volver al inicio de sesión
               </Button>
@@ -176,7 +147,7 @@ export default function ResetPasswordPage() {
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-green-100 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
@@ -195,8 +166,8 @@ export default function ResetPasswordPage() {
             </p>
             <div className="pt-4">
               <Button 
-                className="w-full bg-green-600 hover:bg-green-700"
-                onClick={() => navigate('/')}
+                className="w-full bg-blue-600 hover:bg-blue-700"
+                onClick={() => navigate('/empresa/login')}
               >
                 Iniciar sesión
               </Button>
@@ -208,90 +179,81 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-green-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <Lock className="h-12 w-12 text-green-600" />
+            <Lock className="h-12 w-12 text-blue-600" />
           </div>
-          <CardTitle className="text-2xl text-green-800">
+          <CardTitle className="text-2xl text-blue-800">
             Nueva contraseña
           </CardTitle>
           <p className="text-sm text-gray-600">
-            Usuario: <strong>{username}</strong> ({email})
+            Empresa: <strong>{username}</strong> ({email})
           </p>
         </CardHeader>
         <CardContent>
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="newPassword">Nueva contraseña</Label>
               <div className="relative">
+                <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
                   id="newPassword"
                   type={showPassword ? "text" : "password"}
                   value={newPassword}
-                  onChange={(e) => handlePasswordChange(e.target.value)}
-                  placeholder="Ingrese su nueva contraseña"
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="pl-10 pr-10"
                   required
-                  disabled={isSubmitting}
-                  className="focus:ring-green-500 focus:border-green-500 pr-10"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              {validationErrors.length > 0 && (
-                <div className="text-sm text-red-600 space-y-1">
-                  {validationErrors.map((error, index) => (
-                    <div key={index}>• {error}</div>
-                  ))}
-                </div>
-              )}
+              <p className="text-xs text-gray-500">
+                Mínimo 8 caracteres, incluya mayúsculas, minúsculas y números
+              </p>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirmar contraseña</Label>
               <div className="relative">
+                <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
                   id="confirmPassword"
                   type={showConfirmPassword ? "text" : "password"}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirme su nueva contraseña"
+                  placeholder="••••••••"
+                  className="pl-10 pr-10"
                   required
-                  disabled={isSubmitting}
-                  className="focus:ring-green-500 focus:border-green-500 pr-10"
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
                 >
                   {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              {confirmPassword && newPassword !== confirmPassword && (
-                <div className="text-sm text-red-600">
-                  Las contraseñas no coinciden
-                </div>
-              )}
             </div>
 
-            {error && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            <Button
-              type="submit"
-              disabled={isSubmitting || validationErrors.length > 0 || newPassword !== confirmPassword || !newPassword || !confirmPassword}
-              className="w-full bg-green-600 hover:bg-green-700"
+            <Button 
+              type="submit" 
+              className="w-full bg-blue-600 hover:bg-blue-700" 
+              disabled={isSubmitting}
             >
               {isSubmitting ? "Actualizando..." : "Actualizar contraseña"}
             </Button>
@@ -299,8 +261,8 @@ export default function ResetPasswordPage() {
             <div className="text-center">
               <button 
                 type="button"
-                onClick={() => navigate('/')} 
-                className="text-sm text-green-600 hover:text-green-800"
+                onClick={() => navigate('/empresa/login')} 
+                className="text-sm text-blue-600 hover:text-blue-800"
               >
                 ← Volver al inicio de sesión
               </button>

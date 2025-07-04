@@ -281,6 +281,12 @@ export interface IStorage {
   getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined>;
   markTokenAsUsed(id: number): Promise<void>;
   cleanExpiredTokens(): Promise<void>;
+
+  // Métodos adicionales para recuperación de contraseñas
+  getEmpresaById(id: number): Promise<Empresa | undefined>;
+  getCandidatoById(id: number): Promise<Candidato | undefined>;
+  updateEmpresaPassword(id: number, hashedPassword: string): Promise<void>;
+  updateCandidatoPassword(id: number, hashedPassword: string): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -2159,6 +2165,31 @@ export class MemStorage implements IStorage {
       if (token.expiresAt <= now || token.used) {
         this.passwordResetTokens.delete(id);
       }
+    }
+  }
+
+  // Métodos adicionales para recuperación de contraseñas
+  async getEmpresaById(id: number): Promise<Empresa | undefined> {
+    return this.empresas.get(id);
+  }
+
+  async getCandidatoById(id: number): Promise<Candidato | undefined> {
+    return this.candidatos.get(id);
+  }
+
+  async updateEmpresaPassword(id: number, hashedPassword: string): Promise<void> {
+    const empresa = this.empresas.get(id);
+    if (empresa) {
+      const updatedEmpresa = { ...empresa, password: hashedPassword };
+      this.empresas.set(id, updatedEmpresa);
+    }
+  }
+
+  async updateCandidatoPassword(id: number, hashedPassword: string): Promise<void> {
+    const candidato = this.candidatos.get(id);
+    if (candidato) {
+      const updatedCandidato = { ...candidato, password: hashedPassword };
+      this.candidatos.set(id, updatedCandidato);
     }
   }
 }

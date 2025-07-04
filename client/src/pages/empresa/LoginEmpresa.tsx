@@ -119,6 +119,16 @@ export default function LoginEmpresa() {
                   </>
                 )}
               </Button>
+              
+              <div className="text-center mt-4">
+                <button 
+                  type="button"
+                  onClick={() => navigate('/empresa/forgot-password')} 
+                  className="text-sm text-blue-600 hover:text-blue-800"
+                >
+                  ¿Olvidó su contraseña?
+                </button>
+              </div>
             </form>
           </Form>
           
@@ -130,13 +140,20 @@ export default function LoginEmpresa() {
               <div>Email: empresa1@ejemplo.com</div>
               <div>Password: empresa123</div>
             </div>
-            <div className="mt-4">
+            <div className="mt-4 space-y-2">
               <Button 
                 variant="outline" 
                 onClick={() => navigate('/')}
-                className="text-sm"
+                className="text-sm w-full"
               >
                 Volver al Portal Administrativo
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => navigate('/candidato/login')}
+                className="text-sm w-full"
+              >
+                Portal de Candidatos
               </Button>
             </div>
           </div>
