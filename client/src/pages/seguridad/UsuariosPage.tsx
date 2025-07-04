@@ -35,7 +35,7 @@ const UsuariosPage = () => {
   const queryClient = useQueryClient();
 
   // Query para obtener usuarios
-  const { data: usuarios = [], isLoading, error } = useQuery<Usuario[]>({
+  const { data: usuarios = [] } = useQuery<Usuario[]>({
     queryKey: ["/api/usuarios"],
     staleTime: 30000, // Cache por 30 segundos
     refetchOnWindowFocus: false,
@@ -84,57 +84,6 @@ const UsuariosPage = () => {
   const handleEliminarUsuario = async (id: number) => {
     deleteUsuarioMutation.mutate(id);
   };
-
-  if (isLoading) {
-    return (
-      <div className="p-6 space-y-6">
-        <div className="animate-pulse">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gray-200 rounded"></div>
-              <div>
-                <div className="h-6 bg-gray-200 rounded w-48 mb-2"></div>
-                <div className="h-4 bg-gray-200 rounded w-64"></div>
-              </div>
-            </div>
-            <div className="h-10 bg-gray-200 rounded w-32"></div>
-          </div>
-          <div className="h-10 bg-gray-200 rounded mb-4"></div>
-          <div className="bg-white rounded-lg border">
-            <div className="p-4 border-b">
-              <div className="h-6 bg-gray-200 rounded w-48"></div>
-            </div>
-            <div className="p-4 space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-16 bg-gray-100 rounded"></div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-6">
-        <div className="text-center">
-          <h1 className="text-2xl font-semibold text-gray-900 mb-4">
-            Error al cargar usuarios
-          </h1>
-          <p className="text-gray-600 mb-6">
-            Hubo un problema al obtener la información de usuarios.
-          </p>
-          <Button
-            onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/usuarios"] })}
-            className="bg-green-600 hover:bg-green-700"
-          >
-            Reintentar
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="p-6 space-y-6">
