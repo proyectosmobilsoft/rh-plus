@@ -106,6 +106,16 @@ This is a full-stack medical practice management application built with modern w
 ```
 Changelog:
 
+- January 8, 2025. Single unified login system consolidation completed
+  * Consolidated all portal logins (admin, empresa, candidato) into single LoginUnificado entry point
+  * Eliminated separate login pages and redirected all portal-specific URLs to unified system
+  * Updated all navigation links and references to point to single login at root path (/)
+  * Created LoginRedirect component to automatically redirect legacy portal URLs
+  * Enhanced AuthContext with comprehensive role-based permissions and dynamic sidebar
+  * Implemented MultiSelect component with modern organized display for user profile selection
+  * Added automatic form clearing in profile module after successful save operations
+  * Fixed visual distortion issues in warehouse and profile selection components
+  * Complete system now uses single authentication entry with role-based interface adaptation
 - January 4, 2025. Complete password recovery system implementation
   * Implemented comprehensive password recovery system with token-based authentication
   * Added passwordResetTokens table schema with expiration and single-use token functionality

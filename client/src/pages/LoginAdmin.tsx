@@ -176,27 +176,19 @@ export default function LoginAdmin() {
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
                   <span className="bg-white px-2 text-muted-foreground">
-                    ¿Eres candidato?
+                    Portal Legacy
                   </span>
                 </div>
               </div>
               
-              <div className="mt-4">
-                <Link to="/candidato/login">
-                  <Button variant="outline" className="w-full">
-                    <User className="w-4 h-4 mr-2" />
-                    Portal de Candidatos
-                  </Button>
-                </Link>
-              </div>
-              
-              <div className="mt-4">
-                <Link to="/empresa/login">
-                  <Button variant="outline" className="w-full bg-blue-50 hover:bg-blue-100 border-blue-200">
-                    <Building2 className="w-4 h-4 mr-2" />
-                    Portal de Empresas
-                  </Button>
-                </Link>
+              <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-amber-800 text-sm text-center">
+                  ⚠️ Este portal ha sido reemplazado por el Login Unificado. 
+                  <br />
+                  <Link to="/" className="font-medium underline hover:no-underline">
+                    Ir al nuevo portal único
+                  </Link>
+                </p>
               </div>
             </div>
           </CardContent>

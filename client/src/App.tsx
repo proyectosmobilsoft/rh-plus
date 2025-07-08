@@ -59,6 +59,7 @@ import CambiarPassword from "./pages/candidatos/CambiarPassword";
 // Admin login and Auth components
 import LoginAdmin from "./pages/LoginAdmin";
 import LoginUnificado from "./pages/LoginUnificado";
+import LoginRedirect from "./components/LoginRedirect";
 
 // Empresa portal pages
 import LoginEmpresa from "./pages/empresa/LoginEmpresa";
@@ -91,28 +92,22 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-          {/* Login Unificado - Nueva ruta principal */}
-          <Route path="/login" element={<LoginUnificado />} />
-          
-          {/* Admin Login - Ruta legada */}
-          <Route path="/" element={<LoginAdmin />} />
+          {/* Login Unificado - Única entrada al sistema */}
+          <Route path="/" element={<LoginUnificado />} />
           
           {/* Auth Routes - No Layout */}
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           
-          {/* Candidate Portal Routes - No Layout */}
-          <Route path="/candidato/login" element={<LoginCandidato />} />
+          {/* Redirecciones automáticas al login unificado */}
+          <Route path="/admin" element={<LoginRedirect />} />
+          <Route path="/candidato/login" element={<LoginRedirect />} />
+          <Route path="/empresa/login" element={<LoginRedirect />} />
+          
+          {/* Rutas de registro y funcionalidades específicas sin login */}
           <Route path="/candidato/registro" element={<RegistroCandidato />} />
           <Route path="/candidato/cambiar-password" element={<CambiarPassword />} />
           <Route path="/candidato/perfil" element={<PerfilCandidato />} />
-          <Route path="/candidato/forgot-password" element={<ForgotPasswordCandidato />} />
-          <Route path="/candidato/reset-password" element={<ResetPasswordCandidato />} />
-          
-          {/* Empresa Portal Login & Auth */}
-          <Route path="/empresa/login" element={<LoginEmpresa />} />
-          <Route path="/empresa/forgot-password" element={<ForgotPasswordEmpresa />} />
-          <Route path="/empresa/reset-password" element={<ResetPasswordEmpresa />} />
           
           {/* Empresa Portal Routes - With Layout */}
           <Route element={<SidebarProvider><EmpresaLayout /></SidebarProvider>}>

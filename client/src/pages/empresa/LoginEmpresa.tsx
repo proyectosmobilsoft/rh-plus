@@ -146,7 +146,7 @@ export default function LoginEmpresa() {
                 onClick={() => navigate('/')}
                 className="text-sm w-full"
               >
-                Volver al Portal Administrativo
+                Ir al Login Unificado
               </Button>
               <Button 
                 variant="outline" 
