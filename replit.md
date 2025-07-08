@@ -106,6 +106,17 @@ This is a full-stack medical practice management application built with modern w
 ```
 Changelog:
 
+- January 8, 2025. Complete dynamic permissions management system implemented
+  * Created comprehensive dynamic permissions system with automatic detection of all views and actions
+  * Added new database schemas: system_views, view_actions, profile_view_permissions, profile_action_permissions
+  * Implemented complete backend storage layer with methods for permission management, validation, and bulk operations
+  * Added 12 new API routes for permission management: views, actions, permissions, and validation endpoints
+  * Created professional permission management UI with checkboxes for view access and toggles for action permissions
+  * Configured automatic initialization of 11 system views with 65 total actions across all modules
+  * Added granular permission validation at both view and action levels throughout the system
+  * Enhanced security module with "Gestión de Permisos" option in the navigation menu
+  * System now supports dynamic permission configuration for each user profile with real-time validation
+  * Complete permission structure: dashboard, usuarios, perfiles, candidatos, empresas, qr, analistas, ordenes, certificados, maestro, reportes
 - January 8, 2025. Single unified login system consolidation completed
   * Consolidated all portal logins (admin, empresa, candidato) into single LoginUnificado entry point
   * Eliminated separate login pages and redirected all portal-specific URLs to unified system
