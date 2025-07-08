@@ -342,7 +342,7 @@ export function getDefaultDashboard(role: UserRole): string {
     case "cliente":
       return "/empresa/dashboard";
     case "candidato":
-      return "/candidatos/perfil";
+      return "/candidato/perfil";
     default:
       return "/dashboard";
   }

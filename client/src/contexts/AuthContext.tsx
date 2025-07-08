@@ -169,7 +169,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       case "cliente":
         return "/empresa/dashboard";
       case "candidato":
-        return "/candidatos/perfil";
+        return "/candidato/perfil";
       default:
         return "/dashboard";
     }
