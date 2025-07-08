@@ -11,6 +11,7 @@ import {
 import { z } from "zod";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
+// Note: Import para getUserPermissions se hará dinámicamente según necesidad
 
 // Session middleware for simple login
 declare module "express-session" {
@@ -18,11 +19,184 @@ declare module "express-session" {
     userId?: number;
     candidatoId?: number;
     empresaId?: number;
-    userType?: "admin" | "candidato" | "empresa";
+    userType?: "admin" | "candidato" | "empresa" | "analista" | "cliente";
+    userTable?: "users" | "candidatos" | "empresas";
   }
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Sistema de autenticación unificado
+  
+  // Login unificado para todos los tipos de usuario
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+
+      if (!username || !password) {
+        return res.status(400).json({ message: "Usuario y contraseña son requeridos" });
+      }
+
+      // Buscar usuario en todas las tablas posibles
+      let user = null;
+      let userRole = null;
+      let userTable = null;
+
+      // 1. Buscar en tabla de administradores/usuarios
+      const adminUser = await storage.getUserByUsername(username);
+      if (adminUser) {
+        const isValidPassword = await bcrypt.compare(password, adminUser.password);
+        if (isValidPassword) {
+          user = adminUser;
+          userRole = adminUser.tipoUsuario || "admin";
+          userTable = "users";
+        }
+      }
+
+      // 2. Buscar en tabla de candidatos
+      if (!user) {
+        const candidato = await storage.getCandidatoByEmail(username);
+        if (candidato) {
+          const isValidPassword = await bcrypt.compare(password, candidato.password);
+          if (isValidPassword) {
+            user = candidato;
+            userRole = "candidato";
+            userTable = "candidatos";
+          }
+        }
+      }
+
+      // 3. Buscar en tabla de empresas/clientes
+      if (!user) {
+        const empresa = await storage.getEmpresaByEmail(username);
+        if (empresa) {
+          const isValidPassword = await bcrypt.compare(password, empresa.password);
+          if (isValidPassword) {
+            user = empresa;
+            userRole = "cliente";
+            userTable = "empresas";
+          }
+        }
+      }
+
+      if (!user) {
+        return res.status(401).json({ message: "Credenciales inválidas" });
+      }
+
+      // Verificar si el usuario está activo
+      if (user.activo === false) {
+        return res.status(401).json({ message: "Usuario inactivo" });
+      }
+
+      // Crear sesión
+      req.session.userId = user.id;
+      req.session.userType = userRole;
+      req.session.userTable = userTable;
+
+      // Preparar respuesta del usuario
+      const userResponse = {
+        id: user.id,
+        username: user.username || user.email,
+        email: user.email,
+        primerNombre: user.primerNombre || user.nombres,
+        primerApellido: user.primerApellido || user.apellidos,
+        role: userRole,
+        activo: user.activo
+      };
+
+      res.json({
+        message: "Login exitoso",
+        user: userResponse
+      });
+
+    } catch (error) {
+      console.error("Error en login:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Verificar sesión actual
+  app.get("/api/auth/session", async (req, res) => {
+    try {
+      if (!req.session.userId || !req.session.userType) {
+        return res.status(401).json({ message: "No hay sesión activa" });
+      }
+
+      let user = null;
+
+      // Obtener usuario según el tipo
+      switch (req.session.userTable) {
+        case "users":
+          user = await storage.getUser(req.session.userId);
+          break;
+        case "candidatos":
+          user = await storage.getCandidato(req.session.userId);
+          break;
+        case "empresas":
+          user = await storage.getEmpresaById(req.session.userId);
+          break;
+      }
+
+      if (!user) {
+        req.session.destroy(() => {});
+        return res.status(401).json({ message: "Usuario no encontrado" });
+      }
+
+      const userResponse = {
+        id: user.id,
+        username: user.username || user.email,
+        email: user.email,
+        primerNombre: user.primerNombre || user.nombres,
+        primerApellido: user.primerApellido || user.apellidos,
+        role: req.session.userType,
+        activo: user.activo
+      };
+
+      res.json({ user: userResponse });
+
+    } catch (error) {
+      console.error("Error verificando sesión:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Logout
+  app.post("/api/auth/logout", (req, res) => {
+    req.session.destroy((err) => {
+      if (err) {
+        console.error("Error al cerrar sesión:", err);
+        return res.status(500).json({ message: "Error al cerrar sesión" });
+      }
+      res.json({ message: "Sesión cerrada exitosamente" });
+    });
+  });
+
+  // Obtener permisos del usuario
+  app.get("/api/usuarios/:id/permisos", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      
+      if (!req.session.userId || req.session.userId !== userId) {
+        return res.status(401).json({ message: "No autorizado" });
+      }
+
+      // Obtener perfiles del usuario
+      const userPerfiles = await storage.getUserPerfiles(userId);
+      const additionalPermissions: string[] = [];
+      
+      // Combinar permisos de todos los perfiles
+      for (const perfil of userPerfiles) {
+        // Aquí deberías obtener los permisos específicos del perfil
+        // Por ahora retornamos un array vacío para permisos adicionales
+      }
+
+      res.json(additionalPermissions);
+
+    } catch (error) {
+      console.error("Error obteniendo permisos:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
   // Test route to diagnose the problem
 
   // Temporary auto-login route for development

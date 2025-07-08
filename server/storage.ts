@@ -284,6 +284,7 @@ export interface IStorage {
 
   // Métodos adicionales para recuperación de contraseñas
   getEmpresaById(id: number): Promise<Empresa | undefined>;
+  getEmpresaByEmail(email: string): Promise<Empresa | undefined>;
   getCandidatoById(id: number): Promise<Candidato | undefined>;
   updateEmpresaPassword(id: number, hashedPassword: string): Promise<void>;
   updateCandidatoPassword(id: number, hashedPassword: string): Promise<void>;
@@ -2171,6 +2172,15 @@ export class MemStorage implements IStorage {
   // Métodos adicionales para recuperación de contraseñas
   async getEmpresaById(id: number): Promise<Empresa | undefined> {
     return this.empresas.get(id);
+  }
+
+  async getEmpresaByEmail(email: string): Promise<Empresa | undefined> {
+    for (const empresa of this.empresas.values()) {
+      if (empresa.email === email) {
+        return empresa;
+      }
+    }
+    return undefined;
   }
 
   async getCandidatoById(id: number): Promise<Candidato | undefined> {

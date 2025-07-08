@@ -5,6 +5,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 import Index from "./pages/Index";
 import Layout from "./components/Layout";
@@ -54,9 +56,9 @@ import RegistroCandidato from "./pages/candidatos/RegistroCandidato";
 import PerfilCandidato from "./pages/candidatos/PerfilCandidato";
 import CambiarPassword from "./pages/candidatos/CambiarPassword";
 
-// Admin login
+// Admin login and Auth components
 import LoginAdmin from "./pages/LoginAdmin";
-import { ProtectedRoute } from "./components/ProtectedRoute";
+import LoginUnificado from "./pages/LoginUnificado";
 
 // Empresa portal pages
 import LoginEmpresa from "./pages/empresa/LoginEmpresa";
@@ -83,12 +85,16 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          {/* Admin Login - First View */}
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+          {/* Login Unificado - Nueva ruta principal */}
+          <Route path="/login" element={<LoginUnificado />} />
+          
+          {/* Admin Login - Ruta legada */}
           <Route path="/" element={<LoginAdmin />} />
           
           {/* Auth Routes - No Layout */}
@@ -178,6 +184,7 @@ const App = () => (
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
+  </AuthProvider>
   </QueryClientProvider>
 );
 

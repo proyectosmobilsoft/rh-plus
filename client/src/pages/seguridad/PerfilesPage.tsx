@@ -100,7 +100,14 @@ const PerfilesPage = () => {
       queryClient.invalidateQueries({ queryKey: ['perfiles'] });
       setIsModalOpen(false);
       setEditingPerfil(null);
-      form.reset();
+      
+      // Limpiar completamente el formulario después de crear/editar
+      form.reset({
+        codigo: perfiles.length + 1,
+        nombre: "",
+        descripcion: "",
+        permisos: []
+      });
       
       toast({
         title: "Éxito",
