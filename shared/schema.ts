@@ -635,3 +635,96 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
 export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
 export const insertPasswordResetTokenSchema = createInsertSchema(passwordResetTokens).omit({ id: true });
 export type InsertPasswordResetToken = z.infer<typeof insertPasswordResetTokenSchema>;
+
+// ========== SISTEMA DE PERMISOS DINÁMICOS ==========
+
+// Tabla de vistas del sistema
+export const systemViews = pgTable("system_views", {
+  id: serial("id").primaryKey(),
+  nombre: varchar("nombre", { length: 100 }).notNull().unique(), // ej: "usuarios", "qr", "candidatos"
+  displayName: varchar("display_name", { length: 150 }).notNull(), // ej: "Gestión de Usuarios"
+  descripcion: text("descripcion"),
+  ruta: varchar("ruta", { length: 255 }), // ej: "/seguridad/usuarios"
+  modulo: varchar("modulo", { length: 100 }).notNull(), // ej: "seguridad", "empresa", "candidatos"
+  icono: varchar("icono", { length: 50 }), // ej: "Users", "Shield"
+  orden: integer("orden").default(0), // para ordenar en la UI
+  activo: boolean("activo").default(true),
+  fechaCreacion: timestamp("fecha_creacion").defaultNow(),
+});
+
+// Tabla de acciones disponibles para cada vista
+export const viewActions = pgTable("view_actions", {
+  id: serial("id").primaryKey(),
+  viewId: integer("view_id").notNull().references(() => systemViews.id, { onDelete: 'cascade' }),
+  nombre: varchar("nombre", { length: 100 }).notNull(), // ej: "crear_usuario", "ver_qr", "generar_qr"
+  displayName: varchar("display_name", { length: 150 }).notNull(), // ej: "Crear Usuario"
+  descripcion: text("descripcion"),
+  tipo: varchar("tipo", { length: 50 }).default("button"), // button, endpoint, form, view
+  orden: integer("orden").default(0),
+  activo: boolean("activo").default(true),
+  fechaCreacion: timestamp("fecha_creacion").defaultNow(),
+});
+
+// Tabla de permisos de vista por perfil (qué vistas puede ver un perfil)
+export const profileViewPermissions = pgTable("profile_view_permissions", {
+  id: serial("id").primaryKey(),
+  perfilId: integer("perfil_id").notNull().references(() => perfiles.id, { onDelete: 'cascade' }),
+  viewId: integer("view_id").notNull().references(() => systemViews.id, { onDelete: 'cascade' }),
+  activo: boolean("activo").default(true),
+  fechaCreacion: timestamp("fecha_creacion").defaultNow(),
+});
+
+// Tabla de permisos de acción por perfil (qué acciones puede ejecutar un perfil en cada vista)
+export const profileActionPermissions = pgTable("profile_action_permissions", {
+  id: serial("id").primaryKey(),
+  perfilId: integer("perfil_id").notNull().references(() => perfiles.id, { onDelete: 'cascade' }),
+  viewId: integer("view_id").notNull().references(() => systemViews.id, { onDelete: 'cascade' }),
+  actionId: integer("action_id").notNull().references(() => viewActions.id, { onDelete: 'cascade' }),
+  activo: boolean("activo").default(true),
+  fechaCreacion: timestamp("fecha_creacion").defaultNow(),
+});
+
+// Esquemas de inserción para el sistema de permisos
+export const insertSystemViewSchema = createInsertSchema(systemViews).omit({
+  id: true,
+  fechaCreacion: true,
+});
+
+export const insertViewActionSchema = createInsertSchema(viewActions).omit({
+  id: true,
+  fechaCreacion: true,
+});
+
+export const insertProfileViewPermissionSchema = createInsertSchema(profileViewPermissions).omit({
+  id: true,
+  fechaCreacion: true,
+});
+
+export const insertProfileActionPermissionSchema = createInsertSchema(profileActionPermissions).omit({
+  id: true,
+  fechaCreacion: true,
+});
+
+// Tipos TypeScript para el sistema de permisos
+export type SystemView = typeof systemViews.$inferSelect;
+export type InsertSystemView = z.infer<typeof insertSystemViewSchema>;
+export type ViewAction = typeof viewActions.$inferSelect;
+export type InsertViewAction = z.infer<typeof insertViewActionSchema>;
+export type ProfileViewPermission = typeof profileViewPermissions.$inferSelect;
+export type InsertProfileViewPermission = z.infer<typeof insertProfileViewPermissionSchema>;
+export type ProfileActionPermission = typeof profileActionPermissions.$inferSelect;
+export type InsertProfileActionPermission = z.infer<typeof insertProfileActionPermissionSchema>;
+
+// Tipo para la estructura completa de vista con acciones
+export type ViewWithActions = SystemView & {
+  acciones: ViewAction[];
+};
+
+// Tipo para la estructura de permisos de un perfil
+export type ProfilePermissions = {
+  perfil: typeof perfiles.$inferSelect;
+  vistas: Array<{
+    vista: SystemView;
+    acciones: ViewAction[];
+  }>;
+};

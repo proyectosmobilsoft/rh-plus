@@ -35,6 +35,7 @@ import CrearCoordinadorPage from "./pages/seguridad/CrearCoordinadorPage";
 import CrearAdminGeneralPage from "./pages/seguridad/CrearAdminGeneralPage";
 import CrearClientePage from "./pages/seguridad/CrearClientePage";
 import MenuPage from "./pages/seguridad/MenuPage";
+import GestionPermisosPage from "./pages/seguridad/GestionPermisosPage";
 
 // Maestro pages
 import TiposCandidatosPage from "./pages/maestro/TiposCandidatosPage";
@@ -158,6 +159,7 @@ const App = () => (
             <Route path="/seguridad/perfiles/crear-admin-general" element={<CrearAdminGeneralPage />} />
             <Route path="/seguridad/perfiles/crear-cliente" element={<CrearClientePage />} />
             <Route path="/seguridad/menu" element={<MenuPage />} />
+            <Route path="/seguridad/permisos" element={<GestionPermisosPage />} />
             
             {/* Maestro */}
             <Route path="/maestro/tipos-candidatos" element={<TiposCandidatosPage />} />

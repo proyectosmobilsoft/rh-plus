@@ -2060,6 +2060,142 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ========== RUTAS API SISTEMA DE PERMISOS DINÁMICOS ==========
+
+  // System Views API routes
+  app.get("/api/system-views", async (req, res) => {
+    try {
+      const views = await storage.getAllSystemViews();
+      res.json(views);
+    } catch (error) {
+      console.error("Error obteniendo vistas del sistema:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  app.get("/api/system-views/:id", async (req, res) => {
+    try {
+      const view = await storage.getSystemViewById(parseInt(req.params.id));
+      if (!view) {
+        return res.status(404).json({ message: "Vista no encontrada" });
+      }
+      res.json(view);
+    } catch (error) {
+      console.error("Error obteniendo vista:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  app.get("/api/system-views/:id/actions", async (req, res) => {
+    try {
+      const actions = await storage.getActionsByViewId(parseInt(req.params.id));
+      res.json(actions);
+    } catch (error) {
+      console.error("Error obteniendo acciones de la vista:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // View Actions API routes
+  app.get("/api/view-actions", async (req, res) => {
+    try {
+      const actions = await storage.getAllViewActions();
+      res.json(actions);
+    } catch (error) {
+      console.error("Error obteniendo acciones:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Profile permissions API routes
+  app.get("/api/perfiles/:id/permissions", async (req, res) => {
+    try {
+      const perfilId = parseInt(req.params.id);
+      const permissions = await storage.getProfilePermissions(perfilId);
+      res.json(permissions);
+    } catch (error) {
+      console.error("Error obteniendo permisos del perfil:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  app.get("/api/perfiles/:id/views", async (req, res) => {
+    try {
+      const perfilId = parseInt(req.params.id);
+      const views = await storage.getViewsWithActionsByPerfilId(perfilId);
+      res.json(views);
+    } catch (error) {
+      console.error("Error obteniendo vistas del perfil:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  app.post("/api/perfiles/:id/permissions", async (req, res) => {
+    try {
+      const perfilId = parseInt(req.params.id);
+      const { vistas } = req.body;
+      
+      if (!vistas || !Array.isArray(vistas)) {
+        return res.status(400).json({ message: "Formato de permisos inválido" });
+      }
+
+      await storage.updateProfilePermissions(perfilId, { vistas });
+      res.json({ message: "Permisos actualizados exitosamente" });
+    } catch (error) {
+      console.error("Error actualizando permisos:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Permission validation API routes
+  app.get("/api/perfiles/:id/check-view/:viewName", async (req, res) => {
+    try {
+      const perfilId = parseInt(req.params.id);
+      const viewName = req.params.viewName;
+      
+      const hasPermission = await storage.hasViewPermission(perfilId, viewName);
+      res.json({ hasPermission });
+    } catch (error) {
+      console.error("Error verificando permiso de vista:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  app.get("/api/perfiles/:id/check-action/:viewName/:actionName", async (req, res) => {
+    try {
+      const perfilId = parseInt(req.params.id);
+      const viewName = req.params.viewName;
+      const actionName = req.params.actionName;
+      
+      const hasPermission = await storage.hasActionPermission(perfilId, viewName, actionName);
+      res.json({ hasPermission });
+    } catch (error) {
+      console.error("Error verificando permiso de acción:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Get all views with their actions for permission management UI
+  app.get("/api/views-with-actions", async (req, res) => {
+    try {
+      const views = await storage.getAllSystemViews();
+      const viewsWithActions = [];
+      
+      for (const view of views) {
+        const actions = await storage.getActionsByViewId(view.id);
+        viewsWithActions.push({
+          ...view,
+          acciones: actions
+        });
+      }
+      
+      res.json(viewsWithActions);
+    } catch (error) {
+      console.error("Error obteniendo vistas con acciones:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

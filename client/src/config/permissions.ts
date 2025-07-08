@@ -17,6 +17,7 @@ export type Permission =
   | "crear_perfiles"
   | "editar_perfiles"
   | "eliminar_perfiles"
+  | "gestionar_permisos"
   
   // Maestros
   | "ver_maestros"
@@ -82,6 +83,7 @@ export const rolePermissions: Record<UserRole, Permission[]> = {
     "crear_perfiles",
     "editar_perfiles",
     "eliminar_perfiles",
+    "gestionar_permisos",
     
     // Maestros - acceso completo
     "ver_maestros",
@@ -223,6 +225,13 @@ export const systemMenus: MenuItem[] = [
         icon: "UserCheck",
         path: "/seguridad/perfiles",
         permission: "ver_perfiles"
+      },
+      {
+        id: "permisos",
+        label: "Gestión de Permisos",
+        icon: "Shield",
+        path: "/seguridad/permisos",
+        permission: "gestionar_permisos"
       }
     ]
   },

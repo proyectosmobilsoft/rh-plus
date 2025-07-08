@@ -16,6 +16,10 @@ import {
   perfilMenus,
   perfilAcciones,
   analistas,
+  systemViews,
+  viewActions,
+  profileViewPermissions,
+  profileActionPermissions,
   type User,
   type InsertUser,
   type UserPerfil,
@@ -48,6 +52,16 @@ import {
   type PerfilMenu,
   type InsertPerfilMenu,
   type PerfilAccion,
+  type SystemView,
+  type InsertSystemView,
+  type ViewAction,
+  type InsertViewAction,
+  type ProfileViewPermission,
+  type InsertProfileViewPermission,
+  type ProfileActionPermission,
+  type InsertProfileActionPermission,
+  type ViewWithActions,
+  type ProfilePermissions,
   type InsertPerfilAccion,
   type Analista,
   type InsertAnalista,
@@ -289,6 +303,48 @@ export interface IStorage {
   getCandidatoById(id: number): Promise<Candidato | undefined>;
   updateEmpresaPassword(id: number, hashedPassword: string): Promise<void>;
   updateCandidatoPassword(id: number, hashedPassword: string): Promise<void>;
+
+  // ========== SISTEMA DE PERMISOS DINÁMICOS ==========
+  
+  // System Views operations
+  getAllSystemViews(): Promise<SystemView[]>;
+  getSystemViewById(id: number): Promise<SystemView | undefined>;
+  getSystemViewByNombre(nombre: string): Promise<SystemView | undefined>;
+  createSystemView(view: InsertSystemView): Promise<SystemView>;
+  updateSystemView(id: number, view: Partial<InsertSystemView>): Promise<SystemView>;
+  deleteSystemView(id: number): Promise<void>;
+
+  // View Actions operations
+  getActionsByViewId(viewId: number): Promise<ViewAction[]>;
+  getAllViewActions(): Promise<ViewAction[]>;
+  getViewActionById(id: number): Promise<ViewAction | undefined>;
+  createViewAction(action: InsertViewAction): Promise<ViewAction>;
+  updateViewAction(id: number, action: Partial<InsertViewAction>): Promise<ViewAction>;
+  deleteViewAction(id: number): Promise<void>;
+
+  // Profile View Permissions operations
+  getViewPermissionsByPerfilId(perfilId: number): Promise<ProfileViewPermission[]>;
+  createProfileViewPermission(permission: InsertProfileViewPermission): Promise<ProfileViewPermission>;
+  deleteViewPermissionsByPerfilId(perfilId: number): Promise<void>;
+
+  // Profile Action Permissions operations
+  getActionPermissionsByPerfilId(perfilId: number): Promise<ProfileActionPermission[]>;
+  createProfileActionPermission(permission: InsertProfileActionPermission): Promise<ProfileActionPermission>;
+  deleteActionPermissionsByPerfilId(perfilId: number): Promise<void>;
+
+  // Combined operations
+  getViewsWithActionsByPerfilId(perfilId: number): Promise<ViewWithActions[]>;
+  getProfilePermissions(perfilId: number): Promise<ProfilePermissions>;
+  hasViewPermission(perfilId: number, viewNombre: string): Promise<boolean>;
+  hasActionPermission(perfilId: number, viewNombre: string, actionNombre: string): Promise<boolean>;
+  
+  // Bulk permission management
+  updateProfilePermissions(perfilId: number, permissions: {
+    vistas: Array<{ vistaId: number; acciones: number[] }>;
+  }): Promise<void>;
+
+  // Initialize system views and actions
+  initializeSystemViewsAndActions(): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -309,6 +365,12 @@ export class MemStorage implements IStorage {
   private perfilMenus: Map<number, PerfilMenu>;
   private perfilAcciones: Map<number, PerfilAccion>;
   private analistas: Map<number, Analista>;
+
+  // Sistema de permisos dinámicos
+  private systemViews: Map<number, SystemView>;
+  private viewActions: Map<number, ViewAction>;
+  private profileViewPermissions: Map<number, ProfileViewPermission>;
+  private profileActionPermissions: Map<number, ProfileActionPermission>;
   
   // Nuevas tablas para reportes
   private ordenes: Map<number, Orden>;
@@ -342,6 +404,12 @@ export class MemStorage implements IStorage {
   currentAlertaId: number;
   currentMetricaId: number;
   currentPasswordResetTokenId: number;
+  
+  // Contadores para sistema de permisos dinámicos
+  currentSystemViewId: number;
+  currentViewActionId: number;
+  currentProfileViewPermissionId: number;
+  currentProfileActionPermissionId: number;
 
   constructor() {
     this.users = new Map();
@@ -368,6 +436,12 @@ export class MemStorage implements IStorage {
     this.alertas = new Map();
     this.metricas = new Map();
     this.passwordResetTokens = new Map();
+
+    // Inicializar Maps del sistema de permisos dinámicos
+    this.systemViews = new Map();
+    this.viewActions = new Map();
+    this.profileViewPermissions = new Map();
+    this.profileActionPermissions = new Map();
     
     this.currentUserId = 1;
     this.currentUserPerfilId = 1;
@@ -391,9 +465,18 @@ export class MemStorage implements IStorage {
     this.currentAlertaId = 1;
     this.currentMetricaId = 1;
     this.currentPasswordResetTokenId = 1;
+    
+    // Inicializar contadores del sistema de permisos dinámicos
+    this.currentSystemViewId = 1;
+    this.currentViewActionId = 1;
+    this.currentProfileViewPermissionId = 1;
+    this.currentProfileActionPermissionId = 1;
 
     // Agregar datos de muestra para el dashboard
     this.initializeSampleData();
+    
+    // Inicializar vistas y acciones del sistema
+    this.initializeSystemViewsAndActions();
     
     // Hash passwords after construction
     this.hashPasswordsAfterInit();
@@ -2223,6 +2306,441 @@ export class MemStorage implements IStorage {
     if (candidato) {
       const updatedCandidato = { ...candidato, password: hashedPassword };
       this.candidatos.set(id, updatedCandidato);
+    }
+  }
+
+  // ========== IMPLEMENTACIONES SISTEMA DE PERMISOS DINÁMICOS ==========
+
+  // System Views operations
+  async getAllSystemViews(): Promise<SystemView[]> {
+    return Array.from(this.systemViews.values());
+  }
+
+  async getSystemViewById(id: number): Promise<SystemView | undefined> {
+    return this.systemViews.get(id);
+  }
+
+  async getSystemViewByNombre(nombre: string): Promise<SystemView | undefined> {
+    return Array.from(this.systemViews.values()).find(view => view.nombre === nombre);
+  }
+
+  async createSystemView(view: InsertSystemView): Promise<SystemView> {
+    const newView: SystemView = {
+      id: this.currentSystemViewId++,
+      ...view,
+      fechaCreacion: new Date(),
+    };
+    this.systemViews.set(newView.id, newView);
+    return newView;
+  }
+
+  async updateSystemView(id: number, view: Partial<InsertSystemView>): Promise<SystemView> {
+    const existing = this.systemViews.get(id);
+    if (!existing) throw new Error("Vista del sistema no encontrada");
+    
+    const updated: SystemView = { ...existing, ...view };
+    this.systemViews.set(id, updated);
+    return updated;
+  }
+
+  async deleteSystemView(id: number): Promise<void> {
+    // Delete related actions first
+    const actions = Array.from(this.viewActions.values()).filter(action => action.viewId === id);
+    for (const action of actions) {
+      await this.deleteViewAction(action.id);
+    }
+    
+    // Delete related permissions
+    const viewPermissions = Array.from(this.profileViewPermissions.values()).filter(p => p.viewId === id);
+    for (const permission of viewPermissions) {
+      this.profileViewPermissions.delete(permission.id);
+    }
+    
+    this.systemViews.delete(id);
+  }
+
+  // View Actions operations
+  async getActionsByViewId(viewId: number): Promise<ViewAction[]> {
+    return Array.from(this.viewActions.values()).filter(action => action.viewId === viewId);
+  }
+
+  async getAllViewActions(): Promise<ViewAction[]> {
+    return Array.from(this.viewActions.values());
+  }
+
+  async getViewActionById(id: number): Promise<ViewAction | undefined> {
+    return this.viewActions.get(id);
+  }
+
+  async createViewAction(action: InsertViewAction): Promise<ViewAction> {
+    const newAction: ViewAction = {
+      id: this.currentViewActionId++,
+      ...action,
+      fechaCreacion: new Date(),
+    };
+    this.viewActions.set(newAction.id, newAction);
+    return newAction;
+  }
+
+  async updateViewAction(id: number, action: Partial<InsertViewAction>): Promise<ViewAction> {
+    const existing = this.viewActions.get(id);
+    if (!existing) throw new Error("Acción no encontrada");
+    
+    const updated: ViewAction = { ...existing, ...action };
+    this.viewActions.set(id, updated);
+    return updated;
+  }
+
+  async deleteViewAction(id: number): Promise<void> {
+    // Delete related action permissions first
+    const actionPermissions = Array.from(this.profileActionPermissions.values()).filter(p => p.actionId === id);
+    for (const permission of actionPermissions) {
+      this.profileActionPermissions.delete(permission.id);
+    }
+    
+    this.viewActions.delete(id);
+  }
+
+  // Profile View Permissions operations
+  async getViewPermissionsByPerfilId(perfilId: number): Promise<ProfileViewPermission[]> {
+    return Array.from(this.profileViewPermissions.values()).filter(p => p.perfilId === perfilId);
+  }
+
+  async createProfileViewPermission(permission: InsertProfileViewPermission): Promise<ProfileViewPermission> {
+    const newPermission: ProfileViewPermission = {
+      id: this.currentProfileViewPermissionId++,
+      ...permission,
+      fechaCreacion: new Date(),
+    };
+    this.profileViewPermissions.set(newPermission.id, newPermission);
+    return newPermission;
+  }
+
+  async deleteViewPermissionsByPerfilId(perfilId: number): Promise<void> {
+    const permissions = Array.from(this.profileViewPermissions.values()).filter(p => p.perfilId === perfilId);
+    for (const permission of permissions) {
+      this.profileViewPermissions.delete(permission.id);
+    }
+  }
+
+  // Profile Action Permissions operations
+  async getActionPermissionsByPerfilId(perfilId: number): Promise<ProfileActionPermission[]> {
+    return Array.from(this.profileActionPermissions.values()).filter(p => p.perfilId === perfilId);
+  }
+
+  async createProfileActionPermission(permission: InsertProfileActionPermission): Promise<ProfileActionPermission> {
+    const newPermission: ProfileActionPermission = {
+      id: this.currentProfileActionPermissionId++,
+      ...permission,
+      fechaCreacion: new Date(),
+    };
+    this.profileActionPermissions.set(newPermission.id, newPermission);
+    return newPermission;
+  }
+
+  async deleteActionPermissionsByPerfilId(perfilId: number): Promise<void> {
+    const permissions = Array.from(this.profileActionPermissions.values()).filter(p => p.perfilId === perfilId);
+    for (const permission of permissions) {
+      this.profileActionPermissions.delete(permission.id);
+    }
+  }
+
+  // Combined operations
+  async getViewsWithActionsByPerfilId(perfilId: number): Promise<ViewWithActions[]> {
+    const viewPermissions = await this.getViewPermissionsByPerfilId(perfilId);
+    const result: ViewWithActions[] = [];
+    
+    for (const viewPermission of viewPermissions) {
+      const view = await this.getSystemViewById(viewPermission.viewId);
+      if (view) {
+        const actions = await this.getActionsByViewId(view.id);
+        const actionPermissions = await this.getActionPermissionsByPerfilId(perfilId);
+        
+        // Filter actions that the profile has permission for
+        const allowedActions = actions.filter(action => 
+          actionPermissions.some(ap => ap.actionId === action.id && ap.viewId === view.id)
+        );
+        
+        result.push({
+          ...view,
+          acciones: allowedActions
+        });
+      }
+    }
+    
+    return result;
+  }
+
+  async getProfilePermissions(perfilId: number): Promise<ProfilePermissions> {
+    const perfil = await this.getPerfilById(perfilId);
+    if (!perfil) throw new Error("Perfil no encontrado");
+    
+    const viewsWithActions = await this.getViewsWithActionsByPerfilId(perfilId);
+    
+    return {
+      perfil,
+      vistas: viewsWithActions.map(view => ({
+        vista: view,
+        acciones: view.acciones
+      }))
+    };
+  }
+
+  async hasViewPermission(perfilId: number, viewNombre: string): Promise<boolean> {
+    const view = await this.getSystemViewByNombre(viewNombre);
+    if (!view) return false;
+    
+    const permissions = await this.getViewPermissionsByPerfilId(perfilId);
+    return permissions.some(p => p.viewId === view.id && p.activo);
+  }
+
+  async hasActionPermission(perfilId: number, viewNombre: string, actionNombre: string): Promise<boolean> {
+    const view = await this.getSystemViewByNombre(viewNombre);
+    if (!view) return false;
+    
+    const actions = await this.getActionsByViewId(view.id);
+    const action = actions.find(a => a.nombre === actionNombre);
+    if (!action) return false;
+    
+    const permissions = await this.getActionPermissionsByPerfilId(perfilId);
+    return permissions.some(p => p.viewId === view.id && p.actionId === action.id && p.activo);
+  }
+
+  // Bulk permission management
+  async updateProfilePermissions(perfilId: number, permissions: {
+    vistas: Array<{ vistaId: number; acciones: number[] }>;
+  }): Promise<void> {
+    // Delete existing permissions
+    await this.deleteViewPermissionsByPerfilId(perfilId);
+    await this.deleteActionPermissionsByPerfilId(perfilId);
+    
+    // Create new permissions
+    for (const vista of permissions.vistas) {
+      // Create view permission
+      await this.createProfileViewPermission({
+        perfilId,
+        viewId: vista.vistaId,
+        activo: true
+      });
+      
+      // Create action permissions
+      for (const actionId of vista.acciones) {
+        await this.createProfileActionPermission({
+          perfilId,
+          viewId: vista.vistaId,
+          actionId,
+          activo: true
+        });
+      }
+    }
+  }
+
+  // Initialize system views and actions
+  async initializeSystemViewsAndActions(): Promise<void> {
+    // Only initialize if no views exist
+    if (this.systemViews.size > 0) return;
+
+    // Definición completa de todas las vistas del sistema y sus acciones
+    const systemViewsData = [
+      {
+        nombre: "dashboard",
+        displayName: "Dashboard Principal",
+        descripcion: "Panel principal con estadísticas y métricas",
+        ruta: "/dashboard",
+        modulo: "general",
+        icono: "BarChart3",
+        orden: 1,
+        acciones: [
+          { nombre: "ver_dashboard", displayName: "Ver Dashboard", descripcion: "Acceso al panel principal", tipo: "view" },
+          { nombre: "ver_metricas", displayName: "Ver Métricas", descripcion: "Visualizar métricas del sistema", tipo: "view" },
+          { nombre: "exportar_reportes", displayName: "Exportar Reportes", descripcion: "Exportar datos del dashboard", tipo: "button" }
+        ]
+      },
+      {
+        nombre: "usuarios",
+        displayName: "Gestión de Usuarios",
+        descripcion: "Administración de usuarios del sistema",
+        ruta: "/seguridad/usuarios",
+        modulo: "seguridad",
+        icono: "Users",
+        orden: 2,
+        acciones: [
+          { nombre: "ver_usuarios", displayName: "Ver Usuarios", descripcion: "Listar usuarios del sistema", tipo: "view" },
+          { nombre: "crear_usuario", displayName: "Crear Usuario", descripcion: "Crear nuevos usuarios", tipo: "form" },
+          { nombre: "editar_usuario", displayName: "Editar Usuario", descripcion: "Modificar información de usuarios", tipo: "form" },
+          { nombre: "eliminar_usuario", displayName: "Eliminar Usuario", descripcion: "Eliminar usuarios del sistema", tipo: "button" },
+          { nombre: "resetear_password", displayName: "Resetear Contraseña", descripcion: "Restablecer contraseñas de usuario", tipo: "button" }
+        ]
+      },
+      {
+        nombre: "perfiles",
+        displayName: "Gestión de Perfiles",
+        descripcion: "Administración de perfiles y roles",
+        ruta: "/seguridad/perfiles",
+        modulo: "seguridad",
+        icono: "UserCheck",
+        orden: 3,
+        acciones: [
+          { nombre: "ver_perfiles", displayName: "Ver Perfiles", descripcion: "Listar perfiles del sistema", tipo: "view" },
+          { nombre: "crear_perfil", displayName: "Crear Perfil", descripcion: "Crear nuevos perfiles", tipo: "form" },
+          { nombre: "editar_perfil", displayName: "Editar Perfil", descripcion: "Modificar perfiles existentes", tipo: "form" },
+          { nombre: "eliminar_perfil", displayName: "Eliminar Perfil", descripcion: "Eliminar perfiles", tipo: "button" },
+          { nombre: "gestionar_permisos", displayName: "Gestionar Permisos", descripcion: "Configurar permisos de perfiles", tipo: "form" }
+        ]
+      },
+      {
+        nombre: "candidatos",
+        displayName: "Gestión de Candidatos",
+        descripcion: "Administración de candidatos",
+        ruta: "/registros/candidatos",
+        modulo: "registros",
+        icono: "UserPlus",
+        orden: 4,
+        acciones: [
+          { nombre: "ver_candidatos", displayName: "Ver Candidatos", descripcion: "Listar candidatos", tipo: "view" },
+          { nombre: "crear_candidato", displayName: "Crear Candidato", descripcion: "Registrar nuevos candidatos", tipo: "form" },
+          { nombre: "editar_candidato", displayName: "Editar Candidato", descripcion: "Modificar información de candidatos", tipo: "form" },
+          { nombre: "aprobar_candidato", displayName: "Aprobar Candidato", descripcion: "Aprobar o rechazar candidatos", tipo: "button" },
+          { nombre: "enviar_whatsapp", displayName: "Enviar WhatsApp", descripcion: "Enviar mensajes por WhatsApp", tipo: "button" },
+          { nombre: "enviar_email", displayName: "Enviar Email", descripcion: "Enviar correos electrónicos", tipo: "button" }
+        ]
+      },
+      {
+        nombre: "empresas",
+        displayName: "Gestión de Empresas",
+        descripcion: "Administración de empresas afiliadas",
+        ruta: "/registros/empresas",
+        modulo: "registros",
+        icono: "Building2",
+        orden: 5,
+        acciones: [
+          { nombre: "ver_empresas", displayName: "Ver Empresas", descripcion: "Listar empresas afiliadas", tipo: "view" },
+          { nombre: "crear_empresa", displayName: "Crear Empresa", descripcion: "Registrar nuevas empresas", tipo: "form" },
+          { nombre: "editar_empresa", displayName: "Editar Empresa", descripcion: "Modificar información de empresas", tipo: "form" },
+          { nombre: "eliminar_empresa", displayName: "Eliminar Empresa", descripcion: "Eliminar empresas", tipo: "button" },
+          { nombre: "configurar_campos", displayName: "Configurar Campos", descripcion: "Configurar campos visibles", tipo: "form" }
+        ]
+      },
+      {
+        nombre: "qr",
+        displayName: "Gestión de QR",
+        descripcion: "Administración de códigos QR",
+        ruta: "/empresa/qr",
+        modulo: "empresa",
+        icono: "QrCode",
+        orden: 6,
+        acciones: [
+          { nombre: "ver_qr", displayName: "Ver QR", descripcion: "Visualizar códigos QR", tipo: "view" },
+          { nombre: "generar_qr", displayName: "Generar QR", descripcion: "Crear nuevos códigos QR", tipo: "button" },
+          { nombre: "configurar_qr", displayName: "Configurar QR", descripcion: "Configurar parámetros de QR", tipo: "form" },
+          { nombre: "eliminar_qr", displayName: "Eliminar QR", descripcion: "Eliminar códigos QR", tipo: "button" },
+          { nombre: "enviar_qr_whatsapp", displayName: "Enviar QR por WhatsApp", descripcion: "Compartir QR via WhatsApp", tipo: "button" },
+          { nombre: "enviar_qr_email", displayName: "Enviar QR por Email", descripcion: "Compartir QR via email", tipo: "button" }
+        ]
+      },
+      {
+        nombre: "analistas",
+        displayName: "Gestión de Analistas",
+        descripcion: "Administración de analistas",
+        ruta: "/analistas",
+        modulo: "recursos",
+        icono: "UserCheck",
+        orden: 7,
+        acciones: [
+          { nombre: "ver_analistas", displayName: "Ver Analistas", descripcion: "Listar analistas", tipo: "view" },
+          { nombre: "crear_analista", displayName: "Crear Analista", descripcion: "Registrar nuevos analistas", tipo: "form" },
+          { nombre: "editar_analista", displayName: "Editar Analista", descripcion: "Modificar información de analistas", tipo: "form" },
+          { nombre: "eliminar_analista", displayName: "Eliminar Analista", descripcion: "Eliminar analistas", tipo: "button" },
+          { nombre: "exportar_analistas", displayName: "Exportar Analistas", descripcion: "Exportar lista de analistas", tipo: "button" }
+        ]
+      },
+      {
+        nombre: "ordenes",
+        displayName: "Expedición de Órdenes",
+        descripcion: "Gestión de órdenes de trabajo",
+        ruta: "/ordenes/expedicion",
+        modulo: "ordenes",
+        icono: "FileText",
+        orden: 8,
+        acciones: [
+          { nombre: "ver_ordenes", displayName: "Ver Órdenes", descripcion: "Listar órdenes de trabajo", tipo: "view" },
+          { nombre: "crear_orden", displayName: "Crear Orden", descripcion: "Generar nuevas órdenes", tipo: "form" },
+          { nombre: "editar_orden", displayName: "Editar Orden", descripcion: "Modificar órdenes existentes", tipo: "form" },
+          { nombre: "aprobar_orden", displayName: "Aprobar Orden", descripcion: "Aprobar órdenes de trabajo", tipo: "button" },
+          { nombre: "rechazar_orden", displayName: "Rechazar Orden", descripcion: "Rechazar órdenes de trabajo", tipo: "button" },
+          { nombre: "imprimir_orden", displayName: "Imprimir Orden", descripcion: "Generar PDF de la orden", tipo: "button" }
+        ]
+      },
+      {
+        nombre: "certificados",
+        displayName: "Expedición de Certificados",
+        descripcion: "Gestión de certificados médicos",
+        ruta: "/certificados/expedicion",
+        modulo: "certificados",
+        icono: "Award",
+        orden: 9,
+        acciones: [
+          { nombre: "ver_certificados", displayName: "Ver Certificados", descripcion: "Listar certificados emitidos", tipo: "view" },
+          { nombre: "generar_certificado", displayName: "Generar Certificado", descripcion: "Crear nuevos certificados", tipo: "form" },
+          { nombre: "editar_certificado", displayName: "Editar Certificado", descripcion: "Modificar certificados", tipo: "form" },
+          { nombre: "firmar_certificado", displayName: "Firmar Certificado", descripcion: "Aplicar firma digital", tipo: "button" },
+          { nombre: "imprimir_certificado", displayName: "Imprimir Certificado", descripcion: "Generar PDF del certificado", tipo: "button" },
+          { nombre: "enviar_certificado", displayName: "Enviar Certificado", descripcion: "Enviar certificado por email", tipo: "button" }
+        ]
+      },
+      {
+        nombre: "maestro",
+        displayName: "Configuración Maestro",
+        descripcion: "Configuración de tipos y documentos",
+        ruta: "/maestro/tipos-candidatos",
+        modulo: "configuracion",
+        icono: "Settings",
+        orden: 10,
+        acciones: [
+          { nombre: "ver_tipos_candidatos", displayName: "Ver Tipos de Candidatos", descripcion: "Listar tipos de candidatos", tipo: "view" },
+          { nombre: "crear_tipo_candidato", displayName: "Crear Tipo Candidato", descripcion: "Crear nuevos tipos", tipo: "form" },
+          { nombre: "editar_tipo_candidato", displayName: "Editar Tipo Candidato", descripcion: "Modificar tipos existentes", tipo: "form" },
+          { nombre: "eliminar_tipo_candidato", displayName: "Eliminar Tipo Candidato", descripcion: "Eliminar tipos", tipo: "button" },
+          { nombre: "configurar_documentos", displayName: "Configurar Documentos", descripcion: "Gestionar documentos requeridos", tipo: "form" }
+        ]
+      },
+      {
+        nombre: "reportes",
+        displayName: "Reportes y Análisis",
+        descripcion: "Generación de reportes del sistema",
+        ruta: "/reportes",
+        modulo: "reportes",
+        icono: "BarChart3",
+        orden: 11,
+        acciones: [
+          { nombre: "ver_reportes", displayName: "Ver Reportes", descripcion: "Acceder a reportes del sistema", tipo: "view" },
+          { nombre: "generar_reporte_candidatos", displayName: "Reporte de Candidatos", descripcion: "Generar reporte de candidatos", tipo: "button" },
+          { nombre: "generar_reporte_ordenes", displayName: "Reporte de Órdenes", descripcion: "Generar reporte de órdenes", tipo: "button" },
+          { nombre: "generar_reporte_metricas", displayName: "Reporte de Métricas", descripcion: "Generar reporte de métricas", tipo: "button" },
+          { nombre: "exportar_excel", displayName: "Exportar a Excel", descripcion: "Exportar reportes a Excel", tipo: "button" },
+          { nombre: "programar_reporte", displayName: "Programar Reporte", descripcion: "Programar reportes automáticos", tipo: "form" }
+        ]
+      }
+    ];
+
+    // Crear las vistas del sistema
+    for (const viewData of systemViewsData) {
+      const { acciones, ...viewInfo } = viewData;
+      
+      const view = await this.createSystemView({
+        ...viewInfo,
+        activo: true
+      });
+
+      // Crear las acciones para cada vista
+      for (let i = 0; i < acciones.length; i++) {
+        await this.createViewAction({
+          viewId: view.id,
+          ...acciones[i],
+          orden: i + 1,
+          activo: true
+        });
+      }
     }
   }
 }
