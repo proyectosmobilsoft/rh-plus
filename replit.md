@@ -115,7 +115,9 @@ Changelog:
   * Implemented MultiSelect component with modern organized display for user profile selection
   * Added automatic form clearing in profile module after successful save operations
   * Fixed visual distortion issues in warehouse and profile selection components
-  * Complete system now uses single authentication entry with role-based interface adaptation
+  * Fixed candidato redirection: corrected getDefaultDashboard from /candidatos/perfil to /candidato/perfil
+  * Updated candidato API endpoints to support unified session structure (userId instead of candidatoId)
+  * Complete system now uses single authentication entry with role-based interface adaptation working for all user types
 - January 4, 2025. Complete password recovery system implementation
   * Implemented comprehensive password recovery system with token-based authentication
   * Added passwordResetTokens table schema with expiration and single-use token functionality

@@ -387,11 +387,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Candidato profile management
   app.get("/api/candidato/profile", async (req, res) => {
     try {
-      if (!req.session.candidatoId || req.session.userType !== "candidato") {
+      // Support both old candidatoId and new unified userId system
+      const candidatoId = req.session.candidatoId || req.session.userId;
+      
+      if (!candidatoId || req.session.userType !== "candidato") {
         return res.status(401).json({ message: "No autorizado" });
       }
 
-      const candidato = await storage.getCandidato(req.session.candidatoId);
+      const candidato = await storage.getCandidato(candidatoId);
       if (!candidato) {
         return res.status(404).json({ message: "Candidato no encontrado" });
       }
@@ -407,7 +410,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/candidato/cambiar-password", async (req, res) => {
     try {
-      if (!req.session.candidatoId || req.session.userType !== "candidato") {
+      // Support both old candidatoId and new unified userId system
+      const candidatoId = req.session.candidatoId || req.session.userId;
+      
+      if (!candidatoId || req.session.userType !== "candidato") {
         return res.status(401).json({ message: "No autorizado" });
       }
 
@@ -419,7 +425,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .json({ message: "Contraseña actual y nueva son requeridas" });
       }
 
-      const candidato = await storage.getCandidato(req.session.candidatoId);
+      const candidato = await storage.getCandidato(candidatoId);
       if (!candidato) {
         return res.status(404).json({ message: "Candidato no encontrado" });
       }
@@ -432,7 +438,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Actualizar contraseña y marcar que ya no debe cambiarla
-      await storage.updateCandidato(req.session.candidatoId, {
+      await storage.updateCandidato(candidatoId, {
         password: passwordNueva,
         deberCambiarPassword: false,
       });
@@ -446,7 +452,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/candidato/profile", async (req, res) => {
     try {
-      if (!req.session.candidatoId || req.session.userType !== "candidato") {
+      // Support both old candidatoId and new unified userId system
+      const candidatoId = req.session.candidatoId || req.session.userId;
+      
+      if (!candidatoId || req.session.userType !== "candidato") {
         return res.status(401).json({ message: "No autorizado" });
       }
 
@@ -455,7 +464,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       delete updateData.email; // Don't allow email updates for now
 
       const updatedCandidato = await storage.updateCandidato(
-        req.session.candidatoId,
+        candidatoId,
         updateData,
       );
 
