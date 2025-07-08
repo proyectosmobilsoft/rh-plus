@@ -85,6 +85,7 @@ const menuItems = [
     subItems: [
       { title: "Usuarios", path: "/seguridad/usuarios", icon: <Users className="h-4 w-4" /> },
       { title: "Perfiles", path: "/seguridad/perfiles", icon: <Settings className="h-4 w-4" /> },
+      { title: "Gestión de Permisos", path: "/seguridad/permisos", icon: <UserCheck className="h-4 w-4" /> },
       { title: "Menu", path: "/seguridad/menu", icon: <Menu className="h-4 w-4" /> },
     ],
   },
