@@ -44,7 +44,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // 1. Buscar en tabla de administradores/usuarios
       const adminUser = await storage.getUserByUsername(username);
       if (adminUser) {
-        const isValidPassword = await bcrypt.compare(password, adminUser.password);
+        const isValidPassword = password === adminUser.password;
         if (isValidPassword) {
           user = adminUser;
           userRole = adminUser.tipoUsuario || "admin";
@@ -56,7 +56,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         const candidato = await storage.getCandidatoByEmail(username);
         if (candidato) {
-          const isValidPassword = await bcrypt.compare(password, candidato.password);
+          const isValidPassword = password === candidato.password;
           if (isValidPassword) {
             user = candidato;
             userRole = "candidato";
@@ -69,7 +69,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         const empresa = await storage.getEmpresaByEmail(username);
         if (empresa) {
-          const isValidPassword = await bcrypt.compare(password, empresa.password);
+          const isValidPassword = password === empresa.password;
           if (isValidPassword) {
             user = empresa;
             userRole = "cliente";

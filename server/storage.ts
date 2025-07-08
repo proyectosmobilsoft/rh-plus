@@ -1,3 +1,4 @@
+import bcrypt from "bcrypt";
 import {
   users,
   candidatos,
@@ -393,6 +394,9 @@ export class MemStorage implements IStorage {
 
     // Agregar datos de muestra para el dashboard
     this.initializeSampleData();
+    
+    // Hash passwords after construction
+    this.hashPasswordsAfterInit();
 
     // Create default profiles
     this.perfiles.set(1, {
@@ -535,11 +539,11 @@ export class MemStorage implements IStorage {
 
     this.currentUserPerfilId = 6;
 
-    // Create some test candidatos
+    // Create some test candidatos with plain passwords for now
     this.candidatos.set(1, {
       id: 1,
       email: "candidato1@ejemplo.com",
-      password: "123456",
+      password: "123456", // Will be hashed after construction
       deberCambiarPassword: false, // Ya cambió la contraseña
       perfilId: 2, // Perfil de candidato
       nombres: "Juan Carlos",
@@ -578,7 +582,7 @@ export class MemStorage implements IStorage {
     this.empresas.set(1, {
       id: 1,
       email: "empresa1@ejemplo.com",
-      password: "empresa123",
+      password: "empresa123", // Will be hashed after construction
       nombreEmpresa: "TechCorp Solutions",
       nit: "9001234567",
       direccion: "Calle 100 #15-23, Piso 5",
@@ -593,7 +597,7 @@ export class MemStorage implements IStorage {
     this.empresas.set(2, {
       id: 2,
       email: "empresa2@ejemplo.com",
-      password: "empresa456",
+      password: "empresa456", // Will be hashed after construction
       nombreEmpresa: "Innovación Digital S.A.S",
       nit: "9007654321",
       direccion: "Carrera 50 #80-15",
@@ -2165,6 +2169,25 @@ export class MemStorage implements IStorage {
     for (const [id, token] of this.passwordResetTokens.entries()) {
       if (token.expiresAt <= now || token.used) {
         this.passwordResetTokens.delete(id);
+      }
+    }
+  }
+
+  // Hash passwords after initialization
+  private hashPasswordsAfterInit(): void {
+    // Hash candidatos passwords
+    for (const [id, candidato] of this.candidatos.entries()) {
+      if (candidato.password && !candidato.password.startsWith('$2b$')) {
+        candidato.password = bcrypt.hashSync(candidato.password, 10);
+        this.candidatos.set(id, candidato);
+      }
+    }
+    
+    // Hash empresas passwords
+    for (const [id, empresa] of this.empresas.entries()) {
+      if (empresa.password && !empresa.password.startsWith('$2b$')) {
+        empresa.password = bcrypt.hashSync(empresa.password, 10);
+        this.empresas.set(id, empresa);
       }
     }
   }
