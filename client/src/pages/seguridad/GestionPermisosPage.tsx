@@ -48,6 +48,7 @@ interface PermissionConfig {
 
 const GestionPermisosPage: React.FC = () => {
   const [selectedPerfilId, setSelectedPerfilId] = useState<number | null>(null);
+  const [selectedVistaId, setSelectedVistaId] = useState<number | null>(null);
   const [permissions, setPermissions] = useState<PermissionConfig[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -120,6 +121,7 @@ const GestionPermisosPage: React.FC = () => {
   const handlePerfilChange = (perfilId: string) => {
     const id = parseInt(perfilId);
     setSelectedPerfilId(id);
+    setSelectedVistaId(null); // Reset vista selection
     setPermissions([]);
   };
 
@@ -233,7 +235,7 @@ const GestionPermisosPage: React.FC = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-end">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-end">
             <div className="space-y-2">
               <label className="text-sm font-medium">Perfil a configurar:</label>
               <Select onValueChange={handlePerfilChange} value={selectedPerfilId?.toString() || ""}>
@@ -246,6 +248,32 @@ const GestionPermisosPage: React.FC = () => {
                       <div className="flex items-center space-x-2">
                         <span className="font-medium">{perfil.nombre}</span>
                         <span className="text-sm text-gray-500">({perfil.descripcion})</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Vista específica:</label>
+              <Select 
+                onValueChange={(value) => setSelectedVistaId(value ? parseInt(value) : null)} 
+                value={selectedVistaId?.toString() || ""}
+                disabled={!selectedPerfilId}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccione una vista..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todas las vistas</SelectItem>
+                  {viewsWithActions?.map((vista) => (
+                    <SelectItem key={vista.id} value={vista.id.toString()}>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-xs px-2 py-1 rounded bg-brand-lime/10 text-brand-lime">
+                          {vista.modulo.toUpperCase()}
+                        </span>
+                        <span className="font-medium">{vista.displayName}</span>
                       </div>
                     </SelectItem>
                   ))}
@@ -287,21 +315,101 @@ const GestionPermisosPage: React.FC = () => {
         </CardContent>
       </Card>
 
+      {/* Vista específica seleccionada - Mostrar acciones disponibles */}
+      {selectedVistaId && viewsWithActions && (
+        <Card className="border-brand-lime/30">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2 text-gray-800">
+              <Shield className="h-5 w-5 text-brand-lime" />
+              <span>Acciones para: {viewsWithActions.find(v => v.id === selectedVistaId)?.displayName}</span>
+            </CardTitle>
+            <div className="text-sm text-gray-600">
+              Configure las acciones específicas que el perfil puede realizar en esta vista.
+            </div>
+          </CardHeader>
+          <CardContent>
+            {(() => {
+              const selectedView = viewsWithActions.find(v => v.id === selectedVistaId);
+              if (!selectedView || !selectedView.acciones.length) {
+                return (
+                  <div className="text-center py-8 text-gray-500">
+                    No hay acciones disponibles para esta vista
+                  </div>
+                );
+              }
+              
+              return (
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <Checkbox
+                      checked={isViewChecked(selectedVistaId)}
+                      onCheckedChange={(checked) => 
+                        handleViewToggle(selectedVistaId, checked as boolean)
+                      }
+                    />
+                    <span className="font-medium">Permitir acceso a esta vista</span>
+                    <Badge className={getModuleColor(selectedView.modulo)}>
+                      {selectedView.modulo.toUpperCase()}
+                    </Badge>
+                  </div>
+                  
+                  {isViewChecked(selectedVistaId) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pl-6 border-l-2 border-brand-lime/30">
+                      {selectedView.acciones
+                        .sort((a, b) => a.orden - b.orden)
+                        .map((action) => (
+                          <div
+                            key={action.id}
+                            className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-gray-50 card-interactive"
+                          >
+                            <Switch
+                              checked={isActionChecked(selectedVistaId, action.id)}
+                              onCheckedChange={(checked) =>
+                                handleActionToggle(selectedVistaId, action.id, checked)
+                              }
+                            />
+                            <div className="flex-1">
+                              <div className="text-sm font-medium">{action.displayName}</div>
+                              <div className="text-xs text-gray-500">{action.descripcion}</div>
+                              <Badge variant="outline" className="text-xs mt-1">
+                                {action.tipo}
+                              </Badge>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Configuración de permisos */}
       {selectedPerfilId && viewsWithActions && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
+            <CardTitle className="flex items-center space-x-2 text-gray-800">
               <Eye className="h-5 w-5" />
-              <span>Configuración de Permisos</span>
+              <span>
+                {selectedVistaId 
+                  ? `Configuración para: ${viewsWithActions.find(v => v.id === selectedVistaId)?.displayName}`
+                  : 'Configuración de Todas las Vistas'
+                }
+              </span>
             </CardTitle>
             <div className="text-sm text-gray-600">
-              Seleccione las vistas a las que el perfil puede acceder y configure las acciones permitidas para cada vista.
+              {selectedVistaId 
+                ? 'Configure las acciones específicas para esta vista.'
+                : 'Seleccione las vistas a las que el perfil puede acceder y configure las acciones permitidas.'
+              }
             </div>
           </CardHeader>
           <CardContent>
             <Accordion type="multiple" className="space-y-4">
               {viewsWithActions
+                .filter(view => !selectedVistaId || view.id === selectedVistaId)
                 .sort((a, b) => a.orden - b.orden)
                 .map((view) => (
                   <AccordionItem key={view.id} value={`view-${view.id}`} className="border rounded-lg">
