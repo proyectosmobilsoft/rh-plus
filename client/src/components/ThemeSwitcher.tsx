@@ -40,14 +40,14 @@ export const ThemeSwitcher: React.FC = () => {
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-brand-lime to-brand-turquoise bg-clip-text text-transparent">
-            Selector de Temas Dinámicos
+            Intercambio de Colores ZEUS
           </DialogTitle>
           <DialogDescription className="text-brand-gray">
-            Personaliza la apariencia de Plataforma ZEUS con diferentes esquemas de colores
+            Cambia la disposición de los colores Verde, Azul y Gris en toda la interfaz
           </DialogDescription>
         </DialogHeader>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 py-4 max-h-[60vh] overflow-y-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 py-4 max-h-[60vh] overflow-y-auto">
           {themes.map((theme) => (
             <Card
               key={theme.id}
@@ -87,27 +87,34 @@ export const ThemeSwitcher: React.FC = () => {
               </CardHeader>
               
               <CardContent>
-                {/* Simulación de interfaz */}
-                <div className="space-y-2">
+                {/* Simulación de interfaz mejorada */}
+                <div className="space-y-3">
                   <div
-                    className="h-6 rounded text-white text-xs flex items-center justify-center font-medium shadow-sm"
+                    className="h-8 rounded text-white text-xs flex items-center justify-center font-medium shadow-sm"
                     style={{ backgroundColor: theme.primary }}
                   >
-                    Botón Primario
+                    Botón Principal
                   </div>
                   <div
-                    className="h-4 rounded"
-                    style={{ backgroundColor: theme.secondary, opacity: 0.7 }}
-                  />
-                  <div className="flex gap-1">
+                    className="h-6 rounded text-white text-xs flex items-center justify-center font-medium"
+                    style={{ backgroundColor: theme.secondary }}
+                  >
+                    Botón Secundario
+                  </div>
+                  <div className="flex gap-2 items-center">
                     <div
-                      className="h-2 rounded flex-1"
-                      style={{ backgroundColor: theme.accent, opacity: 0.5 }}
+                      className="w-4 h-4 rounded-full"
+                      style={{ backgroundColor: theme.accent }}
                     />
                     <div
-                      className="h-2 rounded flex-1"
-                      style={{ backgroundColor: theme.primary, opacity: 0.3 }}
+                      className="h-3 rounded flex-1"
+                      style={{ backgroundColor: theme.accent, opacity: 0.4 }}
                     />
+                  </div>
+                  <div className="text-xs text-gray-600 text-center">
+                    {theme.id === 'verde-azul-gris' && 'Verde → Azul → Gris'}
+                    {theme.id === 'gris-verde-azul' && 'Gris → Verde → Azul'}
+                    {theme.id === 'azul-gris-verde' && 'Azul → Gris → Verde'}
                   </div>
                 </div>
                 
@@ -126,7 +133,7 @@ export const ThemeSwitcher: React.FC = () => {
         
         <div className="flex justify-between items-center pt-4 border-t">
           <div className="text-sm text-brand-gray">
-            Tema actual: <span className="font-medium text-brand-lime">{currentTheme.name}</span>
+            Configuración actual: <span className="font-medium text-brand-lime">{currentTheme.name}</span>
           </div>
           <Button
             variant="outline"

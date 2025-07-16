@@ -13,64 +13,34 @@ export interface ColorTheme {
 
 export const themes: ColorTheme[] = [
   {
-    id: 'zeus',
-    name: 'ZEUS Original',
-    primary: '#c1d009',
-    secondary: '#1fb5ca',
-    accent: '#9d9d9d',
+    id: 'verde-azul-gris',
+    name: 'Verde → Azul → Gris',
+    primary: '#c1d009',    // Lima/Verde
+    secondary: '#1fb5ca',  // Turquesa/Azul
+    accent: '#9d9d9d',     // Gris
     primaryHsl: '69, 89%, 43%',
     secondaryHsl: '187, 72%, 45%',
     accentHsl: '0, 0%, 62%'
   },
   {
-    id: 'ocean',
-    name: 'Ocean Blue',
-    primary: '#0ea5e9',
-    secondary: '#06b6d4',
-    accent: '#64748b',
-    primaryHsl: '199, 89%, 48%',
-    secondaryHsl: '188, 96%, 43%',
-    accentHsl: '215, 16%, 47%'
+    id: 'gris-verde-azul',
+    name: 'Gris → Verde → Azul',
+    primary: '#9d9d9d',    // Gris
+    secondary: '#c1d009',  // Verde
+    accent: '#1fb5ca',     // Azul
+    primaryHsl: '0, 0%, 62%',
+    secondaryHsl: '69, 89%, 43%',
+    accentHsl: '187, 72%, 45%'
   },
   {
-    id: 'forest',
-    name: 'Forest Green',
-    primary: '#10b981',
-    secondary: '#059669',
-    accent: '#6b7280',
-    primaryHsl: '160, 84%, 39%',
-    secondaryHsl: '158, 100%, 30%',
-    accentHsl: '220, 9%, 46%'
-  },
-  {
-    id: 'sunset',
-    name: 'Sunset Orange',
-    primary: '#f97316',
-    secondary: '#ea580c',
-    accent: '#78716c',
-    primaryHsl: '21, 95%, 52%',
-    secondaryHsl: '17, 88%, 48%',
-    accentHsl: '28, 6%, 46%'
-  },
-  {
-    id: 'royal',
-    name: 'Royal Purple',
-    primary: '#8b5cf6',
-    secondary: '#7c3aed',
-    accent: '#71717a',
-    primaryHsl: '262, 88%, 66%',
-    secondaryHsl: '262, 83%, 58%',
-    accentHsl: '240, 5%, 46%'
-  },
-  {
-    id: 'crimson',
-    name: 'Crimson Red',
-    primary: '#dc2626',
-    secondary: '#b91c1c',
-    accent: '#6b7280',
-    primaryHsl: '0, 74%, 51%',
-    secondaryHsl: '0, 73%, 42%',
-    accentHsl: '220, 9%, 46%'
+    id: 'azul-gris-verde',
+    name: 'Azul → Gris → Verde',
+    primary: '#1fb5ca',    // Azul
+    secondary: '#9d9d9d',  // Gris
+    accent: '#c1d009',     // Verde
+    primaryHsl: '187, 72%, 45%',
+    secondaryHsl: '0, 0%, 62%',
+    accentHsl: '69, 89%, 43%'
   }
 ];
 
