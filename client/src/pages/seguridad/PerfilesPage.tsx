@@ -314,25 +314,29 @@ const PerfilesPage = () => {
     }
   });
 
-  // Fetch menu nodes (vistas) with permissions
-  const { data: menuNodes = [] } = useQuery({
-    queryKey: ['menu-nodes-with-permissions'],
-    queryFn: async () => {
-      const response = await fetch('/api/menu-nodes');
-      if (!response.ok) throw new Error('Failed to fetch menu nodes');
-      const nodes = await response.json();
-      
-      // Filter only file type nodes (forms/views)
-      return nodes.filter((node: any) => node.tipo === 'file');
-    }
-  });
+  // Usar datos mock para las vistas en lugar de la base de datos
+  const menuNodes = mockSystemViews.map(vista => ({
+    id: vista.id,
+    name: vista.displayName,
+    displayName: vista.displayName,
+    descripcion: vista.descripcion,
+    modulo: vista.modulo,
+    ruta: vista.ruta
+  }));
 
-  // Fetch actions for a specific menu node
+  // Obtener acciones para una vista específica usando datos mock
   const getActionsForNode = async (nodeId: number) => {
-    const response = await fetch(`/api/menu-permissions/node/${nodeId}`);
-    if (!response.ok) return [];
-    const data = await response.json();
-    return data.actions || [];
+    const vista = mockSystemViews.find(v => v.id === nodeId);
+    if (!vista) return [];
+    
+    // Convertir acciones al formato esperado por el componente
+    return vista.acciones.map(accion => ({
+      id: accion.id,
+      nombre: accion.nombre,
+      displayName: accion.displayName,
+      descripcion: accion.descripcion,
+      tipo: accion.tipo
+    }));
   };
 
   const form = useForm<PerfilForm>({
@@ -568,17 +572,33 @@ const PerfilesPage = () => {
                         const nodeId = parseInt(value);
                         const node = menuNodes.find((n: any) => n.id === nodeId);
                         if (node) {
-                          addPermiso(nodeId, node.name);
+                          addPermiso(nodeId, node.displayName);
                         }
                       }}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar vista..." />
+                          <SelectValue placeholder="Seleccionar vista del sistema..." />
                         </SelectTrigger>
-                        <SelectContent>
-                          {menuNodes.map((node: any) => (
-                            <SelectItem key={node.id} value={String(node.id)}>
-                              {node.name}
-                            </SelectItem>
+                        <SelectContent className="max-h-64 overflow-y-auto">
+                          {Object.entries(
+                            menuNodes.reduce((acc, node) => {
+                              if (!acc[node.modulo]) acc[node.modulo] = [];
+                              acc[node.modulo].push(node);
+                              return acc;
+                            }, {} as Record<string, any[]>)
+                          ).map(([modulo, nodes]) => (
+                            <div key={modulo}>
+                              <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide bg-gray-50">
+                                {modulo}
+                              </div>
+                              {nodes.map((node: any) => (
+                                <SelectItem key={node.id} value={String(node.id)} className="pl-4">
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{node.displayName}</span>
+                                    <span className="text-xs text-gray-500">{node.ruta}</span>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </div>
                           ))}
                         </SelectContent>
                       </Select>
