@@ -2178,18 +2178,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all views with their actions for permission management UI
   app.get("/api/views-with-actions", async (req, res) => {
     try {
-      const views = await storage.getAllSystemViews();
-      const viewsWithActions = [];
-      
-      for (const view of views) {
-        const actions = await storage.getActionsByViewId(view.id);
-        viewsWithActions.push({
-          ...view,
-          acciones: actions
-        });
-      }
-      
-      res.json(viewsWithActions);
+      const result = await db.execute(`
+        SELECT 
+          v.id, v.nombre, v.display_name as "displayName", v.descripcion, 
+          v.ruta, v.modulo, v.icono, v.orden, v.activo,
+          COALESCE(
+            json_agg(
+              json_build_object(
+                'id', a.id,
+                'nombre', a.nombre,
+                'displayName', a.display_name,
+                'descripcion', a.descripcion,
+                'tipo', a.tipo,
+                'orden', a.orden,
+                'activo', a.activo
+              ) ORDER BY a.orden
+            ) FILTER (WHERE a.id IS NOT NULL), 
+            '[]'::json
+          ) as acciones
+        FROM system_views v
+        LEFT JOIN view_actions a ON v.id = a.system_view_id AND a.activo = true
+        WHERE v.activo = true
+        GROUP BY v.id, v.nombre, v.display_name, v.descripcion, v.ruta, v.modulo, v.icono, v.orden, v.activo
+        ORDER BY v.orden
+      `);
+      res.json(result);
     } catch (error) {
       console.error("Error obteniendo vistas con acciones:", error);
       res.status(500).json({ message: "Error interno del servidor" });
