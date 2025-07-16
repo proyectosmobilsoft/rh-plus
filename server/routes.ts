@@ -1419,7 +1419,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/perfiles", async (req, res) => {
     try {
       const result = await db.execute(`
-        SELECT id, nombre, descripcion, permisos, fecha_creacion as "fechaCreacion", activo
+        SELECT id, nombre, descripcion
         FROM perfiles 
         WHERE activo = true 
         ORDER BY id
