@@ -559,10 +559,11 @@ const PerfilesPage = () => {
                     <h3 className="text-lg font-medium">LISTADO DE PERMISOS Y ACCIONES RELACIONADAS</h3>
                   </div>
                   
-                  <div className="grid grid-cols-3 gap-4 text-sm font-medium text-gray-700 border-b pb-2">
+                  <div className="grid grid-cols-4 gap-4 text-sm font-medium text-gray-700 border-b pb-2">
                     <div>Código</div>
                     <div>Nombre</div>
                     <div>Acciones</div>
+                    <div>Eliminar</div>
                   </div>
 
                   {/* Select para agregar nueva vista */}
@@ -992,10 +993,10 @@ const PermisoRow = ({ campo, index, form, onRemove, getActionsForNode }: any) =>
   };
 
   return (
-    <div className="grid grid-cols-3 gap-4 py-2 border-b">
+    <div className="grid grid-cols-4 gap-4 py-2 border-b">
       <div className="font-mono text-sm">{String(campo.menuNodeId).padStart(2, '0')}</div>
       <div className="font-medium">{campo.menuNodeName}</div>
-      <div className="space-y-1">
+      <div>
         {loadingActions ? (
           <div className="text-sm text-gray-500">Cargando acciones...</div>
         ) : (
@@ -1008,13 +1009,15 @@ const PermisoRow = ({ campo, index, form, onRemove, getActionsForNode }: any) =>
             isLoading={loadingActions}
           />
         )}
+      </div>
+      <div className="flex justify-center">
         <Button
           type="button"
           size="sm"
           onClick={onRemove}
-          className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-6 w-6 p-0 bg-red-500 hover:bg-red-600 text-white border-0 rounded ml-[240px] mr-[240px] mt-[-12px] mb-[-12px] pl-[14px] pr-[14px] pt-[12px] pb-[12px]"
+          className="h-8 w-8 p-0 bg-red-500 hover:bg-red-600 text-white border-0 rounded"
         >
-          <Trash2 className="w-3 h-3" />
+          <Trash2 className="w-4 h-4" />
         </Button>
       </div>
     </div>
