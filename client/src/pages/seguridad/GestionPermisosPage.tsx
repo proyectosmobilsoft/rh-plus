@@ -216,7 +216,7 @@ const GestionPermisosPage: React.FC = () => {
       <div className="flex items-center space-x-4">
         <div className="flex items-center space-x-2">
           <Shield className="h-6 w-6 text-brand-lime" />
-          <h1 className="text-3xl font-bold text-brand-gray">Gestión de Permisos Dinámicos</h1>
+          <h1 className="text-3xl font-bold text-gray-800">Gestión de Permisos Dinámicos</h1>
         </div>
       </div>
 
