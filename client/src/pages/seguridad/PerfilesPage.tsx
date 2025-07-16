@@ -1012,7 +1012,7 @@ const PermisoRow = ({ campo, index, form, onRemove, getActionsForNode }: any) =>
           type="button"
           size="sm"
           onClick={onRemove}
-          className="h-6 w-6 p-0 bg-red-500 hover:bg-red-600 text-white border-0 rounded mt-2"
+          className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-6 w-6 p-0 bg-red-500 hover:bg-red-600 text-white border-0 rounded ml-[240px] mr-[240px] mt-[-12px] mb-[-12px] pl-[14px] pr-[14px] pt-[12px] pb-[12px]"
         >
           <Trash2 className="w-3 h-3" />
         </Button>
