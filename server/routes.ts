@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from "./db";
 import {
   insertCandidatoSchema,
   createCandidatoFromPerfilSchema,
@@ -1417,8 +1418,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Perfiles API routes with permissions
   app.get("/api/perfiles", async (req, res) => {
     try {
-      const perfiles = await storage.getAllPerfiles();
-      res.json(perfiles);
+      const result = await db.execute(`
+        SELECT id, nombre, descripcion, permisos, fecha_creacion as "fechaCreacion", activo
+        FROM perfiles 
+        WHERE activo = true 
+        ORDER BY id
+      `);
+      res.json(result.rows);
     } catch (error) {
       console.error("Error obteniendo perfiles:", error);
       res.status(500).json({ message: "Error interno del servidor" });
@@ -2202,7 +2208,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         GROUP BY v.id, v.nombre, v.display_name, v.descripcion, v.ruta, v.modulo, v.icono, v.orden, v.activo
         ORDER BY v.orden
       `);
-      res.json(result);
+      res.json(result.rows);
     } catch (error) {
       console.error("Error obteniendo vistas con acciones:", error);
       res.status(500).json({ message: "Error interno del servidor" });
