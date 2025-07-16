@@ -57,7 +57,10 @@ const GestionPermisosPage: React.FC = () => {
   // Query para obtener todos los perfiles
   const { data: perfiles, isLoading: perfilesLoading } = useQuery({
     queryKey: ['/api/perfiles'],
-    select: (data: Perfil[]) => data || []
+    select: (data: Perfil[]) => {
+      console.log('Perfiles data received:', data);
+      return data || []
+    }
   });
 
   // Query para obtener todas las vistas con sus acciones

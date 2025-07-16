@@ -482,43 +482,8 @@ export class MemStorage implements IStorage {
     this.hashPasswordsAfterInit();
 
     // Create default profiles
-    this.perfiles.set(1, {
-      id: 1,
-      nombre: "administrador",
-      descripcion: "Administrador del sistema con todos los permisos",
-      permisos: { all: true },
-      fechaCreacion: new Date(),
-      activo: true,
-    });
-
-    this.perfiles.set(2, {
-      id: 2,
-      nombre: "candidato",
-      descripcion: "Candidato con acceso al portal de autogestión",
-      permisos: { profile: true, documents: true },
-      fechaCreacion: new Date(),
-      activo: true,
-    });
-
-    this.perfiles.set(3, {
-      id: 3,
-      nombre: "coordinador",
-      descripcion: "Coordinador con permisos de gestión intermedia",
-      permisos: { manage_candidates: true, view_reports: true },
-      fechaCreacion: new Date(),
-      activo: true,
-    });
-
-    this.perfiles.set(4, {
-      id: 4,
-      nombre: "administrador_general",
-      descripcion: "Administrador general con permisos completos",
-      permisos: { all: true, manage_users: true },
-      fechaCreacion: new Date(),
-      activo: true,
-    });
-
-    this.currentPerfilId = 5;
+    // Perfiles se manejan ahora por base de datos
+    this.currentPerfilId = 1;
 
     // Create default admin user
     this.users.set(1, {
