@@ -87,7 +87,7 @@ const GestionPermisosPage: React.FC = () => {
       </div>
 
       <div className="text-sm text-gray-600">
-        Explore todas las vistas del sistema ZEUS y sus acciones correspondientes.
+        Sistema completo de permisos con {viewsWithActions?.length || 0} vistas y {viewsWithActions?.reduce((sum, v) => sum + v.acciones.length, 0) || 0} acciones totales organizadas por módulos.
       </div>
 
       {/* Selector de vista para explorar */}
@@ -169,12 +169,35 @@ const GestionPermisosPage: React.FC = () => {
             </div>
           </CardHeader>
           <CardContent>
+            {/* Resumen ejecutivo */}
+            <div className="mb-6 p-4 bg-gradient-to-r from-brand-lime/10 to-brand-turquoise/10 rounded-lg border">
+              <h3 className="font-semibold text-lg mb-3 text-gray-800">📋 Resumen del Sistema de Permisos ZEUS</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                <div className="bg-white/70 rounded-lg p-3">
+                  <div className="text-2xl font-bold text-brand-lime">{viewsWithActions?.length || 0}</div>
+                  <div className="text-sm text-gray-600">Vistas Totales</div>
+                </div>
+                <div className="bg-white/70 rounded-lg p-3">
+                  <div className="text-2xl font-bold text-brand-turquoise">{viewsWithActions?.reduce((sum, v) => sum + v.acciones.length, 0) || 0}</div>
+                  <div className="text-sm text-gray-600">Acciones Totales</div>
+                </div>
+                <div className="bg-white/70 rounded-lg p-3">
+                  <div className="text-2xl font-bold text-brand-gray">{new Set(viewsWithActions?.map(v => v.modulo)).size || 0}</div>
+                  <div className="text-sm text-gray-600">Módulos</div>
+                </div>
+                <div className="bg-white/70 rounded-lg p-3">
+                  <div className="text-2xl font-bold text-green-600">{viewsWithActions?.reduce((sum, v) => sum + v.acciones.filter(a => a.tipo === 'visualizacion').length, 0) || 0}</div>
+                  <div className="text-sm text-gray-600">Vista/Lectura</div>
+                </div>
+              </div>
+            </div>
+
             <div className="space-y-6">
               {(selectedVistaId 
                 ? viewsWithActions.filter(v => v.id === selectedVistaId)
                 : viewsWithActions
               )?.map((vista) => (
-                <div key={vista.id} className="border rounded-lg p-4 space-y-4">
+                <div key={vista.id} className="border rounded-lg p-4 space-y-4 hover:shadow-md transition-shadow">
                   {/* Vista header */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
@@ -184,7 +207,7 @@ const GestionPermisosPage: React.FC = () => {
                       <div>
                         <h3 className="font-semibold text-lg">{vista.displayName}</h3>
                         <p className="text-sm text-gray-600">{vista.descripcion}</p>
-                        <p className="text-xs text-gray-500">Ruta: {vista.ruta}</p>
+                        <p className="text-xs text-gray-500">Ruta: {vista.ruta} • ID: {vista.id}</p>
                       </div>
                     </div>
                     <div className="text-right">
@@ -197,13 +220,28 @@ const GestionPermisosPage: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* Estadísticas de acciones por tipo */}
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {['visualizacion', 'creacion', 'edicion', 'eliminacion', 'exportacion', 'aprobacion'].map(tipo => {
+                      const count = vista.acciones.filter(a => a.tipo === tipo).length;
+                      if (count > 0) {
+                        return (
+                          <Badge key={tipo} className={getActionTypeColor(tipo)}>
+                            {tipo}: {count}
+                          </Badge>
+                        );
+                      }
+                      return null;
+                    })}
+                  </div>
+
                   {/* Acciones de la vista */}
                   {vista.acciones.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                       {vista.acciones
                         .sort((a, b) => a.orden - b.orden)
                         .map((accion) => (
-                          <div key={accion.id} className="border rounded-md p-3 bg-gray-50">
+                          <div key={accion.id} className="border rounded-md p-3 bg-gray-50/80 hover:bg-gray-100/80 transition-colors">
                             <div className="flex items-center justify-between mb-2">
                               <h4 className="font-medium text-sm">{accion.displayName}</h4>
                               <Badge className={getActionTypeColor(accion.tipo)}>
@@ -212,20 +250,83 @@ const GestionPermisosPage: React.FC = () => {
                             </div>
                             <p className="text-xs text-gray-600 mb-2">{accion.descripcion}</p>
                             <div className="flex justify-between items-center text-xs text-gray-500">
-                              <span>Código: {accion.nombre}</span>
-                              <span>Orden: {accion.orden}</span>
+                              <span>Código: <code className="bg-gray-200 px-1 rounded">{accion.nombre}</code></span>
+                              <span>ID: {accion.id}</span>
                             </div>
                           </div>
                         ))}
                     </div>
                   ) : (
-                    <div className="text-center py-4 text-gray-500">
-                      No hay acciones definidas para esta vista
+                    <div className="text-center py-4 text-gray-500 bg-gray-50/50 rounded-lg">
+                      ⚠️ No hay acciones definidas para esta vista
                     </div>
                   )}
                 </div>
               ))}
             </div>
+
+            {/* Tabla resumen al final */}
+            {!selectedVistaId && (
+              <div className="mt-8 border rounded-lg overflow-hidden">
+                <div className="bg-gray-50 px-4 py-3 border-b">
+                  <h3 className="font-semibold text-gray-800">📊 Tabla Resumen de Todas las Acciones por Vista</h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-100">
+                      <tr>
+                        <th className="px-4 py-2 text-left">Vista</th>
+                        <th className="px-4 py-2 text-left">Módulo</th>
+                        <th className="px-4 py-2 text-center">Total</th>
+                        <th className="px-4 py-2 text-center">Ver</th>
+                        <th className="px-4 py-2 text-center">Crear</th>
+                        <th className="px-4 py-2 text-center">Editar</th>
+                        <th className="px-4 py-2 text-center">Eliminar</th>
+                        <th className="px-4 py-2 text-center">Otros</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {viewsWithActions?.map((vista) => {
+                        const ver = vista.acciones.filter(a => a.tipo === 'visualizacion').length;
+                        const crear = vista.acciones.filter(a => a.tipo === 'creacion').length;
+                        const editar = vista.acciones.filter(a => a.tipo === 'edicion').length;
+                        const eliminar = vista.acciones.filter(a => a.tipo === 'eliminacion').length;
+                        const otros = vista.acciones.filter(a => !['visualizacion', 'creacion', 'edicion', 'eliminacion'].includes(a.tipo)).length;
+                        
+                        return (
+                          <tr key={vista.id} className="border-b hover:bg-gray-50">
+                            <td className="px-4 py-2 font-medium">{vista.displayName}</td>
+                            <td className="px-4 py-2">
+                              <Badge className={getModuleColor(vista.modulo)} variant="outline">
+                                {vista.modulo}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-2 text-center font-semibold">{vista.acciones.length}</td>
+                            <td className="px-4 py-2 text-center">{ver || '-'}</td>
+                            <td className="px-4 py-2 text-center">{crear || '-'}</td>
+                            <td className="px-4 py-2 text-center">{editar || '-'}</td>
+                            <td className="px-4 py-2 text-center">{eliminar || '-'}</td>
+                            <td className="px-4 py-2 text-center">{otros || '-'}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot className="bg-gray-100 font-semibold">
+                      <tr>
+                        <td className="px-4 py-2">TOTALES</td>
+                        <td className="px-4 py-2">{new Set(viewsWithActions?.map(v => v.modulo)).size} módulos</td>
+                        <td className="px-4 py-2 text-center">{viewsWithActions?.reduce((sum, v) => sum + v.acciones.length, 0)}</td>
+                        <td className="px-4 py-2 text-center">{viewsWithActions?.reduce((sum, v) => sum + v.acciones.filter(a => a.tipo === 'visualizacion').length, 0)}</td>
+                        <td className="px-4 py-2 text-center">{viewsWithActions?.reduce((sum, v) => sum + v.acciones.filter(a => a.tipo === 'creacion').length, 0)}</td>
+                        <td className="px-4 py-2 text-center">{viewsWithActions?.reduce((sum, v) => sum + v.acciones.filter(a => a.tipo === 'edicion').length, 0)}</td>
+                        <td className="px-4 py-2 text-center">{viewsWithActions?.reduce((sum, v) => sum + v.acciones.filter(a => a.tipo === 'eliminacion').length, 0)}</td>
+                        <td className="px-4 py-2 text-center">{viewsWithActions?.reduce((sum, v) => sum + v.acciones.filter(a => !['visualizacion', 'creacion', 'edicion', 'eliminacion'].includes(a.tipo)).length, 0)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
