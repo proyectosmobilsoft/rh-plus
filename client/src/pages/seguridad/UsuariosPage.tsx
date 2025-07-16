@@ -195,26 +195,26 @@ const UsuariosPage = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Users className="w-8 h-8 text-gray-600" />
+          <Users className="w-8 h-8 text-brand-lime" />
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">
+            <h1 className="text-2xl font-semibold text-brand-gray">
               Gestión de Usuarios
             </h1>
-            <p className="text-gray-600">
+            <p className="text-brand-gray/70">
               Administra usuarios del sistema y sus perfiles asignados
             </p>
           </div>
         </div>
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-green-600 hover:bg-green-700 text-white">
+            <Button className="bg-brand-lime hover:bg-brand-lime/90 text-white shadow-md">
               <Plus className="w-4 h-4 mr-2" />
               Crear Usuario
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-6xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="text-xl font-semibold text-green-700">
+              <DialogTitle className="text-xl font-semibold text-brand-lime">
                 Crear Nuevo Usuario
               </DialogTitle>
               <DialogDescription>
@@ -239,7 +239,7 @@ const UsuariosPage = () => {
                           <FormLabel className="text-sm font-medium">Identificación *</FormLabel>
                           <FormControl>
                             <Input 
-                              className="h-11 border-2 border-gray-300 focus:border-green-500 focus:ring-green-500 text-base" 
+                              className="h-11 border-2 border-gray-300 focus:border-brand-lime focus:ring-brand-lime text-base" 
                               placeholder="Número de identificación" 
                               {...field} 
                             />
@@ -257,7 +257,7 @@ const UsuariosPage = () => {
                           <FormLabel className="text-sm font-medium">Primer Nombre *</FormLabel>
                           <FormControl>
                             <Input 
-                              className="h-11 border-2 border-gray-300 focus:border-green-500 focus:ring-green-500 text-base" 
+                              className="h-11 border-2 border-gray-300 focus:border-brand-lime focus:ring-brand-lime text-base" 
                               placeholder="Primer nombre" 
                               {...field} 
                             />

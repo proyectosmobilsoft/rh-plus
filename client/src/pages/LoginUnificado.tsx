@@ -41,15 +41,15 @@ export default function LoginUnificado() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-brand-lime/10 to-brand-turquoise/10 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="mx-auto w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mb-4">
+          <div className="mx-auto w-16 h-16 bg-brand-lime rounded-full flex items-center justify-center mb-4 shadow-lg">
             <Shield className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900">Plataforma ZEUS</h1>
-          <p className="text-gray-600 mt-2">Sistema de gestión de contratación</p>
+          <p className="text-brand-gray mt-2">Sistema de gestión de contratación</p>
         </div>
 
         {/* Login Form */}
@@ -110,7 +110,7 @@ export default function LoginUnificado() {
 
               <Button
                 type="submit"
-                className="w-full h-12 bg-blue-600 hover:bg-blue-700"
+                className="w-full h-12 bg-brand-lime hover:bg-brand-lime/90 shadow-md transition-all hover:shadow-lg"
                 disabled={isLoading}
               >
                 {isLoading ? (
@@ -130,7 +130,7 @@ export default function LoginUnificado() {
                 <button
                   type="button"
                   onClick={handleForgotPassword}
-                  className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                  className="text-sm text-brand-turquoise hover:text-brand-turquoise/80 hover:underline transition-colors"
                   disabled={isLoading}
                 >
                   ¿Olvidaste tu contraseña?

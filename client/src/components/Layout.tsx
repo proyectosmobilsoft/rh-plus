@@ -97,10 +97,10 @@ const Header = () => {
     <header className="sticky top-0 z-10 flex h-16 items-center border-b bg-background px-4">
       <SidebarTrigger />
       <div className="ml-4">
-        <h1 className="text-lg font-semibold">Sistema de Recursos Humanos</h1>
+        <h1 className="text-lg font-semibold text-brand-gray">Sistema de Recursos Humanos</h1>
       </div>
       <div className="ml-auto flex items-center space-x-4">
-        <div className="flex items-center bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+        <div className="flex items-center bg-brand-lime/10 text-brand-lime px-3 py-1 rounded-full text-sm font-medium border border-brand-lime/20">
           <User className="w-4 h-4 mr-2" />
           Administrador
         </div>
@@ -144,7 +144,7 @@ const AppSidebar = () => {
     >
       <div className="p-4 flex justify-center items-center h-16">
         {!collapsed && (
-          <div className="text-2xl font-bold text-sidebar-foreground">Recursos Humanos</div>
+          <div className="text-2xl font-bold text-brand-lime">Recursos Humanos</div>
         )}
       </div>
       <SidebarContent className="p-2">

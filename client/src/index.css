@@ -5,44 +5,90 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222.2 84% 4.9%;
+    /* Colores base de la nueva paleta */
+    --brand-lime: 70 85% 41%;        /* #c1d009 - Verde lima principal */
+    --brand-turquoise: 186 73% 45%;  /* #1fb5ca - Azul turquesa */
+    --brand-gray: 0 0% 62%;          /* #9d9d9d - Gris neutro */
+    
+    /* Aplicación de la paleta personalizada */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 9%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 0 0% 9%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 0 0% 9%;
 
-    --primary: 214 80% 56%;
-    --primary-foreground: 210 40% 98%;
+    --primary: var(--brand-lime);            /* Verde lima como color principal */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: var(--brand-turquoise);     /* Azul turquesa como secundario */
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 0 0% 96%;
+    --muted-foreground: var(--brand-gray);
 
-    --accent: 214 80% 56%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: var(--brand-turquoise);        /* Azul turquesa para acentos */
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: var(--brand-lime);
 
     --radius: 0.5rem;
 
-    --sidebar-background: 222 47% 11%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 214 80% 56%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 217.2 32.6% 17.5%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217.2 32.6% 17.5%;
-    --sidebar-ring: 212.7 26.8% 83.9%;
+    /* Sidebar con la nueva paleta */
+    --sidebar-background: 0 0% 15%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: var(--brand-lime);
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: var(--brand-turquoise);
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 25%;
+    --sidebar-ring: var(--brand-lime);
+  }
+
+  .dark {
+    --background: 0 0% 9%;
+    --foreground: 0 0% 98%;
+
+    --card: 0 0% 12%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 0 0% 12%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: var(--brand-lime);
+    --primary-foreground: 0 0% 9%;
+
+    --secondary: var(--brand-turquoise);
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 0 0% 20%;
+    --muted-foreground: var(--brand-gray);
+
+    --accent: var(--brand-turquoise);
+    --accent-foreground: 0 0% 9%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: var(--brand-lime);
+
+    --sidebar-background: 0 0% 8%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: var(--brand-lime);
+    --sidebar-primary-foreground: 0 0% 9%;
+    --sidebar-accent: var(--brand-turquoise);
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 0 0% 15%;
+    --sidebar-ring: var(--brand-lime);
   }
 }
 
@@ -56,8 +102,9 @@
   }
 }
 
+/* Clases personalizadas con la nueva paleta */
 .dashboard-card {
-  @apply bg-card p-6 rounded-lg shadow-md border border-border;
+  @apply bg-card p-6 rounded-lg shadow-md border border-border hover:shadow-lg transition-shadow;
 }
 
 .page-container {
@@ -66,4 +113,43 @@
 
 .page-header {
   @apply mb-6 pb-4 border-b border-border;
+}
+
+/* Botones con la paleta personalizada */
+.btn-primary {
+  @apply bg-primary text-primary-foreground hover:bg-primary/90 transition-colors;
+}
+
+.btn-secondary {
+  @apply bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-colors;
+}
+
+.btn-accent {
+  @apply bg-accent text-accent-foreground hover:bg-accent/90 transition-colors;
+}
+
+/* Cards con colores de la marca */
+.card-lime {
+  @apply bg-primary/10 border-primary/20 hover:bg-primary/15 transition-colors;
+}
+
+.card-turquoise {
+  @apply bg-secondary/10 border-secondary/20 hover:bg-secondary/15 transition-colors;
+}
+
+.card-neutral {
+  @apply bg-muted/30 border-muted-foreground/20 hover:bg-muted/40 transition-colors;
+}
+
+/* Badges con colores de la marca */
+.badge-lime {
+  @apply bg-primary text-primary-foreground;
+}
+
+.badge-turquoise {
+  @apply bg-secondary text-secondary-foreground;
+}
+
+.badge-neutral {
+  @apply bg-muted-foreground text-white;
 }

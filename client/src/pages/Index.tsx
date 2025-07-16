@@ -25,13 +25,13 @@ interface StatCardProps {
 }
 
 const StatCard = ({ title, value, description }: StatCardProps) => (
-  <Card>
+  <Card className="hover:shadow-lg transition-shadow border-l-4 border-l-brand-lime">
     <CardHeader className="pb-2">
-      <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+      <CardTitle className="text-sm font-medium text-brand-gray">{title}</CardTitle>
     </CardHeader>
     <CardContent>
-      <div className="text-2xl font-bold">{value}</div>
-      <p className="text-xs text-muted-foreground">{description}</p>
+      <div className="text-2xl font-bold text-brand-lime">{value}</div>
+      <p className="text-xs text-brand-gray">{description}</p>
     </CardContent>
   </Card>
 );
@@ -72,6 +72,7 @@ const Dashboard = () => {
               size="sm" 
               variant={chartPeriod === "day" ? "default" : "outline"}
               onClick={() => setChartPeriod("day")}
+              className={chartPeriod === "day" ? "bg-brand-lime hover:bg-brand-lime/90" : "border-brand-lime text-brand-lime hover:bg-brand-lime/10"}
             >
               Día
             </Button>
@@ -79,6 +80,7 @@ const Dashboard = () => {
               size="sm" 
               variant={chartPeriod === "month" ? "default" : "outline"}
               onClick={() => setChartPeriod("month")}
+              className={chartPeriod === "month" ? "bg-brand-lime hover:bg-brand-lime/90" : "border-brand-lime text-brand-lime hover:bg-brand-lime/10"}
             >
               Mes
             </Button>
@@ -86,6 +88,7 @@ const Dashboard = () => {
               size="sm" 
               variant={chartPeriod === "year" ? "default" : "outline"}
               onClick={() => setChartPeriod("year")}
+              className={chartPeriod === "year" ? "bg-brand-lime hover:bg-brand-lime/90" : "border-brand-lime text-brand-lime hover:bg-brand-lime/10"}
             >
               Año
             </Button>
@@ -111,9 +114,9 @@ const Dashboard = () => {
         />
       </div>
 
-      <Card className="col-span-4">
+      <Card className="col-span-4 border-l-4 border-l-brand-turquoise">
         <CardHeader>
-          <CardTitle>Actividad</CardTitle>
+          <CardTitle className="text-brand-gray">Actividad</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-[300px]">
@@ -127,18 +130,32 @@ const Dashboard = () => {
                   bottom: 5,
                 }}
               >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                <XAxis dataKey="month" tick={{ fill: '#9d9d9d' }} />
+                <YAxis tick={{ fill: '#9d9d9d' }} />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'white', 
+                    border: '1px solid #c1d009',
+                    borderRadius: '8px'
+                  }} 
+                />
                 <Legend />
                 <Line
                   type="monotone"
                   dataKey="candidatos"
-                  stroke="#1e40af"
-                  activeDot={{ r: 8 }}
+                  stroke="#c1d009"
+                  strokeWidth={3}
+                  name="Candidatos"
+                  activeDot={{ r: 8, fill: '#c1d009' }}
                 />
-                <Line type="monotone" dataKey="ordenes" stroke="#059669" />
+                <Line 
+                  type="monotone" 
+                  dataKey="ordenes" 
+                  stroke="#1fb5ca" 
+                  strokeWidth={3}
+                  name="Órdenes" 
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>

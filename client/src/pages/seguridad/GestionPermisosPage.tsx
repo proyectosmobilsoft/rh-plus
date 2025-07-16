@@ -188,17 +188,17 @@ const GestionPermisosPage: React.FC = () => {
 
   const getModuleColor = (modulo: string) => {
     const colors: Record<string, string> = {
-      'general': 'bg-blue-100 text-blue-800',
-      'seguridad': 'bg-red-100 text-red-800',
-      'registros': 'bg-green-100 text-green-800',
-      'empresa': 'bg-purple-100 text-purple-800',
-      'recursos': 'bg-yellow-100 text-yellow-800',
-      'ordenes': 'bg-orange-100 text-orange-800',
-      'certificados': 'bg-indigo-100 text-indigo-800',
-      'configuracion': 'bg-gray-100 text-gray-800',
-      'reportes': 'bg-pink-100 text-pink-800'
+      'general': 'bg-brand-lime/10 text-brand-lime border-brand-lime/20',
+      'seguridad': 'bg-brand-turquoise/10 text-brand-turquoise border-brand-turquoise/20',
+      'registros': 'bg-brand-lime/10 text-brand-lime border-brand-lime/20',
+      'empresa': 'bg-brand-turquoise/10 text-brand-turquoise border-brand-turquoise/20',
+      'recursos': 'bg-brand-lime/10 text-brand-lime border-brand-lime/20',
+      'ordenes': 'bg-brand-turquoise/10 text-brand-turquoise border-brand-turquoise/20',
+      'certificados': 'bg-brand-lime/10 text-brand-lime border-brand-lime/20',
+      'configuracion': 'bg-brand-gray/10 text-brand-gray border-brand-gray/20',
+      'reportes': 'bg-brand-turquoise/10 text-brand-turquoise border-brand-turquoise/20'
     };
-    return colors[modulo] || 'bg-gray-100 text-gray-800';
+    return colors[modulo] || 'bg-brand-gray/10 text-brand-gray border-brand-gray/20';
   };
 
   if (perfilesLoading || viewsLoading) {
@@ -215,8 +215,8 @@ const GestionPermisosPage: React.FC = () => {
       {/* Header */}
       <div className="flex items-center space-x-4">
         <div className="flex items-center space-x-2">
-          <Shield className="h-6 w-6 text-blue-600" />
-          <h1 className="text-3xl font-bold">Gestión de Permisos Dinámicos</h1>
+          <Shield className="h-6 w-6 text-brand-lime" />
+          <h1 className="text-3xl font-bold text-brand-gray">Gestión de Permisos Dinámicos</h1>
         </div>
       </div>
 
@@ -268,7 +268,7 @@ const GestionPermisosPage: React.FC = () => {
               <Button 
                 onClick={handleSavePermissions}
                 disabled={isLoading || updatePermissionsMutation.isPending}
-                className="bg-green-600 hover:bg-green-700"
+                className="bg-brand-lime hover:bg-brand-lime/90 shadow-md"
               >
                 {isLoading || updatePermissionsMutation.isPending ? (
                   <>
