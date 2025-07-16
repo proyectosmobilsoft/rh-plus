@@ -42,7 +42,7 @@ export const ThemeSwitcher: React.FC = () => {
           <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-brand-lime to-brand-turquoise bg-clip-text text-transparent">
             Intercambio de Colores ZEUS
           </DialogTitle>
-          <DialogDescription className="text-brand-gray">
+          <DialogDescription className="text-gray-600">
             Cambia la disposición de los colores Verde, Azul y Gris en toda la interfaz
           </DialogDescription>
         </DialogHeader>
@@ -132,7 +132,7 @@ export const ThemeSwitcher: React.FC = () => {
         </div>
         
         <div className="flex justify-between items-center pt-4 border-t">
-          <div className="text-sm text-brand-gray">
+          <div className="text-sm text-gray-600">
             Configuración actual: <span className="font-medium text-brand-lime">{currentTheme.name}</span>
           </div>
           <Button

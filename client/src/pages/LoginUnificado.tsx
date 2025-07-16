@@ -49,7 +49,7 @@ export default function LoginUnificado() {
             <Shield className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 animate-slide-in">Plataforma ZEUS</h1>
-          <p className="text-brand-gray mt-2 animate-slide-in">Sistema de gestión de contratación</p>
+          <p className="text-gray-600 mt-2 animate-slide-in">Sistema de gestión de contratación</p>
         </div>
 
         {/* Login Form */}

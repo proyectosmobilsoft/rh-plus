@@ -98,7 +98,7 @@ const Header = () => {
     <header className="sticky top-0 z-10 flex h-16 items-center border-b bg-background px-4">
       <SidebarTrigger />
       <div className="ml-4">
-        <h1 className="text-lg font-semibold text-brand-gray">Sistema de Recursos Humanos</h1>
+        <h1 className="text-lg font-semibold text-gray-800">Sistema de Recursos Humanos</h1>
       </div>
       <div className="ml-auto flex items-center space-x-4">
         <ThemeSwitcher />
