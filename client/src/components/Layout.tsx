@@ -29,6 +29,7 @@ import {
   Activity,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 
 // Define los menús y submenús
 const menuItems = [
@@ -100,7 +101,8 @@ const Header = () => {
         <h1 className="text-lg font-semibold text-brand-gray">Sistema de Recursos Humanos</h1>
       </div>
       <div className="ml-auto flex items-center space-x-4">
-        <div className="flex items-center bg-brand-lime/10 text-brand-lime px-3 py-1 rounded-full text-sm font-medium border border-brand-lime/20">
+        <ThemeSwitcher />
+        <div className="flex items-center bg-brand-lime/10 text-brand-lime px-3 py-1 rounded-full text-sm font-medium border border-brand-lime/20 hover-lift">
           <User className="w-4 h-4 mr-2" />
           Administrador
         </div>

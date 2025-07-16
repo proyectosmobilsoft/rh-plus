@@ -25,12 +25,12 @@ interface StatCardProps {
 }
 
 const StatCard = ({ title, value, description }: StatCardProps) => (
-  <Card className="hover:shadow-lg transition-shadow border-l-4 border-l-brand-lime">
+  <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-brand-lime card-interactive hover-lift animate-fade-in-up">
     <CardHeader className="pb-2">
       <CardTitle className="text-sm font-medium text-brand-gray">{title}</CardTitle>
     </CardHeader>
     <CardContent>
-      <div className="text-2xl font-bold text-brand-lime">{value}</div>
+      <div className="text-2xl font-bold text-brand-lime animate-bounce-in">{value}</div>
       <p className="text-xs text-brand-gray">{description}</p>
     </CardContent>
   </Card>
