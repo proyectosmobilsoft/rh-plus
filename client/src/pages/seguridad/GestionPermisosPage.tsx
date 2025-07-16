@@ -258,15 +258,15 @@ const GestionPermisosPage: React.FC = () => {
             <div className="space-y-2">
               <label className="text-sm font-medium">Vista específica:</label>
               <Select 
-                onValueChange={(value) => setSelectedVistaId(value ? parseInt(value) : null)} 
-                value={selectedVistaId?.toString() || ""}
+                onValueChange={(value) => setSelectedVistaId(value === "all" ? null : parseInt(value))} 
+                value={selectedVistaId?.toString() || "all"}
                 disabled={!selectedPerfilId}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccione una vista..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todas las vistas</SelectItem>
+                  <SelectItem value="all">Todas las vistas</SelectItem>
                   {viewsWithActions?.map((vista) => (
                     <SelectItem key={vista.id} value={vista.id.toString()}>
                       <div className="flex items-center space-x-2">
