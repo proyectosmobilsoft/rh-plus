@@ -187,7 +187,7 @@ const PrestadoresPage = () => {
                 Crear Prestador
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="w-[900px] max-w-[80%]">
               <DialogHeader>
                 <DialogTitle>
                   {editingId ? "Editar Prestador" : "Registrar Nuevo Prestador"}
