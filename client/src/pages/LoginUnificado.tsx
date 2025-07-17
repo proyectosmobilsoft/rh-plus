@@ -110,7 +110,7 @@ export default function LoginUnificado() {
 
               <Button
                 type="submit"
-                className="w-full h-12 bg-brand-lime shadow-md transition-all"
+                className="w-full h-12 bg-brand-lime shadow-md transition-all hover:shadow-lg"
                 disabled={isLoading}
               >
                 {isLoading ? (

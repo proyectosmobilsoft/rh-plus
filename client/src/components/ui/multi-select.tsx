@@ -93,7 +93,7 @@ export function MultiSelect({
                 variant="secondary"
                 className="text-xs px-2 py-1 bg-blue-100 text-blue-800 hover:bg-blue-200"
               >
-                <span className="max-w-32 truncate">{option.label}</span>
+                <span className="max-w-32 truncate">{option.name}</span>
                 <Button
                   type="button"
                   variant="ghost"
@@ -141,7 +141,7 @@ export function MultiSelect({
                 {options.map((option) => (
                   <CommandItem
                     key={option.id}
-                    value={option.value}
+                    value={option.name}
                     onSelect={() => handleSelect(option)}
                     className="flex items-start space-x-3 p-3 cursor-pointer"
                   >
@@ -153,7 +153,7 @@ export function MultiSelect({
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2">
-                        <span className="font-medium text-sm">{option.label}</span>
+                        <span className="font-medium text-sm">{option.name}</span>
                         <Badge variant="outline" className="text-xs">
                           ID: {String(option.id).padStart(2, '0')}
                         </Badge>
