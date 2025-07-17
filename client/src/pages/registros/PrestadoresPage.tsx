@@ -187,91 +187,96 @@ const PrestadoresPage = () => {
                 Crear Prestador
               </Button>
             </DialogTrigger>
-            <DialogContent className="w-[900px] max-w-[80%]">
+            <DialogContent className="w-[900px] max-w-[80%] my-[30px] max-h-[calc(100vh-60px)] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
                   {editingId ? "Editar Prestador" : "Registrar Nuevo Prestador"}
                 </DialogTitle>
               </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <label htmlFor="identificacion" className="text-sm font-medium">
-                    Identificación *
-                  </label>
-                  <Input
-                    id="identificacion"
-                    name="identificacion"
-                    placeholder="Número de identificación"
-                    value={formData.identificacion}
-                    onChange={handleInputChange}
-                    required
-                  />
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Grid de 2 columnas para los campos */}
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label htmlFor="identificacion" className="text-sm font-medium">
+                      Identificación *
+                    </label>
+                    <Input
+                      id="identificacion"
+                      name="identificacion"
+                      placeholder="Número de identificación"
+                      value={formData.identificacion}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="especialidad" className="text-sm font-medium">
+                      Especialidad *
+                    </label>
+                    <Input
+                      id="especialidad"
+                      name="especialidad"
+                      placeholder="Especialidad del prestador"
+                      value={formData.especialidad}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="nombre" className="text-sm font-medium">
+                      Nombre *
+                    </label>
+                    <Input
+                      id="nombre"
+                      name="nombre"
+                      placeholder="Nombre del prestador"
+                      value={formData.nombre}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="telefono" className="text-sm font-medium">
+                      Teléfono
+                    </label>
+                    <Input
+                      id="telefono"
+                      name="telefono"
+                      placeholder="Número de contacto"
+                      value={formData.telefono}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="apellido" className="text-sm font-medium">
+                      Apellido *
+                    </label>
+                    <Input
+                      id="apellido"
+                      name="apellido"
+                      placeholder="Apellido del prestador"
+                      value={formData.apellido}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="correo" className="text-sm font-medium">
+                      Correo Electrónico
+                    </label>
+                    <Input
+                      id="correo"
+                      name="correo"
+                      type="email"
+                      placeholder="correo@ejemplo.com"
+                      value={formData.correo}
+                      onChange={handleInputChange}
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <label htmlFor="nombre" className="text-sm font-medium">
-                    Nombre *
-                  </label>
-                  <Input
-                    id="nombre"
-                    name="nombre"
-                    placeholder="Nombre del prestador"
-                    value={formData.nombre}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="apellido" className="text-sm font-medium">
-                    Apellido *
-                  </label>
-                  <Input
-                    id="apellido"
-                    name="apellido"
-                    placeholder="Apellido del prestador"
-                    value={formData.apellido}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="especialidad" className="text-sm font-medium">
-                    Especialidad *
-                  </label>
-                  <Input
-                    id="especialidad"
-                    name="especialidad"
-                    placeholder="Especialidad del prestador"
-                    value={formData.especialidad}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="telefono" className="text-sm font-medium">
-                    Teléfono
-                  </label>
-                  <Input
-                    id="telefono"
-                    name="telefono"
-                    placeholder="Número de contacto"
-                    value={formData.telefono}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="correo" className="text-sm font-medium">
-                    Correo Electrónico
-                  </label>
-                  <Input
-                    id="correo"
-                    name="correo"
-                    type="email"
-                    placeholder="correo@ejemplo.com"
-                    value={formData.correo}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div className="flex justify-end space-x-2">
+                
+                {/* Botones de acción */}
+                <div className="flex justify-end space-x-2 pt-4 border-t">
                   <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                     Cancelar
                   </Button>
