@@ -164,24 +164,24 @@ const AppSidebar = () => {
               // Grupo con subítems
               (<SidebarGroup>
                 <SidebarGroupLabel 
-                  className={`flex items-center space-x-2 cursor-pointer sidebar-item sidebar-menu-group px-3 py-1.5 rounded-md ${
+                  className={`flex items-center justify-between cursor-pointer sidebar-item sidebar-menu-group px-3 py-1.5 rounded-md ${
                     item.subItems.some(subItem => currentPath.startsWith(subItem.path))
                       ? "active"
                       : ""
                   }`}
                   onClick={() => toggleGroup(index)}
                 >
-                  <span className="flex items-center">
+                  <span className="flex items-center space-x-2">
                     {item.icon}
                     {!collapsed && (
-                      <>
-                        <span className="ml-2 text-base font-medium">
-                          {item.title}
-                        </span>
-                        <ChevronRight className={`w-3 h-3 dropdown-arrow ${openGroups[index] ? 'open' : ''}`} />
-                      </>
+                      <span className="text-base font-medium">
+                        {item.title}
+                      </span>
                     )}
                   </span>
+                  {!collapsed && (
+                    <ChevronRight className={`w-5 h-5 dropdown-arrow transition-transform duration-200 ${openGroups[index] ? 'open' : ''}`} />
+                  )}
                 </SidebarGroupLabel>
                 {openGroups[index] && (
                   <SidebarGroupContent>
