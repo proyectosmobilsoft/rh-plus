@@ -582,10 +582,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Rutas de perfiles
   app.get("/api/perfiles", async (req, res) => {
     try {
-      const perfiles = await storage.getAllPerfiles();
+      const perfiles = await memoryUserStorage.getAllPerfiles();
       res.json(perfiles);
     } catch (error) {
       console.error("Error obteniendo perfiles:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  app.post("/api/perfiles", async (req, res) => {
+    try {
+      const perfil = await memoryUserStorage.createPerfil(req.body);
+      res.status(201).json(perfil);
+    } catch (error) {
+      console.error("Error creando perfil:", error);
       res.status(500).json({ message: "Error interno del servidor" });
     }
   });
@@ -1445,38 +1455,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/perfiles", async (req, res) => {
-    try {
-      const { nombre, descripcion, permisos } = req.body;
-      
-      if (!nombre || !nombre.trim()) {
-        return res.status(400).json({ message: "El nombre es requerido" });
-      }
-
-      // Verificar que no exista otro perfil con el mismo nombre
-      const existingPerfil = await memoryUserStorage.getPerfilByNombre(nombre);
-      if (existingPerfil) {
-        return res.status(400).json({ message: "Ya existe un perfil con ese nombre" });
-      }
-      
-      // Convertir permisos array a JSON
-      let permisosData = null;
-      if (permisos && Array.isArray(permisos)) {
-        permisosData = JSON.stringify(permisos);
-      }
-      
-      const newPerfil = await memoryUserStorage.createPerfil({
-        nombre: nombre.trim(),
-        descripcion: descripcion?.trim() || null,
-        permisos: permisosData,
-        activo: true
-      });
-      
-      res.status(201).json(newPerfil);
-    } catch (error) {
-      console.error("Error creando perfil:", error);
-      res.status(500).json({ message: "Error interno del servidor" });
-    }
+  app.post("/api/perfiles", (req, res) => {
+    const perfil = req.body;
+    perfiles.push(perfil);
+    res.status(201).json(perfil);
   });
 
   app.put("/api/perfiles/:id", async (req, res) => {
@@ -2140,7 +2122,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/perfiles/:id/permissions", async (req, res) => {
+  app.post("/api/perfiles/:id/permissions", async (req, res, next) => {
     try {
       const perfilId = parseInt(req.params.id);
       const { vistas } = req.body;
