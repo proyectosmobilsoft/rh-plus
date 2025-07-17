@@ -1180,7 +1180,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Crear nuevo usuario
   app.post("/api/usuarios", async (req, res) => {
     try {
-      const { perfilIds, ...userData } = req.body;
+      const { perfilIds = [], empresaIds = [], ...userData } = req.body;
+      
+      console.log('Datos recibidos para crear usuario:', { userData, perfilIds, empresaIds });
       
       // Validar datos del usuario
       const validatedData = insertUserSchema.parse(userData);
@@ -1199,7 +1201,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Crear usuario con perfiles
-      const { user, perfiles } = await storage.createUserWithPerfiles(validatedData, perfilIds || []);
+      const { user, perfiles } = await storage.createUserWithPerfiles(validatedData, perfilIds);
+      
+      console.log('Usuario creado exitosamente:', { user, perfiles });
       
       res.json({ 
         message: "Usuario creado exitosamente", 

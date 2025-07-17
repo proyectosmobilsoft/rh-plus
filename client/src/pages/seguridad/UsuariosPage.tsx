@@ -75,9 +75,9 @@ const UsuariosPage = () => {
   const queryClient = useQueryClient();
 
   // Query para obtener usuarios
-  const { data: usuarios = [] } = useQuery<Usuario[]>({
+  const { data: usuarios = [], refetch: refetchUsuarios } = useQuery<Usuario[]>({
     queryKey: ["/api/usuarios"],
-    staleTime: 30000, // Cache por 30 segundos
+    staleTime: 0, // Sin caché para actualizaciones inmediatas
     refetchOnWindowFocus: false,
   });
 
@@ -117,23 +117,41 @@ const UsuariosPage = () => {
   // Mutation para crear usuario
   const createUsuarioMutation = useMutation({
     mutationFn: async (data: CrearUsuarioForm) => {
+      console.log('Enviando datos de usuario:', data);
       const response = await apiRequest("/api/usuarios", {
         method: "POST",
         body: JSON.stringify(data),
       });
       return response;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Invalidar y refrescar datos automáticamente
+      await queryClient.invalidateQueries({ queryKey: ["/api/usuarios"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/usuarios"] });
+      
+      setIsModalOpen(false);
+      form.reset({
+        identificacion: "",
+        primerNombre: "",
+        segundoNombre: "",
+        primerApellido: "",
+        segundoApellido: "",
+        telefono: "",
+        email: "",
+        username: "",
+        password: "",
+        perfilIds: [],
+        empresaIds: [],
+      });
+      
       toast({
         title: "✅ Usuario creado",
-        description: "El usuario se ha creado exitosamente",
+        description: "El usuario se ha creado exitosamente con todos sus perfiles y almacenes asociados.",
         variant: "default",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/usuarios"] });
-      setIsModalOpen(false);
-      form.reset();
     },
     onError: (error: any) => {
+      console.error('Error creando usuario:', error);
       toast({
         title: "❌ Error al crear usuario",
         description: error.message || "No se pudo crear el usuario",
@@ -416,12 +434,12 @@ const UsuariosPage = () => {
                             <div className="border-2 border-gray-300 rounded-md">
                               <MultiSelect
                                 options={perfiles.map(perfil => ({
-                                  value: perfil.id.toString(),
-                                  label: perfil.nombre
+                                  id: perfil.id,
+                                  name: perfil.nombre
                                 }))}
-                                selected={field.value?.map(id => id.toString()) || []}
-                                onChange={(selected) => {
-                                  field.onChange(selected.map(id => parseInt(id)));
+                                selected={field.value || []}
+                                onSelectionChange={(selected) => {
+                                  field.onChange(selected);
                                 }}
                                 placeholder="Seleccione perfiles"
                               />
@@ -442,12 +460,12 @@ const UsuariosPage = () => {
                             <div className="border-2 border-gray-300 rounded-md">
                               <MultiSelect
                                 options={empresas.map(empresa => ({
-                                  value: empresa.id.toString(),
-                                  label: empresa.nombreEmpresa
+                                  id: empresa.id,
+                                  name: empresa.nombreEmpresa
                                 }))}
-                                selected={field.value?.map(id => id.toString()) || []}
-                                onChange={(selected) => {
-                                  field.onChange(selected.map(id => parseInt(id)));
+                                selected={field.value || []}
+                                onSelectionChange={(selected) => {
+                                  field.onChange(selected);
                                 }}
                                 placeholder="Seleccione almacenes"
                               />
