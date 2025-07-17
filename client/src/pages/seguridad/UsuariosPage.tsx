@@ -155,38 +155,34 @@ const UsuariosPage = () => {
     onSuccess: async (data) => {
       console.log('Usuario creado exitosamente:', data);
       
-      // Invalidar caché y refrescar inmediatamente como en perfiles
-      await queryClient.invalidateQueries({ queryKey: ["/api/usuarios"] });
-      await refetchUsuarios();
-      
       // Cerrar modal primero
       setIsModalOpen(false);
       
-      // Forzar actualización inmediata
-      await forceRefreshUsuarios();
+      // FORZAR actualización inmediata - método simplificado
+      queryClient.removeQueries({ queryKey: ["/api/usuarios"] });
+      await refetchUsuarios();
       
-      // Mostrar toast al final
+      // Mostrar toast
       toast({
         title: "✅ Usuario creado",
         description: "El usuario se ha creado exitosamente.",
         variant: "default",
       });
-      // Resetear formulario después
-      setTimeout(() => {
-        form.reset({
-          identificacion: "",
-          primerNombre: "",
-          segundoNombre: "",
-          primerApellido: "",
-          segundoApellido: "",
-          telefono: "",
-          email: "",
-          username: "",
-          password: "",
-          perfilIds: [],
-          empresaIds: [],
-        });
-      }, 100);
+      
+      // Resetear formulario
+      form.reset({
+        identificacion: "",
+        primerNombre: "",
+        segundoNombre: "",
+        primerApellido: "",
+        segundoApellido: "",
+        telefono: "",
+        email: "",
+        username: "",
+        password: "",
+        perfilIds: [],
+        empresaIds: [],
+      });
     },
     onError: (error: any) => {
       console.error('Error creando usuario:', error);
@@ -206,7 +202,10 @@ const UsuariosPage = () => {
       });
     },
     onSuccess: async () => {
-      await forceRefreshUsuarios();
+      // FORZAR actualización inmediata - método simplificado
+      queryClient.removeQueries({ queryKey: ["/api/usuarios"] });
+      await refetchUsuarios();
+      
       toast({
         title: "✅ Usuario eliminado",
         description: "El usuario ha sido eliminado exitosamente.",
@@ -280,13 +279,16 @@ const UsuariosPage = () => {
       setIsEditModalOpen(false);
       setEditingUser(null);
       
-      await forceRefreshUsuarios();
+      // FORZAR actualización inmediata - método simplificado
+      queryClient.removeQueries({ queryKey: ["/api/usuarios"] });
+      await refetchUsuarios();
       
       toast({
         title: "✅ Usuario actualizado",
         description: "El usuario se ha actualizado exitosamente.",
         variant: "default",
       });
+      
       form.reset({
         identificacion: "",
         primerNombre: "",
@@ -299,12 +301,6 @@ const UsuariosPage = () => {
         password: "",
         perfilIds: [],
         empresaIds: [],
-      });
-      
-      toast({
-        title: "✅ Usuario actualizado",
-        description: "Los datos del usuario se han actualizado exitosamente.",
-        variant: "default",
       });
     },
     onError: (error: any) => {
