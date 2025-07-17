@@ -526,6 +526,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Endpoint para empresas usando datos mock
+  app.get("/api/empresas", async (req, res) => {
+    try {
+      const { empresas } = await import("@shared/mockData");
+      res.json(empresas);
+    } catch (error) {
+      console.error("Error obteniendo empresas:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Endpoint para cities
+  app.get("/api/cities", async (req, res) => {
+    try {
+      const cities = [
+        "Bogotá",
+        "Medellín", 
+        "Cali",
+        "Barranquilla",
+        "Bucaramanga",
+        "Cartagena",
+        "Pereira",
+        "Manizales",
+        "Ibagué",
+        "Santa Marta"
+      ];
+      res.json(cities);
+    } catch (error) {
+      console.error("Error obteniendo ciudades:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
   app.get("/api/admin/candidatos/:id", async (req, res) => {
     try {
       if (!req.session.userId || req.session.userType !== "admin") {

@@ -186,6 +186,23 @@
   @apply rotate-90;
 }
 
+/* Colores consistentes para menús del sidebar */
+.sidebar-menu-group {
+  @apply text-brand-lime hover:bg-brand-lime/10 hover:text-brand-lime;
+}
+
+.sidebar-menu-group.active {
+  @apply bg-brand-lime/15 text-brand-lime border-l-4 border-brand-lime;
+}
+
+.sidebar-submenu-item {
+  @apply text-gray-600 hover:bg-brand-lime/5 hover:text-brand-lime pl-8;
+}
+
+.sidebar-submenu-item.active {
+  @apply bg-brand-lime/10 text-brand-lime border-l-2 border-brand-lime/50;
+}
+
 /* Transiciones suaves para cambios de tema */
 .theme-transition * {
   transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease !important;

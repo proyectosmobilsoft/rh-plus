@@ -151,10 +151,10 @@ const AppSidebar = () => {
               // Elemento sin subítems
               (<Link
                 to={item.path || "/"}
-                className={`flex items-center space-x-2 rounded-md px-3 py-1.5 mb-1 sidebar-item ${
+                className={`flex items-center space-x-2 rounded-md px-3 py-1.5 mb-1 sidebar-item sidebar-menu-group ${
                   currentPath === item.path
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "hover:bg-sidebar-accent/50 text-sidebar-foreground"
+                    ? "active"
+                    : ""
                 }`}
               >
                 {item.icon}
@@ -164,7 +164,11 @@ const AppSidebar = () => {
               // Grupo con subítems
               (<SidebarGroup>
                 <SidebarGroupLabel 
-                  className="flex items-center space-x-2 cursor-pointer sidebar-item"
+                  className={`flex items-center space-x-2 cursor-pointer sidebar-item sidebar-menu-group px-3 py-1.5 rounded-md ${
+                    item.subItems.some(subItem => currentPath.startsWith(subItem.path))
+                      ? "active"
+                      : ""
+                  }`}
                   onClick={() => toggleGroup(index)}
                 >
                   <span className="flex items-center">
@@ -187,10 +191,10 @@ const AppSidebar = () => {
                           <SidebarMenuButton asChild>
                             <Link
                               to={subItem.path}
-                              className={`flex items-center space-x-2 w-full py-1 sidebar-item ${
+                              className={`flex items-center space-x-2 w-full py-1.5 rounded-md sidebar-item sidebar-submenu-item ${
                                 currentPath === subItem.path
-                                  ? "text-sidebar-primary font-medium"
-                                  : "text-sidebar-foreground"
+                                  ? "active"
+                                  : ""
                               }`}
                             >
                               {subItem.icon}
