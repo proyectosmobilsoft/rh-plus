@@ -54,6 +54,20 @@ export function PermissionsForm({ selectedPermissions, onPermissionsChange }: Pe
   
   const systemViews = systemViewsData as SystemView[];
 
+  // Ensure all permissions have a valid actions array
+  useEffect(() => {
+    const normalizedPermissions = selectedPermissions.map(permission => ({
+      ...permission,
+      actions: permission.actions || []
+    }));
+    
+    // Only update if there are actual differences
+    const hasUndefinedActions = selectedPermissions.some(p => !p.actions);
+    if (hasUndefinedActions) {
+      onPermissionsChange(normalizedPermissions);
+    }
+  }, [selectedPermissions, onPermissionsChange]);
+
   const addView = () => {
     if (!selectedView) return;
 
@@ -81,9 +95,10 @@ export function PermissionsForm({ selectedPermissions, onPermissionsChange }: Pe
   const toggleAction = (viewId: string, actionCode: string) => {
     const updatedPermissions = selectedPermissions.map(permission => {
       if (permission.viewId === viewId) {
-        const actions = permission.actions.includes(actionCode)
-          ? permission.actions.filter(a => a !== actionCode)
-          : [...permission.actions, actionCode];
+        const currentActions = permission.actions || [];
+        const actions = currentActions.includes(actionCode)
+          ? currentActions.filter(a => a !== actionCode)
+          : [...currentActions, actionCode];
         
         return { ...permission, actions };
       }
@@ -222,7 +237,7 @@ export function PermissionsForm({ selectedPermissions, onPermissionsChange }: Pe
                     {/* Action Switches */}
                     {view.acciones.map((action, index) => {
                       if (index < 6) {
-                        const isSelected = permission.actions.includes(action.codigo);
+                        const isSelected = permission.actions?.includes(action.codigo) || false;
                         return (
                           <div key={action.codigo} className="col-span-1 text-center">
                             <Switch
@@ -269,7 +284,7 @@ export function PermissionsForm({ selectedPermissions, onPermissionsChange }: Pe
                       <div className="text-xs text-gray-600 mb-2">Acciones adicionales:</div>
                       <div className="flex flex-wrap gap-2">
                         {view.acciones.slice(6).map((action) => {
-                          const isSelected = permission.actions.includes(action.codigo);
+                          const isSelected = permission.actions?.includes(action.codigo) || false;
                           return (
                             <button
                               key={action.codigo}
@@ -310,7 +325,7 @@ export function PermissionsForm({ selectedPermissions, onPermissionsChange }: Pe
           <div className="text-sm text-blue-700">
             <span className="font-medium">{selectedPermissions.length}</span> vistas seleccionadas con{' '}
             <span className="font-medium">
-              {selectedPermissions.reduce((total, p) => total + p.actions.length, 0)}
+              {selectedPermissions.reduce((total, p) => total + (p.actions?.length || 0), 0)}
             </span> acciones habilitadas
           </div>
         </div>
