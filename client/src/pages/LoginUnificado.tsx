@@ -149,15 +149,7 @@ export default function LoginUnificado() {
           </CardContent>
         </Card>
 
-        {/* Information */}
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600">
-            Sistema unificado para todos los usuarios
-          </p>
-          <p className="text-xs text-gray-500 mt-2">
-            Administradores • Analistas • Clientes • Candidatos
-          </p>
-        </div>
+        
       </div>
     </div>
   );
