@@ -1,7 +1,7 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -10,10 +10,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { useApiData } from '@/hooks/useApiData';
-import { Briefcase, Search, Plus, Edit, Trash2, ArrowLeft } from 'lucide-react';
+import { Briefcase, Search, Plus, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Prestador {
@@ -29,7 +34,6 @@ interface Prestador {
 const PrestadoresPage = () => {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState('lista');
   const [formData, setFormData] = useState<Partial<Prestador>>({
     identificacion: '',
     nombre: '',
@@ -38,6 +42,7 @@ const PrestadoresPage = () => {
     telefono: '',
     correo: '',
   });
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
 
   // Datos simulados mientras se configura la API
@@ -108,8 +113,7 @@ const PrestadoresPage = () => {
         });
       }
 
-      // Regresar a la lista y limpiar formulario
-      setActiveTab('lista');
+      setDialogOpen(false);
       setFormData({
         identificacion: '',
         nombre: '',
@@ -127,20 +131,7 @@ const PrestadoresPage = () => {
   const handleEdit = (prestador: Prestador) => {
     setFormData(prestador);
     setEditingId(prestador.id);
-    setActiveTab('formulario');
-  };
-
-  const handleCreateNew = () => {
-    setFormData({
-      identificacion: '',
-      nombre: '',
-      apellido: '',
-      especialidad: '',
-      telefono: '',
-      correo: '',
-    });
-    setEditingId(null);
-    setActiveTab('formulario');
+    setDialogOpen(true);
   };
 
   const handleDelete = async (id: number) => {
@@ -174,190 +165,180 @@ const PrestadoresPage = () => {
   return (
     <div className="page-container p-6">
       <div className="page-header mb-6">
-        <div className="flex items-center space-x-2">
-          <Briefcase className="h-6 w-6" />
-          <h1 className="text-2xl font-bold">Prestadores</h1>
-        </div>
-      </div>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="lista">Lista de Prestadores</TabsTrigger>
-          <TabsTrigger value="formulario">
-            {editingId ? "Editar Prestador" : "Crear Prestador"}
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="lista" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <div className="relative w-64">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar prestadores..."
-                className="pl-8"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <Button onClick={handleCreateNew}>
-              <Plus className="h-4 w-4 mr-2" />
-              Crear Prestador
-            </Button>
+        <div className="flex justify-between items-center">
+          <div className="flex items-center space-x-2">
+            <Briefcase className="h-6 w-6" />
+            <h1 className="text-2xl font-bold">Prestadores</h1>
           </div>
-
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Identificación</TableHead>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Apellido</TableHead>
-                  <TableHead>Especialidad</TableHead>
-                  <TableHead className="hidden md:table-cell">Teléfono</TableHead>
-                  <TableHead className="hidden md:table-cell">Correo</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredPrestadores.map((prestador) => (
-                  <TableRow key={prestador.id}>
-                    <TableCell className="font-medium">{prestador.identificacion}</TableCell>
-                    <TableCell>{prestador.nombre}</TableCell>
-                    <TableCell>{prestador.apellido}</TableCell>
-                    <TableCell>{prestador.especialidad}</TableCell>
-                    <TableCell className="hidden md:table-cell">{prestador.telefono}</TableCell>
-                    <TableCell className="hidden md:table-cell">{prestador.correo}</TableCell>
-                    <TableCell className="text-right space-x-2">
-                      <Button variant="ghost" size="icon" onClick={() => handleEdit(prestador)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(prestador.id)}>
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {filteredPrestadores.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">
-                      No se encontraron prestadores
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="formulario" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={() => {
+                setFormData({
+                  identificacion: '',
+                  nombre: '',
+                  apellido: '',
+                  especialidad: '',
+                  telefono: '',
+                  correo: '',
+                });
+                setEditingId(null);
+              }}>
+                <Plus className="h-4 w-4 mr-2" />
+                Crear Prestador
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>
                   {editingId ? "Editar Prestador" : "Registrar Nuevo Prestador"}
-                </CardTitle>
-                <Button 
-                  variant="outline" 
-                  onClick={() => setActiveTab('lista')}
-                  className="flex items-center gap-2"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  Volver a la lista
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
+                </DialogTitle>
+              </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="identificacion">Identificación *</Label>
-                    <Input
-                      id="identificacion"
-                      name="identificacion"
-                      placeholder="Número de identificación"
-                      value={formData.identificacion}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="especialidad">Especialidad *</Label>
-                    <Input
-                      id="especialidad"
-                      name="especialidad"
-                      placeholder="Especialidad médica"
-                      value={formData.especialidad}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <label htmlFor="identificacion" className="text-sm font-medium">
+                    Identificación *
+                  </label>
+                  <Input
+                    id="identificacion"
+                    name="identificacion"
+                    placeholder="Número de identificación"
+                    value={formData.identificacion}
+                    onChange={handleInputChange}
+                    required
+                  />
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="nombre">Nombre *</Label>
-                    <Input
-                      id="nombre"
-                      name="nombre"
-                      placeholder="Nombre del prestador"
-                      value={formData.nombre}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="apellido">Apellido</Label>
-                    <Input
-                      id="apellido"
-                      name="apellido"
-                      placeholder="Apellido del prestador"
-                      value={formData.apellido}
-                      onChange={handleInputChange}
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <label htmlFor="nombre" className="text-sm font-medium">
+                    Nombre *
+                  </label>
+                  <Input
+                    id="nombre"
+                    name="nombre"
+                    placeholder="Nombre del prestador"
+                    value={formData.nombre}
+                    onChange={handleInputChange}
+                    required
+                  />
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="telefono">Teléfono</Label>
-                    <Input
-                      id="telefono"
-                      name="telefono"
-                      placeholder="Número de teléfono"
-                      value={formData.telefono}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="correo">Correo</Label>
-                    <Input
-                      id="correo"
-                      name="correo"
-                      type="email"
-                      placeholder="Correo electrónico"
-                      value={formData.correo}
-                      onChange={handleInputChange}
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <label htmlFor="apellido" className="text-sm font-medium">
+                    Apellido *
+                  </label>
+                  <Input
+                    id="apellido"
+                    name="apellido"
+                    placeholder="Apellido del prestador"
+                    value={formData.apellido}
+                    onChange={handleInputChange}
+                    required
+                  />
                 </div>
-
-                <div className="flex justify-end space-x-2 pt-4">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => setActiveTab('lista')}
-                  >
+                <div className="space-y-2">
+                  <label htmlFor="especialidad" className="text-sm font-medium">
+                    Especialidad *
+                  </label>
+                  <Input
+                    id="especialidad"
+                    name="especialidad"
+                    placeholder="Especialidad del prestador"
+                    value={formData.especialidad}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="telefono" className="text-sm font-medium">
+                    Teléfono
+                  </label>
+                  <Input
+                    id="telefono"
+                    name="telefono"
+                    placeholder="Número de contacto"
+                    value={formData.telefono}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="correo" className="text-sm font-medium">
+                    Correo Electrónico
+                  </label>
+                  <Input
+                    id="correo"
+                    name="correo"
+                    type="email"
+                    placeholder="correo@ejemplo.com"
+                    value={formData.correo}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                     Cancelar
                   </Button>
                   <Button type="submit">
-                    {editingId ? 'Actualizar' : 'Registrar'}
+                    {editingId ? "Actualizar" : "Guardar"}
                   </Button>
                 </div>
               </form>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+
+      <div className="flex justify-between items-center mb-4">
+        <div className="relative w-64">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar prestadores..."
+            className="pl-8"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Identificación</TableHead>
+              <TableHead>Nombre</TableHead>
+              <TableHead>Apellido</TableHead>
+              <TableHead>Especialidad</TableHead>
+              <TableHead className="hidden md:table-cell">Teléfono</TableHead>
+              <TableHead className="hidden md:table-cell">Correo</TableHead>
+              <TableHead className="text-right">Acciones</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredPrestadores.map((prestador) => (
+              <TableRow key={prestador.id}>
+                <TableCell className="font-medium">{prestador.identificacion}</TableCell>
+                <TableCell>{prestador.nombre}</TableCell>
+                <TableCell>{prestador.apellido}</TableCell>
+                <TableCell>{prestador.especialidad}</TableCell>
+                <TableCell className="hidden md:table-cell">{prestador.telefono}</TableCell>
+                <TableCell className="hidden md:table-cell">{prestador.correo}</TableCell>
+                <TableCell className="text-right space-x-2">
+                  <Button variant="ghost" size="icon" onClick={() => handleEdit(prestador)}>
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => handleDelete(prestador.id)}>
+                    <Trash2 className="h-4 w-4 text-red-500" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+            {filteredPrestadores.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={7} className="h-24 text-center">
+                  No se encontraron prestadores
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 };
