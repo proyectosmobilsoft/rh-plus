@@ -497,6 +497,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/admin/candidatos", async (req, res) => {
+    try {
+      const candidatoData = req.body;
+      
+      const { candidatos, getNextId } = await import("@shared/mockData");
+      
+      const newCandidato = {
+        id: getNextId.candidato(),
+        identificacion: candidatoData.identificacion,
+        tipoDocumento: candidatoData.tipoDocumento,
+        nombre: candidatoData.nombre,
+        apellido: candidatoData.apellido,
+        telefono: candidatoData.telefono || "",
+        correo: candidatoData.correo,
+        empresa: candidatoData.empresa || "",
+        ciudad: candidatoData.ciudad || "",
+        direccion: candidatoData.direccion || ""
+      };
+      
+      // Agregar a la lista mock
+      candidatos.push(newCandidato);
+      
+      res.json(newCandidato);
+    } catch (error) {
+      console.error("Error creando candidato:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
   app.get("/api/admin/candidatos/:id", async (req, res) => {
     try {
       if (!req.session.userId || req.session.userType !== "admin") {
