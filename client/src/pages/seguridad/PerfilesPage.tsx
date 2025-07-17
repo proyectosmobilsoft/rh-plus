@@ -344,7 +344,7 @@ const PerfilesPage = () => {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['perfiles'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/perfiles'] });
       setIsModalOpen(false);
       setEditingPerfil(null);
       
@@ -382,7 +382,7 @@ const PerfilesPage = () => {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['perfiles'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/perfiles'] });
       toast({
         title: "Éxito",
         description: "Perfil eliminado correctamente",
@@ -452,7 +452,7 @@ const PerfilesPage = () => {
 
   const handleAdvancedProfileCreated = (profile: UserProfile) => {
     // Invalidar cache para actualizar la lista
-    queryClient.invalidateQueries({ queryKey: ['perfiles'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/perfiles'] });
     
     // Mostrar notificación de éxito
     toast({
