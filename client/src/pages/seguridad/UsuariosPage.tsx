@@ -82,13 +82,22 @@ const UsuariosPage = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Función para forzar actualización de usuarios
+  const forceRefreshUsuarios = async () => {
+    console.log('Forzando actualización de usuarios...');
+    queryClient.removeQueries({ queryKey: ["/api/usuarios"] });
+    await refetchUsuarios();
+    console.log('Usuarios actualizados!');
+  };
+
   // Query para obtener usuarios
   const { data: usuarios = [], isLoading: usuariosLoading, refetch: refetchUsuarios } = useQuery<Usuario[]>({
     queryKey: ["/api/usuarios"],
     staleTime: 0, // Sin caché para actualizaciones inmediatas
     cacheTime: 0, // No mantener caché
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
+    refetchOnWindowFocus: false, // Evitar refetch innecesarios
+    refetchOnMount: "always", // Siempre refetch al montar
+    retry: false, // No reintentar automáticamente
   });
 
   // Query para obtener perfiles disponibles
@@ -134,31 +143,37 @@ const UsuariosPage = () => {
       });
       return response;
     },
-    onSuccess: async () => {
-      // Forzar refresco inmediato
-      await queryClient.invalidateQueries({ queryKey: ["/api/usuarios"] });
-      await refetchUsuarios();
+    onSuccess: async (data) => {
+      console.log('Usuario creado exitosamente:', data);
       
+      // Cerrar modal primero
       setIsModalOpen(false);
-      form.reset({
-        identificacion: "",
-        primerNombre: "",
-        segundoNombre: "",
-        primerApellido: "",
-        segundoApellido: "",
-        telefono: "",
-        email: "",
-        username: "",
-        password: "",
-        perfilIds: [],
-        empresaIds: [],
-      });
       
+      // Forzar actualización inmediata
+      await forceRefreshUsuarios();
+      
+      // Mostrar toast al final
       toast({
         title: "✅ Usuario creado",
-        description: "El usuario se ha creado exitosamente con todos sus perfiles y almacenes asociados.",
+        description: "El usuario se ha creado exitosamente.",
         variant: "default",
       });
+      // Resetear formulario después
+      setTimeout(() => {
+        form.reset({
+          identificacion: "",
+          primerNombre: "",
+          segundoNombre: "",
+          primerApellido: "",
+          segundoApellido: "",
+          telefono: "",
+          email: "",
+          username: "",
+          password: "",
+          perfilIds: [],
+          empresaIds: [],
+        });
+      }, 100);
     },
     onError: (error: any) => {
       console.error('Error creando usuario:', error);
@@ -178,8 +193,7 @@ const UsuariosPage = () => {
       });
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["/api/usuarios"] });
-      await refetchUsuarios();
+      await forceRefreshUsuarios();
       toast({
         title: "✅ Usuario eliminado",
         description: "El usuario ha sido eliminado exitosamente.",
@@ -250,11 +264,16 @@ const UsuariosPage = () => {
       return response;
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["/api/usuarios"] });
-      await refetchUsuarios();
-      
       setIsEditModalOpen(false);
       setEditingUser(null);
+      
+      await forceRefreshUsuarios();
+      
+      toast({
+        title: "✅ Usuario actualizado",
+        description: "El usuario se ha actualizado exitosamente.",
+        variant: "default",
+      });
       form.reset({
         identificacion: "",
         primerNombre: "",
@@ -308,14 +327,15 @@ const UsuariosPage = () => {
         </div>
         <div className="flex gap-2">
           <Button 
-            onClick={() => refetchUsuarios()}
+            onClick={() => forceRefreshUsuarios()}
             variant="outline"
             size="sm"
             disabled={usuariosLoading}
             className="border-brand-lime text-brand-lime hover:bg-brand-lime hover:text-white"
           >
-            <RefreshCw className={`w-4 h-4 mr-1 ${usuariosLoading ? 'animate-spin' : ''}`} />
-            Refrescar
+            <RefreshCw className={`w-4 h-4 ${usuariosLoading ? 'animate-spin mr-1' : 'mr-2'}`} />
+            <span className={usuariosLoading ? 'hidden' : ''}>Refrescar</span>
+            <span className={usuariosLoading ? '' : 'hidden'}>Cargando...</span>
           </Button>
           
           <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
