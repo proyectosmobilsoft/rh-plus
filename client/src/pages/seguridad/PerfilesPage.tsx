@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Plus, Edit, Trash2, X, ChevronDown, Eye, Settings, Building, Users, FileText, Award, BarChart, UserCheck, QrCode } from "lucide-react";
+import { Plus, Edit, Trash2, X, ChevronDown, Eye, Settings, Building, Users, FileText, Award, BarChart, UserCheck, QrCode, Crown, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -18,6 +18,8 @@ import { z } from "zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { AdvancedProfileManager } from "@/components/profiles/AdvancedProfileManager";
+import { type UserProfile } from "@shared/mock-permissions";
 
 // Schema para el formulario de perfil
 const perfilSchema = z.object({
@@ -252,6 +254,7 @@ const mockSystemViews: SystemView[] = [
 
 const PerfilesPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAdvancedModalOpen, setIsAdvancedModalOpen] = useState(false);
   const [editingPerfil, setEditingPerfil] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("perfiles");
   
@@ -461,6 +464,18 @@ const PerfilesPage = () => {
     deletePerfilMutation.mutate(id);
   };
 
+  const handleAdvancedProfileCreated = (profile: UserProfile) => {
+    // Invalidar cache para actualizar la lista
+    queryClient.invalidateQueries({ queryKey: ['perfiles'] });
+    
+    // Mostrar notificación de éxito
+    toast({
+      title: "Perfil Avanzado Creado",
+      description: `El perfil "${profile.name}" ha sido creado exitosamente con permisos granulares.`,
+      variant: "default",
+    });
+  };
+
   const addPermiso = async (menuNodeId: number, menuNodeName: string) => {
     const exists = permisosFields.find(p => p.menuNodeId === menuNodeId);
     if (!exists) {
@@ -491,32 +506,40 @@ const PerfilesPage = () => {
         <TabsContent value="perfiles" className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-gray-800">Gestión de Perfiles</h2>
-            <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogTrigger asChild>
-            <Button 
-              onClick={() => {
-                setEditingPerfil(null);
-                form.reset({
-                  codigo: perfiles.length + 1,
-                  nombre: "",
-                  descripcion: "",
-                  permisos: []
-                });
-              }}
-              className="bg-green-500 hover:bg-green-600 text-white border-0 shadow-sm px-4 py-2 rounded text-sm font-medium transition-colors"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Nuevo Perfil
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                {editingPerfil ? 'Editar Perfil' : 'Registro de Perfiles'}
-              </DialogTitle>
-            </DialogHeader>
-            
-            <Form {...form}>
+            <div className="flex space-x-2">
+              <Button 
+                onClick={() => setIsAdvancedModalOpen(true)}
+                className="bg-purple-500 hover:bg-purple-600 text-white border-0 shadow-sm px-4 py-2 rounded text-sm font-medium transition-colors"
+              >
+                <Crown className="w-4 h-4 mr-2" />
+                Perfil Avanzado
+              </Button>
+              <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+                <DialogTrigger asChild>
+                  <Button 
+                    onClick={() => {
+                      setEditingPerfil(null);
+                      form.reset({
+                        codigo: perfiles.length + 1,
+                        nombre: "",
+                        descripcion: "",
+                        permisos: []
+                      });
+                    }}
+                    className="bg-green-500 hover:bg-green-600 text-white border-0 shadow-sm px-4 py-2 rounded text-sm font-medium transition-colors"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Nuevo Perfil
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>
+                      {editingPerfil ? 'Editar Perfil' : 'Registro de Perfiles'}
+                    </DialogTitle>
+                  </DialogHeader>
+                  
+                  <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
@@ -737,6 +760,7 @@ const PerfilesPage = () => {
           </div>
         </CardContent>
       </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="vistas" className="space-y-6">
@@ -860,6 +884,13 @@ const PerfilesPage = () => {
           </Card>
         </TabsContent>
       </Tabs>
+      
+      {/* Componente de Gestión Avanzada de Perfiles */}
+      <AdvancedProfileManager
+        open={isAdvancedModalOpen}
+        onOpenChange={setIsAdvancedModalOpen}
+        onProfileCreated={handleAdvancedProfileCreated}
+      />
     </div>
   );
 };

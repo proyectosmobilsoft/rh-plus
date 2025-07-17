@@ -587,67 +587,69 @@ export default function PerfilCandidato() {
 
                   <TabsContent value="archivos" className="space-y-4">
                     <div className="space-y-4">
-                      <div className="text-center mb-6">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Documentos por Empresa</h3>
-                        <p className="text-gray-600">
+                      <div className="text-center mb-4">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-1">Documentos por Empresa</h3>
+                        <p className="text-sm text-gray-600">
                           Selecciona la empresa para la cual deseas subir documentos específicos
                         </p>
                       </div>
                       
-                      <Accordion type="single" collapsible className="w-full">
+                      <Accordion type="single" collapsible className="w-full space-y-2">
                         {empresasDisponibles.map((empresa) => (
-                          <AccordionItem key={empresa.id} value={`empresa-${empresa.id}`}>
-                            <AccordionTrigger className="hover:no-underline">
-                              <div className="flex items-center space-x-3">
-                                <Building className="w-5 h-5 text-blue-600" />
-                                <span className="font-medium">{empresa.nombre}</span>
-                                <Badge variant="outline" className="ml-2">
-                                  {empresa.requiredDocs.length} documentos
+                          <AccordionItem key={empresa.id} value={`empresa-${empresa.id}`} className="border border-gray-200 rounded-lg">
+                            <AccordionTrigger className="hover:no-underline px-4 py-3 hover:bg-gray-50 rounded-t-lg">
+                              <div className="flex items-center justify-between w-full">
+                                <div className="flex items-center space-x-3">
+                                  <Building className="w-5 h-5 text-blue-600" />
+                                  <span className="font-medium text-sm">{empresa.nombre}</span>
+                                </div>
+                                <Badge variant="outline" className="text-xs">
+                                  {empresa.requiredDocs.length} docs
                                 </Badge>
                               </div>
                             </AccordionTrigger>
-                            <AccordionContent>
-                              <div className="pt-4">
-                                <p className="text-sm text-gray-600 mb-4">
+                            <AccordionContent className="px-4 pb-4">
+                              <div className="pt-2">
+                                <p className="text-xs text-gray-600 mb-3">
                                   Documentos requeridos para esta empresa:
                                 </p>
                                 
-                                <div className="grid gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                   {empresa.requiredDocs.map((docType, index) => {
                                     const docConfig = {
                                       hojaDeVida: { 
                                         name: 'Hoja de Vida', 
-                                        icon: <Upload className="w-5 h-5" />, 
+                                        icon: <Upload className="w-4 h-4" />, 
                                         description: 'CV en formato PDF (máx. 5MB)',
                                         required: true
                                       },
                                       diploma: { 
                                         name: 'Diploma', 
-                                        icon: <GraduationCap className="w-5 h-5" />, 
+                                        icon: <GraduationCap className="w-4 h-4" />, 
                                         description: 'Título profesional (PDF)',
                                         required: true
                                       },
                                       certificaciones: { 
                                         name: 'Certificaciones', 
-                                        icon: <Upload className="w-5 h-5" />, 
+                                        icon: <Upload className="w-4 h-4" />, 
                                         description: 'Certificados adicionales (PDF)',
                                         required: false
                                       },
                                       fotografia: { 
                                         name: 'Fotografía', 
-                                        icon: <User className="w-5 h-5" />, 
+                                        icon: <User className="w-4 h-4" />, 
                                         description: 'Foto profesional (JPG/PNG, máx. 2MB)',
                                         required: false
                                       },
                                       referencias: { 
                                         name: 'Referencias', 
-                                        icon: <Mail className="w-5 h-5" />, 
+                                        icon: <Mail className="w-4 h-4" />, 
                                         description: 'Cartas de recomendación (PDF)',
                                         required: false
                                       },
                                       portafolio: { 
                                         name: 'Portafolio', 
-                                        icon: <Briefcase className="w-5 h-5" />, 
+                                        icon: <Briefcase className="w-4 h-4" />, 
                                         description: 'Muestra de trabajos (PDF/ZIP)',
                                         required: false
                                       }
@@ -656,34 +658,35 @@ export default function PerfilCandidato() {
                                     const config = docConfig[docType as keyof typeof docConfig];
                                     
                                     return (
-                                      <Card key={index} className="border border-gray-200">
-                                        <CardHeader className="pb-3">
-                                          <CardTitle className="flex items-center text-sm">
+                                      <Card key={index} className="border border-gray-200 bg-gray-50">
+                                        <CardHeader className="pb-2 pt-3">
+                                          <CardTitle className="flex items-center text-xs">
                                             {config.icon}
-                                            <span className="ml-2">
+                                            <span className="ml-2 flex-1">
                                               {config.name}
                                               {config.required && <span className="text-red-500 ml-1">*</span>}
                                             </span>
                                           </CardTitle>
-                                          <CardDescription className="text-xs">
+                                          <CardDescription className="text-xs text-gray-600">
                                             {config.description}
                                           </CardDescription>
                                         </CardHeader>
-                                        <CardContent className="pt-0">
-                                          <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-400 transition-colors">
-                                            <Upload className="w-6 h-6 mx-auto text-gray-400 mb-2" />
+                                        <CardContent className="pt-0 pb-3">
+                                          <div className="border-2 border-dashed border-gray-300 rounded-lg p-3 text-center hover:border-blue-400 transition-colors">
+                                            <Upload className="w-5 h-5 mx-auto text-gray-400 mb-1" />
                                             <p className="text-xs text-gray-600 mb-2">
-                                              Arrastra tu archivo aquí o
+                                              Arrastra aquí o
                                             </p>
                                             <Button 
                                               variant="outline" 
                                               size="sm"
+                                              className="text-xs h-7"
                                               onClick={() => {
                                                 // Simular subida de archivo
                                                 toast.success(`${config.name} subido para ${empresa.nombre}`);
                                               }}
                                             >
-                                              Seleccionar archivo
+                                              Seleccionar
                                             </Button>
                                           </div>
                                         </CardContent>

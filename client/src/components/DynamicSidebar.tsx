@@ -125,7 +125,7 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
       <div className="flex-1 overflow-y-auto">
         <div className="p-2">
           <h2 className="text-xl font-medium text-gray-900 mb-4 px-2">
-            Plataforma ZEUS
+            Plataforma
           </h2>
           
           <nav className="space-y-1">

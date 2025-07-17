@@ -1,4 +1,4 @@
-stoy desarrollando una aplicación web llamada Plataforma ZEUS de Contratación, que gestiona órdenes de ingreso de personal, candidatos, clientes y analistas. Ya tengo varias partes implementadas (registro, roles, formularios, etc.).
+stoy desarrollando una aplicación web llamada Plataforma de Contratación, que gestiona órdenes de ingreso de personal, candidatos, clientes y analistas. Ya tengo varias partes implementadas (registro, roles, formularios, etc.).
 
 Necesito que me ayudes a revisar y comparar lo que tengo implementado con lo que falta, según los requerimientos oficiales del proyecto.
 🔍 Contexto técnico actual:

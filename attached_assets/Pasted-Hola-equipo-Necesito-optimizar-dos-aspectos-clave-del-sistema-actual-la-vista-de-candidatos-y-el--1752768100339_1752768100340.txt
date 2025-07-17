@@ -1,0 +1,84 @@
+Hola equipo,
+
+Necesito optimizar dos aspectos clave del sistema actual: la vista de candidatos y el panel de administración para la gestión de perfiles, empresas y permisos.
+1. ✅ Optimización del acordeón para subir archivos en la vista de Candidatos
+
+Actualmente, el acordeón donde se suben archivos se ve demasiado grande y requiere hacer mucho scroll, lo cual no es ideal. Me gustaría que:
+
+    Todo el contenido del acordeón pueda visualizarse sin necesidad de hacer scroll, siempre que sea posible.
+
+    Aprovechemos mejor el espacio disponible.
+
+    El diseño sea más compacto, limpio y eficiente.
+
+2. 👤 Nuevo perfil desde Admin – Gestión de roles, vistas y acciones
+
+Desde la vista de administración, en el botón "Nuevo Perfil", necesito habilitar la creación avanzada de perfiles de usuario con control granular. Esto incluye:
+a. Formularios bien optimizados
+
+    Usar scroll solo si es estrictamente necesario.
+
+    Si hay espacio disponible, que la visual se distribuya mejor para evitarlo.
+
+b. Crear nueva empresa y asignarle usuario
+
+Como administrador, quiero:
+
+    Crear una empresa.
+
+    Crear un usuario de esa empresa.
+
+    Asignar correo electrónico y que se genere una contraseña automática.
+
+    La contraseña debe forzar cambio en el primer inicio de sesión.
+
+c. Control de vistas (navegación)
+
+Desde la creación de un nuevo perfil, quiero poder:
+
+    Elegir qué vistas puede o no puede ver un usuario.
+
+    Por ejemplo, permitir que vea:
+
+        Vista de Registro
+
+        Vista de Candidatos
+
+        Vista de Prestadores
+        Pero ocultar por ejemplo:
+
+        Empresas Afiliadas
+
+    Importante: todos los perfiles tienen acceso al sidebar excepto Candidato. Por eso quiero poder activar/desactivar el acceso a cada vista individualmente.
+
+d. Control de acciones
+
+Por cada vista o módulo, quiero definir qué acciones puede hacer el usuario:
+
+    Ver
+
+    Crear
+
+    Editar
+
+    Eliminar
+
+    Actualizar
+
+Esto permite un control total sobre los permisos del perfil.
+3. 🔄 Datos mock
+
+Por ahora, no hay base de datos. Así que todo esto puede construirse con datos mock para el desarrollo inicial.
+🎯 Resumen de funcionalidades requeridas:
+
+Compactar acordeón en vista de candidatos.
+
+Crear perfiles con formularios bien distribuidos.
+
+Crear empresas y usuarios con generación de contraseña forzada.
+
+Asignar vistas visibles a cada perfil.
+
+Asignar acciones permitidas por vista (ver, editar, etc.).
+
+Usar datos mock por ahora
