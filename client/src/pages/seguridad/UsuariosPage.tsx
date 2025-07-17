@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Plus, Search, Users, Save } from "lucide-react";
+import { Edit, Trash2, Plus, Search, Users, Save, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -83,10 +83,12 @@ const UsuariosPage = () => {
   const queryClient = useQueryClient();
 
   // Query para obtener usuarios
-  const { data: usuarios = [], refetch: refetchUsuarios } = useQuery<Usuario[]>({
+  const { data: usuarios = [], isLoading: usuariosLoading, refetch: refetchUsuarios } = useQuery<Usuario[]>({
     queryKey: ["/api/usuarios"],
     staleTime: 0, // Sin caché para actualizaciones inmediatas
-    refetchOnWindowFocus: false,
+    cacheTime: 0, // No mantener caché
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
   });
 
   // Query para obtener perfiles disponibles
@@ -133,9 +135,9 @@ const UsuariosPage = () => {
       return response;
     },
     onSuccess: async () => {
-      // Invalidar y refrescar datos automáticamente
+      // Forzar refresco inmediato
       await queryClient.invalidateQueries({ queryKey: ["/api/usuarios"] });
-      await queryClient.refetchQueries({ queryKey: ["/api/usuarios"] });
+      await refetchUsuarios();
       
       setIsModalOpen(false);
       form.reset({
@@ -175,8 +177,9 @@ const UsuariosPage = () => {
         method: "DELETE",
       });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/usuarios"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/usuarios"] });
+      await refetchUsuarios();
       toast({
         title: "✅ Usuario eliminado",
         description: "El usuario ha sido eliminado exitosamente.",
@@ -248,7 +251,7 @@ const UsuariosPage = () => {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["/api/usuarios"] });
-      await queryClient.refetchQueries({ queryKey: ["/api/usuarios"] });
+      await refetchUsuarios();
       
       setIsEditModalOpen(false);
       setEditingUser(null);
@@ -303,13 +306,25 @@ const UsuariosPage = () => {
             </p>
           </div>
         </div>
-        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-brand-lime hover:bg-brand-lime/90 text-white shadow-md">
-              <Plus className="w-4 h-4 mr-2" />
-              Crear Usuario
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => refetchUsuarios()}
+            variant="outline"
+            size="sm"
+            disabled={usuariosLoading}
+            className="border-brand-lime text-brand-lime hover:bg-brand-lime hover:text-white"
+          >
+            <RefreshCw className={`w-4 h-4 mr-1 ${usuariosLoading ? 'animate-spin' : ''}`} />
+            Refrescar
+          </Button>
+          
+          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-brand-lime hover:bg-brand-lime/90 text-white shadow-md">
+                <Plus className="w-4 h-4 mr-2" />
+                Crear Usuario
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-6xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-xl font-semibold text-brand-lime">
@@ -579,6 +594,7 @@ const UsuariosPage = () => {
             </Form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Barra de búsqueda */}
@@ -603,7 +619,14 @@ const UsuariosPage = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {usuariosFiltrados.length === 0 ? (
+          {usuariosLoading ? (
+            <div className="text-center py-8">
+              <div className="flex items-center justify-center">
+                <RefreshCw className="w-6 h-6 animate-spin text-brand-lime mr-2" />
+                <span className="text-gray-500">Cargando usuarios...</span>
+              </div>
+            </div>
+          ) : usuariosFiltrados.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               {searchTerm ? "No se encontraron usuarios" : "No hay usuarios registrados"}
             </div>
