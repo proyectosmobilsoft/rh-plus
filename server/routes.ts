@@ -42,8 +42,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let userRole = null;
       let userTable = null;
 
-      // 1. Buscar en tabla de administradores/usuarios
-      const adminUser = await storage.getUserByUsername(username);
+      // 1. Buscar en usuarios mock
+      const { getMockData } = await import("@shared/mockData");
+      const adminUser = getMockData.getUserByUsername(username);
       if (adminUser) {
         const isValidPassword = password === adminUser.password;
         if (isValidPassword) {
@@ -180,8 +181,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "No autorizado" });
       }
 
-      // Obtener perfiles del usuario
-      const userPerfiles = await storage.getUserPerfiles(userId);
+      // Obtener perfiles del usuario desde mock data
+      const { getMockData } = await import("@shared/mockData");
+      const user = getMockData.getUserById(userId);
+      const userPerfiles = user ? user.perfiles : [];
       const additionalPermissions: string[] = [];
       
       // Combinar permisos de todos los perfiles
@@ -203,8 +206,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Temporary auto-login route for development
   app.get("/api/auto-login", async (req, res) => {
     try {
-      // Get the admin user
-      const adminUser = await storage.getUserByUsername("admin");
+      // Get the admin user from mock data
+      const { getMockData } = await import("@shared/mockData");
+      const adminUser = getMockData.getUserByUsername("admin");
       if (adminUser) {
         req.session.userId = adminUser.id;
         req.session.userType = "admin";
@@ -235,7 +239,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  // Admin Login Routes
+  // Admin Login Routes - usando datos mock
   app.post("/api/login", async (req, res) => {
     try {
       const { username, password } = req.body;
@@ -246,7 +250,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .json({ message: "Username y password son requeridos" });
       }
 
-      const user = await storage.getUserByUsername(username);
+      const { getMockData } = await import("@shared/mockData");
+      const user = getMockData.getUserByUsername(username);
       if (!user || user.password !== password) {
         return res.status(401).json({ message: "Credenciales inválidas" });
       }
@@ -483,17 +488,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin routes to manage candidatos
   app.get("/api/admin/candidatos", async (req, res) => {
     try {
-      if (!req.session.userId || req.session.userType !== "admin") {
-        return res.status(401).json({ message: "No autorizado" });
-      }
-
-      const candidatos = await storage.getAllCandidatos();
-      // Remove passwords from response
-      const safeCandidatos = candidatos.map(
-        ({ password, ...candidato }) => candidato,
-      );
-
-      res.json(safeCandidatos);
+      const { getMockData } = await import("@shared/mockData");
+      const candidatos = getMockData.getAllCandidatos();
+      res.json(candidatos);
     } catch (error) {
       console.error("Error obteniendo candidatos:", error);
       res.status(500).json({ message: "Error interno del servidor" });
@@ -1059,10 +1056,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Obtener todos los analistas
+  // Obtener todos los analistas - usando datos mock
   app.get("/api/analistas", async (req, res) => {
     try {
-      const analistas = await storage.getAllAnalistas();
+      const { getMockData } = await import("@shared/mockData");
+      const analistas = getMockData.getAllAnalistas();
       res.json(analistas);
     } catch (error) {
       console.error("Error obteniendo analistas:", error);
@@ -1159,35 +1157,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // === RUTAS DE USUARIOS ===
   
-  // Obtener todos los usuarios - usando SQL directo como perfiles
+  // Obtener todos los usuarios - usando datos mock
   app.get("/api/usuarios", async (req, res) => {
     try {
-      // Consulta directa a la base de datos para usuarios
-      const usersResult = await db.execute(`
-        SELECT u.id, u.identificacion, u.primer_nombre as "primerNombre", 
-               u.segundo_nombre as "segundoNombre", u.primer_apellido as "primerApellido",
-               u.segundo_apellido as "segundoApellido", u.telefono, u.email, 
-               u.username, u.activo, u.fecha_creacion as "fechaCreacion"
-        FROM users u 
-        WHERE u.activo = true 
-        ORDER BY u.id
-      `);
-      
-      // Obtener perfiles para cada usuario
-      const usuariosConPerfiles = await Promise.all(
-        usersResult.rows.map(async (usuario: any) => {
-          const perfilesResult = await db.execute(`
-            SELECT p.id, p.nombre, p.descripcion
-            FROM perfiles p
-            INNER JOIN user_perfiles up ON p.id = up.perfil_id
-            WHERE up.user_id = ? AND p.activo = true
-          `, [usuario.id]);
-          
-          return { ...usuario, perfiles: perfilesResult.rows };
-        })
-      );
-      
-      res.json(usuariosConPerfiles);
+      const { getMockData } = await import("@shared/mockData");
+      const usuarios = getMockData.getAllUsers();
+      res.json(usuarios);
     } catch (error: any) {
       console.error("Error obteniendo usuarios:", error);
       res.status(500).json({ message: "Error interno del servidor" });
@@ -1391,16 +1366,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Perfiles API routes with permissions
+  // Perfiles API routes with permissions - usando datos mock
   app.get("/api/perfiles", async (req, res) => {
     try {
-      const result = await db.execute(`
-        SELECT id, nombre, descripcion
-        FROM perfiles 
-        WHERE activo = true 
-        ORDER BY id
-      `);
-      res.json(result.rows);
+      const { getMockData } = await import("@shared/mockData");
+      const perfiles = getMockData.getAllPerfiles();
+      res.json(perfiles);
     } catch (error) {
       console.error("Error obteniendo perfiles:", error);
       res.status(500).json({ message: "Error interno del servidor" });
