@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
+import { memoryUserStorage } from "./memoryStorage";
 import {
   insertCandidatoSchema,
   createCandidatoFromPerfilSchema,
@@ -42,14 +43,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let userRole = null;
       let userTable = null;
 
-      // 1. Buscar en usuarios mock
-      const { getMockData } = await import("@shared/mockData");
-      const adminUser = getMockData.getUserByUsername(username);
+      // 1. Buscar en usuarios memoria storage
+      const adminUser = await memoryUserStorage.getUserByUsername(username);
       if (adminUser) {
         const isValidPassword = password === adminUser.password;
         if (isValidPassword) {
           user = adminUser;
-          userRole = adminUser.tipoUsuario || "admin";
+          userRole = "admin";
           userTable = "users";
         }
       }
@@ -239,7 +239,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  // Admin Login Routes - usando datos mock
+  // Admin Login Routes - usando memoria storage
   app.post("/api/login", async (req, res) => {
     try {
       const { username, password } = req.body;
@@ -250,8 +250,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .json({ message: "Username y password son requeridos" });
       }
 
-      const { getMockData } = await import("@shared/mockData");
-      const user = getMockData.getUserByUsername(username);
+      const user = await memoryUserStorage.getUserByUsername(username);
       if (!user || user.password !== password) {
         return res.status(401).json({ message: "Credenciales inválidas" });
       }
@@ -1217,69 +1216,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // === RUTAS DE USUARIOS ===
+  // ========== USUARIOS API ROUTES - MEMORIA STORAGE ==========
   
-  // Obtener todos los usuarios - usando datos mock
   app.get("/api/usuarios", async (req, res) => {
     try {
-      const { getMockData } = await import("@shared/mockData");
-      const usuarios = getMockData.getAllUsers();
-      res.json(usuarios);
+      const usuarios = await memoryUserStorage.getAllUsers();
+      
+      // Obtener perfiles para cada usuario
+      const usuariosConPerfiles = await Promise.all(
+        usuarios.map(async (usuario) => {
+          const perfiles = await memoryUserStorage.getUserPerfiles(usuario.id);
+          return {
+            ...usuario,
+            perfiles: perfiles
+          };
+        })
+      );
+      
+      res.json(usuariosConPerfiles);
     } catch (error: any) {
       console.error("Error obteniendo usuarios:", error);
       res.status(500).json({ message: "Error interno del servidor" });
     }
   });
 
-  // Crear nuevo usuario - usando datos mock
   app.post("/api/usuarios", async (req, res) => {
     try {
-      const { perfilIds = [], empresaIds = [], ...userData } = req.body;
+      const { perfilIds = [], ...userData } = req.body;
       
-      console.log('Datos recibidos para crear usuario:', { userData, perfilIds, empresaIds });
+      console.log('Datos recibidos para crear usuario:', { userData, perfilIds });
       
-      const { usuarios, perfiles, getNextId } = await import("@shared/mockData");
+      // Validaciones básicas
+      if (!userData.email || !userData.username || !userData.identificacion) {
+        return res.status(400).json({ message: "Email, username e identificación son requeridos" });
+      }
       
       // Verificar que el email no esté en uso
-      const emailExists = usuarios.some(u => u.email === userData.email);
-      if (emailExists) {
+      const existingUserByEmail = await memoryUserStorage.getUserByEmail(userData.email);
+      if (existingUserByEmail) {
         return res.status(400).json({ message: "El email ya está en uso" });
       }
       
       // Verificar que el username no esté en uso
-      const usernameExists = usuarios.some(u => u.username === userData.username);
-      if (usernameExists) {
+      const existingUserByUsername = await memoryUserStorage.getUserByUsername(userData.username);
+      if (existingUserByUsername) {
         return res.status(400).json({ message: "El username ya está en uso" });
       }
       
-      // Obtener perfiles seleccionados
-      const selectedPerfiles = perfiles.filter(p => perfilIds.includes(p.id));
+      // Crear usuario con perfiles usando el método optimizado
+      const { user, perfiles } = await memoryUserStorage.createUserWithPerfiles(userData, perfilIds);
       
-      // Crear nuevo usuario
-      const newUser = {
-        id: getNextId.user(),
-        identificacion: userData.identificacion,
-        primerNombre: userData.primerNombre,
-        segundoNombre: userData.segundoNombre || "",
-        primerApellido: userData.primerApellido,
-        segundoApellido: userData.segundoApellido || "",
-        telefono: userData.telefono || "",
-        email: userData.email,
-        username: userData.username,
-        password: userData.password,
-        activo: true,
-        fechaCreacion: new Date().toISOString(),
-        perfiles: selectedPerfiles
-      };
+      console.log('Usuario creado exitosamente:', { user: user.id, perfiles: perfiles.length });
       
-      // Agregar a la lista mock
-      usuarios.push(newUser);
-      
-      console.log('Usuario creado exitosamente:', { user: newUser, perfiles: selectedPerfiles });
-      
-      res.json({ 
+      res.status(201).json({ 
         message: "Usuario creado exitosamente", 
-        user: newUser
+        user: {
+          ...user,
+          perfiles: perfiles
+        }
       });
     } catch (error: any) {
       console.error("Error creando usuario:", error);
@@ -1287,31 +1281,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Actualizar usuario
   app.put("/api/usuarios/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const { perfilIds, ...updateData } = req.body;
       
       // Verificar que el usuario existe
-      const existingUser = await storage.getUser(id);
+      const existingUser = await memoryUserStorage.getUser(id);
       if (!existingUser) {
         return res.status(404).json({ message: "Usuario no encontrado" });
       }
       
       // Si se está actualizando el email, verificar que no esté en uso
       if (updateData.email && updateData.email !== existingUser.email) {
-        const usuarios = await storage.getAllUsers();
-        const emailExists = usuarios.some(u => u.email === updateData.email && u.id !== id);
-        if (emailExists) {
+        const existingUserByEmail = await memoryUserStorage.getUserByEmail(updateData.email);
+        if (existingUserByEmail) {
           return res.status(400).json({ message: "El email ya está en uso" });
         }
       }
       
       // Si se está actualizando el username, verificar que no esté en uso
       if (updateData.username && updateData.username !== existingUser.username) {
-        const existingUserByUsername = await storage.getUserByUsername(updateData.username);
-        if (existingUserByUsername && existingUserByUsername.id !== id) {
+        const existingUserByUsername = await memoryUserStorage.getUserByUsername(updateData.username);
+        if (existingUserByUsername) {
           return res.status(400).json({ message: "El username ya está en uso" });
         }
       }
@@ -1322,20 +1314,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Actualizar usuario
-      const updatedUser = await storage.updateUser(id, updateData);
+      const updatedUser = await memoryUserStorage.updateUser(id, updateData);
       
       // Si se proporcionaron perfilIds, actualizar las relaciones
       if (perfilIds !== undefined) {
         // Eliminar relaciones existentes
-        await storage.deleteUserPerfiles(id);
+        await memoryUserStorage.deleteUserPerfiles(id);
         // Crear nuevas relaciones
         for (const perfilId of perfilIds) {
-          await storage.createUserPerfil({ userId: id, perfilId });
+          await memoryUserStorage.createUserPerfil({ userId: id, perfilId });
         }
       }
       
       // Obtener perfiles actualizados
-      const perfiles = await storage.getUserPerfiles(id);
+      const perfiles = await memoryUserStorage.getUserPerfiles(id);
       
       res.json({ 
         message: "Usuario actualizado exitosamente", 
@@ -1343,27 +1335,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       console.error("Error actualizando usuario:", error);
+      if (error.message === "Usuario no encontrado") {
+        return res.status(404).json({ message: error.message });
+      }
       res.status(500).json({ message: "Error interno del servidor" });
     }
   });
 
 
 
-  // Eliminar usuario
   app.delete("/api/usuarios/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       
-      // Verificar que el usuario existe
-      const existingUser = await storage.getUser(id);
-      if (!existingUser) {
-        return res.status(404).json({ message: "Usuario no encontrado" });
-      }
-      
-      await storage.deleteUser(id);
+      await memoryUserStorage.deleteUser(id);
       res.json({ message: "Usuario eliminado exitosamente" });
     } catch (error: any) {
       console.error("Error eliminando usuario:", error);
+      if (error.message === "Usuario no encontrado") {
+        return res.status(404).json({ message: error.message });
+      }
       res.status(500).json({ message: "Error interno del servidor" });
     }
   });
@@ -1443,11 +1434,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Perfiles API routes with permissions - usando datos mock
+  // ========== PERFILES API ROUTES - MEMORIA STORAGE ==========
   app.get("/api/perfiles", async (req, res) => {
     try {
-      const { getMockData } = await import("@shared/mockData");
-      const perfiles = getMockData.getAllPerfiles();
+      const perfiles = await memoryUserStorage.getAllPerfiles();
       res.json(perfiles);
     } catch (error) {
       console.error("Error obteniendo perfiles:", error);
@@ -1457,29 +1447,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/perfiles", async (req, res) => {
     try {
-      const { codigo, nombre, descripcion, permisos } = req.body;
+      const { nombre, descripcion, permisos } = req.body;
       
-      const { perfiles, getNextId } = await import("@shared/mockData");
-      
-      // Convertir permisos array a JSON string
-      let permisosString = '[]';
-      if (permisos && Array.isArray(permisos)) {
-        permisosString = JSON.stringify(permisos);
+      if (!nombre || !nombre.trim()) {
+        return res.status(400).json({ message: "El nombre es requerido" });
+      }
+
+      // Verificar que no exista otro perfil con el mismo nombre
+      const existingPerfil = await memoryUserStorage.getPerfilByNombre(nombre);
+      if (existingPerfil) {
+        return res.status(400).json({ message: "Ya existe un perfil con ese nombre" });
       }
       
-      const newPerfil = {
-        id: getNextId.perfil(),
-        nombre,
-        descripcion: descripcion || null,
-        permisos: permisosString,
-        fechaCreacion: new Date().toISOString(),
+      // Convertir permisos array a JSON
+      let permisosData = null;
+      if (permisos && Array.isArray(permisos)) {
+        permisosData = JSON.stringify(permisos);
+      }
+      
+      const newPerfil = await memoryUserStorage.createPerfil({
+        nombre: nombre.trim(),
+        descripcion: descripcion?.trim() || null,
+        permisos: permisosData,
         activo: true
-      };
+      });
       
-      // Agregar a la lista mock
-      perfiles.push(newPerfil);
-      
-      res.json(newPerfil);
+      res.status(201).json(newPerfil);
     } catch (error) {
       console.error("Error creando perfil:", error);
       res.status(500).json({ message: "Error interno del servidor" });
@@ -1491,24 +1484,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id);
       const { nombre, descripcion, permisos } = req.body;
       
-      // Update perfil
-      const perfil = await storage.updatePerfil(id, {
-        nombre,
-        descripcion,
-      });
-
-      // Update permissions directly as JSON (simplificado para que funcione)
-      if (permisos && permisos.length > 0) {
-        await storage.updatePerfil(id, {
-          nombre: perfil.nombre,
-          descripcion: perfil.descripcion,
-          permisos: JSON.stringify(permisos)
-        });
+      if (!nombre || !nombre.trim()) {
+        return res.status(400).json({ message: "El nombre es requerido" });
       }
 
-      res.json(perfil);
-    } catch (error) {
+      // Verificar que no exista otro perfil con el mismo nombre (excepto el actual)
+      const existingPerfil = await memoryUserStorage.getPerfilByNombre(nombre);
+      if (existingPerfil && existingPerfil.id !== id) {
+        return res.status(400).json({ message: "Ya existe un perfil con ese nombre" });
+      }
+      
+      // Convertir permisos array a JSON
+      let permisosData = null;
+      if (permisos && Array.isArray(permisos)) {
+        permisosData = JSON.stringify(permisos);
+      }
+
+      const updatedPerfil = await memoryUserStorage.updatePerfil(id, {
+        nombre: nombre.trim(),
+        descripcion: descripcion?.trim() || null,
+        permisos: permisosData
+      });
+
+      res.json(updatedPerfil);
+    } catch (error: any) {
       console.error("Error actualizando perfil:", error);
+      if (error.message === "Perfil no encontrado") {
+        return res.status(404).json({ message: error.message });
+      }
       res.status(500).json({ message: "Error interno del servidor" });
     }
   });
@@ -1517,8 +1520,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const perfilId = parseInt(req.params.id);
       
-      // Get profile with permissions
-      const perfil = await storage.getPerfilById(perfilId);
+      const perfil = await memoryUserStorage.getPerfilById(perfilId);
       
       if (!perfil) {
         return res.status(404).json({ message: "Perfil no encontrado" });
@@ -1548,15 +1550,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       
-      // Delete associated permissions first
-      await storage.deletePerfilMenusByPerfilId(id);
-      
-      // Delete perfil
-      await storage.deletePerfil(id);
+      await memoryUserStorage.deletePerfil(id);
       
       res.json({ message: "Perfil eliminado exitosamente" });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error eliminando perfil:", error);
+      if (error.message === "Perfil no encontrado") {
+        return res.status(404).json({ message: error.message });
+      }
       res.status(500).json({ message: "Error interno del servidor" });
     }
   });
