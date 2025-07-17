@@ -28,6 +28,7 @@ import {
   BarChart3,
   Activity,
   ChevronRight,
+  QrCode,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
@@ -47,6 +48,7 @@ const menuItems = [
       { title: "Empresas Afiliadas", path: "/registros/empresas", icon: <Building className="h-4 w-4" /> },
       { title: "Candidatos", path: "/registros/candidatos", icon: <User className="h-4 w-4" /> },
       { title: "Prestadores", path: "/registros/prestadores", icon: <Briefcase className="h-4 w-4" /> },
+      { title: "Códigos QR", path: "/registros/qr", icon: <QrCode className="h-4 w-4" /> },
     ],
   },
   {

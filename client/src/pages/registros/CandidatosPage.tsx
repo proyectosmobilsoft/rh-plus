@@ -132,7 +132,7 @@ interface Candidato {
 const CandidatosPage = () => {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedEmpresa, setSelectedEmpresa] = useState('');
+  const [selectedEmpresa, setSelectedEmpresa] = useState('todas');
   const [formData, setFormData] = useState<Partial<Candidato>>({
     identificacion: '',
     tipoDocumento: '',
@@ -442,7 +442,7 @@ const CandidatosPage = () => {
       candidato.numero_documento?.includes(searchTerm) ||
       candidato.empresa?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesEmpresa = !selectedEmpresa || candidato.empresa === selectedEmpresa;
+    const matchesEmpresa = !selectedEmpresa || selectedEmpresa === "todas" || candidato.empresa === selectedEmpresa;
     
     return matchesSearch && matchesEmpresa;
   });
@@ -539,7 +539,7 @@ const CandidatosPage = () => {
                 <SelectValue placeholder="Ver candidatos de..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todas las empresas</SelectItem>
+                <SelectItem value="todas">Todas las empresas</SelectItem>
                 {mockEmpresas.map((empresa) => (
                   <SelectItem key={empresa.id} value={empresa.nombre}>
                     {empresa.nombre}

@@ -17,6 +17,7 @@ import NotFound from "./pages/NotFound";
 import EmpresasPage from "./pages/registros/EmpresasPage";
 import CandidatosPage from "./pages/registros/CandidatosPage";
 import PrestadoresPage from "./pages/registros/PrestadoresPage";
+import QrPage from "./pages/registros/QrPage";
 import ExpedicionOrdenPage from "./pages/ordenes/ExpedicionOrdenPage";
 import AgendaMedicaPage from "./pages/clinica/AgendaMedicaPage";
 import HistoriaMedicaPage from "./pages/clinica/HistoriaMedicaPage";
@@ -134,6 +135,7 @@ const App = () => (
             <Route path="/registros/empresas" element={<EmpresasPage />} />
             <Route path="/registros/candidatos" element={<CandidatosPage />} />
             <Route path="/registros/prestadores" element={<PrestadoresPage />} />
+            <Route path="/registros/qr" element={<QrPage />} />
             
             {/* Ordenes */}
             <Route path="/ordenes/expedicion" element={<ExpedicionOrdenPage />} />
