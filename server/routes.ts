@@ -1169,43 +1169,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Crear nuevo usuario
+  // Crear nuevo usuario - usando datos mock
   app.post("/api/usuarios", async (req, res) => {
     try {
       const { perfilIds = [], empresaIds = [], ...userData } = req.body;
       
       console.log('Datos recibidos para crear usuario:', { userData, perfilIds, empresaIds });
       
-      // Validar datos del usuario
-      const validatedData = insertUserSchema.parse(userData);
+      const { usuarios, perfiles, getNextId } = await import("@shared/mockData");
       
       // Verificar que el email no esté en uso
-      const existingUserByEmail = await storage.getAllUsers();
-      const emailExists = existingUserByEmail.some(u => u.email === validatedData.email);
+      const emailExists = usuarios.some(u => u.email === userData.email);
       if (emailExists) {
         return res.status(400).json({ message: "El email ya está en uso" });
       }
       
       // Verificar que el username no esté en uso
-      const existingUserByUsername = await storage.getUserByUsername(validatedData.username);
-      if (existingUserByUsername) {
+      const usernameExists = usuarios.some(u => u.username === userData.username);
+      if (usernameExists) {
         return res.status(400).json({ message: "El username ya está en uso" });
       }
       
-      // Crear usuario con perfiles
-      const { user, perfiles } = await storage.createUserWithPerfiles(validatedData, perfilIds);
+      // Obtener perfiles seleccionados
+      const selectedPerfiles = perfiles.filter(p => perfilIds.includes(p.id));
       
-      console.log('Usuario creado exitosamente:', { user, perfiles });
+      // Crear nuevo usuario
+      const newUser = {
+        id: getNextId.user(),
+        identificacion: userData.identificacion,
+        primerNombre: userData.primerNombre,
+        segundoNombre: userData.segundoNombre || "",
+        primerApellido: userData.primerApellido,
+        segundoApellido: userData.segundoApellido || "",
+        telefono: userData.telefono || "",
+        email: userData.email,
+        username: userData.username,
+        password: userData.password,
+        activo: true,
+        fechaCreacion: new Date().toISOString(),
+        perfiles: selectedPerfiles
+      };
+      
+      // Agregar a la lista mock
+      usuarios.push(newUser);
+      
+      console.log('Usuario creado exitosamente:', { user: newUser, perfiles: selectedPerfiles });
       
       res.json({ 
         message: "Usuario creado exitosamente", 
-        user: { ...user, perfiles } 
+        user: newUser
       });
     } catch (error: any) {
       console.error("Error creando usuario:", error);
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Datos inválidos", errors: error.errors });
-      }
       res.status(500).json({ message: "Error interno del servidor" });
     }
   });
@@ -1382,24 +1397,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { codigo, nombre, descripcion, permisos } = req.body;
       
-      // Create perfil
-      const perfil = await storage.createPerfil({
-        nombre,
-        descripcion,
-        permisos: null, // Use new permission system
-        activo: true,
-      });
-
-      // Save permissions directly as JSON for now (simplificado para que funcione)
-      if (permisos && permisos.length > 0) {
-        await storage.updatePerfil(perfil.id, {
-          nombre: perfil.nombre,
-          descripcion: perfil.descripcion,
-          permisos: JSON.stringify(permisos)
-        });
+      const { perfiles, getNextId } = await import("@shared/mockData");
+      
+      // Convertir permisos array a JSON string
+      let permisosString = '[]';
+      if (permisos && Array.isArray(permisos)) {
+        permisosString = JSON.stringify(permisos);
       }
-
-      res.json(perfil);
+      
+      const newPerfil = {
+        id: getNextId.perfil(),
+        nombre,
+        descripcion: descripcion || null,
+        permisos: permisosString,
+        fechaCreacion: new Date().toISOString(),
+        activo: true
+      };
+      
+      // Agregar a la lista mock
+      perfiles.push(newPerfil);
+      
+      res.json(newPerfil);
     } catch (error) {
       console.error("Error creando perfil:", error);
       res.status(500).json({ message: "Error interno del servidor" });

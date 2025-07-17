@@ -93,11 +93,25 @@ const UsuariosPage = () => {
   // Query para obtener usuarios - usando la misma configuración que perfiles
   const { data: usuarios = [], isLoading: usuariosLoading, refetch: refetchUsuarios } = useQuery<Usuario[]>({
     queryKey: ["/api/usuarios"],
+    queryFn: async () => {
+      const response = await fetch('/api/usuarios');
+      if (!response.ok) throw new Error('Failed to fetch usuarios');
+      return response.json();
+    },
+    staleTime: 0, // Sin caché para actualizaciones inmediatas
+    refetchOnWindowFocus: false
   });
 
   // Query para obtener perfiles disponibles - usando la misma configuración que en PerfilesPage
   const { data: perfiles = [] } = useQuery<Perfil[]>({
     queryKey: ["/api/perfiles"],
+    queryFn: async () => {
+      const response = await fetch('/api/perfiles');
+      if (!response.ok) throw new Error('Failed to fetch perfiles');
+      return response.json();
+    },
+    staleTime: 0,
+    refetchOnWindowFocus: false
   });
 
   // Mock data para empresas/almacenes
@@ -140,6 +154,10 @@ const UsuariosPage = () => {
     },
     onSuccess: async (data) => {
       console.log('Usuario creado exitosamente:', data);
+      
+      // Invalidar caché y refrescar inmediatamente como en perfiles
+      await queryClient.invalidateQueries({ queryKey: ["/api/usuarios"] });
+      await refetchUsuarios();
       
       // Cerrar modal primero
       setIsModalOpen(false);
