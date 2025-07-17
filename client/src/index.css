@@ -276,3 +276,82 @@
 .badge-neutral {
   @apply bg-muted-foreground text-white;
 }
+
+/* ==================== ARREGLO DE HOVER EN BOTONES ==================== */
+/* Prevenir que los botones se vuelvan blancos en hover */
+
+/* Botones primarios - mantener color verde con opacidad */
+.btn-primary, 
+button[class*="bg-primary"],
+button[class*="bg-green"],
+[data-state="open"] > button,
+button:hover {
+  transition: opacity 0.3s ease !important;
+}
+
+button[class*="bg-primary"]:hover,
+button[class*="bg-green"]:hover {
+  background-color: hsl(var(--primary)) !important;
+  opacity: 0.7 !important;
+}
+
+/* Botones secundarios - mantener color azul con opacidad */
+button[class*="bg-secondary"]:hover,
+button[class*="bg-blue"]:hover {
+  background-color: hsl(var(--secondary)) !important;
+  opacity: 0.7 !important;
+}
+
+/* Botones destructivos - mantener color rojo con opacidad */
+button[class*="bg-destructive"]:hover,
+button[class*="bg-red"]:hover {
+  background-color: hsl(var(--destructive)) !important;
+  opacity: 0.7 !important;
+}
+
+/* Botones outline - mantener borde con opacidad */
+button[variant="outline"]:hover,
+button[class*="border"]:hover {
+  border-color: hsl(var(--primary)) !important;
+  color: hsl(var(--primary)) !important;
+  opacity: 0.7 !important;
+  background-color: transparent !important;
+}
+
+/* Botones ghost - mantener transparente con opacidad en texto */
+button[variant="ghost"]:hover,
+button[class*="hover:bg-accent"]:hover {
+  background-color: hsl(var(--accent) / 0.1) !important;
+  color: hsl(var(--accent-foreground)) !important;
+  opacity: 0.7 !important;
+}
+
+/* Aplicar a todos los botones genéricamente */
+button:not([class*="hover:"]):hover {
+  opacity: 0.7 !important;
+  transform: none !important;
+}
+
+/* Mantener colores específicos en MultiSelect y componentes especiales */
+.bg-blue-100:hover {
+  background-color: rgb(219 234 254) !important;
+  opacity: 0.7 !important;
+}
+
+.text-blue-800:hover {
+  color: rgb(30 64 175) !important;
+  opacity: 0.7 !important;
+}
+
+/* Arreglar botones en modales y formularios */
+[role="dialog"] button:hover,
+.modal button:hover,
+form button:hover {
+  opacity: 0.7 !important;
+}
+
+/* Sidebar buttons */
+[data-sidebar] button:hover {
+  background-color: hsl(var(--sidebar-accent) / 0.1) !important;
+  opacity: 0.7 !important;
+}

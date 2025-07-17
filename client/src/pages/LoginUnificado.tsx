@@ -17,7 +17,7 @@ export default function LoginUnificado() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    
     if (!username || !password) {
       setError('Por favor ingresa tu usuario y contraseña');
       return;
@@ -26,9 +26,9 @@ export default function LoginUnificado() {
     try {
       setIsLoading(true);
       setError('');
-
+      
       await login({ username, password });
-
+      
     } catch (error: any) {
       setError(error.message || 'Error al iniciar sesión');
     } finally {
@@ -110,7 +110,7 @@ export default function LoginUnificado() {
 
               <Button
                 type="submit"
-                className="w-full h-12 bg-brand-lime shadow-md transition-all hover:shadow-lg"
+                className="w-full h-12 bg-brand-lime hover:bg-brand-lime/90 shadow-md transition-all hover:shadow-lg"
                 disabled={isLoading}
               >
                 {isLoading ? (
