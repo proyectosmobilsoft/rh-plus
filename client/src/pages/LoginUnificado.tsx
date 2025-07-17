@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/contexts/AuthContext';
 import { Eye, EyeOff, LogIn, Shield } from 'lucide-react';
+import logo from '../../public/logo.svg';
+import { backgroundImage } from 'html2canvas/dist/types/css/property-descriptors/background-image';
 
 export default function LoginUnificado() {
   const [username, setUsername] = useState('');
@@ -17,7 +19,7 @@ export default function LoginUnificado() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!username || !password) {
       setError('Por favor ingresa tu usuario y contraseña');
       return;
@@ -26,9 +28,9 @@ export default function LoginUnificado() {
     try {
       setIsLoading(true);
       setError('');
-      
+
       await login({ username, password });
-      
+
     } catch (error: any) {
       setError(error.message || 'Error al iniciar sesión');
     } finally {
@@ -42,14 +44,21 @@ export default function LoginUnificado() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-brand-lime/10 to-brand-turquoise/10 flex items-center justify-center p-4">
-      <div className="w-full max-w-md animate-fade-in-up">
+      <div className="w-full max-w-md animate-slide-in">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="mx-auto w-16 h-16 bg-brand-lime rounded-full flex items-center justify-center mb-4 shadow-lg animate-float animate-pulse-glow">
-            <Shield className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 animate-slide-in">Plataforma</h1>
-          <p className="text-gray-600 mt-2 animate-slide-in">Sistema de gestión de contratación</p>
+
+          <div
+            style={{
+              backgroundImage: `url(${logo})`,
+              backgroundSize: '340px',
+              backgroundRepeat: 'no-repeat',
+              width: '100%',
+              height: '70px',
+              backgroundPosition: 'center'
+            }}
+          ></div>
+          <p className="text-gray-600 animate-slide-in mt-[-15px] mb-[-15px] pt-[-14px] pb-[-14px]">Sistema de gestión de contratación</p>
         </div>
 
         {/* Login Form */}
