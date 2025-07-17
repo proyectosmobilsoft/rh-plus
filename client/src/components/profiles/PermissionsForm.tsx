@@ -173,7 +173,7 @@ export function PermissionsForm({ selectedPermissions, onPermissionsChange }: Pe
         <div className="border rounded-lg overflow-hidden">
           {/* Table Header */}
           <div className="bg-cyan-100 border-b">
-            <div className="grid grid-cols-12 gap-2 p-3 font-medium text-gray-700">
+            <div className="grid grid-cols-8 gap-2 p-3 font-medium text-gray-700">
               <div className="col-span-4">Nombre De La Vista</div>
               <TooltipProvider>
                 <div className="col-span-1 text-center">
@@ -190,30 +190,11 @@ export function PermissionsForm({ selectedPermissions, onPermissionsChange }: Pe
                 </div>
                 <div className="col-span-1 text-center">
                   <Tooltip>
-                    <TooltipTrigger>{getActionIcon('delete')}</TooltipTrigger>
+                    <TooltipTrigger><Trash2 className="h-4 w-4" /></TooltipTrigger>
                     <TooltipContent>Eliminar</TooltipContent>
                   </Tooltip>
                 </div>
-                <div className="col-span-1 text-center">
-                  <Tooltip>
-                    <TooltipTrigger>{getActionIcon('view')}</TooltipTrigger>
-                    <TooltipContent>Ver</TooltipContent>
-                  </Tooltip>
-                </div>
-                <div className="col-span-1 text-center">
-                  <Tooltip>
-                    <TooltipTrigger>{getActionIcon('custom')}</TooltipTrigger>
-                    <TooltipContent>Personalizado</TooltipContent>
-                  </Tooltip>
-                </div>
-                <div className="col-span-1 text-center">
-                  <Tooltip>
-                    <TooltipTrigger>{getActionIcon('manage')}</TooltipTrigger>
-                    <TooltipContent>Gestionar</TooltipContent>
-                  </Tooltip>
-                </div>
               </TooltipProvider>
-              <div className="col-span-1 text-center">Mas</div>
               <div className="col-span-1 text-center">Acciones</div>
             </div>
           </div>
@@ -226,7 +207,7 @@ export function PermissionsForm({ selectedPermissions, onPermissionsChange }: Pe
 
               return (
                 <div key={permission.viewId} className="bg-white hover:bg-gray-50">
-                  <div className="grid grid-cols-12 gap-2 p-3 items-center">
+                  <div className="grid grid-cols-8 gap-2 p-3 items-center">
                     {/* View Name */}
                     <div className="col-span-4">
                       <div className="bg-yellow-50 p-2 rounded border">
@@ -234,9 +215,9 @@ export function PermissionsForm({ selectedPermissions, onPermissionsChange }: Pe
                       </div>
                     </div>
 
-                    {/* Action Switches */}
+                    {/* Action Switches - Solo mostrar las primeras 3 acciones (editar, crear, eliminar) */}
                     {view.acciones.map((action, index) => {
-                      if (index < 6) {
+                      if (index < 3) {
                         const isSelected = permission.actions?.includes(action.codigo) || false;
                         return (
                           <div key={action.codigo} className="col-span-1 text-center">
@@ -251,20 +232,6 @@ export function PermissionsForm({ selectedPermissions, onPermissionsChange }: Pe
                       return null;
                     })}
 
-                    {/* Fill remaining columns if less than 6 actions */}
-                    {Array.from({ length: 6 - Math.min(view.acciones.length, 6) }).map((_, index) => (
-                      <div key={`empty-${index}`} className="col-span-1"></div>
-                    ))}
-
-                    {/* More Actions Button */}
-                    <div className="col-span-1 text-center">
-                      {view.acciones.length > 6 && (
-                        <Badge variant="secondary" className="bg-cyan-100 text-cyan-700">
-                          Mas ({view.acciones.length - 6})
-                        </Badge>
-                      )}
-                    </div>
-
                     {/* Remove Button */}
                     <div className="col-span-1 text-center">
                       <Button
@@ -273,17 +240,17 @@ export function PermissionsForm({ selectedPermissions, onPermissionsChange }: Pe
                         onClick={() => removeView(permission.viewId)}
                         className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1"
                       >
-                        <Edit className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
 
-                  {/* Action Details (if more than 6 actions) */}
-                  {view.acciones.length > 6 && (
+                  {/* Action Details (mostrar todas las acciones adicionales) */}
+                  {view.acciones.length > 3 && (
                     <div className="px-3 pb-3">
                       <div className="text-xs text-gray-600 mb-2">Acciones adicionales:</div>
                       <div className="flex flex-wrap gap-2">
-                        {view.acciones.slice(6).map((action) => {
+                        {view.acciones.slice(3).map((action) => {
                           const isSelected = permission.actions?.includes(action.codigo) || false;
                           return (
                             <button
