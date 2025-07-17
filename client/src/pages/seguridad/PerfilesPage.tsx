@@ -348,6 +348,9 @@ const PerfilesPage = () => {
       setIsModalOpen(false);
       setEditingPerfil(null);
       
+      // Redirigir a la tabla de perfiles
+      setActiveTab("perfiles");
+      
       // Limpiar completamente el formulario después de crear/editar
       form.reset({
         codigo: perfiles.length + 1,
@@ -408,14 +411,21 @@ const PerfilesPage = () => {
       if (!response.ok) throw new Error('Failed to load permissions');
       const existingPermisos = await response.json();
       
+      // Normalize permissions to ensure actions is always an array
+      const normalizedPermisos = existingPermisos.map((permiso: any) => ({
+        ...permiso,
+        actions: permiso.actions || []
+      }));
+      
       form.reset({
         codigo: perfil.id,
         nombre: perfil.nombre,
         descripcion: perfil.descripcion || "",
-        permisos: existingPermisos
+        permisos: normalizedPermisos
       });
       
-      setIsModalOpen(true);
+      // Switch to the vistas tab which now contains the form
+      setActiveTab("vistas");
     } catch (error) {
       console.error('Error loading permissions:', error);
       toast({
@@ -431,7 +441,8 @@ const PerfilesPage = () => {
         descripcion: perfil.descripcion || "",
         permisos: []
       });
-      setIsModalOpen(true);
+      // Switch to the vistas tab which now contains the form
+      setActiveTab("vistas");
     }
   };
 
@@ -481,18 +492,6 @@ const PerfilesPage = () => {
               </div>
               <div className="flex space-x-2">
                 <Button 
-                  className="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1"
-                  size="sm"
-                >
-                  🗑️
-                </Button>
-                <Button 
-                  className="bg-teal-500 hover:bg-teal-600 text-white text-xs px-3 py-1"
-                  size="sm"
-                >
-                  📄
-                </Button>
-                <Button 
                   onClick={() => {
                     setEditingPerfil(null);
                     form.reset({
@@ -501,7 +500,7 @@ const PerfilesPage = () => {
                       descripcion: "",
                       permisos: []
                     });
-                    setIsModalOpen(true);
+                    setActiveTab("vistas");
                   }}
                   className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
                   size="sm"
@@ -689,90 +688,101 @@ const PerfilesPage = () => {
 
         <TabsContent value="vistas" className="space-y-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-800">Vistas del Sistema</h2>
-            <div className="text-sm text-gray-600">
-              {mockSystemViews.length} vistas disponibles con {mockSystemViews.reduce((sum, v) => sum + v.acciones.length, 0)} acciones totales
-            </div>
+            <h2 className="text-xl font-semibold text-gray-800">
+              {editingPerfil ? 'Editar Perfil' : 'Registro de Nuevo Perfil'}
+            </h2>
           </div>
 
-          {/* Grid de vistas organizadas por módulo */}
-          <div className="space-y-6">
-            {Object.entries(
-              mockSystemViews.reduce((acc, vista) => {
-                if (!acc[vista.modulo]) acc[vista.modulo] = [];
-                acc[vista.modulo].push(vista);
-                return acc;
-              }, {} as Record<string, SystemView[]>)
-            ).map(([modulo, vistas]) => (
-              <Card key={modulo}>
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <Badge className={getModuleColor(modulo)} variant="outline">
-                        {modulo}
-                      </Badge>
-                      <span>Módulo {modulo}</span>
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      {vistas.length} vistas
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {vistas.map((vista) => {
-                      const IconComponent = getIconComponent(vista.icono);
-                      return (
-                        <Card key={vista.id} className="border hover:shadow-md transition-shadow">
-                          <CardContent className="p-4">
-                            <div className="flex items-center space-x-3 mb-3">
-                              <div className="p-2 bg-gray-100 rounded-lg">
-                                <IconComponent className="h-5 w-5 text-gray-600" />
-                              </div>
-                              <div className="flex-1">
-                                <h3 className="font-medium text-gray-900">{vista.displayName}</h3>
-                                <p className="text-xs text-gray-500">{vista.ruta}</p>
-                              </div>
-                            </div>
-                            
-                            <p className="text-sm text-gray-600 mb-3">{vista.descripcion}</p>
-                            
-                            {/* Acciones disponibles */}
-                            <div className="space-y-2">
-                              <div className="text-xs font-medium text-gray-700 mb-1">
-                                Acciones disponibles ({vista.acciones.length}):
-                              </div>
-                              <div className="flex flex-wrap gap-1">
-                                {vista.acciones.map((accion) => (
-                                  <Badge 
-                                    key={accion.id} 
-                                    className={getActionTypeColor(accion.tipo)} 
-                                    variant="outline"
-                                  >
-                                    {accion.displayName}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                            
-                            {/* Estado */}
-                            <div className="mt-3 flex items-center justify-between">
-                              <Badge variant={vista.activo ? "default" : "secondary"}>
-                                {vista.activo ? "Activa" : "Inactiva"}
-                              </Badge>
-                              <div className="text-xs text-gray-500">
-                                Orden: {vista.orden}
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
+          {/* Formulario de perfil en el tab de vistas */}
+          <Card>
+            <CardContent className="p-6">
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="codigo"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Código</FormLabel>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              value={String(field.value).padStart(2, '0')}
+                              disabled
+                              className="bg-red-50 text-red-600 font-semibold"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="nombre"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nombre *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Nombre del perfil" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+
+                  {/* Formulario de permisos */}
+                  <PermissionsForm
+                    selectedPermissions={form.watch('permisos') || []}
+                    onPermissionsChange={(permissions) => {
+                      form.setValue('permisos', permissions);
+                    }}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="descripcion"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Descripción</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Descripción del perfil..."
+                            className="min-h-[100px]"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="flex justify-end space-x-2 pt-4">
+                    <Button 
+                      type="button" 
+                      variant="outline"
+                      onClick={() => {
+                        setActiveTab("perfiles");
+                        setEditingPerfil(null);
+                        form.reset();
+                      }}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button 
+                      type="submit"
+                      className="bg-green-500 hover:bg-green-600 text-white border-0 shadow-sm px-6 py-2 rounded text-sm font-medium transition-colors"
+                      disabled={savePerfilMutation.isPending}
+                    >
+                      {savePerfilMutation.isPending ? 'Guardando...' : 'Guardar'}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
 
           {/* Resumen estadístico */}
           <Card>
