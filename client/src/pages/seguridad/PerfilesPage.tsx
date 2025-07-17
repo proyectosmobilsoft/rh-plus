@@ -12,13 +12,14 @@ import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { AdvancedProfileManager } from "@/components/profiles/AdvancedProfileManager";
+import { PermissionsForm } from "@/components/profiles/PermissionsForm";
 import { type UserProfile } from "@shared/mock-permissions";
 
 // Schema para el formulario de perfil
@@ -27,9 +28,9 @@ const perfilSchema = z.object({
   nombre: z.string().min(1, "El nombre es requerido"),
   descripcion: z.string().optional(),
   permisos: z.array(z.object({
-    menuNodeId: z.number(),
-    menuNodeName: z.string(),
-    acciones: z.array(z.number()).default([])
+    viewId: z.string(),
+    viewName: z.string(),
+    actions: z.array(z.string()).default([])
   })).default([])
 });
 
@@ -317,30 +318,7 @@ const PerfilesPage = () => {
     }
   });
 
-  // Usar datos mock para las vistas en lugar de la base de datos
-  const menuNodes = mockSystemViews.map(vista => ({
-    id: vista.id,
-    name: vista.displayName,
-    displayName: vista.displayName,
-    descripcion: vista.descripcion,
-    modulo: vista.modulo,
-    ruta: vista.ruta
-  }));
 
-  // Obtener acciones para una vista específica usando datos mock
-  const getActionsForNode = async (nodeId: number) => {
-    const vista = mockSystemViews.find(v => v.id === nodeId);
-    if (!vista) return [];
-    
-    // Convertir acciones al formato esperado por el componente
-    return vista.acciones.map(accion => ({
-      id: accion.id,
-      nombre: accion.nombre,
-      displayName: accion.displayName,
-      descripcion: accion.descripcion,
-      tipo: accion.tipo
-    }));
-  };
 
   const form = useForm<PerfilForm>({
     resolver: zodResolver(perfilSchema),
@@ -352,10 +330,7 @@ const PerfilesPage = () => {
     }
   });
 
-  const { fields: permisosFields, append: appendPermiso, remove: removePermiso } = useFieldArray({
-    control: form.control,
-    name: "permisos"
-  });
+
 
   // Create/Update perfil mutation
   const savePerfilMutation = useMutation({
@@ -476,16 +451,7 @@ const PerfilesPage = () => {
     });
   };
 
-  const addPermiso = async (menuNodeId: number, menuNodeName: string) => {
-    const exists = permisosFields.find(p => p.menuNodeId === menuNodeId);
-    if (!exists) {
-      appendPermiso({
-        menuNodeId,
-        menuNodeName,
-        acciones: []
-      });
-    }
-  };
+
 
   if (isLoading) {
     return <div className="p-6">Cargando...</div>;
@@ -576,71 +542,13 @@ const PerfilesPage = () => {
                   />
                 </div>
 
-                {/* Sección de permisos y acciones */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-medium">LISTADO DE PERMISOS Y ACCIONES RELACIONADAS</h3>
-                  </div>
-                  
-                  <div className="grid grid-cols-4 gap-4 text-sm font-medium text-gray-700 border-b pb-2">
-                    <div>Código</div>
-                    <div>Nombre</div>
-                    <div>Acciones</div>
-                    <div>Eliminar</div>
-                  </div>
-
-                  {/* Select para agregar nueva vista */}
-                  <div className="flex gap-2 items-end">
-                    <div className="flex-1">
-                      <Select onValueChange={(value) => {
-                        const nodeId = parseInt(value);
-                        const node = menuNodes.find((n: any) => n.id === nodeId);
-                        if (node) {
-                          addPermiso(nodeId, node.displayName);
-                        }
-                      }}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar vista del sistema..." />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-64 overflow-y-auto">
-                          {Object.entries(
-                            menuNodes.reduce((acc, node) => {
-                              if (!acc[node.modulo]) acc[node.modulo] = [];
-                              acc[node.modulo].push(node);
-                              return acc;
-                            }, {} as Record<string, any[]>)
-                          ).map(([modulo, nodes]) => (
-                            <div key={modulo}>
-                              <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide bg-gray-50">
-                                {modulo}
-                              </div>
-                              {nodes.map((node: any) => (
-                                <SelectItem key={node.id} value={String(node.id)} className="pl-4">
-                                  <div className="flex flex-col">
-                                    <span className="font-medium">{node.displayName}</span>
-                                    <span className="text-xs text-gray-500">{node.ruta}</span>
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </div>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {/* Lista de permisos agregados */}
-                  {permisosFields.map((campo, index) => (
-                    <PermisoRow
-                      key={campo.id}
-                      campo={campo}
-                      index={index}
-                      form={form}
-                      onRemove={() => removePermiso(index)}
-                      getActionsForNode={getActionsForNode}
-                    />
-                  ))}
-                </div>
+                {/* Nuevo formulario de permisos */}
+                <PermissionsForm
+                  selectedPermissions={form.watch('permisos') || []}
+                  onPermissionsChange={(permissions) => {
+                    form.setValue('permisos', permissions);
+                  }}
+                />
 
                 <FormField
                   control={form.control}
@@ -895,164 +803,6 @@ const PerfilesPage = () => {
   );
 };
 
-// Componente MultiSelect para acciones
-const ActionMultiSelect = ({ actions, selectedActions, onSelectionChange, isLoading }: {
-  actions: any[];
-  selectedActions: number[];
-  onSelectionChange: (actions: number[]) => void;
-  isLoading: boolean;
-}) => {
-  const [isOpen, setIsOpen] = useState(false);
 
-  const toggleAction = (actionId: number) => {
-    if (selectedActions.includes(actionId)) {
-      onSelectionChange(selectedActions.filter(id => id !== actionId));
-    } else {
-      onSelectionChange([...selectedActions, actionId]);
-    }
-  };
-
-  const removeAction = (actionId: number) => {
-    onSelectionChange(selectedActions.filter(id => id !== actionId));
-  };
-
-  const selectedActionsData = actions.filter(action => selectedActions.includes(action.id));
-
-  return (
-    <div className="w-full">
-      {/* Selected Actions Display */}
-      <div className="flex flex-wrap gap-1 mb-2">
-        {selectedActionsData.map((action) => (
-          <Badge
-            key={action.id}
-            variant="secondary"
-            className="flex items-center gap-1 px-2 py-1 text-xs"
-          >
-            {action.nombre}
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-auto p-0 w-3 h-3 hover:bg-transparent"
-              onClick={() => removeAction(action.id)}
-            >
-              <X className="h-2 w-2" />
-            </Button>
-          </Badge>
-        ))}
-      </div>
-
-      {/* Dropdown */}
-      <Popover open={isOpen} onOpenChange={setIsOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            role="combobox"
-            aria-expanded={isOpen}
-            className="w-full justify-between"
-            disabled={isLoading}
-          >
-            {isLoading 
-              ? "Cargando acciones..." 
-              : selectedActions.length > 0 
-                ? `${selectedActions.length} acciones seleccionadas`
-                : "Seleccionar acciones"
-            }
-            <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-full p-0" align="start">
-          <Command>
-            <CommandInput placeholder="Buscar acciones..." />
-            <CommandEmpty>No se encontraron acciones.</CommandEmpty>
-            <CommandGroup>
-              {actions.map((action) => (
-                <CommandItem
-                  key={action.id}
-                  onSelect={() => toggleAction(action.id)}
-                  className="cursor-pointer"
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <span>{action.nombre} ({action.tipo})</span>
-                    {selectedActions.includes(action.id) && (
-                      <span className="ml-2 text-green-600 font-bold">✓</span>
-                    )}
-                  </div>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </Command>
-        </PopoverContent>
-      </Popover>
-    </div>
-  );
-};
-
-// Componente para cada fila de permiso
-const PermisoRow = ({ campo, index, form, onRemove, getActionsForNode }: any) => {
-  const [actions, setActions] = useState<any[]>([]);
-  const [loadingActions, setLoadingActions] = useState(false);
-
-  React.useEffect(() => {
-    const loadActions = async () => {
-      setLoadingActions(true);
-      try {
-        const nodeActions = await getActionsForNode(campo.menuNodeId);
-        setActions(nodeActions);
-      } catch (error) {
-        console.error('Error loading actions:', error);
-      } finally {
-        setLoadingActions(false);
-      }
-    };
-
-    loadActions();
-  }, [campo.menuNodeId]);
-
-  const handleActionToggle = (actionId: number, checked: boolean) => {
-    const currentActions = form.getValues(`permisos.${index}.acciones`) || [];
-    let newActions;
-    
-    if (checked) {
-      newActions = [...currentActions, actionId];
-    } else {
-      newActions = currentActions.filter((id: number) => id !== actionId);
-    }
-    
-    form.setValue(`permisos.${index}.acciones`, newActions);
-  };
-
-  return (
-    <div className="grid grid-cols-4 gap-4 py-2 border-b">
-      <div className="font-mono text-sm">{String(campo.menuNodeId).padStart(2, '0')}</div>
-      <div className="font-medium">{campo.menuNodeName}</div>
-      <div>
-        {loadingActions ? (
-          <div className="text-sm text-gray-500">Cargando acciones...</div>
-        ) : (
-          <ActionMultiSelect
-            actions={actions}
-            selectedActions={form.watch(`permisos.${index}.acciones`) || []}
-            onSelectionChange={(selectedActionIds) => 
-              form.setValue(`permisos.${index}.acciones`, selectedActionIds)
-            }
-            isLoading={loadingActions}
-          />
-        )}
-      </div>
-      <div className="flex justify-center">
-        <Button
-          type="button"
-          size="sm"
-          onClick={onRemove}
-          className="h-8 w-8 p-0 bg-red-500 hover:bg-red-600 text-white border-0 rounded"
-        >
-          <Trash2 className="w-4 h-4" />
-        </Button>
-      </div>
-    </div>
-  );
-};
 
 export default PerfilesPage;

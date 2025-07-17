@@ -35,7 +35,7 @@ import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 const menuItems = [
   {
     title: "Dashboard",
-    icon: <Layers className="h-5 w-5" />,
+    icon: <Activity className="h-5 w-5" />,
     path: "/dashboard",
     subItems: [],
   },
@@ -67,13 +67,7 @@ const menuItems = [
     path: "/analistas",
     subItems: [],
   },
-  {
-    title: "Reportes",
-    icon: <BarChart3 className="h-5 w-5" />,
-    subItems: [
-      { title: "Dashboard", path: "/reportes/dashboard", icon: <Activity className="h-4 w-4" /> },
-    ],
-  },
+
   {
     title: "Maestro",
     icon: <Settings className="h-5 w-5" />,

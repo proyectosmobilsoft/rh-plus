@@ -37,17 +37,17 @@ export const ThemeSwitcher: React.FC = () => {
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden" style={{ paddingTop: '30px', paddingBottom: '30px' }}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-brand-lime to-brand-turquoise bg-clip-text text-transparent">
-            Intercambio de Colores ZEUS
+            Intercambio de Colores
           </DialogTitle>
           <DialogDescription className="text-gray-600">
             Cambia la disposición de los colores Verde, Azul y Gris en toda la interfaz
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 py-4 max-h-[60vh] overflow-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 py-4 max-h-[60vh] overflow-auto" style={{ paddingLeft: '30px', paddingRight: '30px' }}>
           {themes.map((theme) => (
             <Card
               key={theme.id}
