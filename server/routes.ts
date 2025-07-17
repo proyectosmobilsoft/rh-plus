@@ -1443,24 +1443,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         activo: true,
       });
 
-      // Save permissions and actions
+      // Save permissions directly as JSON for now (simplificado para que funcione)
       if (permisos && permisos.length > 0) {
-        for (const permiso of permisos) {
-          const perfilMenu = await storage.createPerfilMenu({
-            perfilId: perfil.id,
-            menuNodeId: permiso.menuNodeId,
-          });
-
-          // Save actions for this menu
-          if (permiso.acciones && permiso.acciones.length > 0) {
-            for (const accionId of permiso.acciones) {
-              await storage.createPerfilAccion({
-                perfilMenuId: perfilMenu.id,
-                menuActionId: accionId,
-              });
-            }
-          }
-        }
+        await storage.updatePerfil(perfil.id, {
+          nombre: perfil.nombre,
+          descripcion: perfil.descripcion,
+          permisos: JSON.stringify(permisos)
+        });
       }
 
       res.json(perfil);
@@ -1481,27 +1470,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         descripcion,
       });
 
-      // Delete existing permissions and recreate them
-      await storage.deletePerfilMenusByPerfilId(id);
-
-      // Save new permissions and actions
+      // Update permissions directly as JSON (simplificado para que funcione)
       if (permisos && permisos.length > 0) {
-        for (const permiso of permisos) {
-          const perfilMenu = await storage.createPerfilMenu({
-            perfilId: perfil.id,
-            menuNodeId: permiso.menuNodeId,
-          });
-
-          // Save actions for this menu
-          if (permiso.acciones && permiso.acciones.length > 0) {
-            for (const accionId of permiso.acciones) {
-              await storage.createPerfilAccion({
-                perfilMenuId: perfilMenu.id,
-                menuActionId: accionId,
-              });
-            }
-          }
-        }
+        await storage.updatePerfil(id, {
+          nombre: perfil.nombre,
+          descripcion: perfil.descripcion,
+          permisos: JSON.stringify(permisos)
+        });
       }
 
       res.json(perfil);
@@ -1515,23 +1490,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const perfilId = parseInt(req.params.id);
       
-      // Get all menu permissions for this profile
-      const perfilMenus = await storage.getPerfilMenusByPerfilId(perfilId);
+      // Get profile with permissions
+      const perfil = await storage.getPerfil(perfilId);
       
-      const permisos = [];
-      for (const perfilMenu of perfilMenus) {
-        // Get menu node details
-        const menuNodes = await storage.getAllMenuNodes();
-        const menuNode = menuNodes.find(node => node.id === perfilMenu.menuNodeId);
-        
-        // Get actions for this menu
-        const acciones = await storage.getPerfilAccionesByPerfilMenuId(perfilMenu.id);
-        
-        permisos.push({
-          menuNodeId: perfilMenu.menuNodeId,
-          menuNodeName: menuNode ? menuNode.name : `Menu ${perfilMenu.menuNodeId}`,
-          acciones: acciones.map(a => a.menuActionId)
-        });
+      if (!perfil) {
+        return res.status(404).json({ message: "Perfil no encontrado" });
+      }
+      
+      // Parse permissions from JSON column or return empty array
+      let permisos = [];
+      if (perfil.permisos) {
+        try {
+          permisos = typeof perfil.permisos === 'string' 
+            ? JSON.parse(perfil.permisos) 
+            : perfil.permisos;
+        } catch (e) {
+          console.error("Error parsing permissions JSON:", e);
+          permisos = [];
+        }
       }
       
       res.json(permisos);
