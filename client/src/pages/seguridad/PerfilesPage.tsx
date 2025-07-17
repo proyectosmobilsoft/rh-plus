@@ -312,7 +312,14 @@ const PerfilesPage = () => {
   const { data: perfiles = [], isLoading, refetch } = useQuery({
     queryKey: ['/api/perfiles'],
     queryFn: async () => {
-      const response = await fetch('/api/perfiles');
+      const response = await fetch('/api/perfiles', {
+        cache: 'no-store', // Evitar caché del browser
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
       if (!response.ok) throw new Error('Failed to fetch perfiles');
       return response.json();
     },
@@ -346,26 +353,26 @@ const PerfilesPage = () => {
       });
     },
     onSuccess: async () => {
-      // Invalidar caché y refrescar inmediatamente
-      await queryClient.invalidateQueries({ queryKey: ['/api/perfiles'] });
-      await refetch();
-      
       setIsModalOpen(false);
       setEditingPerfil(null);
+      
+      // FORZAR actualización inmediata - método simplificado
+      queryClient.removeQueries({ queryKey: ['/api/perfiles'] });
+      await refetch();
       
       // Redirigir a la tabla de perfiles
       setActiveTab("perfiles");
       
       // Limpiar completamente el formulario después de crear/editar
       form.reset({
-        codigo: perfiles.length + 1,
+        codigo: 0,
         nombre: "",
         descripcion: "",
         permisos: []
       });
       
       toast({
-        title: "Éxito",
+        title: "✅ Éxito",
         description: editingPerfil ? "Perfil actualizado correctamente" : "Perfil creado correctamente",
         variant: "default",
       });
@@ -387,10 +394,12 @@ const PerfilesPage = () => {
       });
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['/api/perfiles'] });
+      // FORZAR actualización inmediata - método simplificado
+      queryClient.removeQueries({ queryKey: ['/api/perfiles'] });
       await refetch();
+      
       toast({
-        title: "Éxito",
+        title: "✅ Éxito",
         description: "Perfil eliminado correctamente",
         variant: "default",
       });

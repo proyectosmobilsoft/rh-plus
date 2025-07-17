@@ -94,7 +94,14 @@ const UsuariosPage = () => {
   const { data: usuarios = [], isLoading: usuariosLoading, refetch: refetchUsuarios } = useQuery<Usuario[]>({
     queryKey: ["/api/usuarios"],
     queryFn: async () => {
-      const response = await fetch('/api/usuarios');
+      const response = await fetch('/api/usuarios', {
+        cache: 'no-store', // Evitar caché del browser
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
       if (!response.ok) throw new Error('Failed to fetch usuarios');
       return response.json();
     },
@@ -106,7 +113,14 @@ const UsuariosPage = () => {
   const { data: perfiles = [] } = useQuery<Perfil[]>({
     queryKey: ["/api/perfiles"],
     queryFn: async () => {
-      const response = await fetch('/api/perfiles');
+      const response = await fetch('/api/perfiles', {
+        cache: 'no-store', // Evitar caché del browser
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
       if (!response.ok) throw new Error('Failed to fetch perfiles');
       return response.json();
     },

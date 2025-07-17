@@ -202,8 +202,6 @@ class MemoryUserStorage {
   // ========== OPERACIONES DE PERFILES ==========
 
   async getAllPerfiles(): Promise<MemoryPerfil[]> {
-    console.log('🟢 getAllPerfiles - Retornando', this.perfiles.length, 'perfiles');
-    console.log('🟢 getAllPerfiles - Lista:', this.perfiles.map(p => ({ id: p.id, nombre: p.nombre })));
     return [...this.perfiles];
   }
 
@@ -216,10 +214,6 @@ class MemoryUserStorage {
   }
 
   async createPerfil(perfilData: InsertPerfil): Promise<MemoryPerfil> {
-    console.log('🔵 createPerfil - Datos recibidos:', perfilData);
-    console.log('🔵 createPerfil - Próximo ID será:', this.perfilIdCounter);
-    console.log('🔵 createPerfil - Perfiles actuales antes de crear:', this.perfiles.length);
-    
     const newPerfil: MemoryPerfil = {
       id: this.perfilIdCounter++,
       nombre: perfilData.nombre,
@@ -230,11 +224,6 @@ class MemoryUserStorage {
     };
 
     this.perfiles.push(newPerfil);
-    
-    console.log('🔵 createPerfil - Nuevo perfil creado:', newPerfil);
-    console.log('🔵 createPerfil - Total perfiles después de crear:', this.perfiles.length);
-    console.log('🔵 createPerfil - Todos los perfiles:', this.perfiles.map(p => ({ id: p.id, nombre: p.nombre })));
-    
     return newPerfil;
   }
 
