@@ -1491,7 +1491,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const perfilId = parseInt(req.params.id);
       
       // Get profile with permissions
-      const perfil = await storage.getPerfil(perfilId);
+      const perfil = await storage.getPerfilById(perfilId);
       
       if (!perfil) {
         return res.status(404).json({ message: "Perfil no encontrado" });
