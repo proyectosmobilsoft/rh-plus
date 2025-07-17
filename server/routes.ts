@@ -1159,17 +1159,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // === RUTAS DE USUARIOS ===
   
-  // Obtener todos los usuarios
+  // Obtener todos los usuarios - usando SQL directo como perfiles
   app.get("/api/usuarios", async (req, res) => {
     try {
-      const usuarios = await storage.getAllUsers();
+      // Consulta directa a la base de datos para usuarios
+      const usersResult = await db.execute(`
+        SELECT u.id, u.identificacion, u.primer_nombre as "primerNombre", 
+               u.segundo_nombre as "segundoNombre", u.primer_apellido as "primerApellido",
+               u.segundo_apellido as "segundoApellido", u.telefono, u.email, 
+               u.username, u.activo, u.fecha_creacion as "fechaCreacion"
+        FROM users u 
+        WHERE u.activo = true 
+        ORDER BY u.id
+      `);
+      
       // Obtener perfiles para cada usuario
       const usuariosConPerfiles = await Promise.all(
-        usuarios.map(async (usuario) => {
-          const perfiles = await storage.getUserPerfiles(usuario.id);
-          return { ...usuario, perfiles };
+        usersResult.rows.map(async (usuario: any) => {
+          const perfilesResult = await db.execute(`
+            SELECT p.id, p.nombre, p.descripcion
+            FROM perfiles p
+            INNER JOIN user_perfiles up ON p.id = up.perfil_id
+            WHERE up.user_id = ? AND p.activo = true
+          `, [usuario.id]);
+          
+          return { ...usuario, perfiles: perfilesResult.rows };
         })
       );
+      
       res.json(usuariosConPerfiles);
     } catch (error: any) {
       console.error("Error obteniendo usuarios:", error);

@@ -90,17 +90,12 @@ const UsuariosPage = () => {
     console.log('Usuarios actualizados!');
   };
 
-  // Query para obtener usuarios
+  // Query para obtener usuarios - usando la misma configuración que perfiles
   const { data: usuarios = [], isLoading: usuariosLoading, refetch: refetchUsuarios } = useQuery<Usuario[]>({
     queryKey: ["/api/usuarios"],
-    staleTime: 0, // Sin caché para actualizaciones inmediatas
-    cacheTime: 0, // No mantener caché
-    refetchOnWindowFocus: false, // Evitar refetch innecesarios
-    refetchOnMount: "always", // Siempre refetch al montar
-    retry: false, // No reintentar automáticamente
   });
 
-  // Query para obtener perfiles disponibles
+  // Query para obtener perfiles disponibles - usando la misma configuración que en PerfilesPage
   const { data: perfiles = [] } = useQuery<Perfil[]>({
     queryKey: ["/api/perfiles"],
   });
