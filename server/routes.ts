@@ -1247,6 +1247,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      // Si no hay password o está vacío, eliminar del objeto de actualización
+      if (!updateData.password || updateData.password.trim() === "") {
+        delete updateData.password;
+      }
+      
       // Actualizar usuario
       const updatedUser = await storage.updateUser(id, updateData);
       
@@ -1273,57 +1278,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Actualizar usuario
-  app.put("/api/usuarios/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const { perfilIds, ...userData } = req.body;
-      
-      // Verificar que el usuario existe
-      const existingUser = await storage.getUser(id);
-      if (!existingUser) {
-        return res.status(404).json({ message: "Usuario no encontrado" });
-      }
-      
-      // Validar email único (excepto el mismo usuario)
-      const users = await storage.getAllUsers();
-      const emailExists = users.some(u => u.email === userData.email && u.id !== id);
-      if (emailExists) {
-        return res.status(400).json({ message: "El email ya está en uso" });
-      }
-      
-      // Validar username único (excepto el mismo usuario)
-      const usernameUser = await storage.getUserByUsername(userData.username);
-      if (usernameUser && usernameUser.id !== id) {
-        return res.status(400).json({ message: "El username ya está en uso" });
-      }
-      
-      // Actualizar usuario
-      const updatedUser = await storage.updateUser(id, userData);
-      
-      // Actualizar perfiles si se proporcionaron
-      if (perfilIds && Array.isArray(perfilIds)) {
-        await storage.deleteUserPerfiles(id);
-        for (const perfilId of perfilIds) {
-          await storage.createUserPerfil({ userId: id, perfilId });
-        }
-      }
-      
-      // Obtener perfiles actualizados
-      const perfiles = await storage.getUserPerfiles(id);
-      
-      res.json({ 
-        message: "Usuario actualizado exitosamente", 
-        user: { ...updatedUser, perfiles } 
-      });
-    } catch (error: any) {
-      console.error("Error actualizando usuario:", error);
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Datos inválidos", errors: error.errors });
-      }
-      res.status(500).json({ message: "Error interno del servidor" });
-    }
-  });
+
 
   // Eliminar usuario
   app.delete("/api/usuarios/:id", async (req, res) => {

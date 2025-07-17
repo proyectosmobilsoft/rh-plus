@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Plus, Search, Users } from "lucide-react";
+import { Edit, Trash2, Plus, Search, Users, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -41,7 +41,13 @@ const crearUsuarioSchema = z.object({
   empresaIds: z.array(z.number()).optional(),
 });
 
+// Esquema para editar usuario (password opcional)
+const editarUsuarioSchema = crearUsuarioSchema.extend({
+  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres").or(z.literal("")).optional(),
+});
+
 type CrearUsuarioForm = z.infer<typeof crearUsuarioSchema>;
+type EditarUsuarioForm = z.infer<typeof editarUsuarioSchema>;
 
 interface Perfil {
   id: number;
@@ -71,6 +77,8 @@ interface Usuario {
 const UsuariosPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<Usuario | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -97,8 +105,8 @@ const UsuariosPage = () => {
   ];
 
   // Formulario para crear usuario
-  const form = useForm<CrearUsuarioForm>({
-    resolver: zodResolver(crearUsuarioSchema),
+  const form = useForm<CrearUsuarioForm | EditarUsuarioForm>({
+    resolver: zodResolver(editingUser ? editarUsuarioSchema : crearUsuarioSchema),
     defaultValues: {
       identificacion: "",
       primerNombre: "",
@@ -206,6 +214,78 @@ const UsuariosPage = () => {
 
   const handleCrearUsuario = (data: CrearUsuarioForm) => {
     createUsuarioMutation.mutate(data);
+  };
+
+  const handleEditarUsuario = (usuario: Usuario) => {
+    setEditingUser(usuario);
+    // Prellenar el formulario con los datos del usuario
+    form.reset({
+      identificacion: usuario.identificacion,
+      primerNombre: usuario.primerNombre,
+      segundoNombre: usuario.segundoNombre || "",
+      primerApellido: usuario.primerApellido,
+      segundoApellido: usuario.segundoApellido || "",
+      telefono: usuario.telefono || "",
+      email: usuario.email,
+      username: usuario.username,
+      password: "", // No mostrar la contraseña actual
+      perfilIds: usuario.perfiles?.map(p => p.id) || [],
+      empresaIds: [], // TODO: agregar cuando esté implementado
+    });
+    setIsEditModalOpen(true);
+  };
+
+  // Mutation para actualizar usuario
+  const updateUsuarioMutation = useMutation({
+    mutationFn: async (data: EditarUsuarioForm & { id: number }) => {
+      console.log('Actualizando usuario:', data);
+      const { id, ...updateData } = data;
+      const response = await apiRequest(`/api/usuarios/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(updateData),
+      });
+      return response;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/usuarios"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/usuarios"] });
+      
+      setIsEditModalOpen(false);
+      setEditingUser(null);
+      form.reset({
+        identificacion: "",
+        primerNombre: "",
+        segundoNombre: "",
+        primerApellido: "",
+        segundoApellido: "",
+        telefono: "",
+        email: "",
+        username: "",
+        password: "",
+        perfilIds: [],
+        empresaIds: [],
+      });
+      
+      toast({
+        title: "✅ Usuario actualizado",
+        description: "Los datos del usuario se han actualizado exitosamente.",
+        variant: "default",
+      });
+    },
+    onError: (error: any) => {
+      console.error('Error actualizando usuario:', error);
+      toast({
+        title: "❌ Error al actualizar usuario",
+        description: error.message || "No se pudo actualizar el usuario",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleActualizarUsuario = (data: EditarUsuarioForm) => {
+    if (editingUser) {
+      updateUsuarioMutation.mutate({ ...data, id: editingUser.id });
+    }
   };
 
   return (
@@ -551,6 +631,9 @@ const UsuariosPage = () => {
                       Perfiles
                     </th>
                     <th className="text-left py-3 px-4 font-medium text-gray-900">
+                      Almacenes
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900">
                       Estado
                     </th>
                     <th className="text-right py-3 px-4 font-medium text-gray-900">
@@ -578,18 +661,24 @@ const UsuariosPage = () => {
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex flex-wrap gap-1">
-                          {usuario.perfiles.map((perfil) => (
+                          {usuario.perfiles?.map((perfil) => (
                             <Badge
                               key={perfil.id}
                               variant="outline"
-                              className="text-xs"
+                              className="text-xs bg-green-50 text-green-700 border-green-200"
                             >
                               {perfil.nombre}
                             </Badge>
-                          ))}
-                          {usuario.perfiles.length === 0 && (
+                          )) || []}
+                          {(!usuario.perfiles || usuario.perfiles.length === 0) && (
                             <span className="text-xs text-gray-400">Sin perfiles</span>
                           )}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex flex-wrap gap-1">
+                          {/* TODO: Mostrar almacenes cuando esté implementado */}
+                          <span className="text-xs text-gray-400">Sin almacenes</span>
                         </div>
                       </td>
                       <td className="py-3 px-4">
@@ -606,14 +695,13 @@ const UsuariosPage = () => {
                       </td>
                       <td className="py-3 px-4 text-right">
                         <div className="flex gap-1 justify-end">
-                          <Link href={`/seguridad/usuarios/editar/${usuario.id}`}>
-                            <Button
-                              size="sm"
-                              className="h-8 w-8 p-0 bg-blue-500 hover:bg-blue-600 text-white border-0 rounded"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                          </Link>
+                          <Button
+                            size="sm"
+                            onClick={() => handleEditarUsuario(usuario)}
+                            className="h-8 w-8 p-0 bg-blue-500 hover:bg-blue-600 text-white border-0 rounded"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button
@@ -653,6 +741,288 @@ const UsuariosPage = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Modal de edición */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="max-w-6xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold text-blue-600">
+              Editar Usuario: {editingUser?.primerNombre} {editingUser?.primerApellido}
+            </DialogTitle>
+            <DialogDescription>
+              Actualice la información del usuario
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleActualizarUsuario)} className="space-y-4">
+              
+              {/* Reutilizar el mismo formulario pero con diferentes datos */}
+              <div className="grid grid-cols-3 gap-6">
+                {/* Columna 1 - Datos personales */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Datos Personales</h4>
+                  
+                  <FormField
+                    control={form.control}
+                    name="identificacion"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-medium">Identificación *</FormLabel>
+                        <FormControl>
+                          <Input 
+                            className="h-11 border-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-base" 
+                            placeholder="Número de identificación" 
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="primerNombre"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-medium">Primer Nombre *</FormLabel>
+                        <FormControl>
+                          <Input 
+                            className="h-11 border-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-base" 
+                            placeholder="Primer nombre" 
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="segundoNombre"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-medium">Segundo Nombre</FormLabel>
+                        <FormControl>
+                          <Input 
+                            className="h-11 border-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-base" 
+                            placeholder="Segundo nombre" 
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="primerApellido"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-medium">Primer Apellido *</FormLabel>
+                        <FormControl>
+                          <Input 
+                            className="h-11 border-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-base" 
+                            placeholder="Primer apellido" 
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="segundoApellido"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-medium">Segundo Apellido</FormLabel>
+                        <FormControl>
+                          <Input 
+                            className="h-11 border-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-base" 
+                            placeholder="Segundo apellido" 
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Columna 2 - Contacto y credenciales */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Contacto y Acceso</h4>
+                  
+                  <FormField
+                    control={form.control}
+                    name="telefono"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-medium">Teléfono</FormLabel>
+                        <FormControl>
+                          <Input 
+                            className="h-11 border-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-base" 
+                            placeholder="Número de teléfono" 
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-medium">Email *</FormLabel>
+                        <FormControl>
+                          <Input 
+                            className="h-11 border-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-base" 
+                            type="email" 
+                            placeholder="correo@ejemplo.com" 
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="username"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-medium">Username *</FormLabel>
+                        <FormControl>
+                          <Input 
+                            className="h-11 border-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-base" 
+                            placeholder="Nombre de usuario" 
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-medium">Nueva Contraseña</FormLabel>
+                        <FormControl>
+                          <Input 
+                            className="h-11 border-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-base" 
+                            type="password" 
+                            placeholder="Dejar vacío para mantener actual" 
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Columna 3 - Perfiles y almacenes */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Asignaciones</h4>
+                  
+                  <FormField
+                    control={form.control}
+                    name="perfilIds"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-medium">Perfiles Asociados</FormLabel>
+                        <FormControl>
+                          <MultiSelect
+                            options={perfiles.map((perfil) => ({
+                              id: perfil.id,
+                              name: perfil.nombre,
+                              description: perfil.descripcion || `Perfil con ID ${perfil.id}`
+                            }))}
+                            selected={field.value || []}
+                            onSelectionChange={field.onChange}
+                            placeholder="Seleccionar perfiles..."
+                            className="h-auto"
+                            isLoading={perfilesLoading}
+                            emptyText="No hay perfiles disponibles"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="empresaIds"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-medium">Almacenes</FormLabel>
+                        <FormControl>
+                          <MultiSelect
+                            options={empresas.map((empresa) => ({
+                              id: empresa.id,
+                              name: empresa.nit || `Empresa ${empresa.id}`,
+                              description: `ID: ${empresa.id}`
+                            }))}
+                            selected={field.value || []}
+                            onSelectionChange={field.onChange}
+                            placeholder="Seleccionar almacenes..."
+                            className="h-auto"
+                            isLoading={empresasLoading}
+                            emptyText="No hay almacenes disponibles"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
+              {/* Botones */}
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsEditModalOpen(false)}
+                  disabled={updateUsuarioMutation.isPending}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  className="bg-blue-600 hover:bg-blue-700 text-white min-w-[120px]"
+                  disabled={updateUsuarioMutation.isPending}
+                >
+                  {updateUsuarioMutation.isPending ? (
+                    <div className="flex items-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Actualizando...
+                    </div>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      Actualizar Usuario
+                    </>
+                  )}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
