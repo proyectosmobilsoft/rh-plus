@@ -72,7 +72,7 @@ const Dashboard = () => {
               size="sm" 
               variant={chartPeriod === "day" ? "default" : "outline"}
               onClick={() => setChartPeriod("day")}
-              className={chartPeriod === "day" ? "bg-brand-lime hover:bg-brand-lime/90" : "border-brand-lime text-brand-lime hover:bg-brand-lime/10"}
+              className={`period-button ${chartPeriod === "day" ? "selected" : "border-brand-turquoise text-brand-turquoise hover:bg-brand-turquoise/10"}`}
             >
               Día
             </Button>
@@ -80,7 +80,7 @@ const Dashboard = () => {
               size="sm" 
               variant={chartPeriod === "month" ? "default" : "outline"}
               onClick={() => setChartPeriod("month")}
-              className={chartPeriod === "month" ? "bg-brand-lime hover:bg-brand-lime/90" : "border-brand-lime text-brand-lime hover:bg-brand-lime/10"}
+              className={`period-button ${chartPeriod === "month" ? "selected" : "border-brand-turquoise text-brand-turquoise hover:bg-brand-turquoise/10"}`}
             >
               Mes
             </Button>
@@ -88,7 +88,7 @@ const Dashboard = () => {
               size="sm" 
               variant={chartPeriod === "year" ? "default" : "outline"}
               onClick={() => setChartPeriod("year")}
-              className={chartPeriod === "year" ? "bg-brand-lime hover:bg-brand-lime/90" : "border-brand-lime text-brand-lime hover:bg-brand-lime/10"}
+              className={`period-button ${chartPeriod === "year" ? "selected" : "border-brand-turquoise text-brand-turquoise hover:bg-brand-turquoise/10"}`}
             >
               Año
             </Button>

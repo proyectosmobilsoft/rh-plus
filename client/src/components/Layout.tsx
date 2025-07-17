@@ -27,6 +27,7 @@ import {
   UserCheck,
   BarChart3,
   Activity,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
@@ -141,14 +142,14 @@ const AppSidebar = () => {
           <div className="text-2xl font-bold text-brand-lime">Recursos Humanos</div>
         )}
       </div>
-      <SidebarContent className="p-2">
+      <SidebarContent className="p-2 sidebar-compact">
         {menuItems.map((item, index) => (
           <React.Fragment key={item.title}>
             {item.subItems.length === 0 ? (
               // Elemento sin subítems
               (<Link
                 to={item.path || "/"}
-                className={`flex items-center space-x-2 rounded-md px-3 py-2 mb-1 ${
+                className={`flex items-center space-x-2 rounded-md px-3 py-1.5 mb-1 sidebar-item ${
                   currentPath === item.path
                     ? "bg-sidebar-accent text-sidebar-accent-foreground"
                     : "hover:bg-sidebar-accent/50 text-sidebar-foreground"
@@ -161,15 +162,18 @@ const AppSidebar = () => {
               // Grupo con subítems
               (<SidebarGroup>
                 <SidebarGroupLabel 
-                  className="flex items-center space-x-2 cursor-pointer"
+                  className="flex items-center space-x-2 cursor-pointer sidebar-item"
                   onClick={() => toggleGroup(index)}
                 >
                   <span className="flex items-center">
                     {item.icon}
                     {!collapsed && (
-                      <span className="ml-2 text-base font-medium">
-                        {item.title}
-                      </span>
+                      <>
+                        <span className="ml-2 text-base font-medium">
+                          {item.title}
+                        </span>
+                        <ChevronRight className={`w-3 h-3 dropdown-arrow ${openGroups[index] ? 'open' : ''}`} />
+                      </>
                     )}
                   </span>
                 </SidebarGroupLabel>
@@ -181,7 +185,7 @@ const AppSidebar = () => {
                           <SidebarMenuButton asChild>
                             <Link
                               to={subItem.path}
-                              className={`flex items-center space-x-2 w-full ${
+                              className={`flex items-center space-x-2 w-full py-1 sidebar-item ${
                                 currentPath === subItem.path
                                   ? "text-sidebar-primary font-medium"
                                   : "text-sidebar-foreground"

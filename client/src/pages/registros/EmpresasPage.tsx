@@ -25,12 +25,12 @@ export default function RegistroEmpresas() {
   };
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto py-8 empresa-content">
       {!showForm ? (
         <>
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-brand-gray">Registro de Empresas Afiliadas</h2>
-            <Button onClick={() => setShowForm(true)} className="bg-brand-lime hover:bg-brand-lime/90 shadow-md">
+            <Button onClick={() => setShowForm(true)} className="empresa-button">
               <PlusCircle className="mr-2 h-4 w-4" />
               Nueva Empresa
             </Button>

@@ -86,7 +86,7 @@ export default function LoginUnificado() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   disabled={isLoading}
-                  className="h-12"
+                  className="h-12 login-input"
                 />
               </div>
 
@@ -100,7 +100,7 @@ export default function LoginUnificado() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={isLoading}
-                    className="h-12 pr-10"
+                    className="h-12 pr-10 login-input"
                   />
                   <button
                     type="button"
@@ -119,7 +119,7 @@ export default function LoginUnificado() {
 
               <Button
                 type="submit"
-                className="w-full h-12 bg-brand-lime hover:bg-brand-lime/90 shadow-md transition-all hover:shadow-lg"
+                className="w-full h-12 login-button"
                 disabled={isLoading}
               >
                 {isLoading ? (
@@ -139,7 +139,7 @@ export default function LoginUnificado() {
                 <button
                   type="button"
                   onClick={handleForgotPassword}
-                  className="text-sm text-brand-turquoise hover:text-brand-turquoise/80 hover:underline transition-colors"
+                  className="text-sm forgot-password-link hover:underline transition-colors"
                   disabled={isLoading}
                 >
                   ¿Olvidaste tu contraseña?

@@ -124,6 +124,68 @@
   @apply bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-colors;
 }
 
+/* Estilos personalizados para formularios */
+.login-input::placeholder {
+  color: hsl(0 0% 62%) !important; /* Gris específico para placeholders */
+}
+
+.login-button {
+  @apply bg-brand-lime text-white border-2 border-brand-lime transition-all duration-200;
+}
+
+.login-button:hover {
+  @apply shadow-lg border-brand-lime/80;
+  background-color: hsl(70 85% 41%) !important; /* Mantener color base */
+  box-shadow: 0 4px 12px rgba(193, 208, 9, 0.3);
+}
+
+.forgot-password-link {
+  color: hsl(186 73% 45%) !important; /* Azul turquesa para el link */
+}
+
+/* Dashboard - botones de período */
+.period-button.selected {
+  @apply bg-brand-turquoise text-white;
+}
+
+.period-button.selected:hover {
+  background-color: hsl(186 73% 45%) !important; /* Mantener azul cuando está seleccionado */
+}
+
+/* Botones de empresa y nueva empresa */
+.empresa-button {
+  @apply bg-brand-turquoise text-white border-2 border-brand-turquoise transition-all duration-200;
+}
+
+.empresa-button:hover {
+  @apply shadow-lg border-brand-turquoise/80;
+  background-color: hsl(186 73% 45%) !important; /* Mantener color base */
+  box-shadow: 0 4px 12px rgba(31, 181, 202, 0.3);
+}
+
+/* Espaciado para registro de empresas */
+.empresa-content {
+  @apply ml-8; /* Espacio lateral izquierdo */
+}
+
+/* Sidebar compacto */
+.sidebar-compact .sidebar-item {
+  @apply py-1.5; /* Reducir espaciado entre items */
+}
+
+.sidebar-item {
+  @apply flex items-center; /* Centrar verticalmente */
+}
+
+/* Flechas para elementos desplegables */
+.dropdown-arrow {
+  @apply ml-auto transition-transform duration-200;
+}
+
+.dropdown-arrow.open {
+  @apply rotate-90;
+}
+
 /* Transiciones suaves para cambios de tema */
 .theme-transition * {
   transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease !important;

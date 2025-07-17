@@ -16,10 +16,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useApiData } from '@/hooks/useApiData';
-import { User, Search, Plus, Edit, Trash2, DatabaseIcon } from 'lucide-react';
+import { User, Search, Plus, Edit, Trash2, DatabaseIcon, Building } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { DatosPersonalesForm } from '@/components/candidatos/DatosPersonalesForm';
 import { EducacionTab } from '@/components/candidatos/EducacionTab';
@@ -125,6 +132,7 @@ interface Candidato {
 const CandidatosPage = () => {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedEmpresa, setSelectedEmpresa] = useState('');
   const [formData, setFormData] = useState<Partial<Candidato>>({
     identificacion: '',
     tipoDocumento: '',
@@ -413,16 +421,31 @@ const CandidatosPage = () => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  // Ahora filtramos la lista local que ya es un array
-  const filteredCandidatos = candidatosList.filter((candidato: any) => 
-    (candidato.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-     candidato.nombres?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-     candidato.apellido?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-     candidato.apellidos?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-     candidato.identificacion?.includes(searchTerm) ||
-     candidato.numero_documento?.includes(searchTerm) ||
-     candidato.empresa?.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  // Mock de empresas para el select
+  const mockEmpresas = [
+    { id: 1, nombre: "Empresa A" },
+    { id: 2, nombre: "Empresa B" },
+    { id: 3, nombre: "Empresa C" },
+    { id: 4, nombre: "Empresa ABC" },
+    { id: 5, nombre: "Industrial XYZ" },
+    { id: 6, nombre: "Servicios 123" }
+  ];
+
+  // Filtrar candidatos por empresa y términos de búsqueda
+  const filteredCandidatos = candidatosList.filter((candidato: any) => {
+    const matchesSearch = 
+      candidato.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      candidato.nombres?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      candidato.apellido?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      candidato.apellidos?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      candidato.identificacion?.includes(searchTerm) ||
+      candidato.numero_documento?.includes(searchTerm) ||
+      candidato.empresa?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesEmpresa = !selectedEmpresa || candidato.empresa === selectedEmpresa;
+    
+    return matchesSearch && matchesEmpresa;
+  });
 
   return (
     <div className="page-container p-6">
@@ -498,7 +521,7 @@ const CandidatosPage = () => {
       </div>
 
       <div className="dashboard-card">
-        <div className="mb-4 flex items-center space-x-2">
+        <div className="mb-4 flex items-center space-x-4">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
@@ -507,6 +530,23 @@ const CandidatosPage = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-8"
             />
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <Building className="h-4 w-4 text-muted-foreground" />
+            <Select value={selectedEmpresa} onValueChange={setSelectedEmpresa}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Ver candidatos de..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Todas las empresas</SelectItem>
+                {mockEmpresas.map((empresa) => (
+                  <SelectItem key={empresa.id} value={empresa.nombre}>
+                    {empresa.nombre}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           {isLoading && (
             <div className="flex items-center space-x-2 text-muted-foreground">
