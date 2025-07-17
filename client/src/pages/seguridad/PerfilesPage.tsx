@@ -309,13 +309,15 @@ const PerfilesPage = () => {
   };
 
   // Fetch perfiles
-  const { data: perfiles = [], isLoading } = useQuery({
-    queryKey: ['perfiles'],
+  const { data: perfiles = [], isLoading, refetch } = useQuery({
+    queryKey: ['/api/perfiles'],
     queryFn: async () => {
       const response = await fetch('/api/perfiles');
       if (!response.ok) throw new Error('Failed to fetch perfiles');
       return response.json();
-    }
+    },
+    staleTime: 0, // Sin caché para actualizaciones inmediatas
+    refetchOnWindowFocus: false
   });
 
 
@@ -343,8 +345,11 @@ const PerfilesPage = () => {
         body: JSON.stringify(data)
       });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/perfiles'] });
+    onSuccess: async () => {
+      // Invalidar caché y refrescar inmediatamente
+      await queryClient.invalidateQueries({ queryKey: ['/api/perfiles'] });
+      await refetch();
+      
       setIsModalOpen(false);
       setEditingPerfil(null);
       
@@ -381,8 +386,9 @@ const PerfilesPage = () => {
         method: 'DELETE'
       });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/perfiles'] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['/api/perfiles'] });
+      await refetch();
       toast({
         title: "Éxito",
         description: "Perfil eliminado correctamente",
@@ -450,9 +456,10 @@ const PerfilesPage = () => {
     deletePerfilMutation.mutate(id);
   };
 
-  const handleAdvancedProfileCreated = (profile: UserProfile) => {
-    // Invalidar cache para actualizar la lista
-    queryClient.invalidateQueries({ queryKey: ['/api/perfiles'] });
+  const handleAdvancedProfileCreated = async (profile: UserProfile) => {
+    // Invalidar cache para actualizar la lista y refrescar
+    await queryClient.invalidateQueries({ queryKey: ['/api/perfiles'] });
+    await refetch();
     
     // Mostrar notificación de éxito
     toast({
