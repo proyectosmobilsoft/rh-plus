@@ -470,34 +470,127 @@ const PerfilesPage = () => {
         </TabsList>
 
         <TabsContent value="perfiles" className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-gray-800">Gestión de Perfiles</h2>
-            <div className="flex space-x-2">
+          {/* Header similar a la imagen */}
+          <div className="bg-white rounded-lg border">
+            <div className="flex items-center justify-between p-4 border-b">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-orange-100 rounded flex items-center justify-center">
+                  <Crown className="w-5 h-5 text-orange-600" />
+                </div>
+                <span className="text-lg font-semibold text-gray-700">ROLES</span>
+              </div>
+              <div className="flex space-x-2">
+                <Button 
+                  className="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1"
+                  size="sm"
+                >
+                  🗑️
+                </Button>
+                <Button 
+                  className="bg-teal-500 hover:bg-teal-600 text-white text-xs px-3 py-1"
+                  size="sm"
+                >
+                  📄
+                </Button>
+                <Button 
+                  onClick={() => {
+                    setEditingPerfil(null);
+                    form.reset({
+                      codigo: perfiles.length + 1,
+                      nombre: "",
+                      descripcion: "",
+                      permisos: []
+                    });
+                    setIsModalOpen(true);
+                  }}
+                  className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
+                  size="sm"
+                >
+                  Adicionar Registro
+                </Button>
+              </div>
+            </div>
+
+            {/* Tabla similar a la imagen */}
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-cyan-50">
+                  <tr className="text-left text-sm font-medium text-gray-600">
+                    <th className="px-4 py-3 text-teal-600">Acciones</th>
+                    <th className="px-4 py-3">Item</th>
+                    <th className="px-4 py-3">Código</th>
+                    <th className="px-4 py-3">Nombre</th>
+                    <th className="px-4 py-3">Rol sistema</th>
+                    <th className="px-4 py-3">Estado</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {perfiles.map((perfil, index) => (
+                    <tr key={perfil.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        <div className="flex space-x-2">
+                          <button 
+                            onClick={() => handleEdit(perfil)}
+                            className="text-blue-500 hover:text-blue-700"
+                            title="Editar"
+                          >
+                            ✏️
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(perfil.id)}
+                            className="text-red-500 hover:text-red-700"
+                            title="Eliminar"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">{index + 1}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900">{String(perfil.id).padStart(3, '0')}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900">{perfil.nombre}</td>
+                      <td className="px-4 py-3">
+                        <span className="text-sm text-gray-600">
+                          {perfil.nombre === 'ADMINISTRADOR SYS' ? 'SI' : 'NO'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          ACTIV...
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                  {perfiles.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                        No hay roles registrados
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Modal para crear/editar perfiles */}
+          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+            <DialogTrigger asChild>
               <Button 
-                onClick={() => setIsAdvancedModalOpen(true)}
-                className="bg-purple-500 hover:bg-purple-600 text-white border-0 shadow-sm px-4 py-2 rounded text-sm font-medium transition-colors"
+                onClick={() => {
+                  setEditingPerfil(null);
+                  form.reset({
+                    codigo: perfiles.length + 1,
+                    nombre: "",
+                    descripcion: "",
+                    permisos: []
+                  });
+                }}
+                className="hidden"
               >
-                <Crown className="w-4 h-4 mr-2" />
-                Perfil Avanzado
+                <Plus className="w-4 h-4 mr-2" />
+                Nuevo Perfil
               </Button>
-              <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                <DialogTrigger asChild>
-                  <Button 
-                    onClick={() => {
-                      setEditingPerfil(null);
-                      form.reset({
-                        codigo: perfiles.length + 1,
-                        nombre: "",
-                        descripcion: "",
-                        permisos: []
-                      });
-                    }}
-                    className="bg-green-500 hover:bg-green-600 text-white border-0 shadow-sm px-4 py-2 rounded text-sm font-medium transition-colors"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Nuevo Perfil
-                  </Button>
-                </DialogTrigger>
+            </DialogTrigger>
                 <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>
@@ -592,83 +685,6 @@ const PerfilesPage = () => {
             </Form>
           </DialogContent>
         </Dialog>
-      </div>
-
-      {/* Lista de perfiles */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Perfiles del Sistema</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="text-left py-3 px-4 font-medium text-gray-900">Código</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-900">Nombre</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-900">Descripción</th>
-                  <th className="text-right py-3 px-4 font-medium text-gray-900">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {perfiles.map((perfil: any) => (
-                  <tr key={perfil.id} className="border-b hover:bg-gray-50">
-                    <td className="py-3 px-4 font-mono text-sm">{String(perfil.id).padStart(2, '0')}</td>
-                    <td className="py-3 px-4 font-medium">{perfil.nombre}</td>
-                    <td className="py-3 px-4 text-gray-600">{perfil.descripcion || '-'}</td>
-                    <td className="py-3 px-4 text-right">
-                      <div className="flex gap-1 justify-end">
-                        <Button
-                          size="sm"
-                          onClick={() => handleEdit(perfil)}
-                          className="h-8 w-8 p-0 bg-blue-500 hover:bg-blue-600 text-white border-0 rounded"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              size="sm"
-                              className="h-8 w-8 p-0 bg-red-500 hover:bg-red-600 text-white border-0 rounded"
-                              disabled={deletePerfilMutation.isPending}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>¿Eliminar perfil?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Esta acción no se puede deshacer. Se eliminará permanentemente el perfil "{perfil.nombre}" y todos sus permisos asociados.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleDelete(perfil.id)}
-                                className="bg-red-600 hover:bg-red-700"
-                              >
-                                Eliminar
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            
-            {perfiles.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                No hay perfiles registrados
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-          </div>
         </TabsContent>
 
         <TabsContent value="vistas" className="space-y-6">

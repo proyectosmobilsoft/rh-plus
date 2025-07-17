@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import systemViewsData from "@shared/system-views-actions.json";
 
 interface PermissionsFormProps {
@@ -96,7 +98,7 @@ export function PermissionsForm({ selectedPermissions, onPermissionsChange }: Pe
   );
 
   const filteredPermissions = selectedPermissions.filter(permission =>
-    permission.viewName.toLowerCase().includes(filterText.toLowerCase())
+    permission.viewName?.toLowerCase()?.includes(filterText.toLowerCase()) || false
   );
 
   return (
@@ -134,14 +136,7 @@ export function PermissionsForm({ selectedPermissions, onPermissionsChange }: Pe
             disabled={!selectedView}
             className="bg-cyan-500 hover:bg-cyan-600 text-white px-6"
           >
-            Mas
-          </Button>
-          <Button 
-            onClick={addView}
-            disabled={!selectedView}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4"
-          >
-            +
+            Agregar Vista
           </Button>
         </div>
       </div>
@@ -165,12 +160,44 @@ export function PermissionsForm({ selectedPermissions, onPermissionsChange }: Pe
           <div className="bg-cyan-100 border-b">
             <div className="grid grid-cols-12 gap-2 p-3 font-medium text-gray-700">
               <div className="col-span-4">Nombre De La Vista</div>
-              <div className="col-span-1 text-center">{getActionIcon('edit')}</div>
-              <div className="col-span-1 text-center">{getActionIcon('create')}</div>
-              <div className="col-span-1 text-center">{getActionIcon('delete')}</div>
-              <div className="col-span-1 text-center">{getActionIcon('view')}</div>
-              <div className="col-span-1 text-center">{getActionIcon('custom')}</div>
-              <div className="col-span-1 text-center">{getActionIcon('manage')}</div>
+              <TooltipProvider>
+                <div className="col-span-1 text-center">
+                  <Tooltip>
+                    <TooltipTrigger>{getActionIcon('edit')}</TooltipTrigger>
+                    <TooltipContent>Editar</TooltipContent>
+                  </Tooltip>
+                </div>
+                <div className="col-span-1 text-center">
+                  <Tooltip>
+                    <TooltipTrigger>{getActionIcon('create')}</TooltipTrigger>
+                    <TooltipContent>Crear</TooltipContent>
+                  </Tooltip>
+                </div>
+                <div className="col-span-1 text-center">
+                  <Tooltip>
+                    <TooltipTrigger>{getActionIcon('delete')}</TooltipTrigger>
+                    <TooltipContent>Eliminar</TooltipContent>
+                  </Tooltip>
+                </div>
+                <div className="col-span-1 text-center">
+                  <Tooltip>
+                    <TooltipTrigger>{getActionIcon('view')}</TooltipTrigger>
+                    <TooltipContent>Ver</TooltipContent>
+                  </Tooltip>
+                </div>
+                <div className="col-span-1 text-center">
+                  <Tooltip>
+                    <TooltipTrigger>{getActionIcon('custom')}</TooltipTrigger>
+                    <TooltipContent>Personalizado</TooltipContent>
+                  </Tooltip>
+                </div>
+                <div className="col-span-1 text-center">
+                  <Tooltip>
+                    <TooltipTrigger>{getActionIcon('manage')}</TooltipTrigger>
+                    <TooltipContent>Gestionar</TooltipContent>
+                  </Tooltip>
+                </div>
+              </TooltipProvider>
               <div className="col-span-1 text-center">Mas</div>
               <div className="col-span-1 text-center">Acciones</div>
             </div>
@@ -192,23 +219,17 @@ export function PermissionsForm({ selectedPermissions, onPermissionsChange }: Pe
                       </div>
                     </div>
 
-                    {/* Action Checkboxes */}
+                    {/* Action Switches */}
                     {view.acciones.map((action, index) => {
                       if (index < 6) {
                         const isSelected = permission.actions.includes(action.codigo);
                         return (
                           <div key={action.codigo} className="col-span-1 text-center">
-                            <button
-                              onClick={() => toggleAction(permission.viewId, action.codigo)}
-                              className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-colors ${
-                                isSelected 
-                                  ? 'bg-green-500 border-green-500 text-white' 
-                                  : 'bg-white border-gray-300 hover:border-green-400'
-                              }`}
-                              title={action.nombre}
-                            >
-                              {isSelected && <Check className="h-4 w-4" />}
-                            </button>
+                            <Switch
+                              checked={isSelected}
+                              onCheckedChange={() => toggleAction(permission.viewId, action.codigo)}
+                              className="data-[state=checked]:bg-green-500"
+                            />
                           </div>
                         );
                       }
