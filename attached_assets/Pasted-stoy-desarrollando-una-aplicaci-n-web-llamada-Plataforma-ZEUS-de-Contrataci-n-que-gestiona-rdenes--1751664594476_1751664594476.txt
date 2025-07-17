@@ -1,0 +1,97 @@
+stoy desarrollando una aplicación web llamada Plataforma ZEUS de Contratación, que gestiona órdenes de ingreso de personal, candidatos, clientes y analistas. Ya tengo varias partes implementadas (registro, roles, formularios, etc.).
+
+Necesito que me ayudes a revisar y comparar lo que tengo implementado con lo que falta, según los requerimientos oficiales del proyecto.
+🔍 Contexto técnico actual:
+
+    Ya tengo la gestión de usuarios y roles: administrador, coordinador, analista, candidato, cliente.
+
+    Ya tengo el registro de solicitudes de ingreso.
+
+    Ya tengo un componente de selects encadenados: Regional → Zona → Sucursal.
+
+    Ya tengo validación de campos dinámicos.
+
+    Ya tengo un módulo visual para asignar analistas a regiones, zonas y clientes.
+
+    Trabajo en React con Tailwind y backend propio (Node/Laravel/etc.).
+
+📋 Requisitos funcionales que debo cumplir (resumen por módulo):
+🧩 REQ 1 – Módulo de seguridad
+
+    Crear usuarios con rol y recuperación de contraseña.
+
+    Manejo de perfiles y control de permisos por perfil.
+
+⚙️ REQ 2 – Módulo de parámetros
+
+    Maestro de requisitos (documentos por cargo, con fechas y obligatoriedad).
+
+    Maestro de cargos, ciudades, países, regionales.
+
+    Maestro de campos personalizados para formularios.
+
+    Maestro de entidades médicas (sucursales con ciudad).
+
+    Maestro de estructura financiera: sucursal, proyecto, centro de costo, área de negocio.
+
+    Maestro de analistas: nivel de prioridad, regional, cliente.
+
+    Maestro de plantillas de correo (notificaciones por estado).
+
+🏢 REQ 3 – Módulo de clientes
+
+    Crear clientes con: datos básicos, centros de costos, sucursales.
+
+    Formulario configurable por cliente basado en campos del sistema.
+
+📥 REQ 4 – Órdenes de ingreso
+
+    Cliente puede crear/modificar solicitudes.
+
+    Asignación automática al analista disponible.
+
+    Crear usuario candidato automáticamente (correo + contraseña = cédula).
+
+    Candidato carga requisitos obligatorios, no puede guardar incompletos.
+
+    Cambios de estado disparan correos.
+
+    Si estado = "exámenes médicos": validar ciudad y mostrar prestadores (o mensaje si no hay).
+
+    Firma del contrato con Adobe si estado = finalizado.
+
+    Coordinador puede reasignar solicitudes y devolverlas con tareas.
+
+📂 REQ 5 – Gestión documental
+
+    Consultar documentos por cédula (cliente, aspirante o contratado).
+
+    Solo visualización, sin edición.
+
+📊 REQ 6 – Reportes
+
+    Dashboard con seguimiento de órdenes (cliente y usuario).
+
+    Alertas por vencimiento de requisitos o pólizas.
+
+    Indicadores de lead time por analista (órdenes abiertas/cerradas, tiempo promedio).
+
+    Reporte de aceptación de tratamiento de datos.
+
+    Reporte de notificaciones enviadas.
+
+✅ ¿Qué necesito que hagas?
+
+    Ayúdame a comparar lo que ya tengo hecho con lo que falta por implementar.
+
+    Marca cada módulo como:
+
+        ✔️ Completado
+
+        🟡 Parcial
+
+        ❌ Faltante
+
+    Hazme una lista priorizada de tareas faltantes para cumplir completamente con los requerimientos.
+
+Puedes hacer suposiciones razonables basadas en el estándar de desarrollo web moderno, pero enfócate en que se cumpla todo el flujo funcional que acabo de resumirte.

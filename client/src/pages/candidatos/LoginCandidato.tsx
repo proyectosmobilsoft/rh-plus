@@ -82,7 +82,7 @@ export default function LoginCandidato() {
           <h1 className="text-3xl font-bold text-gray-900">
             Portal Candidatos
           </h1>
-          <p className="text-gray-600 mt-2">Sistema de Gestión Médica</p>
+          <p className="text-gray-600 mt-2">Candidatos</p>
         </div>
 
         <Card className="shadow-lg">
@@ -158,6 +158,16 @@ export default function LoginCandidato() {
                 <Button type="submit" className="w-full mt-[30px] mb-[30px]" disabled={isLoading}>
                   {isLoading ? "Iniciando sesión..." : "Iniciar Sesión"}
                 </Button>
+                
+                <div className="text-center mt-4">
+                  <button 
+                    type="button"
+                    onClick={() => navigate('/candidato/forgot-password')} 
+                    className="text-sm text-green-600 hover:text-green-800"
+                  >
+                    ¿Olvidó su contraseña?
+                  </button>
+                </div>
               </form>
             </Form>
 
@@ -167,7 +177,7 @@ export default function LoginCandidato() {
                 className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
               >
                 <Building2 className="w-4 h-4 mr-1" />
-                Acceso Administrador
+                Ir al Login Unificado
               </Link>
             </div>
 

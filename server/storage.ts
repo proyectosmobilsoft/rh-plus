@@ -1,3 +1,4 @@
+import bcrypt from "bcrypt";
 import {
   users,
   candidatos,
@@ -15,6 +16,10 @@ import {
   perfilMenus,
   perfilAcciones,
   analistas,
+  systemViews,
+  viewActions,
+  profileViewPermissions,
+  profileActionPermissions,
   type User,
   type InsertUser,
   type UserPerfil,
@@ -47,15 +52,45 @@ import {
   type PerfilMenu,
   type InsertPerfilMenu,
   type PerfilAccion,
+  type SystemView,
+  type InsertSystemView,
+  type ViewAction,
+  type InsertViewAction,
+  type ProfileViewPermission,
+  type InsertProfileViewPermission,
+  type ProfileActionPermission,
+  type InsertProfileActionPermission,
+  type ViewWithActions,
+  type ProfilePermissions,
   type InsertPerfilAccion,
   type Analista,
   type InsertAnalista,
+  // Nuevos imports para reportes
+  ordenes,
+  ordenesHistorial,
+  notificaciones,
+  alertas,
+  metricas,
+  type Orden,
+  type InsertOrden,
+  type OrdenHistorial,
+  type InsertOrdenHistorial,
+  type Notificacion,
+  type InsertNotificacion,
+  type Alerta,
+  type InsertAlerta,
+  type Metrica,
+  type InsertMetrica,
+  passwordResetTokens,
+  type PasswordResetToken,
+  type InsertPasswordResetToken,
 } from "@shared/schema";
 
 export interface IStorage {
   // Admin user operations
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   getAllUsers(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, user: Partial<InsertUser>): Promise<User>;
@@ -205,6 +240,111 @@ export interface IStorage {
   deletePerfilAccionesByPerfilMenuId(perfilMenuId: number): Promise<void>;
   getPerfilMenusByPerfilId(perfilId: number): Promise<PerfilMenu[]>;
   getPerfilAccionesByPerfilMenuId(perfilMenuId: number): Promise<PerfilAccion[]>;
+
+  // Operaciones de órdenes
+  getAllOrdenes(): Promise<Orden[]>;
+  getOrdenById(id: number): Promise<Orden | undefined>;
+  getOrdenesByCliente(clienteId: number): Promise<Orden[]>;
+  getOrdenesByAnalista(analistaId: number): Promise<Orden[]>;
+  createOrden(orden: InsertOrden): Promise<Orden>;
+  updateOrden(id: number, orden: Partial<InsertOrden>): Promise<Orden>;
+  deleteOrden(id: number): Promise<void>;
+
+  // Operaciones de historial de órdenes
+  getHistorialByOrden(ordenId: number): Promise<OrdenHistorial[]>;
+  createHistorialEntry(historial: InsertOrdenHistorial): Promise<OrdenHistorial>;
+
+  // Operaciones de notificaciones
+  getAllNotificaciones(): Promise<Notificacion[]>;
+  getNotificacionesByOrden(ordenId: number): Promise<Notificacion[]>;
+  createNotificacion(notificacion: InsertNotificacion): Promise<Notificacion>;
+  updateNotificacionEstado(id: number, estado: string, motivoFallo?: string): Promise<Notificacion>;
+
+  // Operaciones de alertas
+  getAllAlertas(): Promise<Alerta[]>;
+  getAlertasActivas(): Promise<Alerta[]>;
+  createAlerta(alerta: InsertAlerta): Promise<Alerta>;
+  resolverAlerta(id: number): Promise<Alerta>;
+
+  // Operaciones de métricas y reportes
+  getMetricasByFecha(fecha: Date): Promise<Metrica[]>;
+  getMetricasByAnalista(analistaId: number, fechaInicio: Date, fechaFin: Date): Promise<Metrica[]>;
+  createMetrica(metrica: InsertMetrica): Promise<Metrica>;
+  updateMetrica(id: number, metrica: Partial<InsertMetrica>): Promise<Metrica>;
+
+  // Reportes específicos
+  getDashboardData(): Promise<{
+    ordenesTotales: number;
+    ordenesHoy: number;
+    ordenesEnProceso: number;
+    alertasActivas: number;
+    leadTimePromedio: number;
+    ordenesPorEstado: { estado: string; cantidad: number }[];
+    ordenesPorAnalista: { analista: string; cantidad: number }[];
+  }>;
+  
+  getLeadTimeByAnalista(): Promise<{
+    analistaId: number;
+    nombre: string;
+    ordenesAbiertas: number;
+    ordenesCerradas: number;
+    leadTimePromedio: number;
+  }[]>;
+
+  // Operaciones de tokens de recuperación de contraseña
+  createPasswordResetToken(token: InsertPasswordResetToken): Promise<PasswordResetToken>;
+  getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined>;
+  markTokenAsUsed(id: number): Promise<void>;
+  cleanExpiredTokens(): Promise<void>;
+
+  // Métodos adicionales para recuperación de contraseñas
+  getEmpresaById(id: number): Promise<Empresa | undefined>;
+  getEmpresaByEmail(email: string): Promise<Empresa | undefined>;
+  getCandidatoById(id: number): Promise<Candidato | undefined>;
+  updateEmpresaPassword(id: number, hashedPassword: string): Promise<void>;
+  updateCandidatoPassword(id: number, hashedPassword: string): Promise<void>;
+
+  // ========== SISTEMA DE PERMISOS DINÁMICOS ==========
+  
+  // System Views operations
+  getAllSystemViews(): Promise<SystemView[]>;
+  getSystemViewById(id: number): Promise<SystemView | undefined>;
+  getSystemViewByNombre(nombre: string): Promise<SystemView | undefined>;
+  createSystemView(view: InsertSystemView): Promise<SystemView>;
+  updateSystemView(id: number, view: Partial<InsertSystemView>): Promise<SystemView>;
+  deleteSystemView(id: number): Promise<void>;
+
+  // View Actions operations
+  getActionsByViewId(viewId: number): Promise<ViewAction[]>;
+  getAllViewActions(): Promise<ViewAction[]>;
+  getViewActionById(id: number): Promise<ViewAction | undefined>;
+  createViewAction(action: InsertViewAction): Promise<ViewAction>;
+  updateViewAction(id: number, action: Partial<InsertViewAction>): Promise<ViewAction>;
+  deleteViewAction(id: number): Promise<void>;
+
+  // Profile View Permissions operations
+  getViewPermissionsByPerfilId(perfilId: number): Promise<ProfileViewPermission[]>;
+  createProfileViewPermission(permission: InsertProfileViewPermission): Promise<ProfileViewPermission>;
+  deleteViewPermissionsByPerfilId(perfilId: number): Promise<void>;
+
+  // Profile Action Permissions operations
+  getActionPermissionsByPerfilId(perfilId: number): Promise<ProfileActionPermission[]>;
+  createProfileActionPermission(permission: InsertProfileActionPermission): Promise<ProfileActionPermission>;
+  deleteActionPermissionsByPerfilId(perfilId: number): Promise<void>;
+
+  // Combined operations
+  getViewsWithActionsByPerfilId(perfilId: number): Promise<ViewWithActions[]>;
+  getProfilePermissions(perfilId: number): Promise<ProfilePermissions>;
+  hasViewPermission(perfilId: number, viewNombre: string): Promise<boolean>;
+  hasActionPermission(perfilId: number, viewNombre: string, actionNombre: string): Promise<boolean>;
+  
+  // Bulk permission management
+  updateProfilePermissions(perfilId: number, permissions: {
+    vistas: Array<{ vistaId: number; acciones: number[] }>;
+  }): Promise<void>;
+
+  // Initialize system views and actions
+  initializeSystemViewsAndActions(): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -226,6 +366,22 @@ export class MemStorage implements IStorage {
   private perfilAcciones: Map<number, PerfilAccion>;
   private analistas: Map<number, Analista>;
 
+  // Sistema de permisos dinámicos
+  private systemViews: Map<number, SystemView>;
+  private viewActions: Map<number, ViewAction>;
+  private profileViewPermissions: Map<number, ProfileViewPermission>;
+  private profileActionPermissions: Map<number, ProfileActionPermission>;
+  
+  // Nuevas tablas para reportes
+  private ordenes: Map<number, Orden>;
+  private ordenesHistorial: Map<number, OrdenHistorial>;
+  private notificaciones: Map<number, Notificacion>;
+  private alertas: Map<number, Alerta>;
+  private metricas: Map<number, Metrica>;
+  
+  // Tokens de recuperación de contraseña
+  private passwordResetTokens: Map<number, PasswordResetToken>;
+
   currentUserId: number;
   currentUserPerfilId: number;
   currentCandidatoId: number;
@@ -242,6 +398,18 @@ export class MemStorage implements IStorage {
   currentPerfilMenuId: number;
   currentPerfilAccionId: number;
   currentAnalistaId: number;
+  currentOrdenId: number;
+  currentHistorialId: number;
+  currentNotificacionId: number;
+  currentAlertaId: number;
+  currentMetricaId: number;
+  currentPasswordResetTokenId: number;
+  
+  // Contadores para sistema de permisos dinámicos
+  currentSystemViewId: number;
+  currentViewActionId: number;
+  currentProfileViewPermissionId: number;
+  currentProfileActionPermissionId: number;
 
   constructor() {
     this.users = new Map();
@@ -260,6 +428,21 @@ export class MemStorage implements IStorage {
     this.perfilMenus = new Map();
     this.perfilAcciones = new Map();
     this.analistas = new Map();
+    
+    // Inicializar las nuevas Maps para reportes
+    this.ordenes = new Map();
+    this.ordenesHistorial = new Map();
+    this.notificaciones = new Map();
+    this.alertas = new Map();
+    this.metricas = new Map();
+    this.passwordResetTokens = new Map();
+
+    // Inicializar Maps del sistema de permisos dinámicos
+    this.systemViews = new Map();
+    this.viewActions = new Map();
+    this.profileViewPermissions = new Map();
+    this.profileActionPermissions = new Map();
+    
     this.currentUserId = 1;
     this.currentUserPerfilId = 1;
     this.currentCandidatoId = 1;
@@ -276,45 +459,31 @@ export class MemStorage implements IStorage {
     this.currentPerfilMenuId = 1;
     this.currentPerfilAccionId = 1;
     this.currentAnalistaId = 1;
+    this.currentOrdenId = 1;
+    this.currentHistorialId = 1;
+    this.currentNotificacionId = 1;
+    this.currentAlertaId = 1;
+    this.currentMetricaId = 1;
+    this.currentPasswordResetTokenId = 1;
+    
+    // Inicializar contadores del sistema de permisos dinámicos
+    this.currentSystemViewId = 1;
+    this.currentViewActionId = 1;
+    this.currentProfileViewPermissionId = 1;
+    this.currentProfileActionPermissionId = 1;
+
+    // Agregar datos de muestra para el dashboard
+    this.initializeSampleData();
+    
+    // Inicializar vistas y acciones del sistema
+    this.initializeSystemViewsAndActions();
+    
+    // Hash passwords after construction
+    this.hashPasswordsAfterInit();
 
     // Create default profiles
-    this.perfiles.set(1, {
-      id: 1,
-      nombre: "administrador",
-      descripcion: "Administrador del sistema con todos los permisos",
-      permisos: { all: true },
-      fechaCreacion: new Date(),
-      activo: true,
-    });
-
-    this.perfiles.set(2, {
-      id: 2,
-      nombre: "candidato",
-      descripcion: "Candidato con acceso al portal de autogestión",
-      permisos: { profile: true, documents: true },
-      fechaCreacion: new Date(),
-      activo: true,
-    });
-
-    this.perfiles.set(3, {
-      id: 3,
-      nombre: "coordinador",
-      descripcion: "Coordinador con permisos de gestión intermedia",
-      permisos: { manage_candidates: true, view_reports: true },
-      fechaCreacion: new Date(),
-      activo: true,
-    });
-
-    this.perfiles.set(4, {
-      id: 4,
-      nombre: "administrador_general",
-      descripcion: "Administrador general con permisos completos",
-      permisos: { all: true, manage_users: true },
-      fechaCreacion: new Date(),
-      activo: true,
-    });
-
-    this.currentPerfilId = 5;
+    // Perfiles se manejan ahora por base de datos
+    this.currentPerfilId = 1;
 
     // Create default admin user
     this.users.set(1, {
@@ -331,13 +500,98 @@ export class MemStorage implements IStorage {
       fechaCreacion: new Date(),
       activo: true,
     });
-    this.currentUserId = 2;
 
-    // Create some test candidatos
+    // Create additional sample users
+    this.users.set(2, {
+      id: 2,
+      identificacion: "87654321",
+      primerNombre: "María",
+      segundoNombre: "Isabel",
+      primerApellido: "González",
+      segundoApellido: "Torres",
+      telefono: "300-123-4567",
+      email: "maria.gonzalez@empresa.com",
+      username: "mgonzalez",
+      password: "password123",
+      fechaCreacion: new Date(),
+      activo: true,
+    });
+
+    this.users.set(3, {
+      id: 3,
+      identificacion: "11223344",
+      primerNombre: "Carlos",
+      segundoNombre: null,
+      primerApellido: "Rodríguez",
+      segundoApellido: "Pérez",
+      telefono: "301-987-6543",
+      email: "carlos.rodriguez@empresa.com",
+      username: "crodriguez",
+      password: "secure456",
+      fechaCreacion: new Date(),
+      activo: true,
+    });
+
+    this.users.set(4, {
+      id: 4,
+      identificacion: "55667788",
+      primerNombre: "Ana",
+      segundoNombre: "Lucia",
+      primerApellido: "Martínez",
+      segundoApellido: "López",
+      telefono: "302-555-7890",
+      email: "ana.martinez@empresa.com",
+      username: "amartinez",
+      password: "admin789",
+      fechaCreacion: new Date(),
+      activo: false,
+    });
+
+    this.currentUserId = 5;
+
+    // Create user-profile relationships
+    this.userPerfiles.set(1, {
+      id: 1,
+      userId: 1,
+      perfilId: 1,
+      fechaCreacion: new Date(),
+    });
+
+    this.userPerfiles.set(2, {
+      id: 2,
+      userId: 2,
+      perfilId: 1,
+      fechaCreacion: new Date(),
+    });
+
+    this.userPerfiles.set(3, {
+      id: 3,
+      userId: 2,
+      perfilId: 3,
+      fechaCreacion: new Date(),
+    });
+
+    this.userPerfiles.set(4, {
+      id: 4,
+      userId: 3,
+      perfilId: 3,
+      fechaCreacion: new Date(),
+    });
+
+    this.userPerfiles.set(5, {
+      id: 5,
+      userId: 4,
+      perfilId: 4,
+      fechaCreacion: new Date(),
+    });
+
+    this.currentUserPerfilId = 6;
+
+    // Create some test candidatos with plain passwords for now
     this.candidatos.set(1, {
       id: 1,
       email: "candidato1@ejemplo.com",
-      password: "123456",
+      password: "123456", // Will be hashed after construction
       deberCambiarPassword: false, // Ya cambió la contraseña
       perfilId: 2, // Perfil de candidato
       nombres: "Juan Carlos",
@@ -376,7 +630,7 @@ export class MemStorage implements IStorage {
     this.empresas.set(1, {
       id: 1,
       email: "empresa1@ejemplo.com",
-      password: "empresa123",
+      password: "empresa123", // Will be hashed after construction
       nombreEmpresa: "TechCorp Solutions",
       nit: "9001234567",
       direccion: "Calle 100 #15-23, Piso 5",
@@ -391,7 +645,7 @@ export class MemStorage implements IStorage {
     this.empresas.set(2, {
       id: 2,
       email: "empresa2@ejemplo.com",
-      password: "empresa456",
+      password: "empresa456", // Will be hashed after construction
       nombreEmpresa: "Innovación Digital S.A.S",
       nit: "9007654321",
       direccion: "Carrera 50 #80-15",
@@ -656,6 +910,12 @@ export class MemStorage implements IStorage {
   async getUserByUsername(username: string): Promise<User | undefined> {
     return Array.from(this.users.values()).find(
       (user) => user.username === username,
+    );
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(
+      (user) => user.email === email,
     );
   }
 
@@ -1490,6 +1750,963 @@ export class MemStorage implements IStorage {
     return Array.from(this.perfilAcciones.values()).filter(
       (accion) => accion.perfilMenuId === perfilMenuId,
     );
+  }
+
+  // ===== REPORTES Y ÓRDENES =====
+  
+  // Operaciones de órdenes
+  async getAllOrdenes(): Promise<Orden[]> {
+    return Array.from(this.ordenes.values());
+  }
+
+  async getOrdenById(id: number): Promise<Orden | undefined> {
+    return this.ordenes.get(id);
+  }
+
+  async getOrdenesByCliente(clienteId: number): Promise<Orden[]> {
+    return Array.from(this.ordenes.values()).filter(
+      (orden) => orden.clienteId === clienteId
+    );
+  }
+
+  async getOrdenesByAnalista(analistaId: number): Promise<Orden[]> {
+    return Array.from(this.ordenes.values()).filter(
+      (orden) => orden.analistaId === analistaId
+    );
+  }
+
+  async createOrden(orden: InsertOrden): Promise<Orden> {
+    const newOrden: Orden = {
+      id: this.currentOrdenId++,
+      ...orden,
+      fechaCreacion: new Date(),
+      fechaAsignacion: null,
+      fechaInicioExamenes: null,
+      fechaFinalizacion: null,
+      fechaVencimiento: null,
+      leadTime: null,
+    };
+
+    this.ordenes.set(newOrden.id, newOrden);
+    return newOrden;
+  }
+
+  async updateOrden(id: number, orden: Partial<InsertOrden>): Promise<Orden> {
+    const existing = this.ordenes.get(id);
+    if (!existing) throw new Error("Orden not found");
+
+    const updated: Orden = { ...existing, ...orden };
+    this.ordenes.set(id, updated);
+    return updated;
+  }
+
+  async deleteOrden(id: number): Promise<void> {
+    this.ordenes.delete(id);
+  }
+
+  // Operaciones de historial de órdenes
+  async getHistorialByOrden(ordenId: number): Promise<OrdenHistorial[]> {
+    return Array.from(this.ordenesHistorial.values()).filter(
+      (historial) => historial.ordenId === ordenId
+    );
+  }
+
+  async createHistorialEntry(historial: InsertOrdenHistorial): Promise<OrdenHistorial> {
+    const newHistorial: OrdenHistorial = {
+      id: this.currentHistorialId++,
+      ...historial,
+      fechaCambio: new Date(),
+    };
+
+    this.ordenesHistorial.set(newHistorial.id, newHistorial);
+    return newHistorial;
+  }
+
+  // Operaciones de notificaciones
+  async getAllNotificaciones(): Promise<Notificacion[]> {
+    return Array.from(this.notificaciones.values());
+  }
+
+  async getNotificacionesByOrden(ordenId: number): Promise<Notificacion[]> {
+    return Array.from(this.notificaciones.values()).filter(
+      (notificacion) => notificacion.ordenId === ordenId
+    );
+  }
+
+  async createNotificacion(notificacion: InsertNotificacion): Promise<Notificacion> {
+    const newNotificacion: Notificacion = {
+      id: this.currentNotificacionId++,
+      ...notificacion,
+      fechaCreacion: new Date(),
+      fechaEnvio: null,
+      motivoFallo: null,
+    };
+
+    this.notificaciones.set(newNotificacion.id, newNotificacion);
+    return newNotificacion;
+  }
+
+  async updateNotificacionEstado(id: number, estado: string, motivoFallo?: string): Promise<Notificacion> {
+    const existing = this.notificaciones.get(id);
+    if (!existing) throw new Error("Notificacion not found");
+
+    const updated: Notificacion = {
+      ...existing,
+      estado,
+      fechaEnvio: estado === "enviado" ? new Date() : existing.fechaEnvio,
+      motivoFallo: motivoFallo || existing.motivoFallo,
+    };
+    
+    this.notificaciones.set(id, updated);
+    return updated;
+  }
+
+  // Operaciones de alertas
+  async getAllAlertas(): Promise<Alerta[]> {
+    return Array.from(this.alertas.values());
+  }
+
+  async getAlertasActivas(): Promise<Alerta[]> {
+    return Array.from(this.alertas.values()).filter(
+      (alerta) => alerta.estado === "activa"
+    );
+  }
+
+  async createAlerta(alerta: InsertAlerta): Promise<Alerta> {
+    const newAlerta: Alerta = {
+      id: this.currentAlertaId++,
+      ...alerta,
+      fechaCreacion: new Date(),
+      fechaResolucion: null,
+    };
+
+    this.alertas.set(newAlerta.id, newAlerta);
+    return newAlerta;
+  }
+
+  async resolverAlerta(id: number): Promise<Alerta> {
+    const existing = this.alertas.get(id);
+    if (!existing) throw new Error("Alerta not found");
+
+    const updated: Alerta = {
+      ...existing,
+      estado: "resuelta",
+      fechaResolucion: new Date(),
+    };
+    
+    this.alertas.set(id, updated);
+    return updated;
+  }
+
+  // Operaciones de métricas
+  async getMetricasByFecha(fecha: Date): Promise<Metrica[]> {
+    const fechaStr = fecha.toISOString().split('T')[0];
+    return Array.from(this.metricas.values()).filter(
+      (metrica) => metrica.fecha === fechaStr
+    );
+  }
+
+  async getMetricasByAnalista(analistaId: number, fechaInicio: Date, fechaFin: Date): Promise<Metrica[]> {
+    const inicioStr = fechaInicio.toISOString().split('T')[0];
+    const finStr = fechaFin.toISOString().split('T')[0];
+    
+    return Array.from(this.metricas.values()).filter(
+      (metrica) => 
+        metrica.analistaId === analistaId &&
+        metrica.fecha >= inicioStr &&
+        metrica.fecha <= finStr
+    );
+  }
+
+  async createMetrica(metrica: InsertMetrica): Promise<Metrica> {
+    const newMetrica: Metrica = {
+      id: this.currentMetricaId++,
+      ...metrica,
+      fechaActualizacion: new Date(),
+    };
+
+    this.metricas.set(newMetrica.id, newMetrica);
+    return newMetrica;
+  }
+
+  async updateMetrica(id: number, metrica: Partial<InsertMetrica>): Promise<Metrica> {
+    const existing = this.metricas.get(id);
+    if (!existing) throw new Error("Metrica not found");
+
+    const updated: Metrica = {
+      ...existing,
+      ...metrica,
+      fechaActualizacion: new Date(),
+    };
+    
+    this.metricas.set(id, updated);
+    return updated;
+  }
+
+  // Reportes específicos
+  async getDashboardData(): Promise<{
+    ordenesTotales: number;
+    ordenesHoy: number;
+    ordenesEnProceso: number;
+    alertasActivas: number;
+    leadTimePromedio: number;
+    ordenesPorEstado: { estado: string; cantidad: number }[];
+    ordenesPorAnalista: { analista: string; cantidad: number }[];
+  }> {
+    const ordenes = Array.from(this.ordenes.values());
+    const alertas = Array.from(this.alertas.values());
+    const analistas = Array.from(this.analistas.values());
+    
+    const hoy = new Date().toISOString().split('T')[0];
+    const ordenesHoy = ordenes.filter(o => 
+      o.fechaCreacion?.toISOString().split('T')[0] === hoy
+    ).length;
+
+    const ordenesEnProceso = ordenes.filter(o => 
+      !["finalizada", "rechazada"].includes(o.estado)
+    ).length;
+
+    const alertasActivas = alertas.filter(a => a.estado === "activa").length;
+
+    // Calcular lead time promedio
+    const ordenesConLeadTime = ordenes.filter(o => o.leadTime !== null);
+    const leadTimePromedio = ordenesConLeadTime.length > 0 
+      ? ordenesConLeadTime.reduce((sum, o) => sum + (o.leadTime || 0), 0) / ordenesConLeadTime.length
+      : 0;
+
+    // Agrupar por estado
+    const estadoCounts = ordenes.reduce((acc, orden) => {
+      acc[orden.estado] = (acc[orden.estado] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const ordenesPorEstado = Object.entries(estadoCounts).map(([estado, cantidad]) => ({
+      estado,
+      cantidad
+    }));
+
+    // Agrupar por analista
+    const analistaCounts = ordenes.reduce((acc, orden) => {
+      if (orden.analistaId) {
+        const analista = analistas.find(a => a.id === orden.analistaId);
+        const nombre = analista ? `${analista.nombre} ${analista.apellido}` : "Sin asignar";
+        acc[nombre] = (acc[nombre] || 0) + 1;
+      }
+      return acc;
+    }, {} as Record<string, number>);
+
+    const ordenesPorAnalista = Object.entries(analistaCounts).map(([analista, cantidad]) => ({
+      analista,
+      cantidad
+    }));
+
+    return {
+      ordenesTotales: ordenes.length,
+      ordenesHoy,
+      ordenesEnProceso,
+      alertasActivas,
+      leadTimePromedio: Math.round(leadTimePromedio * 100) / 100,
+      ordenesPorEstado,
+      ordenesPorAnalista,
+    };
+  }
+
+  async getLeadTimeByAnalista(): Promise<{
+    analistaId: number;
+    nombre: string;
+    ordenesAbiertas: number;
+    ordenesCerradas: number;
+    leadTimePromedio: number;
+  }[]> {
+    const ordenes = Array.from(this.ordenes.values());
+    const analistas = Array.from(this.analistas.values());
+
+    return analistas.map(analista => {
+      const ordenesAnalista = ordenes.filter(o => o.analistaId === analista.id);
+      const ordenesAbiertas = ordenesAnalista.filter(o => 
+        !["finalizada", "rechazada"].includes(o.estado)
+      ).length;
+      const ordenesCerradas = ordenesAnalista.filter(o => 
+        ["finalizada", "rechazada"].includes(o.estado)
+      ).length;
+      
+      const ordenesConLeadTime = ordenesAnalista.filter(o => o.leadTime !== null);
+      const leadTimePromedio = ordenesConLeadTime.length > 0
+        ? ordenesConLeadTime.reduce((sum, o) => sum + (o.leadTime || 0), 0) / ordenesConLeadTime.length
+        : 0;
+
+      return {
+        analistaId: analista.id,
+        nombre: `${analista.nombre} ${analista.apellido}`,
+        ordenesAbiertas,
+        ordenesCerradas,
+        leadTimePromedio: Math.round(leadTimePromedio * 100) / 100,
+      };
+    });
+  }
+
+  // Método para inicializar datos de muestra para el dashboard
+  private initializeSampleData() {
+    // Crear órdenes de muestra
+    const ordenesData = [
+      {
+        numeroOrden: "ORD-2025-001",
+        clienteId: 1,
+        candidatoId: 1,
+        analistaId: 1,
+        cargo: "Desarrollador Frontend",
+        ciudad: "Bogotá",
+        estado: "en_proceso",
+        prioridad: "alta",
+        fechaIngreso: "2025-02-01",
+        tipoContrato: "Término indefinido",
+        observaciones: "Candidato con experiencia en React",
+        centroTrabajo: "Sede Principal",
+        areaFuncional: "Tecnología",
+        tipoExamen: "Examen básico de ingreso"
+      },
+      {
+        numeroOrden: "ORD-2025-002", 
+        clienteId: 1,
+        candidatoId: 2,
+        analistaId: 2,
+        cargo: "Analista de Datos",
+        ciudad: "Medellín", 
+        estado: "documentos_completos",
+        prioridad: "media",
+        fechaIngreso: "2025-02-15",
+        tipoContrato: "Término fijo",
+        observaciones: "Requiere conocimientos en SQL",
+        centroTrabajo: "Sede Medellín",
+        areaFuncional: "Análisis",
+        tipoExamen: "Examen técnico especializado"
+      },
+      {
+        numeroOrden: "ORD-2025-003",
+        clienteId: 1, 
+        candidatoId: 3,
+        analistaId: 3,
+        cargo: "Contador Junior",
+        ciudad: "Cali",
+        estado: "finalizada",
+        prioridad: "baja",
+        fechaIngreso: "2025-01-15",
+        tipoContrato: "Tiempo parcial",
+        observaciones: "Aprobado para contratación",
+        centroTrabajo: "Sede Cali",
+        areaFuncional: "Contabilidad", 
+        tipoExamen: "Examen de aptitudes básicas",
+        leadTime: 15
+      }
+    ];
+
+    ordenesData.forEach(ordenData => {
+      const orden: Orden = {
+        id: this.currentOrdenId++,
+        ...ordenData,
+        empresaId: null,
+        salario: null,
+        fechaCreacion: new Date(),
+        fechaAsignacion: ordenData.analistaId ? new Date() : null,
+        fechaInicioExamenes: ordenData.estado === "examenes_medicos" || ordenData.estado === "finalizada" ? new Date() : null,
+        fechaFinalizacion: ordenData.estado === "finalizada" ? new Date() : null,
+        fechaVencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 días
+        notasInternas: null,
+        leadTime: ordenData.leadTime || null
+      };
+      this.ordenes.set(orden.id, orden);
+    });
+
+    // Crear alertas de muestra
+    const alertasData = [
+      {
+        tipo: "vencimiento_orden",
+        titulo: "Orden próxima a vencer",
+        descripcion: "La orden ORD-2025-001 vence en 5 días",
+        ordenId: 1,
+        prioridad: "alta"
+      },
+      {
+        tipo: "documento_pendiente",
+        titulo: "Documentos pendientes",
+        descripcion: "Candidato ID 2 tiene documentos pendientes por cargar",
+        candidatoId: 2,
+        prioridad: "media"
+      }
+    ];
+
+    alertasData.forEach(alertaData => {
+      const alerta: Alerta = {
+        id: this.currentAlertaId++,
+        ...alertaData,
+        estado: "activa",
+        fechaCreacion: new Date(),
+        fechaVencimiento: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 días
+        fechaResolucion: null,
+        candidatoId: alertaData.candidatoId || null,
+        ordenId: alertaData.ordenId || null
+      };
+      this.alertas.set(alerta.id, alerta);
+    });
+
+    // Crear notificaciones de muestra
+    const notificacionesData = [
+      {
+        tipo: "email",
+        asunto: "Orden creada exitosamente",
+        mensaje: "Su orden ORD-2025-001 ha sido creada y asignada",
+        destinatario: "candidato1@example.com",
+        ordenId: 1,
+        candidatoId: 1,
+        estado: "enviado"
+      },
+      {
+        tipo: "email", 
+        asunto: "Documentos requeridos",
+        mensaje: "Por favor complete la documentación pendiente",
+        destinatario: "candidato2@example.com",
+        ordenId: 2,
+        candidatoId: 2,
+        estado: "pendiente"
+      }
+    ];
+
+    notificacionesData.forEach(notifData => {
+      const notificacion: Notificacion = {
+        id: this.currentNotificacionId++,
+        ...notifData,
+        clienteId: null,
+        fechaCreacion: new Date(),
+        fechaEnvio: notifData.estado === "enviado" ? new Date() : null,
+        motivoFallo: null
+      };
+      this.notificaciones.set(notificacion.id, notificacion);
+    });
+  }
+
+  // Métodos para tokens de recuperación de contraseña
+  async createPasswordResetToken(tokenData: InsertPasswordResetToken): Promise<PasswordResetToken> {
+    const token: PasswordResetToken = {
+      id: this.currentPasswordResetTokenId++,
+      ...tokenData,
+      createdAt: new Date(),
+    };
+    this.passwordResetTokens.set(token.id, token);
+    return token;
+  }
+
+  async getPasswordResetToken(tokenValue: string): Promise<PasswordResetToken | undefined> {
+    for (const token of this.passwordResetTokens.values()) {
+      if (token.token === tokenValue && !token.used && token.expiresAt > new Date()) {
+        return token;
+      }
+    }
+    return undefined;
+  }
+
+  async markTokenAsUsed(id: number): Promise<void> {
+    const token = this.passwordResetTokens.get(id);
+    if (token) {
+      const updatedToken = { ...token, used: true };
+      this.passwordResetTokens.set(id, updatedToken);
+    }
+  }
+
+  async cleanExpiredTokens(): Promise<void> {
+    const now = new Date();
+    for (const [id, token] of this.passwordResetTokens.entries()) {
+      if (token.expiresAt <= now || token.used) {
+        this.passwordResetTokens.delete(id);
+      }
+    }
+  }
+
+  // Hash passwords after initialization
+  private hashPasswordsAfterInit(): void {
+    // Hash candidatos passwords
+    for (const [id, candidato] of this.candidatos.entries()) {
+      if (candidato.password && !candidato.password.startsWith('$2b$')) {
+        candidato.password = bcrypt.hashSync(candidato.password, 10);
+        this.candidatos.set(id, candidato);
+      }
+    }
+    
+    // Hash empresas passwords
+    for (const [id, empresa] of this.empresas.entries()) {
+      if (empresa.password && !empresa.password.startsWith('$2b$')) {
+        empresa.password = bcrypt.hashSync(empresa.password, 10);
+        this.empresas.set(id, empresa);
+      }
+    }
+  }
+
+  // Métodos adicionales para recuperación de contraseñas
+  async getEmpresaById(id: number): Promise<Empresa | undefined> {
+    return this.empresas.get(id);
+  }
+
+  async getEmpresaByEmail(email: string): Promise<Empresa | undefined> {
+    for (const empresa of this.empresas.values()) {
+      if (empresa.email === email) {
+        return empresa;
+      }
+    }
+    return undefined;
+  }
+
+  async getCandidatoById(id: number): Promise<Candidato | undefined> {
+    return this.candidatos.get(id);
+  }
+
+  async updateEmpresaPassword(id: number, hashedPassword: string): Promise<void> {
+    const empresa = this.empresas.get(id);
+    if (empresa) {
+      const updatedEmpresa = { ...empresa, password: hashedPassword };
+      this.empresas.set(id, updatedEmpresa);
+    }
+  }
+
+  async updateCandidatoPassword(id: number, hashedPassword: string): Promise<void> {
+    const candidato = this.candidatos.get(id);
+    if (candidato) {
+      const updatedCandidato = { ...candidato, password: hashedPassword };
+      this.candidatos.set(id, updatedCandidato);
+    }
+  }
+
+  // ========== IMPLEMENTACIONES SISTEMA DE PERMISOS DINÁMICOS ==========
+
+  // System Views operations
+  async getAllSystemViews(): Promise<SystemView[]> {
+    return Array.from(this.systemViews.values());
+  }
+
+  async getSystemViewById(id: number): Promise<SystemView | undefined> {
+    return this.systemViews.get(id);
+  }
+
+  async getSystemViewByNombre(nombre: string): Promise<SystemView | undefined> {
+    return Array.from(this.systemViews.values()).find(view => view.nombre === nombre);
+  }
+
+  async createSystemView(view: InsertSystemView): Promise<SystemView> {
+    const newView: SystemView = {
+      id: this.currentSystemViewId++,
+      ...view,
+      fechaCreacion: new Date(),
+    };
+    this.systemViews.set(newView.id, newView);
+    return newView;
+  }
+
+  async updateSystemView(id: number, view: Partial<InsertSystemView>): Promise<SystemView> {
+    const existing = this.systemViews.get(id);
+    if (!existing) throw new Error("Vista del sistema no encontrada");
+    
+    const updated: SystemView = { ...existing, ...view };
+    this.systemViews.set(id, updated);
+    return updated;
+  }
+
+  async deleteSystemView(id: number): Promise<void> {
+    // Delete related actions first
+    const actions = Array.from(this.viewActions.values()).filter(action => action.viewId === id);
+    for (const action of actions) {
+      await this.deleteViewAction(action.id);
+    }
+    
+    // Delete related permissions
+    const viewPermissions = Array.from(this.profileViewPermissions.values()).filter(p => p.viewId === id);
+    for (const permission of viewPermissions) {
+      this.profileViewPermissions.delete(permission.id);
+    }
+    
+    this.systemViews.delete(id);
+  }
+
+  // View Actions operations
+  async getActionsByViewId(viewId: number): Promise<ViewAction[]> {
+    return Array.from(this.viewActions.values()).filter(action => action.viewId === viewId);
+  }
+
+  async getAllViewActions(): Promise<ViewAction[]> {
+    return Array.from(this.viewActions.values());
+  }
+
+  async getViewActionById(id: number): Promise<ViewAction | undefined> {
+    return this.viewActions.get(id);
+  }
+
+  async createViewAction(action: InsertViewAction): Promise<ViewAction> {
+    const newAction: ViewAction = {
+      id: this.currentViewActionId++,
+      ...action,
+      fechaCreacion: new Date(),
+    };
+    this.viewActions.set(newAction.id, newAction);
+    return newAction;
+  }
+
+  async updateViewAction(id: number, action: Partial<InsertViewAction>): Promise<ViewAction> {
+    const existing = this.viewActions.get(id);
+    if (!existing) throw new Error("Acción no encontrada");
+    
+    const updated: ViewAction = { ...existing, ...action };
+    this.viewActions.set(id, updated);
+    return updated;
+  }
+
+  async deleteViewAction(id: number): Promise<void> {
+    // Delete related action permissions first
+    const actionPermissions = Array.from(this.profileActionPermissions.values()).filter(p => p.actionId === id);
+    for (const permission of actionPermissions) {
+      this.profileActionPermissions.delete(permission.id);
+    }
+    
+    this.viewActions.delete(id);
+  }
+
+  // Profile View Permissions operations
+  async getViewPermissionsByPerfilId(perfilId: number): Promise<ProfileViewPermission[]> {
+    return Array.from(this.profileViewPermissions.values()).filter(p => p.perfilId === perfilId);
+  }
+
+  async createProfileViewPermission(permission: InsertProfileViewPermission): Promise<ProfileViewPermission> {
+    const newPermission: ProfileViewPermission = {
+      id: this.currentProfileViewPermissionId++,
+      ...permission,
+      fechaCreacion: new Date(),
+    };
+    this.profileViewPermissions.set(newPermission.id, newPermission);
+    return newPermission;
+  }
+
+  async deleteViewPermissionsByPerfilId(perfilId: number): Promise<void> {
+    const permissions = Array.from(this.profileViewPermissions.values()).filter(p => p.perfilId === perfilId);
+    for (const permission of permissions) {
+      this.profileViewPermissions.delete(permission.id);
+    }
+  }
+
+  // Profile Action Permissions operations
+  async getActionPermissionsByPerfilId(perfilId: number): Promise<ProfileActionPermission[]> {
+    return Array.from(this.profileActionPermissions.values()).filter(p => p.perfilId === perfilId);
+  }
+
+  async createProfileActionPermission(permission: InsertProfileActionPermission): Promise<ProfileActionPermission> {
+    const newPermission: ProfileActionPermission = {
+      id: this.currentProfileActionPermissionId++,
+      ...permission,
+      fechaCreacion: new Date(),
+    };
+    this.profileActionPermissions.set(newPermission.id, newPermission);
+    return newPermission;
+  }
+
+  async deleteActionPermissionsByPerfilId(perfilId: number): Promise<void> {
+    const permissions = Array.from(this.profileActionPermissions.values()).filter(p => p.perfilId === perfilId);
+    for (const permission of permissions) {
+      this.profileActionPermissions.delete(permission.id);
+    }
+  }
+
+  // Combined operations
+  async getViewsWithActionsByPerfilId(perfilId: number): Promise<ViewWithActions[]> {
+    const viewPermissions = await this.getViewPermissionsByPerfilId(perfilId);
+    const result: ViewWithActions[] = [];
+    
+    for (const viewPermission of viewPermissions) {
+      const view = await this.getSystemViewById(viewPermission.viewId);
+      if (view) {
+        const actions = await this.getActionsByViewId(view.id);
+        const actionPermissions = await this.getActionPermissionsByPerfilId(perfilId);
+        
+        // Filter actions that the profile has permission for
+        const allowedActions = actions.filter(action => 
+          actionPermissions.some(ap => ap.actionId === action.id && ap.viewId === view.id)
+        );
+        
+        result.push({
+          ...view,
+          acciones: allowedActions
+        });
+      }
+    }
+    
+    return result;
+  }
+
+  async getProfilePermissions(perfilId: number): Promise<ProfilePermissions> {
+    const perfil = await this.getPerfilById(perfilId);
+    if (!perfil) throw new Error("Perfil no encontrado");
+    
+    const viewsWithActions = await this.getViewsWithActionsByPerfilId(perfilId);
+    
+    return {
+      perfil,
+      vistas: viewsWithActions.map(view => ({
+        vista: view,
+        acciones: view.acciones
+      }))
+    };
+  }
+
+  async hasViewPermission(perfilId: number, viewNombre: string): Promise<boolean> {
+    const view = await this.getSystemViewByNombre(viewNombre);
+    if (!view) return false;
+    
+    const permissions = await this.getViewPermissionsByPerfilId(perfilId);
+    return permissions.some(p => p.viewId === view.id && p.activo);
+  }
+
+  async hasActionPermission(perfilId: number, viewNombre: string, actionNombre: string): Promise<boolean> {
+    const view = await this.getSystemViewByNombre(viewNombre);
+    if (!view) return false;
+    
+    const actions = await this.getActionsByViewId(view.id);
+    const action = actions.find(a => a.nombre === actionNombre);
+    if (!action) return false;
+    
+    const permissions = await this.getActionPermissionsByPerfilId(perfilId);
+    return permissions.some(p => p.viewId === view.id && p.actionId === action.id && p.activo);
+  }
+
+  // Bulk permission management
+  async updateProfilePermissions(perfilId: number, permissions: {
+    vistas: Array<{ vistaId: number; acciones: number[] }>;
+  }): Promise<void> {
+    // Delete existing permissions
+    await this.deleteViewPermissionsByPerfilId(perfilId);
+    await this.deleteActionPermissionsByPerfilId(perfilId);
+    
+    // Create new permissions
+    for (const vista of permissions.vistas) {
+      // Create view permission
+      await this.createProfileViewPermission({
+        perfilId,
+        viewId: vista.vistaId,
+        activo: true
+      });
+      
+      // Create action permissions
+      for (const actionId of vista.acciones) {
+        await this.createProfileActionPermission({
+          perfilId,
+          viewId: vista.vistaId,
+          actionId,
+          activo: true
+        });
+      }
+    }
+  }
+
+  // Initialize system views and actions
+  async initializeSystemViewsAndActions(): Promise<void> {
+    // Only initialize if no views exist
+    if (this.systemViews.size > 0) return;
+
+    // Definición completa de todas las vistas del sistema y sus acciones
+    const systemViewsData = [
+      {
+        nombre: "dashboard",
+        displayName: "Dashboard Principal",
+        descripcion: "Panel principal con estadísticas y métricas",
+        ruta: "/dashboard",
+        modulo: "general",
+        icono: "BarChart3",
+        orden: 1,
+        acciones: [
+          { nombre: "ver_dashboard", displayName: "Ver Dashboard", descripcion: "Acceso al panel principal", tipo: "view" },
+          { nombre: "ver_metricas", displayName: "Ver Métricas", descripcion: "Visualizar métricas del sistema", tipo: "view" },
+          { nombre: "exportar_reportes", displayName: "Exportar Reportes", descripcion: "Exportar datos del dashboard", tipo: "button" }
+        ]
+      },
+      {
+        nombre: "usuarios",
+        displayName: "Gestión de Usuarios",
+        descripcion: "Administración de usuarios del sistema",
+        ruta: "/seguridad/usuarios",
+        modulo: "seguridad",
+        icono: "Users",
+        orden: 2,
+        acciones: [
+          { nombre: "ver_usuarios", displayName: "Ver Usuarios", descripcion: "Listar usuarios del sistema", tipo: "view" },
+          { nombre: "crear_usuario", displayName: "Crear Usuario", descripcion: "Crear nuevos usuarios", tipo: "form" },
+          { nombre: "editar_usuario", displayName: "Editar Usuario", descripcion: "Modificar información de usuarios", tipo: "form" },
+          { nombre: "eliminar_usuario", displayName: "Eliminar Usuario", descripcion: "Eliminar usuarios del sistema", tipo: "button" },
+          { nombre: "resetear_password", displayName: "Resetear Contraseña", descripcion: "Restablecer contraseñas de usuario", tipo: "button" }
+        ]
+      },
+      {
+        nombre: "perfiles",
+        displayName: "Gestión de Perfiles",
+        descripcion: "Administración de perfiles y roles",
+        ruta: "/seguridad/perfiles",
+        modulo: "seguridad",
+        icono: "UserCheck",
+        orden: 3,
+        acciones: [
+          { nombre: "ver_perfiles", displayName: "Ver Perfiles", descripcion: "Listar perfiles del sistema", tipo: "view" },
+          { nombre: "crear_perfil", displayName: "Crear Perfil", descripcion: "Crear nuevos perfiles", tipo: "form" },
+          { nombre: "editar_perfil", displayName: "Editar Perfil", descripcion: "Modificar perfiles existentes", tipo: "form" },
+          { nombre: "eliminar_perfil", displayName: "Eliminar Perfil", descripcion: "Eliminar perfiles", tipo: "button" },
+          { nombre: "gestionar_permisos", displayName: "Gestionar Permisos", descripcion: "Configurar permisos de perfiles", tipo: "form" }
+        ]
+      },
+      {
+        nombre: "candidatos",
+        displayName: "Gestión de Candidatos",
+        descripcion: "Administración de candidatos",
+        ruta: "/registros/candidatos",
+        modulo: "registros",
+        icono: "UserPlus",
+        orden: 4,
+        acciones: [
+          { nombre: "ver_candidatos", displayName: "Ver Candidatos", descripcion: "Listar candidatos", tipo: "view" },
+          { nombre: "crear_candidato", displayName: "Crear Candidato", descripcion: "Registrar nuevos candidatos", tipo: "form" },
+          { nombre: "editar_candidato", displayName: "Editar Candidato", descripcion: "Modificar información de candidatos", tipo: "form" },
+          { nombre: "aprobar_candidato", displayName: "Aprobar Candidato", descripcion: "Aprobar o rechazar candidatos", tipo: "button" },
+          { nombre: "enviar_whatsapp", displayName: "Enviar WhatsApp", descripcion: "Enviar mensajes por WhatsApp", tipo: "button" },
+          { nombre: "enviar_email", displayName: "Enviar Email", descripcion: "Enviar correos electrónicos", tipo: "button" }
+        ]
+      },
+      {
+        nombre: "empresas",
+        displayName: "Gestión de Empresas",
+        descripcion: "Administración de empresas afiliadas",
+        ruta: "/registros/empresas",
+        modulo: "registros",
+        icono: "Building2",
+        orden: 5,
+        acciones: [
+          { nombre: "ver_empresas", displayName: "Ver Empresas", descripcion: "Listar empresas afiliadas", tipo: "view" },
+          { nombre: "crear_empresa", displayName: "Crear Empresa", descripcion: "Registrar nuevas empresas", tipo: "form" },
+          { nombre: "editar_empresa", displayName: "Editar Empresa", descripcion: "Modificar información de empresas", tipo: "form" },
+          { nombre: "eliminar_empresa", displayName: "Eliminar Empresa", descripcion: "Eliminar empresas", tipo: "button" },
+          { nombre: "configurar_campos", displayName: "Configurar Campos", descripcion: "Configurar campos visibles", tipo: "form" }
+        ]
+      },
+      {
+        nombre: "qr",
+        displayName: "Gestión de QR",
+        descripcion: "Administración de códigos QR",
+        ruta: "/empresa/qr",
+        modulo: "empresa",
+        icono: "QrCode",
+        orden: 6,
+        acciones: [
+          { nombre: "ver_qr", displayName: "Ver QR", descripcion: "Visualizar códigos QR", tipo: "view" },
+          { nombre: "generar_qr", displayName: "Generar QR", descripcion: "Crear nuevos códigos QR", tipo: "button" },
+          { nombre: "configurar_qr", displayName: "Configurar QR", descripcion: "Configurar parámetros de QR", tipo: "form" },
+          { nombre: "eliminar_qr", displayName: "Eliminar QR", descripcion: "Eliminar códigos QR", tipo: "button" },
+          { nombre: "enviar_qr_whatsapp", displayName: "Enviar QR por WhatsApp", descripcion: "Compartir QR via WhatsApp", tipo: "button" },
+          { nombre: "enviar_qr_email", displayName: "Enviar QR por Email", descripcion: "Compartir QR via email", tipo: "button" }
+        ]
+      },
+      {
+        nombre: "analistas",
+        displayName: "Gestión de Analistas",
+        descripcion: "Administración de analistas",
+        ruta: "/analistas",
+        modulo: "recursos",
+        icono: "UserCheck",
+        orden: 7,
+        acciones: [
+          { nombre: "ver_analistas", displayName: "Ver Analistas", descripcion: "Listar analistas", tipo: "view" },
+          { nombre: "crear_analista", displayName: "Crear Analista", descripcion: "Registrar nuevos analistas", tipo: "form" },
+          { nombre: "editar_analista", displayName: "Editar Analista", descripcion: "Modificar información de analistas", tipo: "form" },
+          { nombre: "eliminar_analista", displayName: "Eliminar Analista", descripcion: "Eliminar analistas", tipo: "button" },
+          { nombre: "exportar_analistas", displayName: "Exportar Analistas", descripcion: "Exportar lista de analistas", tipo: "button" }
+        ]
+      },
+      {
+        nombre: "ordenes",
+        displayName: "Expedición de Órdenes",
+        descripcion: "Gestión de órdenes de trabajo",
+        ruta: "/ordenes/expedicion",
+        modulo: "ordenes",
+        icono: "FileText",
+        orden: 8,
+        acciones: [
+          { nombre: "ver_ordenes", displayName: "Ver Órdenes", descripcion: "Listar órdenes de trabajo", tipo: "view" },
+          { nombre: "crear_orden", displayName: "Crear Orden", descripcion: "Generar nuevas órdenes", tipo: "form" },
+          { nombre: "editar_orden", displayName: "Editar Orden", descripcion: "Modificar órdenes existentes", tipo: "form" },
+          { nombre: "aprobar_orden", displayName: "Aprobar Orden", descripcion: "Aprobar órdenes de trabajo", tipo: "button" },
+          { nombre: "rechazar_orden", displayName: "Rechazar Orden", descripcion: "Rechazar órdenes de trabajo", tipo: "button" },
+          { nombre: "imprimir_orden", displayName: "Imprimir Orden", descripcion: "Generar PDF de la orden", tipo: "button" }
+        ]
+      },
+      {
+        nombre: "certificados",
+        displayName: "Expedición de Certificados",
+        descripcion: "Gestión de certificados médicos",
+        ruta: "/certificados/expedicion",
+        modulo: "certificados",
+        icono: "Award",
+        orden: 9,
+        acciones: [
+          { nombre: "ver_certificados", displayName: "Ver Certificados", descripcion: "Listar certificados emitidos", tipo: "view" },
+          { nombre: "generar_certificado", displayName: "Generar Certificado", descripcion: "Crear nuevos certificados", tipo: "form" },
+          { nombre: "editar_certificado", displayName: "Editar Certificado", descripcion: "Modificar certificados", tipo: "form" },
+          { nombre: "firmar_certificado", displayName: "Firmar Certificado", descripcion: "Aplicar firma digital", tipo: "button" },
+          { nombre: "imprimir_certificado", displayName: "Imprimir Certificado", descripcion: "Generar PDF del certificado", tipo: "button" },
+          { nombre: "enviar_certificado", displayName: "Enviar Certificado", descripcion: "Enviar certificado por email", tipo: "button" }
+        ]
+      },
+      {
+        nombre: "maestro",
+        displayName: "Configuración Maestro",
+        descripcion: "Configuración de tipos y documentos",
+        ruta: "/maestro/tipos-candidatos",
+        modulo: "configuracion",
+        icono: "Settings",
+        orden: 10,
+        acciones: [
+          { nombre: "ver_tipos_candidatos", displayName: "Ver Tipos de Candidatos", descripcion: "Listar tipos de candidatos", tipo: "view" },
+          { nombre: "crear_tipo_candidato", displayName: "Crear Tipo Candidato", descripcion: "Crear nuevos tipos", tipo: "form" },
+          { nombre: "editar_tipo_candidato", displayName: "Editar Tipo Candidato", descripcion: "Modificar tipos existentes", tipo: "form" },
+          { nombre: "eliminar_tipo_candidato", displayName: "Eliminar Tipo Candidato", descripcion: "Eliminar tipos", tipo: "button" },
+          { nombre: "configurar_documentos", displayName: "Configurar Documentos", descripcion: "Gestionar documentos requeridos", tipo: "form" }
+        ]
+      },
+      {
+        nombre: "reportes",
+        displayName: "Reportes y Análisis",
+        descripcion: "Generación de reportes del sistema",
+        ruta: "/reportes",
+        modulo: "reportes",
+        icono: "BarChart3",
+        orden: 11,
+        acciones: [
+          { nombre: "ver_reportes", displayName: "Ver Reportes", descripcion: "Acceder a reportes del sistema", tipo: "view" },
+          { nombre: "generar_reporte_candidatos", displayName: "Reporte de Candidatos", descripcion: "Generar reporte de candidatos", tipo: "button" },
+          { nombre: "generar_reporte_ordenes", displayName: "Reporte de Órdenes", descripcion: "Generar reporte de órdenes", tipo: "button" },
+          { nombre: "generar_reporte_metricas", displayName: "Reporte de Métricas", descripcion: "Generar reporte de métricas", tipo: "button" },
+          { nombre: "exportar_excel", displayName: "Exportar a Excel", descripcion: "Exportar reportes a Excel", tipo: "button" },
+          { nombre: "programar_reporte", displayName: "Programar Reporte", descripcion: "Programar reportes automáticos", tipo: "form" }
+        ]
+      }
+    ];
+
+    // Crear las vistas del sistema
+    for (const viewData of systemViewsData) {
+      const { acciones, ...viewInfo } = viewData;
+      
+      const view = await this.createSystemView({
+        ...viewInfo,
+        activo: true
+      });
+
+      // Crear las acciones para cada vista
+      for (let i = 0; i < acciones.length; i++) {
+        await this.createViewAction({
+          viewId: view.id,
+          ...acciones[i],
+          orden: i + 1,
+          activo: true
+        });
+      }
+    }
   }
 }
 

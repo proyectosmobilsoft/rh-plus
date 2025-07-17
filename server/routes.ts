@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from "./db";
 import {
   insertCandidatoSchema,
   createCandidatoFromPerfilSchema,
@@ -9,6 +10,9 @@ import {
   insertUserSchema,
 } from "@shared/schema";
 import { z } from "zod";
+import crypto from "crypto";
+import bcrypt from "bcrypt";
+// Note: Import para getUserPermissions se hará dinámicamente según necesidad
 
 // Session middleware for simple login
 declare module "express-session" {
@@ -16,11 +20,184 @@ declare module "express-session" {
     userId?: number;
     candidatoId?: number;
     empresaId?: number;
-    userType?: "admin" | "candidato" | "empresa";
+    userType?: "admin" | "candidato" | "empresa" | "analista" | "cliente";
+    userTable?: "users" | "candidatos" | "empresas";
   }
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Sistema de autenticación unificado
+  
+  // Login unificado para todos los tipos de usuario
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+
+      if (!username || !password) {
+        return res.status(400).json({ message: "Usuario y contraseña son requeridos" });
+      }
+
+      // Buscar usuario en todas las tablas posibles
+      let user = null;
+      let userRole = null;
+      let userTable = null;
+
+      // 1. Buscar en tabla de administradores/usuarios
+      const adminUser = await storage.getUserByUsername(username);
+      if (adminUser) {
+        const isValidPassword = password === adminUser.password;
+        if (isValidPassword) {
+          user = adminUser;
+          userRole = adminUser.tipoUsuario || "admin";
+          userTable = "users";
+        }
+      }
+
+      // 2. Buscar en tabla de candidatos
+      if (!user) {
+        const candidato = await storage.getCandidatoByEmail(username);
+        if (candidato) {
+          const isValidPassword = password === candidato.password;
+          if (isValidPassword) {
+            user = candidato;
+            userRole = "candidato";
+            userTable = "candidatos";
+          }
+        }
+      }
+
+      // 3. Buscar en tabla de empresas/clientes
+      if (!user) {
+        const empresa = await storage.getEmpresaByEmail(username);
+        if (empresa) {
+          const isValidPassword = password === empresa.password;
+          if (isValidPassword) {
+            user = empresa;
+            userRole = "cliente";
+            userTable = "empresas";
+          }
+        }
+      }
+
+      if (!user) {
+        return res.status(401).json({ message: "Credenciales inválidas" });
+      }
+
+      // Verificar si el usuario está activo
+      if (user.activo === false) {
+        return res.status(401).json({ message: "Usuario inactivo" });
+      }
+
+      // Crear sesión
+      req.session.userId = user.id;
+      req.session.userType = userRole;
+      req.session.userTable = userTable;
+
+      // Preparar respuesta del usuario
+      const userResponse = {
+        id: user.id,
+        username: user.username || user.email,
+        email: user.email,
+        primerNombre: user.primerNombre || user.nombres,
+        primerApellido: user.primerApellido || user.apellidos,
+        role: userRole,
+        activo: user.activo
+      };
+
+      res.json({
+        message: "Login exitoso",
+        user: userResponse
+      });
+
+    } catch (error) {
+      console.error("Error en login:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Verificar sesión actual
+  app.get("/api/auth/session", async (req, res) => {
+    try {
+      if (!req.session.userId || !req.session.userType) {
+        return res.status(401).json({ message: "No hay sesión activa" });
+      }
+
+      let user = null;
+
+      // Obtener usuario según el tipo
+      switch (req.session.userTable) {
+        case "users":
+          user = await storage.getUser(req.session.userId);
+          break;
+        case "candidatos":
+          user = await storage.getCandidato(req.session.userId);
+          break;
+        case "empresas":
+          user = await storage.getEmpresaById(req.session.userId);
+          break;
+      }
+
+      if (!user) {
+        req.session.destroy(() => {});
+        return res.status(401).json({ message: "Usuario no encontrado" });
+      }
+
+      const userResponse = {
+        id: user.id,
+        username: user.username || user.email,
+        email: user.email,
+        primerNombre: user.primerNombre || user.nombres,
+        primerApellido: user.primerApellido || user.apellidos,
+        role: req.session.userType,
+        activo: user.activo
+      };
+
+      res.json({ user: userResponse });
+
+    } catch (error) {
+      console.error("Error verificando sesión:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Logout
+  app.post("/api/auth/logout", (req, res) => {
+    req.session.destroy((err) => {
+      if (err) {
+        console.error("Error al cerrar sesión:", err);
+        return res.status(500).json({ message: "Error al cerrar sesión" });
+      }
+      res.json({ message: "Sesión cerrada exitosamente" });
+    });
+  });
+
+  // Obtener permisos del usuario
+  app.get("/api/usuarios/:id/permisos", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      
+      if (!req.session.userId || req.session.userId !== userId) {
+        return res.status(401).json({ message: "No autorizado" });
+      }
+
+      // Obtener perfiles del usuario
+      const userPerfiles = await storage.getUserPerfiles(userId);
+      const additionalPermissions: string[] = [];
+      
+      // Combinar permisos de todos los perfiles
+      for (const perfil of userPerfiles) {
+        // Aquí deberías obtener los permisos específicos del perfil
+        // Por ahora retornamos un array vacío para permisos adicionales
+      }
+
+      res.json(additionalPermissions);
+
+    } catch (error) {
+      console.error("Error obteniendo permisos:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
   // Test route to diagnose the problem
 
   // Temporary auto-login route for development
@@ -211,11 +388,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Candidato profile management
   app.get("/api/candidato/profile", async (req, res) => {
     try {
-      if (!req.session.candidatoId || req.session.userType !== "candidato") {
+      // Support both old candidatoId and new unified userId system
+      const candidatoId = req.session.candidatoId || req.session.userId;
+      
+      if (!candidatoId || req.session.userType !== "candidato") {
         return res.status(401).json({ message: "No autorizado" });
       }
 
-      const candidato = await storage.getCandidato(req.session.candidatoId);
+      const candidato = await storage.getCandidato(candidatoId);
       if (!candidato) {
         return res.status(404).json({ message: "Candidato no encontrado" });
       }
@@ -231,7 +411,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/candidato/cambiar-password", async (req, res) => {
     try {
-      if (!req.session.candidatoId || req.session.userType !== "candidato") {
+      // Support both old candidatoId and new unified userId system
+      const candidatoId = req.session.candidatoId || req.session.userId;
+      
+      if (!candidatoId || req.session.userType !== "candidato") {
         return res.status(401).json({ message: "No autorizado" });
       }
 
@@ -243,7 +426,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .json({ message: "Contraseña actual y nueva son requeridas" });
       }
 
-      const candidato = await storage.getCandidato(req.session.candidatoId);
+      const candidato = await storage.getCandidato(candidatoId);
       if (!candidato) {
         return res.status(404).json({ message: "Candidato no encontrado" });
       }
@@ -256,7 +439,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Actualizar contraseña y marcar que ya no debe cambiarla
-      await storage.updateCandidato(req.session.candidatoId, {
+      await storage.updateCandidato(candidatoId, {
         password: passwordNueva,
         deberCambiarPassword: false,
       });
@@ -270,7 +453,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/candidato/profile", async (req, res) => {
     try {
-      if (!req.session.candidatoId || req.session.userType !== "candidato") {
+      // Support both old candidatoId and new unified userId system
+      const candidatoId = req.session.candidatoId || req.session.userId;
+      
+      if (!candidatoId || req.session.userType !== "candidato") {
         return res.status(401).json({ message: "No autorizado" });
       }
 
@@ -279,7 +465,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       delete updateData.email; // Don't allow email updates for now
 
       const updatedCandidato = await storage.updateCandidato(
-        req.session.candidatoId,
+        candidatoId,
         updateData,
       );
 
@@ -1083,6 +1269,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Actualizar usuario
+  app.put("/api/usuarios/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { perfilIds, ...userData } = req.body;
+      
+      // Verificar que el usuario existe
+      const existingUser = await storage.getUser(id);
+      if (!existingUser) {
+        return res.status(404).json({ message: "Usuario no encontrado" });
+      }
+      
+      // Validar email único (excepto el mismo usuario)
+      const users = await storage.getAllUsers();
+      const emailExists = users.some(u => u.email === userData.email && u.id !== id);
+      if (emailExists) {
+        return res.status(400).json({ message: "El email ya está en uso" });
+      }
+      
+      // Validar username único (excepto el mismo usuario)
+      const usernameUser = await storage.getUserByUsername(userData.username);
+      if (usernameUser && usernameUser.id !== id) {
+        return res.status(400).json({ message: "El username ya está en uso" });
+      }
+      
+      // Actualizar usuario
+      const updatedUser = await storage.updateUser(id, userData);
+      
+      // Actualizar perfiles si se proporcionaron
+      if (perfilIds && Array.isArray(perfilIds)) {
+        await storage.deleteUserPerfiles(id);
+        for (const perfilId of perfilIds) {
+          await storage.createUserPerfil({ userId: id, perfilId });
+        }
+      }
+      
+      // Obtener perfiles actualizados
+      const perfiles = await storage.getUserPerfiles(id);
+      
+      res.json({ 
+        message: "Usuario actualizado exitosamente", 
+        user: { ...updatedUser, perfiles } 
+      });
+    } catch (error: any) {
+      console.error("Error actualizando usuario:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Datos inválidos", errors: error.errors });
+      }
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
   // Eliminar usuario
   app.delete("/api/usuarios/:id", async (req, res) => {
     try {
@@ -1180,8 +1418,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Perfiles API routes with permissions
   app.get("/api/perfiles", async (req, res) => {
     try {
-      const perfiles = await storage.getAllPerfiles();
-      res.json(perfiles);
+      const result = await db.execute(`
+        SELECT id, nombre, descripcion
+        FROM perfiles 
+        WHERE activo = true 
+        ORDER BY id
+      `);
+      res.json(result.rows);
     } catch (error) {
       console.error("Error obteniendo perfiles:", error);
       res.status(500).json({ message: "Error interno del servidor" });
@@ -1311,6 +1554,663 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Perfil eliminado exitosamente" });
     } catch (error) {
       console.error("Error eliminando perfil:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // ===== MÓDULO DE REPORTES =====
+
+  // Dashboard principal - métricas generales
+  app.get("/api/reportes/dashboard", async (req, res) => {
+    try {
+      const dashboardData = await storage.getDashboardData();
+      res.json(dashboardData);
+    } catch (error) {
+      console.error("Error obteniendo datos del dashboard:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Lead time por analista
+  app.get("/api/reportes/leadtime-analistas", async (req, res) => {
+    try {
+      const leadTimeData = await storage.getLeadTimeByAnalista();
+      res.json(leadTimeData);
+    } catch (error) {
+      console.error("Error obteniendo lead time por analista:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // === ÓRDENES ===
+
+  // Obtener todas las órdenes
+  app.get("/api/ordenes", async (req, res) => {
+    try {
+      const ordenes = await storage.getAllOrdenes();
+      res.json(ordenes);
+    } catch (error) {
+      console.error("Error obteniendo órdenes:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Crear nueva orden
+  app.post("/api/ordenes", async (req, res) => {
+    try {
+      const ordenData = req.body;
+      const orden = await storage.createOrden(ordenData);
+      
+      // Crear entrada en historial
+      await storage.createHistorialEntry({
+        ordenId: orden.id,
+        estadoAnterior: null,
+        estadoNuevo: orden.estado,
+        motivo: "Orden creada"
+      });
+
+      res.status(201).json(orden);
+    } catch (error) {
+      console.error("Error creando orden:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Obtener orden por ID
+  app.get("/api/ordenes/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const orden = await storage.getOrdenById(id);
+      
+      if (!orden) {
+        return res.status(404).json({ message: "Orden no encontrada" });
+      }
+      
+      res.json(orden);
+    } catch (error) {
+      console.error("Error obteniendo orden:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Actualizar estado de orden
+  app.put("/api/ordenes/:id/estado", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { estado, motivo } = req.body;
+      
+      const ordenActual = await storage.getOrdenById(id);
+      if (!ordenActual) {
+        return res.status(404).json({ message: "Orden no encontrada" });
+      }
+
+      const orden = await storage.updateOrden(id, { estado });
+      
+      // Crear entrada en historial
+      await storage.createHistorialEntry({
+        ordenId: id,
+        estadoAnterior: ordenActual.estado,
+        estadoNuevo: estado,
+        motivo: motivo || `Cambio de estado a ${estado}`
+      });
+
+      res.json(orden);
+    } catch (error) {
+      console.error("Error actualizando estado de orden:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Obtener historial de una orden
+  app.get("/api/ordenes/:id/historial", async (req, res) => {
+    try {
+      const ordenId = parseInt(req.params.id);
+      const historial = await storage.getHistorialByOrden(ordenId);
+      res.json(historial);
+    } catch (error) {
+      console.error("Error obteniendo historial de orden:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // === ALERTAS ===
+
+  // Obtener todas las alertas
+  app.get("/api/alertas", async (req, res) => {
+    try {
+      const alertas = await storage.getAllAlertas();
+      res.json(alertas);
+    } catch (error) {
+      console.error("Error obteniendo alertas:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Obtener alertas activas
+  app.get("/api/alertas/activas", async (req, res) => {
+    try {
+      const alertas = await storage.getAlertasActivas();
+      res.json(alertas);
+    } catch (error) {
+      console.error("Error obteniendo alertas activas:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Crear nueva alerta
+  app.post("/api/alertas", async (req, res) => {
+    try {
+      const alertaData = req.body;
+      const alerta = await storage.createAlerta(alertaData);
+      res.status(201).json(alerta);
+    } catch (error) {
+      console.error("Error creando alerta:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Resolver alerta
+  app.put("/api/alertas/:id/resolver", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const alerta = await storage.resolverAlerta(id);
+      res.json(alerta);
+    } catch (error) {
+      console.error("Error resolviendo alerta:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // === NOTIFICACIONES ===
+
+  // Obtener todas las notificaciones
+  app.get("/api/notificaciones", async (req, res) => {
+    try {
+      const notificaciones = await storage.getAllNotificaciones();
+      res.json(notificaciones);
+    } catch (error) {
+      console.error("Error obteniendo notificaciones:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Crear nueva notificación
+  app.post("/api/notificaciones", async (req, res) => {
+    try {
+      const notificacionData = req.body;
+      const notificacion = await storage.createNotificacion(notificacionData);
+      res.status(201).json(notificacion);
+    } catch (error) {
+      console.error("Error creando notificación:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Rutas para recuperación de contraseña
+
+  // Generar y enviar token de recuperación de contraseña
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ message: "Email es requerido" });
+      }
+
+      // Buscar usuario por email
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        // Por seguridad, no revelamos si el email existe o no
+        return res.json({ message: "Si el email existe, se ha enviado un enlace de recuperación" });
+      }
+
+      // Generar token único
+      const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // Expira en 1 hora
+
+      // Guardar token en la base de datos
+      await storage.createPasswordResetToken({
+        userId: user.id,
+        token,
+        expiresAt,
+        used: false,
+      });
+
+      // Aquí normalmente enviarías un email real con el enlace
+      // Para desarrollo, solo logueamos el token
+      console.log(`Token de recuperación para ${email}: ${token}`);
+      console.log(`Enlace: http://localhost:5000/reset-password?token=${token}`);
+
+      res.json({ 
+        message: "Si el email existe, se ha enviado un enlace de recuperación",
+        // Solo para desarrollo - en producción no enviarías el token
+        developmentToken: token 
+      });
+    } catch (error) {
+      console.error("Error en forgot-password:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Validar token de recuperación
+  app.get("/api/auth/validate-reset-token/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+
+      const resetToken = await storage.getPasswordResetToken(token);
+      if (!resetToken) {
+        return res.status(400).json({ message: "Token inválido o expirado" });
+      }
+
+      const user = await storage.getUser(resetToken.userId);
+      if (!user) {
+        return res.status(400).json({ message: "Usuario no encontrado" });
+      }
+
+      res.json({ 
+        valid: true,
+        email: user.email,
+        username: user.username
+      });
+    } catch (error) {
+      console.error("Error validando token:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Restablecer contraseña con token
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { token, newPassword } = req.body;
+
+      if (!token || !newPassword) {
+        return res.status(400).json({ message: "Token y nueva contraseña son requeridos" });
+      }
+
+      if (newPassword.length < 8) {
+        return res.status(400).json({ message: "La contraseña debe tener al menos 8 caracteres" });
+      }
+
+      const resetToken = await storage.getPasswordResetToken(token);
+      if (!resetToken) {
+        return res.status(400).json({ message: "Token inválido o expirado" });
+      }
+
+      // Actualizar contraseña del usuario
+      await storage.updateUser(resetToken.userId, { password: newPassword });
+
+      // Marcar token como usado
+      await storage.markTokenAsUsed(resetToken.id);
+
+      // Limpiar tokens expirados
+      await storage.cleanExpiredTokens();
+
+      res.json({ message: "Contraseña actualizada exitosamente" });
+    } catch (error) {
+      console.error("Error restableciendo contraseña:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // === EMPRESA RECUPERACIÓN DE CONTRASEÑA ===
+
+  // Generar token para empresa
+  app.post("/api/empresa/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ message: "Email es requerido" });
+      }
+
+      // Buscar empresa por email
+      const empresa = await storage.getEmpresaByEmail(email);
+      if (!empresa) {
+        // Por seguridad, no revelamos si el email existe o no
+        return res.json({ message: "Si el email existe, se ha enviado un enlace de recuperación" });
+      }
+
+      // Generar token
+      const token = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
+
+      // Guardar token en la base de datos
+      await storage.createPasswordResetToken({
+        userId: empresa.id,
+        token,
+        expiresAt
+      });
+
+      // En un entorno real, aquí enviarías el email
+      console.log(`Token de recuperación para empresa ${empresa.email}: ${token}`);
+      console.log(`URL de recuperación: ${req.protocol}://${req.get('host')}/empresa/reset-password?token=${token}`);
+
+      res.json({ message: "Si el email existe, se ha enviado un enlace de recuperación" });
+    } catch (error) {
+      console.error("Error generando token de recuperación para empresa:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Validar token de empresa
+  app.get("/api/empresa/validate-reset-token/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+
+      const resetToken = await storage.getPasswordResetToken(token);
+      if (!resetToken || resetToken.used || new Date() > resetToken.expiresAt) {
+        return res.status(400).json({ 
+          valid: false, 
+          message: "Token inválido o expirado" 
+        });
+      }
+
+      // Obtener información de la empresa
+      const empresa = await storage.getEmpresaById(resetToken.userId);
+      if (!empresa) {
+        return res.status(400).json({ 
+          valid: false, 
+          message: "Empresa no encontrada" 
+        });
+      }
+
+      res.json({ 
+        valid: true, 
+        email: empresa.email,
+        username: empresa.nombreEmpresa 
+      });
+    } catch (error) {
+      console.error("Error validando token de empresa:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Restablecer contraseña de empresa
+  app.post("/api/empresa/reset-password", async (req, res) => {
+    try {
+      const { token, newPassword } = req.body;
+
+      if (!token || !newPassword) {
+        return res.status(400).json({ message: "Token y contraseña son requeridos" });
+      }
+
+      // Validar token
+      const resetToken = await storage.getPasswordResetToken(token);
+      if (!resetToken || resetToken.used || new Date() > resetToken.expiresAt) {
+        return res.status(400).json({ message: "Token inválido o expirado" });
+      }
+
+      // Encriptar nueva contraseña
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      // Actualizar contraseña de empresa
+      await storage.updateEmpresaPassword(resetToken.userId, hashedPassword);
+
+      // Marcar token como usado
+      await storage.markTokenAsUsed(resetToken.id);
+
+      // Limpiar tokens expirados
+      await storage.cleanExpiredTokens();
+
+      res.json({ message: "Contraseña actualizada exitosamente" });
+    } catch (error) {
+      console.error("Error restableciendo contraseña de empresa:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // === CANDIDATO RECUPERACIÓN DE CONTRASEÑA ===
+
+  // Generar token para candidato
+  app.post("/api/candidato/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ message: "Email es requerido" });
+      }
+
+      // Buscar candidato por email
+      const candidato = await storage.getCandidatoByEmail(email);
+      if (!candidato) {
+        // Por seguridad, no revelamos si el email existe o no
+        return res.json({ message: "Si el email existe, se ha enviado un enlace de recuperación" });
+      }
+
+      // Generar token
+      const token = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
+
+      // Guardar token en la base de datos
+      await storage.createPasswordResetToken({
+        userId: candidato.id,
+        token,
+        expiresAt
+      });
+
+      // En un entorno real, aquí enviarías el email
+      console.log(`Token de recuperación para candidato ${candidato.email}: ${token}`);
+      console.log(`URL de recuperación: ${req.protocol}://${req.get('host')}/candidato/reset-password?token=${token}`);
+
+      res.json({ message: "Si el email existe, se ha enviado un enlace de recuperación" });
+    } catch (error) {
+      console.error("Error generando token de recuperación para candidato:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Validar token de candidato
+  app.get("/api/candidato/validate-reset-token/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+
+      const resetToken = await storage.getPasswordResetToken(token);
+      if (!resetToken || resetToken.used || new Date() > resetToken.expiresAt) {
+        return res.status(400).json({ 
+          valid: false, 
+          message: "Token inválido o expirado" 
+        });
+      }
+
+      // Obtener información del candidato
+      const candidato = await storage.getCandidatoById(resetToken.userId);
+      if (!candidato) {
+        return res.status(400).json({ 
+          valid: false, 
+          message: "Candidato no encontrado" 
+        });
+      }
+
+      res.json({ 
+        valid: true, 
+        email: candidato.email,
+        username: candidato.username || `${candidato.primerNombre} ${candidato.primerApellido}`
+      });
+    } catch (error) {
+      console.error("Error validando token de candidato:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Restablecer contraseña de candidato
+  app.post("/api/candidato/reset-password", async (req, res) => {
+    try {
+      const { token, newPassword } = req.body;
+
+      if (!token || !newPassword) {
+        return res.status(400).json({ message: "Token y contraseña son requeridos" });
+      }
+
+      // Validar token
+      const resetToken = await storage.getPasswordResetToken(token);
+      if (!resetToken || resetToken.used || new Date() > resetToken.expiresAt) {
+        return res.status(400).json({ message: "Token inválido o expirado" });
+      }
+
+      // Encriptar nueva contraseña
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      // Actualizar contraseña de candidato
+      await storage.updateCandidatoPassword(resetToken.userId, hashedPassword);
+
+      // Marcar token como usado
+      await storage.markTokenAsUsed(resetToken.id);
+
+      // Limpiar tokens expirados
+      await storage.cleanExpiredTokens();
+
+      res.json({ message: "Contraseña actualizada exitosamente" });
+    } catch (error) {
+      console.error("Error restableciendo contraseña de candidato:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // ========== RUTAS API SISTEMA DE PERMISOS DINÁMICOS ==========
+
+  // System Views API routes
+  app.get("/api/system-views", async (req, res) => {
+    try {
+      const views = await storage.getAllSystemViews();
+      res.json(views);
+    } catch (error) {
+      console.error("Error obteniendo vistas del sistema:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  app.get("/api/system-views/:id", async (req, res) => {
+    try {
+      const view = await storage.getSystemViewById(parseInt(req.params.id));
+      if (!view) {
+        return res.status(404).json({ message: "Vista no encontrada" });
+      }
+      res.json(view);
+    } catch (error) {
+      console.error("Error obteniendo vista:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  app.get("/api/system-views/:id/actions", async (req, res) => {
+    try {
+      const actions = await storage.getActionsByViewId(parseInt(req.params.id));
+      res.json(actions);
+    } catch (error) {
+      console.error("Error obteniendo acciones de la vista:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // View Actions API routes
+  app.get("/api/view-actions", async (req, res) => {
+    try {
+      const actions = await storage.getAllViewActions();
+      res.json(actions);
+    } catch (error) {
+      console.error("Error obteniendo acciones:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Profile permissions API routes
+  app.get("/api/perfiles/:id/permissions", async (req, res) => {
+    try {
+      const perfilId = parseInt(req.params.id);
+      const permissions = await storage.getProfilePermissions(perfilId);
+      res.json(permissions);
+    } catch (error) {
+      console.error("Error obteniendo permisos del perfil:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  app.get("/api/perfiles/:id/views", async (req, res) => {
+    try {
+      const perfilId = parseInt(req.params.id);
+      const views = await storage.getViewsWithActionsByPerfilId(perfilId);
+      res.json(views);
+    } catch (error) {
+      console.error("Error obteniendo vistas del perfil:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  app.post("/api/perfiles/:id/permissions", async (req, res) => {
+    try {
+      const perfilId = parseInt(req.params.id);
+      const { vistas } = req.body;
+      
+      if (!vistas || !Array.isArray(vistas)) {
+        return res.status(400).json({ message: "Formato de permisos inválido" });
+      }
+
+      await storage.updateProfilePermissions(perfilId, { vistas });
+      res.json({ message: "Permisos actualizados exitosamente" });
+    } catch (error) {
+      console.error("Error actualizando permisos:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Permission validation API routes
+  app.get("/api/perfiles/:id/check-view/:viewName", async (req, res) => {
+    try {
+      const perfilId = parseInt(req.params.id);
+      const viewName = req.params.viewName;
+      
+      const hasPermission = await storage.hasViewPermission(perfilId, viewName);
+      res.json({ hasPermission });
+    } catch (error) {
+      console.error("Error verificando permiso de vista:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  app.get("/api/perfiles/:id/check-action/:viewName/:actionName", async (req, res) => {
+    try {
+      const perfilId = parseInt(req.params.id);
+      const viewName = req.params.viewName;
+      const actionName = req.params.actionName;
+      
+      const hasPermission = await storage.hasActionPermission(perfilId, viewName, actionName);
+      res.json({ hasPermission });
+    } catch (error) {
+      console.error("Error verificando permiso de acción:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Get all views with their actions for permission management UI
+  app.get("/api/views-with-actions", async (req, res) => {
+    try {
+      const result = await db.execute(`
+        SELECT 
+          v.id, v.nombre, v.display_name as "displayName", v.descripcion, 
+          v.ruta, v.modulo, v.icono, v.orden, v.activo,
+          COALESCE(
+            json_agg(
+              json_build_object(
+                'id', a.id,
+                'nombre', a.nombre,
+                'displayName', a.display_name,
+                'descripcion', a.descripcion,
+                'tipo', a.tipo,
+                'orden', a.orden,
+                'activo', a.activo
+              ) ORDER BY a.orden
+            ) FILTER (WHERE a.id IS NOT NULL), 
+            '[]'::json
+          ) as acciones
+        FROM system_views v
+        LEFT JOIN view_actions a ON v.id = a.system_view_id AND a.activo = true
+        WHERE v.activo = true
+        GROUP BY v.id, v.nombre, v.display_name, v.descripcion, v.ruta, v.modulo, v.icono, v.orden, v.activo
+        ORDER BY v.orden
+      `);
+      res.json(result.rows);
+    } catch (error) {
+      console.error("Error obteniendo vistas con acciones:", error);
       res.status(500).json({ message: "Error interno del servidor" });
     }
   });

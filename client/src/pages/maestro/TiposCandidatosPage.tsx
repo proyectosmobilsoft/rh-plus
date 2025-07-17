@@ -176,7 +176,7 @@ export default function TiposCandidatosPage() {
             </div>
             <Dialog open={showTipoDialog} onOpenChange={setShowTipoDialog}>
               <DialogTrigger asChild>
-                <Button size="sm">
+                <Button size="sm" className="bg-brand-lime hover:bg-brand-lime/90">
                   <Plus className="h-4 w-4 mr-2" />
                   Nuevo Tipo
                 </Button>
@@ -269,7 +269,7 @@ export default function TiposCandidatosPage() {
             </div>
             <Dialog open={showDocumentoDialog} onOpenChange={setShowDocumentoDialog}>
               <DialogTrigger asChild>
-                <Button size="sm">
+                <Button size="sm" className="bg-brand-turquoise hover:bg-brand-turquoise/90">
                   <Plus className="h-4 w-4 mr-2" />
                   Nuevo Documento
                 </Button>

@@ -13,6 +13,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
 import PasswordStrengthIndicator from "@/components/PasswordStrengthIndicator";
 import { Checkbox } from "@/components/ui/checkbox";
+import { MultiSelect, type Option } from "@/components/ui/multi-select";
 
 // Schema de validación para el formulario
 const usuarioSchema = z.object({
@@ -81,16 +82,17 @@ const CrearUsuarioPage = () => {
     },
     onSuccess: () => {
       toast({
-        title: "Usuario creado",
-        description: "El usuario ha sido creado exitosamente.",
+        title: "✅ Usuario creado exitosamente",
+        description: "El nuevo usuario ha sido registrado en el sistema.",
+        className: "bg-green-50 border-green-200",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/usuarios"] });
       setLocation("/seguridad/usuarios");
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "No se pudo crear el usuario.",
+        title: "❌ Error al crear usuario",
+        description: error.message || "No se pudo crear el usuario. Verifica los datos e intenta nuevamente.",
         variant: "destructive",
       });
     },
@@ -281,46 +283,34 @@ const CrearUsuarioPage = () => {
                 <PasswordStrengthIndicator password={passwordValue || ""} />
               </div>
 
-              {/* Perfiles asociados - Multiselect */}
+              {/* Perfiles asociados - Multiselect moderno */}
               <div>
                 <Label>Perfiles Asociados *</Label>
-                <div className="border rounded-lg p-4 mt-2 space-y-2 max-h-40 overflow-y-auto">
-                  {loadingPerfiles ? (
-                    <div className="text-center py-4">
-                      <span className="text-gray-500">Cargando perfiles...</span>
-                    </div>
-                  ) : perfiles.length === 0 ? (
-                    <div className="text-center py-4">
-                      <span className="text-gray-500">No hay perfiles disponibles</span>
-                    </div>
-                  ) : (
-                    perfiles.map((perfil) => (
-                      <div key={perfil.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`perfil-${perfil.id}`}
-                          checked={selectedPerfiles.includes(perfil.id)}
-                          onCheckedChange={(checked) => handlePerfilChange(perfil.id, checked as boolean)}
-                        />
-                        <Label 
-                          htmlFor={`perfil-${perfil.id}`}
-                          className="text-sm font-normal cursor-pointer flex-1"
-                        >
-                          <span className="font-medium">{perfil.nombre}</span>
-                          {perfil.descripcion && (
-                            <span className="text-gray-500 ml-2">- {perfil.descripcion}</span>
-                          )}
-                        </Label>
-                      </div>
-                    ))
-                  )}
-                </div>
+                <MultiSelect
+                  options={perfiles.map(perfil => ({
+                    id: perfil.id,
+                    value: perfil.nombre.toLowerCase(),
+                    label: perfil.nombre,
+                    description: perfil.descripcion
+                  }))}
+                  selected={selectedPerfiles}
+                  onSelectionChange={(newSelection) => {
+                    setSelectedPerfiles(newSelection);
+                    setValue("perfilIds", newSelection);
+                  }}
+                  placeholder="Seleccionar perfiles para el usuario..."
+                  emptyText="No hay perfiles disponibles"
+                  isLoading={loadingPerfiles}
+                  disabled={loadingPerfiles}
+                />
+                
                 {errors.perfilIds && (
-                  <p className="text-sm text-red-500 mt-1">
+                  <p className="text-sm text-red-500 mt-2">
                     {errors.perfilIds.message}
                   </p>
                 )}
-                <p className="text-sm text-gray-500 mt-1">
-                  Selecciona uno o más perfiles para el usuario
+                <p className="text-sm text-gray-500 mt-2">
+                  Selecciona uno o más perfiles para definir los permisos del usuario
                 </p>
               </div>
 

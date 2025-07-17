@@ -5,6 +5,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 import Index from "./pages/Index";
 import Layout from "./components/Layout";
@@ -33,6 +36,7 @@ import CrearCoordinadorPage from "./pages/seguridad/CrearCoordinadorPage";
 import CrearAdminGeneralPage from "./pages/seguridad/CrearAdminGeneralPage";
 import CrearClientePage from "./pages/seguridad/CrearClientePage";
 import MenuPage from "./pages/seguridad/MenuPage";
+import GestionPermisosPage from "./pages/seguridad/GestionPermisosPage";
 
 // Maestro pages
 import TiposCandidatosPage from "./pages/maestro/TiposCandidatosPage";
@@ -41,6 +45,9 @@ import TiposCandidatosPage from "./pages/maestro/TiposCandidatosPage";
 import AnalistasPage from "./pages/analistas/AnalistasPage";
 import CrearAnalistaPage from "./pages/analistas/CrearAnalistaPage";
 import EditarAnalistaPage from "./pages/analistas/EditarAnalistaPage";
+
+// Reportes pages
+import DashboardReportes from "./pages/reportes/DashboardReportes";
 
 // Test pages
 import TestCascadingSelects from "./pages/TestCascadingSelects";
@@ -51,9 +58,10 @@ import RegistroCandidato from "./pages/candidatos/RegistroCandidato";
 import PerfilCandidato from "./pages/candidatos/PerfilCandidato";
 import CambiarPassword from "./pages/candidatos/CambiarPassword";
 
-// Admin login
+// Admin login and Auth components
 import LoginAdmin from "./pages/LoginAdmin";
-import { ProtectedRoute } from "./components/ProtectedRoute";
+import LoginUnificado from "./pages/LoginUnificado";
+import LoginRedirect from "./components/LoginRedirect";
 
 // Empresa portal pages
 import LoginEmpresa from "./pages/empresa/LoginEmpresa";
@@ -68,26 +76,41 @@ import QrWhatsAppPage from "./pages/empresa/QrWhatsAppPage";
 import QrEmailPage from "./pages/empresa/QrEmailPage";
 import EmpresaLayout from "./components/EmpresaLayout";
 
+// Auth pages
+import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
+import ForgotPasswordEmpresa from "./pages/empresa/ForgotPasswordEmpresa";
+import ResetPasswordEmpresa from "./pages/empresa/ResetPasswordEmpresa";
+import ForgotPasswordCandidato from "./pages/candidatos/ForgotPasswordCandidato";
+import ResetPasswordCandidato from "./pages/candidatos/ResetPasswordCandidato";
+
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          {/* Admin Login - First View */}
-          <Route path="/" element={<LoginAdmin />} />
+    <ThemeProvider>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+          <Routes>
+          {/* Login Unificado - Única entrada al sistema */}
+          <Route path="/" element={<LoginUnificado />} />
           
-          {/* Candidate Portal Routes - No Layout */}
-          <Route path="/candidato/login" element={<LoginCandidato />} />
+          {/* Auth Routes - No Layout */}
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          
+          {/* Redirecciones automáticas al login unificado */}
+          <Route path="/admin" element={<LoginRedirect />} />
+          <Route path="/candidato/login" element={<LoginRedirect />} />
+          <Route path="/empresa/login" element={<LoginRedirect />} />
+          
+          {/* Rutas de registro y funcionalidades específicas sin login */}
           <Route path="/candidato/registro" element={<RegistroCandidato />} />
           <Route path="/candidato/cambiar-password" element={<CambiarPassword />} />
           <Route path="/candidato/perfil" element={<PerfilCandidato />} />
-          
-          {/* Empresa Portal Login */}
-          <Route path="/empresa/login" element={<LoginEmpresa />} />
           
           {/* Empresa Portal Routes - With Layout */}
           <Route element={<SidebarProvider><EmpresaLayout /></SidebarProvider>}>
@@ -138,6 +161,7 @@ const App = () => (
             <Route path="/seguridad/perfiles/crear-admin-general" element={<CrearAdminGeneralPage />} />
             <Route path="/seguridad/perfiles/crear-cliente" element={<CrearClientePage />} />
             <Route path="/seguridad/menu" element={<MenuPage />} />
+            <Route path="/seguridad/permisos" element={<GestionPermisosPage />} />
             
             {/* Maestro */}
             <Route path="/maestro/tipos-candidatos" element={<TiposCandidatosPage />} />
@@ -147,6 +171,9 @@ const App = () => (
             <Route path="/analistas/crear" element={<CrearAnalistaPage />} />
             <Route path="/analistas/:id/editar" element={<EditarAnalistaPage />} />
             
+            {/* Reportes */}
+            <Route path="/reportes/dashboard" element={<DashboardReportes />} />
+            
             {/* Test page for cascading selects */}
             <Route path="/test-cascading" element={<TestCascadingSelects />} />
           </Route>
@@ -154,8 +181,10 @@ const App = () => (
           {/* Ruta 404 */}
           <Route path="*" element={<NotFound />} />
         </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 

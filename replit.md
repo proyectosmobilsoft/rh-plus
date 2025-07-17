@@ -106,6 +106,56 @@ This is a full-stack medical practice management application built with modern w
 ```
 Changelog:
 
+- January 16, 2025. Implemented dynamic color theme switching system for ZEUS platform
+  * Created comprehensive dynamic theme system with ThemeContext and ThemeSwitcher components
+  * Implemented 3 theme variations using ZEUS colors (lime green #c1d009, turquoise blue #1fb5ca, gray #9d9d9d):
+    - Verde → Azul → Gris (original configuration)
+    - Gris → Verde → Azul (rotated configuration)
+    - Azul → Gris → Verde (alternative configuration)
+  * Added animated theme switching with smooth transitions throughout entire interface
+  * Integrated ThemeSwitcher button in admin header with hover effects and sparkles animation
+  * Enhanced visual experience with multiple animation classes: hover-lift, float, pulse-glow, fade-in-up, bounce-in
+  * Theme changes persist across sessions using localStorage
+  * All form components, buttons, cards, and interface elements automatically adapt to selected theme
+  * Added CSS custom properties for seamless color transitions with 0.3s smooth animations
+  * Complete color interchange system allows administrators to dynamically change interface appearance
+  * Applied comprehensive brand color system using lime green, turquoise blue, and gray throughout all interfaces
+  * Enhanced dashboard with branded StatCards, login animations, and interactive card effects
+- January 8, 2025. Complete dynamic permissions management system implemented
+  * Created comprehensive dynamic permissions system with automatic detection of all views and actions
+  * Added new database schemas: system_views, view_actions, profile_view_permissions, profile_action_permissions
+  * Implemented complete backend storage layer with methods for permission management, validation, and bulk operations
+  * Added 12 new API routes for permission management: views, actions, permissions, and validation endpoints
+  * Created professional permission management UI with checkboxes for view access and toggles for action permissions
+  * Configured automatic initialization of 11 system views with 65 total actions across all modules
+  * Added granular permission validation at both view and action levels throughout the system
+  * Enhanced security module with "Gestión de Permisos" option in the navigation menu
+  * System now supports dynamic permission configuration for each user profile with real-time validation
+  * Complete permission structure: dashboard, usuarios, perfiles, candidatos, empresas, qr, analistas, ordenes, certificados, maestro, reportes
+- January 8, 2025. Single unified login system consolidation completed
+  * Consolidated all portal logins (admin, empresa, candidato) into single LoginUnificado entry point
+  * Eliminated separate login pages and redirected all portal-specific URLs to unified system
+  * Updated all navigation links and references to point to single login at root path (/)
+  * Created LoginRedirect component to automatically redirect legacy portal URLs
+  * Enhanced AuthContext with comprehensive role-based permissions and dynamic sidebar
+  * Implemented MultiSelect component with modern organized display for user profile selection
+  * Added automatic form clearing in profile module after successful save operations
+  * Fixed visual distortion issues in warehouse and profile selection components
+  * Fixed candidato redirection: corrected getDefaultDashboard from /candidatos/perfil to /candidato/perfil
+  * Updated candidato API endpoints to support unified session structure (userId instead of candidatoId)
+  * Complete system now uses single authentication entry with role-based interface adaptation working for all user types
+- January 4, 2025. Complete password recovery system implementation
+  * Implemented comprehensive password recovery system with token-based authentication
+  * Added passwordResetTokens table schema with expiration and single-use token functionality
+  * Created database storage methods for token creation, validation, cleanup, and user lookup
+  * Built backend API routes: forgot-password, validate-reset-token, and reset-password
+  * Added ForgotPasswordPage component with email input and professional UI design
+  * Created ResetPasswordPage with password validation, strength requirements, and confirmation
+  * Integrated password recovery into LoginAdmin with "¿Olvidó su contraseña?" link
+  * Added secure token generation with 1-hour expiration and automatic cleanup
+  * Implemented proper error handling and user feedback for all recovery scenarios
+  * Enhanced storage interface with getUserByEmail method for email-based user lookup
+  * Complete frontend routing integration in App.tsx for seamless user experience
 - January 3, 2025. Enhanced candidate management with approval system and quick send features
   * Added candidate approval/rejection system with notes functionality for hiring decisions
   * Implemented quick send buttons for WhatsApp and Email in candidate list using stored QR configuration

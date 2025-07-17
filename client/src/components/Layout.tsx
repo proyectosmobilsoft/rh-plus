@@ -25,8 +25,11 @@ import {
   Menu,
   LogOut,
   UserCheck,
+  BarChart3,
+  Activity,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 
 // Define los menús y submenús
 const menuItems = [
@@ -65,6 +68,13 @@ const menuItems = [
     subItems: [],
   },
   {
+    title: "Reportes",
+    icon: <BarChart3 className="h-5 w-5" />,
+    subItems: [
+      { title: "Dashboard", path: "/reportes/dashboard", icon: <Activity className="h-4 w-4" /> },
+    ],
+  },
+  {
     title: "Maestro",
     icon: <Settings className="h-5 w-5" />,
     path: "/maestro/tipos-candidatos",
@@ -76,6 +86,7 @@ const menuItems = [
     subItems: [
       { title: "Usuarios", path: "/seguridad/usuarios", icon: <Users className="h-4 w-4" /> },
       { title: "Perfiles", path: "/seguridad/perfiles", icon: <Settings className="h-4 w-4" /> },
+      { title: "Gestión de Permisos", path: "/seguridad/permisos", icon: <UserCheck className="h-4 w-4" /> },
       { title: "Menu", path: "/seguridad/menu", icon: <Menu className="h-4 w-4" /> },
     ],
   },
@@ -87,10 +98,11 @@ const Header = () => {
     <header className="sticky top-0 z-10 flex h-16 items-center border-b bg-background px-4">
       <SidebarTrigger />
       <div className="ml-4">
-        <h1 className="text-lg font-semibold">Sistema de Recursos Humanos</h1>
+        <h1 className="text-lg font-semibold text-gray-800">Sistema de Recursos Humanos</h1>
       </div>
       <div className="ml-auto flex items-center space-x-4">
-        <div className="flex items-center bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+        <ThemeSwitcher />
+        <div className="flex items-center bg-brand-lime/10 text-brand-lime px-3 py-1 rounded-full text-sm font-medium border border-brand-lime/20 hover-lift">
           <User className="w-4 h-4 mr-2" />
           Administrador
         </div>
@@ -134,7 +146,7 @@ const AppSidebar = () => {
     >
       <div className="p-4 flex justify-center items-center h-16">
         {!collapsed && (
-          <div className="text-2xl font-bold text-sidebar-foreground">Recursos Humanos</div>
+          <div className="text-2xl font-bold text-brand-lime">Recursos Humanos</div>
         )}
       </div>
       <SidebarContent className="p-2">

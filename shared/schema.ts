@@ -472,3 +472,259 @@ export const insertAnalistaSchema = createInsertSchema(analistas).omit({
 // Tipos TypeScript para analistas
 export type InsertAnalista = z.infer<typeof insertAnalistaSchema>;
 export type Analista = typeof analistas.$inferSelect;
+
+// Tabla de órdenes de ingreso
+export const ordenes = pgTable("ordenes", {
+  id: serial("id").primaryKey(),
+  numeroOrden: varchar("numero_orden", { length: 50 }).notNull().unique(),
+  
+  // Relaciones
+  clienteId: integer("cliente_id").references(() => clientes.id).notNull(),
+  candidatoId: integer("candidato_id").references(() => candidatos.id).notNull(),
+  analistaId: integer("analista_id").references(() => analistas.id),
+  empresaId: integer("empresa_id").references(() => empresas.id),
+  
+  // Información de la orden
+  cargo: varchar("cargo", { length: 100 }).notNull(),
+  salario: varchar("salario", { length: 50 }),
+  ciudad: varchar("ciudad", { length: 100 }).notNull(),
+  fechaIngreso: date("fecha_ingreso"),
+  tipoContrato: varchar("tipo_contrato", { length: 50 }),
+  
+  // Estado y seguimiento
+  estado: varchar("estado", { length: 50 }).notNull().default("creada"),
+  // Estados: creada, asignada, en_proceso, documentos_completos, examenes_medicos, aprobada, finalizada, rechazada
+  prioridad: varchar("prioridad", { length: 20 }).notNull().default("media"), // alta, media, baja
+  
+  // Fechas de seguimiento
+  fechaCreacion: timestamp("fecha_creacion").defaultNow(),
+  fechaAsignacion: timestamp("fecha_asignacion"),
+  fechaInicioExamenes: timestamp("fecha_inicio_examenes"),
+  fechaFinalizacion: timestamp("fecha_finalizacion"),
+  fechaVencimiento: timestamp("fecha_vencimiento"),
+  
+  // Metadatos
+  observaciones: text("observaciones"),
+  notasInternas: text("notas_internas"),
+  leadTime: integer("lead_time"), // días transcurridos hasta finalización
+  
+  // Campos adicionales
+  centroTrabajo: varchar("centro_trabajo", { length: 100 }),
+  areaFuncional: varchar("area_funcional", { length: 100 }),
+  tipoExamen: varchar("tipo_examen", { length: 100 }),
+});
+
+// Tabla de historial de cambios de estado
+export const ordenesHistorial = pgTable("ordenes_historial", {
+  id: serial("id").primaryKey(),
+  ordenId: integer("orden_id").references(() => ordenes.id).notNull(),
+  estadoAnterior: varchar("estado_anterior", { length: 50 }),
+  estadoNuevo: varchar("estado_nuevo", { length: 50 }).notNull(),
+  usuarioId: integer("usuario_id").references(() => users.id),
+  motivo: text("motivo"),
+  fechaCambio: timestamp("fecha_cambio").defaultNow(),
+});
+
+// Tabla de notificaciones enviadas
+export const notificaciones = pgTable("notificaciones", {
+  id: serial("id").primaryKey(),
+  ordenId: integer("orden_id").references(() => ordenes.id),
+  candidatoId: integer("candidato_id").references(() => candidatos.id),
+  clienteId: integer("cliente_id").references(() => clientes.id),
+  
+  tipo: varchar("tipo", { length: 50 }).notNull(), // email, sms, whatsapp
+  asunto: varchar("asunto", { length: 255 }),
+  mensaje: text("mensaje"),
+  destinatario: varchar("destinatario", { length: 255 }).notNull(),
+  
+  estado: varchar("estado", { length: 20 }).notNull().default("pendiente"), // pendiente, enviado, fallido
+  fechaEnvio: timestamp("fecha_envio"),
+  fechaCreacion: timestamp("fecha_creacion").defaultNow(),
+  motivoFallo: text("motivo_fallo"),
+});
+
+// Tabla de alertas del sistema
+export const alertas = pgTable("alertas", {
+  id: serial("id").primaryKey(),
+  tipo: varchar("tipo", { length: 50 }).notNull(), // vencimiento_orden, vencimiento_poliza, documento_pendiente
+  titulo: varchar("titulo", { length: 255 }).notNull(),
+  descripcion: text("descripcion"),
+  
+  // Relaciones opcionales según el tipo de alerta
+  ordenId: integer("orden_id").references(() => ordenes.id),
+  candidatoId: integer("candidato_id").references(() => candidatos.id),
+  
+  prioridad: varchar("prioridad", { length: 20 }).notNull().default("media"), // alta, media, baja
+  estado: varchar("estado", { length: 20 }).notNull().default("activa"), // activa, resuelta, ignorada
+  
+  fechaVencimiento: timestamp("fecha_vencimiento"),
+  fechaCreacion: timestamp("fecha_creacion").defaultNow(),
+  fechaResolucion: timestamp("fecha_resolucion"),
+});
+
+// Tabla de métricas de rendimiento
+export const metricas = pgTable("metricas", {
+  id: serial("id").primaryKey(),
+  fecha: date("fecha").notNull(),
+  analistaId: integer("analista_id").references(() => analistas.id),
+  clienteId: integer("cliente_id").references(() => clientes.id),
+  
+  // Métricas diarias
+  ordenesCreadas: integer("ordenes_creadas").default(0),
+  ordenesFinalizadas: integer("ordenes_finalizadas").default(0),
+  ordenesEnProceso: integer("ordenes_en_proceso").default(0),
+  leadTimePromedio: integer("lead_time_promedio").default(0), // en días
+  
+  // Métricas de calidad
+  ordenesRechazadas: integer("ordenes_rechazadas").default(0),
+  documentosRechazados: integer("documentos_rechazados").default(0),
+  tiempoRespuestaPromedio: integer("tiempo_respuesta_promedio").default(0), // en horas
+  
+  fechaActualizacion: timestamp("fecha_actualizacion").defaultNow(),
+});
+
+// Esquemas de inserción
+export const insertOrdenSchema = createInsertSchema(ordenes).omit({
+  id: true,
+  fechaCreacion: true,
+  leadTime: true,
+});
+
+export const insertOrdenHistorialSchema = createInsertSchema(ordenesHistorial).omit({
+  id: true,
+  fechaCambio: true,
+});
+
+export const insertNotificacionSchema = createInsertSchema(notificaciones).omit({
+  id: true,
+  fechaCreacion: true,
+});
+
+export const insertAlertaSchema = createInsertSchema(alertas).omit({
+  id: true,
+  fechaCreacion: true,
+});
+
+export const insertMetricaSchema = createInsertSchema(metricas).omit({
+  id: true,
+  fechaActualizacion: true,
+});
+
+// Tipos TypeScript para las nuevas tablas
+export type InsertOrden = z.infer<typeof insertOrdenSchema>;
+export type Orden = typeof ordenes.$inferSelect;
+export type InsertOrdenHistorial = z.infer<typeof insertOrdenHistorialSchema>;
+export type OrdenHistorial = typeof ordenesHistorial.$inferSelect;
+export type InsertNotificacion = z.infer<typeof insertNotificacionSchema>;
+export type Notificacion = typeof notificaciones.$inferSelect;
+export type InsertAlerta = z.infer<typeof insertAlertaSchema>;
+export type Alerta = typeof alertas.$inferSelect;
+export type InsertMetrica = z.infer<typeof insertMetricaSchema>;
+export type Metrica = typeof metricas.$inferSelect;
+
+// Tabla para tokens de recuperación de contraseña
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  token: varchar("token", { length: 255 }).notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  used: boolean("used").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+export const insertPasswordResetTokenSchema = createInsertSchema(passwordResetTokens).omit({ id: true });
+export type InsertPasswordResetToken = z.infer<typeof insertPasswordResetTokenSchema>;
+
+// ========== SISTEMA DE PERMISOS DINÁMICOS ==========
+
+// Tabla de vistas del sistema
+export const systemViews = pgTable("system_views", {
+  id: serial("id").primaryKey(),
+  nombre: varchar("nombre", { length: 100 }).notNull().unique(), // ej: "usuarios", "qr", "candidatos"
+  displayName: varchar("display_name", { length: 150 }).notNull(), // ej: "Gestión de Usuarios"
+  descripcion: text("descripcion"),
+  ruta: varchar("ruta", { length: 255 }), // ej: "/seguridad/usuarios"
+  modulo: varchar("modulo", { length: 100 }).notNull(), // ej: "seguridad", "empresa", "candidatos"
+  icono: varchar("icono", { length: 50 }), // ej: "Users", "Shield"
+  orden: integer("orden").default(0), // para ordenar en la UI
+  activo: boolean("activo").default(true),
+  fechaCreacion: timestamp("fecha_creacion").defaultNow(),
+});
+
+// Tabla de acciones disponibles para cada vista
+export const viewActions = pgTable("view_actions", {
+  id: serial("id").primaryKey(),
+  viewId: integer("view_id").notNull().references(() => systemViews.id, { onDelete: 'cascade' }),
+  nombre: varchar("nombre", { length: 100 }).notNull(), // ej: "crear_usuario", "ver_qr", "generar_qr"
+  displayName: varchar("display_name", { length: 150 }).notNull(), // ej: "Crear Usuario"
+  descripcion: text("descripcion"),
+  tipo: varchar("tipo", { length: 50 }).default("button"), // button, endpoint, form, view
+  orden: integer("orden").default(0),
+  activo: boolean("activo").default(true),
+  fechaCreacion: timestamp("fecha_creacion").defaultNow(),
+});
+
+// Tabla de permisos de vista por perfil (qué vistas puede ver un perfil)
+export const profileViewPermissions = pgTable("profile_view_permissions", {
+  id: serial("id").primaryKey(),
+  perfilId: integer("perfil_id").notNull().references(() => perfiles.id, { onDelete: 'cascade' }),
+  viewId: integer("view_id").notNull().references(() => systemViews.id, { onDelete: 'cascade' }),
+  activo: boolean("activo").default(true),
+  fechaCreacion: timestamp("fecha_creacion").defaultNow(),
+});
+
+// Tabla de permisos de acción por perfil (qué acciones puede ejecutar un perfil en cada vista)
+export const profileActionPermissions = pgTable("profile_action_permissions", {
+  id: serial("id").primaryKey(),
+  perfilId: integer("perfil_id").notNull().references(() => perfiles.id, { onDelete: 'cascade' }),
+  viewId: integer("view_id").notNull().references(() => systemViews.id, { onDelete: 'cascade' }),
+  actionId: integer("action_id").notNull().references(() => viewActions.id, { onDelete: 'cascade' }),
+  activo: boolean("activo").default(true),
+  fechaCreacion: timestamp("fecha_creacion").defaultNow(),
+});
+
+// Esquemas de inserción para el sistema de permisos
+export const insertSystemViewSchema = createInsertSchema(systemViews).omit({
+  id: true,
+  fechaCreacion: true,
+});
+
+export const insertViewActionSchema = createInsertSchema(viewActions).omit({
+  id: true,
+  fechaCreacion: true,
+});
+
+export const insertProfileViewPermissionSchema = createInsertSchema(profileViewPermissions).omit({
+  id: true,
+  fechaCreacion: true,
+});
+
+export const insertProfileActionPermissionSchema = createInsertSchema(profileActionPermissions).omit({
+  id: true,
+  fechaCreacion: true,
+});
+
+// Tipos TypeScript para el sistema de permisos
+export type SystemView = typeof systemViews.$inferSelect;
+export type InsertSystemView = z.infer<typeof insertSystemViewSchema>;
+export type ViewAction = typeof viewActions.$inferSelect;
+export type InsertViewAction = z.infer<typeof insertViewActionSchema>;
+export type ProfileViewPermission = typeof profileViewPermissions.$inferSelect;
+export type InsertProfileViewPermission = z.infer<typeof insertProfileViewPermissionSchema>;
+export type ProfileActionPermission = typeof profileActionPermissions.$inferSelect;
+export type InsertProfileActionPermission = z.infer<typeof insertProfileActionPermissionSchema>;
+
+// Tipo para la estructura completa de vista con acciones
+export type ViewWithActions = SystemView & {
+  acciones: ViewAction[];
+};
+
+// Tipo para la estructura de permisos de un perfil
+export type ProfilePermissions = {
+  perfil: typeof perfiles.$inferSelect;
+  vistas: Array<{
+    vista: SystemView;
+    acciones: ViewAction[];
+  }>;
+};

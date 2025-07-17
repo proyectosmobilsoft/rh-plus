@@ -11,6 +11,14 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       colors: {
+        // Colores de la marca personalizada
+        brand: {
+          lime: "hsl(var(--brand-lime))",      // #c1d009
+          turquoise: "hsl(var(--brand-turquoise))", // #1fb5ca  
+          gray: "hsl(var(--brand-gray))",      // #9d9d9d
+        },
+        
+        // Colores del sistema Shadcn/UI
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         card: {
