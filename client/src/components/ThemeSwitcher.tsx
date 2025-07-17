@@ -37,7 +37,7 @@ export const ThemeSwitcher: React.FC = () => {
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden" style={{ paddingTop: '30px', paddingBottom: '30px' }}>
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-brand-lime to-brand-turquoise bg-clip-text text-transparent">
             Intercambio de Colores ZEUS
@@ -46,87 +46,87 @@ export const ThemeSwitcher: React.FC = () => {
             Cambia la disposición de los colores Verde, Azul y Gris en toda la interfaz
           </DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 py-4 max-h-[60vh]">
-          <div>
-            {themes.map((theme) => (
-              <Card
-                key={theme.id}
-                className={`cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-xl border-2 ${currentTheme.id === theme.id
-                  ? 'border-brand-lime shadow-lg ring-2 ring-brand-lime/30'
-                  : 'border-gray-200 hover:border-brand-turquoise/50'
-                  }`}
-                onClick={() => handleThemeChange(theme.id)}
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">{theme.name}</CardTitle>
-                    {currentTheme.id === theme.id && (
-                      <CheckCircle className="w-5 h-5 text-brand-lime animate-pulse" />
-                    )}
-                  </div>
 
-                  {/* Vista previa de colores */}
-                  <div className="flex gap-2 mt-3">
-                    <div
-                      className="w-8 h-8 rounded-full shadow-md border-2 border-white"
-                      style={{ backgroundColor: theme.primary }}
-                      title="Color Primario"
-                    />
-                    <div
-                      className="w-8 h-8 rounded-full shadow-md border-2 border-white"
-                      style={{ backgroundColor: theme.secondary }}
-                      title="Color Secundario"
-                    />
-                    <div
-                      className="w-8 h-8 rounded-full shadow-md border-2 border-white"
-                      style={{ backgroundColor: theme.accent }}
-                      title="Color de Acento"
-                    />
-                  </div>
-                </CardHeader>
-
-                <CardContent>
-                  {/* Simulación de interfaz mejorada */}
-                  <div className="space-y-3">
-                    <div
-                      className="h-8 rounded text-white text-xs flex items-center justify-center font-medium shadow-sm"
-                      style={{ backgroundColor: theme.primary }}
-                    >
-                      Botón Principal
-                    </div>
-                    <div
-                      className="h-6 rounded text-white text-xs flex items-center justify-center font-medium"
-                      style={{ backgroundColor: theme.secondary }}
-                    >
-                      Botón Secundario
-                    </div>
-                    <div
-                      className="h-6 rounded text-white text-xs flex items-center justify-center font-medium"
-                      style={{ backgroundColor: theme.accent }}
-                    >
-                      Botón Terciario
-                    </div>
-
-                    <div className="text-xs text-gray-600 text-center">
-                      {theme.id === 'verde-azul-gris' && 'Verde → Azul → Gris'}
-                      {theme.id === 'gris-verde-azul' && 'Gris → Verde → Azul'}
-                      {theme.id === 'azul-gris-verde' && 'Azul → Gris → Verde'}
-                    </div>
-                  </div>
-
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 py-4 max-h-[60vh] overflow-auto">
+          {themes.map((theme) => (
+            <Card
+              key={theme.id}
+              className={`cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-xl border-2 ${currentTheme.id === theme.id
+                ? 'border-brand-lime shadow-lg ring-2 ring-brand-lime/30'
+                : 'border-gray-200 hover:border-brand-turquoise/50'
+                }`}
+              onClick={() => handleThemeChange(theme.id)}
+            >
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">{theme.name}</CardTitle>
                   {currentTheme.id === theme.id && (
-                    <Badge
-                      variant="secondary"
-                      className="w-full mt-3 justify-center bg-brand-lime/10 text-brand-lime border-brand-lime/30"
-                    >
-                      Tema Activo
-                    </Badge>
+                    <CheckCircle className="w-5 h-5 text-brand-lime animate-pulse" />
                   )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                </div>
+
+                {/* Vista previa de colores */}
+                <div className="flex gap-2 mt-3">
+                  <div
+                    className="w-8 h-8 rounded-full shadow-md border-2 border-white"
+                    style={{ backgroundColor: theme.primary }}
+                    title="Color Primario"
+                  />
+                  <div
+                    className="w-8 h-8 rounded-full shadow-md border-2 border-white"
+                    style={{ backgroundColor: theme.secondary }}
+                    title="Color Secundario"
+                  />
+                  <div
+                    className="w-8 h-8 rounded-full shadow-md border-2 border-white"
+                    style={{ backgroundColor: theme.accent }}
+                    title="Color de Acento"
+                  />
+                </div>
+              </CardHeader>
+
+              <CardContent>
+                {/* Simulación de interfaz mejorada */}
+                <div className="space-y-3">
+                  <div
+                    className="h-8 rounded text-white text-xs flex items-center justify-center font-medium shadow-sm"
+                    style={{ backgroundColor: theme.primary }}
+                  >
+                    Botón Principal
+                  </div>
+                  <div
+                    className="h-6 rounded text-white text-xs flex items-center justify-center font-medium"
+                    style={{ backgroundColor: theme.secondary }}
+                  >
+                    Botón Secundario
+                  </div>
+                  <div
+                    className="h-6 rounded text-white text-xs flex items-center justify-center font-medium"
+                    style={{ backgroundColor: theme.accent }}
+                  >
+                    Botón Terciario
+                  </div>
+
+                  <div className="text-xs text-gray-600 text-center">
+                    {theme.id === 'verde-azul-gris' && 'Verde → Azul → Gris'}
+                    {theme.id === 'gris-verde-azul' && 'Gris → Verde → Azul'}
+                    {theme.id === 'azul-gris-verde' && 'Azul → Gris → Verde'}
+                  </div>
+                </div>
+
+                {currentTheme.id === theme.id && (
+                  <Badge
+                    variant="secondary"
+                    className="w-full mt-3 justify-center bg-brand-lime/10 text-brand-lime border-brand-lime/30"
+                  >
+                    Tema Activo
+                  </Badge>
+                )}
+              </CardContent>
+            </Card>
+          ))}
         </div>
+
         <div className="flex justify-between items-center pt-4 border-t">
           <div className="text-sm text-gray-600">
             Configuración actual: <span className="font-medium text-brand-lime">{currentTheme.name}</span>

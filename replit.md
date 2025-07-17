@@ -106,6 +106,13 @@ This is a full-stack medical practice management application built with modern w
 ```
 Changelog:
 
+- January 17, 2025. System views and actions JSON file generation
+  * Created comprehensive system-views-actions.json file in shared folder containing all 12 system views
+  * Documented complete action structure with 46 total actions across all modules
+  * JSON structure includes numeric codes (001-012), view names, and associated actions with codes and names
+  * File ready for integration with permission management system and database storage
+  * Complete mapping: Dashboard (1 action), Usuarios (5 actions), Perfiles (4 actions), Permisos (2 actions), Candidatos (5 actions), Empresas (5 actions), Prestadores (4 actions), Órdenes (4 actions), Certificados (4 actions), Maestro (2 actions), Reportes (3 actions), Analistas (4 actions)
+
 - January 16, 2025. Implemented dynamic color theme switching system for platform
   * Created comprehensive dynamic theme system with ThemeContext and ThemeSwitcher components
   * Implemented 3 theme variations using colors (lime green #c1d009, turquoise blue #1fb5ca, gray #9d9d9d):

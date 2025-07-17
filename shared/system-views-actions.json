@@ -1,0 +1,246 @@
+[
+  {
+    "codigo": "001",
+    "nombre": "Dashboard",
+    "acciones": [
+      {
+        "codigo": "dashboard_view",
+        "nombre": "Ver Dashboard"
+      }
+    ]
+  },
+  {
+    "codigo": "002",
+    "nombre": "Usuarios",
+    "acciones": [
+      {
+        "codigo": "usuarios_view",
+        "nombre": "Ver Usuarios"
+      },
+      {
+        "codigo": "usuarios_create",
+        "nombre": "Crear Usuario"
+      },
+      {
+        "codigo": "usuarios_edit",
+        "nombre": "Editar Usuario"
+      },
+      {
+        "codigo": "usuarios_delete",
+        "nombre": "Eliminar Usuario"
+      },
+      {
+        "codigo": "usuarios_activate",
+        "nombre": "Activar/Desactivar"
+      }
+    ]
+  },
+  {
+    "codigo": "003",
+    "nombre": "Perfiles",
+    "acciones": [
+      {
+        "codigo": "perfiles_view",
+        "nombre": "Ver Perfiles"
+      },
+      {
+        "codigo": "perfiles_create",
+        "nombre": "Crear Perfil"
+      },
+      {
+        "codigo": "perfiles_edit",
+        "nombre": "Editar Perfil"
+      },
+      {
+        "codigo": "perfiles_delete",
+        "nombre": "Eliminar Perfil"
+      }
+    ]
+  },
+  {
+    "codigo": "004",
+    "nombre": "Gestión de Permisos",
+    "acciones": [
+      {
+        "codigo": "permisos_view",
+        "nombre": "Ver Permisos"
+      },
+      {
+        "codigo": "permisos_manage",
+        "nombre": "Gestionar Permisos"
+      }
+    ]
+  },
+  {
+    "codigo": "005",
+    "nombre": "Candidatos",
+    "acciones": [
+      {
+        "codigo": "candidatos_view",
+        "nombre": "Ver Candidatos"
+      },
+      {
+        "codigo": "candidatos_create",
+        "nombre": "Crear Candidato"
+      },
+      {
+        "codigo": "candidatos_edit",
+        "nombre": "Editar Candidato"
+      },
+      {
+        "codigo": "candidatos_delete",
+        "nombre": "Eliminar Candidato"
+      },
+      {
+        "codigo": "candidatos_approve",
+        "nombre": "Aprobar Candidato"
+      }
+    ]
+  },
+  {
+    "codigo": "006",
+    "nombre": "Empresas Afiliadas",
+    "acciones": [
+      {
+        "codigo": "empresas_view",
+        "nombre": "Ver Empresas"
+      },
+      {
+        "codigo": "empresas_create",
+        "nombre": "Crear Empresa"
+      },
+      {
+        "codigo": "empresas_edit",
+        "nombre": "Editar Empresa"
+      },
+      {
+        "codigo": "empresas_delete",
+        "nombre": "Eliminar Empresa"
+      },
+      {
+        "codigo": "empresas_users",
+        "nombre": "Gestionar Usuarios"
+      }
+    ]
+  },
+  {
+    "codigo": "007",
+    "nombre": "Prestadores",
+    "acciones": [
+      {
+        "codigo": "prestadores_view",
+        "nombre": "Ver Prestadores"
+      },
+      {
+        "codigo": "prestadores_create",
+        "nombre": "Crear Prestador"
+      },
+      {
+        "codigo": "prestadores_edit",
+        "nombre": "Editar Prestador"
+      },
+      {
+        "codigo": "prestadores_delete",
+        "nombre": "Eliminar Prestador"
+      }
+    ]
+  },
+  {
+    "codigo": "008",
+    "nombre": "Expedición de Órdenes",
+    "acciones": [
+      {
+        "codigo": "ordenes_view",
+        "nombre": "Ver Órdenes"
+      },
+      {
+        "codigo": "ordenes_create",
+        "nombre": "Crear Orden"
+      },
+      {
+        "codigo": "ordenes_edit",
+        "nombre": "Editar Orden"
+      },
+      {
+        "codigo": "ordenes_delete",
+        "nombre": "Anular Orden"
+      }
+    ]
+  },
+  {
+    "codigo": "009",
+    "nombre": "Expedición de Certificados",
+    "acciones": [
+      {
+        "codigo": "certificados_view",
+        "nombre": "Ver Certificados"
+      },
+      {
+        "codigo": "certificados_create",
+        "nombre": "Crear Certificado"
+      },
+      {
+        "codigo": "certificados_edit",
+        "nombre": "Editar Certificado"
+      },
+      {
+        "codigo": "certificados_delete",
+        "nombre": "Eliminar Certificado"
+      }
+    ]
+  },
+  {
+    "codigo": "010",
+    "nombre": "Maestro de Datos",
+    "acciones": [
+      {
+        "codigo": "maestro_view",
+        "nombre": "Ver Configuración"
+      },
+      {
+        "codigo": "maestro_manage",
+        "nombre": "Gestionar Maestros"
+      }
+    ]
+  },
+  {
+    "codigo": "011",
+    "nombre": "Reportes",
+    "acciones": [
+      {
+        "codigo": "reportes_view",
+        "nombre": "Ver Reportes"
+      },
+      {
+        "codigo": "reportes_generate",
+        "nombre": "Generar Reportes"
+      },
+      {
+        "codigo": "reportes_export",
+        "nombre": "Exportar Reportes"
+      }
+    ]
+  },
+  {
+    "codigo": "012",
+    "nombre": "Analistas",
+    "acciones": [
+      {
+        "codigo": "analistas_view",
+        "nombre": "Ver Analistas"
+      },
+      {
+        "codigo": "analistas_create",
+        "nombre": "Crear Analista"
+      },
+      {
+        "codigo": "analistas_edit",
+        "nombre": "Editar Analista"
+      },
+      {
+        "codigo": "analistas_delete",
+        "nombre": "Eliminar Analista"
+      }
+    ]
+  }
+]
