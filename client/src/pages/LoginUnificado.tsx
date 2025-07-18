@@ -5,9 +5,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/contexts/AuthContext';
-import { Eye, EyeOff, LogIn, Shield } from 'lucide-react';
-import logo from '../../public/logo.svg';
-import { backgroundImage } from 'html2canvas/dist/types/css/property-descriptors/background-image';
+import { Eye, EyeOff, LogIn } from 'lucide-react';
+import logo from '../../public/logo2.svg';
 
 export default function LoginUnificado() {
   const [username, setUsername] = useState('');
@@ -48,17 +47,12 @@ export default function LoginUnificado() {
         {/* Header */}
         <div className="text-center mb-8">
 
-          <div
+          <div className="logo-login"
             style={{
-              backgroundImage: `url(${logo})`,
-              backgroundSize: '340px',
-              backgroundRepeat: 'no-repeat',
-              width: '100%',
-              height: '70px',
-              backgroundPosition: 'center'
+              backgroundImage: `url(${logo})`
             }}
           ></div>
-          <p className="text-gray-600 animate-slide-in mt-[-15px] mb-[-15px] pt-[-14px] pb-[-14px]">Sistema de gestión de contratación</p>
+          <p className="text-gray-600 animate-slide-in mt-[-15px] mb-[-15px] pt-[-14px] pb-[-14px]">Sistema de Gestión de Contratación</p>
         </div>
 
         {/* Login Form */}

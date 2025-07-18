@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
+import logo from "../../public/logo2.svg";
 
 // Define los menús y submenús
 const menuItems = [
@@ -139,9 +140,13 @@ const AppSidebar = () => {
       className={`border-r h-screen ${collapsed ? "w-14" : "w-64"}`}
       collapsible="icon"
     >
-      <div className="p-4 flex justify-center items-center h-16">
+      <div className="p-4 flex justify-center items-center">
         {!collapsed && (
-          <div className="text-2xl font-bold text-brand-lime">Recursos Humanos</div>
+          <div className="logo-sidebar"
+            style={{
+              backgroundImage: `url(${logo})`
+            }}
+          ></div>
         )}
       </div>
       <SidebarContent className="p-2 sidebar-compact">
