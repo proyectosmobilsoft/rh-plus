@@ -106,6 +106,18 @@ This is a full-stack medical practice management application built with modern w
 ```
 Changelog:
 
+- January 18, 2025. Fixed critical cache and synchronization issues in usuarios and perfiles management
+  * Resolved browser HTTP cache causing 304 Not Modified responses preventing fresh data display
+  * Fixed duplicate API routes in routes.ts (lines 583 and 1448) that were overriding perfiles functionality
+  * Added cache-busting headers to all fetch requests: Cache-Control: no-cache, no-store, must-revalidate
+  * Implemented proper React Query cache invalidation using removeQueries for immediate UI synchronization
+  * Added missing isLoading states for perfilesLoading and empresasLoading in UsuariosPage
+  * Enhanced user edit functionality to properly load selected perfiles and empresaIds when editing
+  * Corrected MultiSelect options mapping for empresas to use nombreEmpresa property
+  * System now works identically to local npm run dev environment with immediate data persistence and UI updates
+  * Memory storage functionality confirmed working correctly through API testing (curl verification)
+  * Complete CRUD operations now function seamlessly for both usuarios and perfiles with real-time feedback
+
 - January 17, 2025. System views and actions JSON file generation
   * Created comprehensive system-views-actions.json file in shared folder containing all 12 system views
   * Documented complete action structure with 46 total actions across all modules

@@ -67,6 +67,7 @@ interface Usuario {
   username: string;
   activo: boolean;
   fechaCreacion: string;
+  empresaIds?: number[];
   perfiles: Array<{
     id: number;
     nombre: string;
@@ -110,7 +111,7 @@ const UsuariosPage = () => {
   });
 
   // Query para obtener perfiles disponibles - usando la misma configuración que en PerfilesPage
-  const { data: perfiles = [] } = useQuery<Perfil[]>({
+  const { data: perfiles = [], isLoading: perfilesLoading } = useQuery<Perfil[]>({
     queryKey: ["/api/perfiles"],
     queryFn: async () => {
       const response = await fetch('/api/perfiles', {
@@ -137,6 +138,9 @@ const UsuariosPage = () => {
     { id: 5, nombreEmpresa: "Bodega Principal Cali" },
     { id: 6, nombreEmpresa: "Almacén Zona Industrial" },
   ];
+
+  // Loading state para empresas (mock data no necesita loading real)
+  const empresasLoading = false;
 
   // Formulario para crear usuario
   const form = useForm<CrearUsuarioForm | EditarUsuarioForm>({
@@ -273,7 +277,7 @@ const UsuariosPage = () => {
       username: usuario.username,
       password: "", // No mostrar la contraseña actual
       perfilIds: usuario.perfiles?.map(p => p.id) || [],
-      empresaIds: [], // TODO: agregar cuando esté implementado
+      empresaIds: usuario.empresaIds || [] // Cargar empresas asociadas si existen
     });
     setIsEditModalOpen(true);
   };
@@ -1039,7 +1043,7 @@ const UsuariosPage = () => {
                           <MultiSelect
                             options={empresas.map((empresa) => ({
                               id: empresa.id,
-                              name: empresa.nit || `Empresa ${empresa.id}`,
+                              name: empresa.nombreEmpresa,
                               description: `ID: ${empresa.id}`
                             }))}
                             selected={field.value || []}
