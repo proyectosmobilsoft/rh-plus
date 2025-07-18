@@ -10,17 +10,92 @@ export interface OrdenServicio {
 }
 
 export interface Orden {
-  id: number;
-  empresaId: number;
-  aspiranteId: number;
-  servicios: OrdenServicio[];
-  tipoOrden: string;
+  id?: number;
+  numeroOrden?: string;
+  
+  // Relaciones
+  clienteId?: number;
+  candidatoId?: number;
+  analistaId?: number;
+  empresaId?: number;
+  
+  // Información del trabajador
+  nombres: string;
+  apellidos: string;
+  tipoDocumento: string;
+  numeroDocumento: string;
+  lugarExpedicion?: string;
+  celular?: string;
+  direccion?: string;
+  
+  // Información de la empresa usuaria
+  empresaUsuaria?: string;
+  ciudadPrestacionServicio?: string;
+  departamentoPrestacionServicio?: string;
+  
+  // Información del trabajo
+  cargo: string;
+  salario?: string;
+  ciudad: string;
+  fechaIngreso?: string;
+  tipoContrato?: string;
+  
+  // Especificaciones para el ingreso
+  salarioBasico?: string;
+  auxilioTransporte?: string;
+  viajeRotativo?: boolean;
+  
+  // Vehículo de transporte y alimentación
+  vehiculoTransporte?: string;
+  vehiculoAlimentacion?: string;
+  
+  // Salario mensual
+  salarioMensual?: string;
+  
+  // Jornada laboral
+  jornadaLaboral?: string;
+  
+  // Pagos adicionales
+  pagosAuxilios?: string;
+  
+  // Especificaciones adicionales
+  especificacionesAdicionales?: string;
+  
+  // Estado y seguimiento
   estado: string;
-  total: number;
-  firma?: string;
+  prioridad?: string;
+  
+  // Fechas de seguimiento
   fechaCreacion?: string;
+  fechaAsignacion?: string;
+  fechaInicioExamenes?: string;
+  fechaFinalizacion?: string;
+  fechaVencimiento?: string;
+  
+  // Metadatos
+  observaciones?: string;
+  notasInternas?: string;
+  leadTime?: number;
+  
+  // Campos adicionales para el examen médico
+  centroTrabajo?: string;
+  areaFuncional?: string;
+  tipoExamen?: string;
+  examenMedicoRealizar?: string;
+  
+  // Información adicional de ubicación
+  departamento?: string;
+  
+  // Campos de cumplimiento
+  cumpleHorario?: boolean;
+  especifique?: string;
+  
+  // Legacy fields for compatibility
+  servicios?: OrdenServicio[];
+  tipoOrden?: string;
+  total?: number;
+  firma?: string;
   fecha?: string;
-  // Snake case properties from API
   fecha_orden?: string;
   empresa_name?: string;
   aspirante_name?: string;

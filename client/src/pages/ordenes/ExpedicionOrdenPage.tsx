@@ -118,6 +118,11 @@ const ExpedicionOrdenPage = () => {
 
   const handleFormSubmit = async (data: Orden) => {
     try {
+      // Generate a unique order number if creating new order
+      if (!data.id) {
+        data.numeroOrden = `ORD-${Date.now()}`;
+      }
+      
       if (data.id) {
         // Update existing orden
         await ordenesService.update(data);

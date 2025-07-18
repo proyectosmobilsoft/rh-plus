@@ -479,21 +479,56 @@ export const ordenes = pgTable("ordenes", {
   numeroOrden: varchar("numero_orden", { length: 50 }).notNull().unique(),
   
   // Relaciones
-  clienteId: integer("cliente_id").references(() => clientes.id).notNull(),
-  candidatoId: integer("candidato_id").references(() => candidatos.id).notNull(),
+  clienteId: integer("cliente_id").references(() => clientes.id),
+  candidatoId: integer("candidato_id").references(() => candidatos.id),
   analistaId: integer("analista_id").references(() => analistas.id),
   empresaId: integer("empresa_id").references(() => empresas.id),
   
-  // Información de la orden
+  // Información del trabajador
+  nombres: varchar("nombres", { length: 100 }).notNull(),
+  apellidos: varchar("apellidos", { length: 100 }).notNull(),
+  tipoDocumento: varchar("tipo_documento", { length: 10 }).notNull().default("CC"),
+  numeroDocumento: varchar("numero_documento", { length: 20 }).notNull(),
+  lugarExpedicion: varchar("lugar_expedicion", { length: 100 }),
+  celular: varchar("celular", { length: 20 }),
+  direccion: text("direccion"),
+  
+  // Información de la empresa usuaria
+  empresaUsuaria: varchar("empresa_usuaria", { length: 200 }),
+  ciudadPrestacionServicio: varchar("ciudad_prestacion_servicio", { length: 100 }),
+  departamentoPrestacionServicio: varchar("departamento_prestacion_servicio", { length: 100 }),
+  
+  // Información del trabajo
   cargo: varchar("cargo", { length: 100 }).notNull(),
   salario: varchar("salario", { length: 50 }),
   ciudad: varchar("ciudad", { length: 100 }).notNull(),
   fechaIngreso: date("fecha_ingreso"),
   tipoContrato: varchar("tipo_contrato", { length: 50 }),
   
+  // Especificaciones para el ingreso
+  salarioBasico: varchar("salario_basico", { length: 50 }),
+  auxilioTransporte: varchar("auxilio_transporte", { length: 50 }),
+  viajeRotativo: boolean("viaje_rotativo").default(false),
+  
+  // Vehículo de transporte y alimentación
+  vehiculoTransporte: varchar("vehiculo_transporte", { length: 100 }),
+  vehiculoAlimentacion: varchar("vehiculo_alimentacion", { length: 100 }),
+  
+  // Salario mensual
+  salarioMensual: varchar("salario_mensual", { length: 50 }),
+  
+  // Jornada laboral
+  jornadaLaboral: varchar("jornada_laboral", { length: 200 }),
+  
+  // Pagos adicionales
+  pagosAuxilios: text("pagos_auxilios"),
+  
+  // Especificaciones adicionales
+  especificacionesAdicionales: text("especificaciones_adicionales"),
+  
   // Estado y seguimiento
-  estado: varchar("estado", { length: 50 }).notNull().default("creada"),
-  // Estados: creada, asignada, en_proceso, documentos_completos, examenes_medicos, aprobada, finalizada, rechazada
+  estado: varchar("estado", { length: 50 }).notNull().default("PENDIENTE"),
+  // Estados: PENDIENTE, APROBADA, ANULADA, FINALIZADA
   prioridad: varchar("prioridad", { length: 20 }).notNull().default("media"), // alta, media, baja
   
   // Fechas de seguimiento
@@ -508,10 +543,18 @@ export const ordenes = pgTable("ordenes", {
   notasInternas: text("notas_internas"),
   leadTime: integer("lead_time"), // días transcurridos hasta finalización
   
-  // Campos adicionales
+  // Campos adicionales para el examen médico
   centroTrabajo: varchar("centro_trabajo", { length: 100 }),
   areaFuncional: varchar("area_funcional", { length: 100 }),
   tipoExamen: varchar("tipo_examen", { length: 100 }),
+  examenMedicoRealizar: text("examen_medico_realizar"),
+  
+  // Información adicional de ubicación
+  departamento: varchar("departamento", { length: 100 }),
+  
+  // Campos de cumplimiento
+  cumpleHorario: boolean("cumple_horario").default(false),
+  especifique: text("especifique"),
 });
 
 // Tabla de historial de cambios de estado

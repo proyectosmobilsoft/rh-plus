@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { FileText, Edit, Trash2, Check } from 'lucide-react';
+import { Eye, Edit, Trash2, CheckCircle, MoreHorizontal } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Orden } from '@/services/ordenesService';
 import { 
   Table, 
   TableBody, 
@@ -10,8 +11,12 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { Orden } from '@/services/ordenesService';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,33 +36,43 @@ interface OrdenesListProps {
   onApprove: (id: number) => void;
 }
 
-const OrdenesList = ({ ordenes, onEdit, onDelete, onView, onApprove }: OrdenesListProps) => {
+const OrdenesList: React.FC<OrdenesListProps> = ({ 
+  ordenes, 
+  onEdit, 
+  onDelete, 
+  onView, 
+  onApprove 
+}) => {
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [confirmApproveOpen, setConfirmApproveOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
 
-  const formatDate = (dateString: string | undefined) => {
-    if (!dateString) return 'N/A';
-    try {
-      return format(new Date(dateString), 'dd MMM yyyy HH:mm', { locale: es });
-    } catch (error) {
-      return 'Fecha inválida';
+  const getStatusBadge = (estado: string) => {
+    switch (estado?.toUpperCase()) {
+      case 'PENDIENTE':
+        return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">Pendiente</Badge>;
+      case 'APROBADA':
+        return <Badge variant="default" className="bg-green-100 text-green-800">Aprobada</Badge>;
+      case 'ANULADA':
+        return <Badge variant="destructive" className="bg-red-100 text-red-800">Anulada</Badge>;
+      case 'FINALIZADA':
+        return <Badge variant="outline" className="bg-blue-100 text-blue-800">Finalizada</Badge>;
+      default:
+        return <Badge variant="outline">{estado}</Badge>;
     }
   };
 
-  const getEstadoBadgeClass = (estado: string | undefined) => {
-    switch (estado?.toLowerCase()) {
-      case 'aprobado':
-      case 'aprobada':
-        return 'bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-semibold';
-      case 'pendiente':
-        return 'bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-semibold';
-      case 'rechazado':
-      case 'anulada':
-      case 'anulado':
-        return 'bg-red-100 text-red-800 px-3 py-1 rounded-full text-xs font-semibold';
-      default:
-        return 'bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-xs font-semibold';
+  const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return 'No especificada';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('es-ES', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    } catch (error) {
+      return 'Fecha inválida';
     }
   };
 
@@ -75,7 +90,7 @@ const OrdenesList = ({ ordenes, onEdit, onDelete, onView, onApprove }: OrdenesLi
     }
   };
 
-  const handleConfirmDelete = () => {
+  const handleDeleteConfirm = () => {
     if (selectedOrderId) {
       onDelete(selectedOrderId);
       setConfirmDeleteOpen(false);
@@ -83,7 +98,7 @@ const OrdenesList = ({ ordenes, onEdit, onDelete, onView, onApprove }: OrdenesLi
     }
   };
 
-  const handleConfirmApprove = () => {
+  const handleApproveConfirm = () => {
     if (selectedOrderId) {
       onApprove(selectedOrderId);
       setConfirmApproveOpen(false);
@@ -91,137 +106,133 @@ const OrdenesList = ({ ordenes, onEdit, onDelete, onView, onApprove }: OrdenesLi
     }
   };
 
-  const isOrderDisabled = (estado?: string) => {
-    return estado?.toLowerCase() === 'aprobada' || estado?.toLowerCase() === 'anulada';
-  };
+  if (ordenes.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+        <p>No hay órdenes disponibles.</p>
+        <p className="text-sm">Crea una nueva orden para comenzar.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="border rounded-lg shadow-sm overflow-hidden">
-      <Table>
-        <TableHeader className="bg-gray-50">
-          <TableRow>
-            <TableHead className="w-[80px] font-semibold">N° Orden</TableHead>
-            <TableHead className="font-semibold">Fecha</TableHead>
-            <TableHead className="font-semibold">Prestador</TableHead>
-            <TableHead className="font-semibold">Candidato</TableHead>
-            <TableHead className="font-semibold">Estado</TableHead>
-            <TableHead className="text-right font-semibold">Acciones</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {ordenes.length > 0 ? (
-            ordenes.map((orden) => (
-              <TableRow key={orden.id} className="hover:bg-gray-50 transition-colors">
-                <TableCell className="font-medium">{orden.id || 'N/A'}</TableCell>
-                <TableCell>{formatDate(orden.fechaCreacion)}</TableCell>
-                <TableCell>{orden.empresa_name || 'N/A'}</TableCell>
+    <>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>ID</TableHead>
+              <TableHead>Trabajador</TableHead>
+              <TableHead>Documento</TableHead>
+              <TableHead>Empresa</TableHead>
+              <TableHead>Cargo</TableHead>
+              <TableHead>Ciudad</TableHead>
+              <TableHead>Estado</TableHead>
+              <TableHead>Fecha</TableHead>
+              <TableHead className="text-right">Acciones</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {ordenes.map((orden) => (
+              <TableRow key={orden.id}>
+                <TableCell className="font-medium">#{orden.id}</TableCell>
                 <TableCell>
-                  {orden.aspirante_name || 'N/A'}
-                </TableCell>
-                <TableCell>
-                  <span className={getEstadoBadgeClass(orden.estado)}>
-                    {orden.estado || 'Pendiente'}
-                  </span>
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onView(orden)}
-                      title="Ver PDF"
-                      className="h-8 w-8 p-0 rounded-full bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 transition-colors"
-                    >
-                      <FileText className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onEdit(orden)}
-                      title="Editar"
-                      disabled={isOrderDisabled(orden.estado)}
-                      className="h-8 w-8 p-0 rounded-full bg-amber-50 text-amber-600 hover:bg-amber-100 hover:text-amber-700 transition-colors disabled:opacity-50 disabled:hover:bg-transparent"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleApproveClick(orden.id)}
-                      title="Aprobar"
-                      disabled={isOrderDisabled(orden.estado)}
-                      className="h-8 w-8 p-0 rounded-full bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 transition-colors disabled:opacity-50 disabled:hover:bg-transparent"
-                    >
-                      <Check className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteClick(orden.id)}
-                      title="Anular"
-                      disabled={isOrderDisabled(orden.estado)}
-                      className="h-8 w-8 p-0 rounded-full bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 transition-colors disabled:opacity-50 disabled:hover:bg-transparent"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                  <div className="flex flex-col">
+                    <span className="font-medium">{orden.nombres} {orden.apellidos}</span>
+                    <span className="text-sm text-muted-foreground">{orden.celular}</span>
                   </div>
                 </TableCell>
+                <TableCell>
+                  <div className="flex flex-col">
+                    <span>{orden.tipoDocumento}: {orden.numeroDocumento}</span>
+                    <span className="text-sm text-muted-foreground">{orden.lugarExpedicion}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-col">
+                    <span>{orden.empresaUsuaria || orden.empresa_name || 'Sin empresa'}</span>
+                    <span className="text-sm text-muted-foreground">{orden.ciudadPrestacionServicio}</span>
+                  </div>
+                </TableCell>
+                <TableCell>{orden.cargo}</TableCell>
+                <TableCell>{orden.ciudad}</TableCell>
+                <TableCell>{getStatusBadge(orden.estado)}</TableCell>
+                <TableCell>{formatDate(orden.fechaCreacion || orden.fecha_orden || orden.fecha)}</TableCell>
+                <TableCell className="text-right">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="h-8 w-8 p-0">
+                        <span className="sr-only">Abrir menú</span>
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => onView(orden)}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        Ver
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onEdit(orden)}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Editar
+                      </DropdownMenuItem>
+                      {orden.estado !== 'APROBADA' && (
+                        <DropdownMenuItem onClick={() => handleApproveClick(orden.id)}>
+                          <CheckCircle className="mr-2 h-4 w-4" />
+                          Aprobar
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem 
+                        onClick={() => handleDeleteClick(orden.id)}
+                        className="text-red-600"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Eliminar
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
               </TableRow>
-            ))
-          ) : (
-            <TableRow>
-              <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                No hay órdenes registradas.
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
-        <AlertDialogContent className="bg-white max-w-md">
+        <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-lg font-semibold">¿Está seguro de anular esta orden?</AlertDialogTitle>
-            <AlertDialogDescription className="text-muted-foreground">
-              Esta acción cambiará el estado de la orden a ANULADA y no podrá ser revertida.
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Esto eliminará permanentemente la orden seleccionada.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="mt-4 flex gap-2">
-            <AlertDialogCancel className="rounded-md border border-input bg-background px-4 py-2 text-sm shadow-sm">
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleConfirmDelete}
-              className="rounded-md bg-red-500 px-4 py-2 text-sm text-white hover:bg-red-600"
-            >
-              Anular
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-red-600 hover:bg-red-700">
+              Eliminar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
       {/* Approve Confirmation Dialog */}
       <AlertDialog open={confirmApproveOpen} onOpenChange={setConfirmApproveOpen}>
-        <AlertDialogContent className="bg-white max-w-md">
+        <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-lg font-semibold">¿Está seguro de aprobar esta orden?</AlertDialogTitle>
-            <AlertDialogDescription className="text-muted-foreground">
-              Esta acción cambiará el estado de la orden a APROBADA y no podrá ser revertida.
+            <AlertDialogTitle>Aprobar Orden</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Está seguro que desea aprobar esta orden? Esta acción cambiará el estado a "Aprobada".
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="mt-4 flex gap-2">
-            <AlertDialogCancel className="rounded-md border border-input bg-background px-4 py-2 text-sm shadow-sm">
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleConfirmApprove}
-              className="rounded-md bg-green-500 px-4 py-2 text-sm text-white hover:bg-green-600"
-            >
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleApproveConfirm} className="bg-green-600 hover:bg-green-700">
               Aprobar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   );
 };
 
