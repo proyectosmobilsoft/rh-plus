@@ -9,6 +9,7 @@ import { Orden, ordenesService } from '@/services/ordenesService';
 import OrdenForm from '@/components/ordenes/OrdenForm';
 import OrdenesList from '@/components/ordenes/OrdenesList';
 import OrdenPDF from '@/components/ordenes/OrdenPDF';
+import OrdenesStatistics from '@/components/ordenes/OrdenesStatistics';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const ExpedicionOrdenPage = () => {
@@ -160,6 +161,9 @@ const ExpedicionOrdenPage = () => {
       </div>
 
       <div className="space-y-4">
+        {/* Statistics Dashboard */}
+        <OrdenesStatistics ordenes={ordenes} />
+        
         <div className="dashboard-card bg-white">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-medium text-primary-foreground">Listado</h2>

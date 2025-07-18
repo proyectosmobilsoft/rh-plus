@@ -13,6 +13,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Separator } from "@/components/ui/separator";
 import { Calendar, MapPin, User, Building, DollarSign, Clock, FileText, Users } from "lucide-react";
 import { Orden } from '@/services/ordenesService';
+import { empresasService } from '@/services/empresasService';
+import WorkScheduleBuilder from './WorkScheduleBuilder';
+import { useQuery } from '@tanstack/react-query';
 
 // Validation schema
 const ordenSchema = z.object({
@@ -69,6 +72,12 @@ interface OrdenFormProps {
 }
 
 const OrdenForm: React.FC<OrdenFormProps> = ({ orden, onSubmit, onCancel }) => {
+  // Fetch companies for selector
+  const { data: empresas = [] } = useQuery({
+    queryKey: ['/api/empresas'],
+    queryFn: () => empresasService.getAll()
+  });
+
   const form = useForm<z.infer<typeof ordenSchema>>({
     resolver: zodResolver(ordenSchema),
     defaultValues: {
@@ -130,7 +139,8 @@ const OrdenForm: React.FC<OrdenFormProps> = ({ orden, onSubmit, onCancel }) => {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+      <div className="transform scale-90 origin-top">
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
         {/* Información del Trabajador */}
         <Card>
           <CardHeader>
@@ -269,9 +279,20 @@ const OrdenForm: React.FC<OrdenFormProps> = ({ orden, onSubmit, onCancel }) => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Empresa Usuaria</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Nombre de la empresa" {...field} />
-                    </FormControl>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccione empresa" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {empresas.map((empresa) => (
+                          <SelectItem key={empresa.Id || empresa.id} value={empresa.nombreEmpresa}>
+                            {empresa.nombreEmpresa}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -492,9 +513,9 @@ const OrdenForm: React.FC<OrdenFormProps> = ({ orden, onSubmit, onCancel }) => {
                 <FormItem>
                   <FormLabel>Jornada Laboral</FormLabel>
                   <FormControl>
-                    <Textarea
-                      placeholder="Lunes a Viernes: 6:00-12:00 pm - 5pm, Sábados de 8am-12m"
-                      {...field}
+                    <WorkScheduleBuilder 
+                      value={field.value || ''} 
+                      onChange={field.onChange} 
                     />
                   </FormControl>
                   <FormMessage />
@@ -703,7 +724,8 @@ const OrdenForm: React.FC<OrdenFormProps> = ({ orden, onSubmit, onCancel }) => {
             {orden ? 'Actualizar' : 'Crear'} Orden
           </Button>
         </div>
-      </form>
+        </form>
+      </div>
     </Form>
   );
 };
