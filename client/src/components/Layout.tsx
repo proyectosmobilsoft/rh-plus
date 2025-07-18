@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -29,9 +29,11 @@ import {
   Activity,
   ChevronRight,
   QrCode,
+  Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
+import { useAuth } from "@/contexts/AuthContext";
 import logo from "../../public/logo2.svg";
 
 // Define los menús y submenús
@@ -90,6 +92,31 @@ const menuItems = [
 
 // Componente para el header
 const Header = () => {
+  const { user, currentSedeId } = useAuth();
+  const [currentSede, setCurrentSede] = useState<any>(null);
+
+  useEffect(() => {
+    if (currentSedeId) {
+      fetchCurrentSede(currentSedeId);
+    }
+  }, [currentSedeId]);
+
+  const fetchCurrentSede = async (sedeId: number) => {
+    try {
+      const response = await fetch('/api/sedes', {
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const sedes = await response.json();
+        const sede = sedes.find((s: any) => s.id === sedeId);
+        setCurrentSede(sede);
+      }
+    } catch (error) {
+      console.error('Error fetching sede:', error);
+    }
+  };
+
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center border-b bg-background px-4">
       <SidebarTrigger />
@@ -97,10 +124,19 @@ const Header = () => {
         <h1 className="text-lg font-semibold text-gray-800">Sistema de Recursos Humanos</h1>
       </div>
       <div className="ml-auto flex items-center space-x-4">
+        {/* Mostrar sede actual */}
+        {currentSede && (
+          <div className="flex items-center bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-medium border border-blue-200">
+            <Building2 className="w-4 h-4 mr-2" />
+            {currentSede.nombre}
+          </div>
+        )}
+        
         <ThemeSwitcher />
+        
         <div className="flex items-center bg-brand-lime/10 text-brand-lime px-3 py-1 rounded-full text-sm font-medium border border-brand-lime/20 hover-lift">
           <User className="w-4 h-4 mr-2" />
-          Administrador
+          {user?.primerNombre || 'Administrador'}
         </div>
       </div>
     </header>

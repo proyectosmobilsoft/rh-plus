@@ -155,6 +155,9 @@ export const clientes = pgTable("clientes", {
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   fechaCreacion: true,
+}).extend({
+  perfilIds: z.array(z.number()).optional(),
+  sedeIds: z.array(z.number()).optional(),
 });
 
 export const insertUserPerfilSchema = createInsertSchema(userPerfiles).omit({

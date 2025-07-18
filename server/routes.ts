@@ -23,6 +23,7 @@ declare module "express-session" {
     empresaId?: number;
     userType?: "admin" | "candidato" | "empresa" | "analista" | "cliente";
     userTable?: "users" | "candidatos" | "empresas";
+    sedeId?: number;
   }
 }
 
@@ -2250,6 +2251,132 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(result.rows);
     } catch (error) {
       console.error("Error obteniendo vistas con acciones:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // === GESTIÓN DE SEDES ===
+
+  // Obtener todas las sedes
+  app.get("/api/sedes", async (req, res) => {
+    try {
+      // Datos mock de sedes
+      const sedes = [
+        {
+          id: 1,
+          nombre: "Sede Central",
+          descripcion: "Sede principal de la empresa",
+          direccion: "Calle 123 #45-67, Bogotá",
+          estado: "activo"
+        },
+        {
+          id: 2,
+          nombre: "Sede Norte",
+          descripcion: "Sede ubicada en el norte de la ciudad",
+          direccion: "Carrera 15 #85-20, Bogotá",
+          estado: "activo"
+        },
+        {
+          id: 3,
+          nombre: "Sede Sur",
+          descripcion: "Sede ubicada en el sur de la ciudad",
+          direccion: "Avenida 68 #25-10, Bogotá",
+          estado: "activo"
+        },
+        {
+          id: 4,
+          nombre: "Sede Medellín",
+          descripcion: "Sede en la ciudad de Medellín",
+          direccion: "Carrera 70 #52-21, Medellín",
+          estado: "activo"
+        }
+      ];
+
+      res.json(sedes);
+    } catch (error) {
+      console.error("Error obteniendo sedes:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Seleccionar sede para la sesión
+  app.post("/api/auth/select-sede", async (req, res) => {
+    try {
+      const { sedeId } = req.body;
+
+      if (!req.session.userId || req.session.userType !== "admin") {
+        return res.status(401).json({ message: "No autorizado" });
+      }
+
+      if (!sedeId) {
+        return res.status(400).json({ message: "ID de sede requerido" });
+      }
+
+      // Obtener usuario y verificar que tenga acceso a la sede
+      const user = await memoryUserStorage.getUser(req.session.userId);
+      if (!user) {
+        return res.status(404).json({ message: "Usuario no encontrado" });
+      }
+
+      if (user.sedeIds && !user.sedeIds.includes(sedeId)) {
+        return res.status(403).json({ message: "No tienes acceso a esta sede" });
+      }
+
+      // Guardar sede seleccionada en la sesión
+      req.session.sedeId = sedeId;
+
+      res.json({ message: "Sede seleccionada exitosamente", sedeId });
+    } catch (error) {
+      console.error("Error seleccionando sede:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Actualizar endpoint de sesión para incluir sedeId
+  app.get("/api/auth/session", async (req, res) => {
+    try {
+      if (!req.session.userId || !req.session.userType) {
+        return res.status(401).json({ message: "No hay sesión activa" });
+      }
+
+      let user = null;
+      let role = null;
+
+      if (req.session.userType === "admin") {
+        user = await memoryUserStorage.getUser(req.session.userId);
+        if (user) {
+          role = "admin";
+        }
+      } else if (req.session.userType === "candidato") {
+        user = await storage.getCandidato(req.session.userId);
+        if (user) {
+          role = "candidato";
+        }
+      } else if (req.session.userType === "empresa") {
+        user = await storage.getEmpresaById(req.session.userId);
+        if (user) {
+          role = "cliente";
+        }
+      }
+
+      if (!user) {
+        return res.status(401).json({ message: "Usuario no encontrado" });
+      }
+
+      // Incluir sedeId en la respuesta
+      res.json({
+        user: {
+          id: user.id,
+          email: user.email,
+          primerNombre: user.primerNombre || user.nombres || user.nombreCompleto,
+          primerApellido: user.primerApellido || user.apellidos || "",
+          role: role,
+          sedeIds: user.sedeIds || []
+        },
+        currentSedeId: req.session.sedeId || null
+      });
+    } catch (error) {
+      console.error("Error obteniendo sesión:", error);
       res.status(500).json({ message: "Error interno del servidor" });
     }
   });
