@@ -201,6 +201,7 @@
 
 .sidebar-submenu-item.active {
   @apply bg-brand-lime/15 text-brand-lime border-l-4 border-brand-lime font-medium;
+  border-width: 0;
 }
 
 /* Transiciones suaves para cambios de tema */
