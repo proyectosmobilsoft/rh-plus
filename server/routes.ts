@@ -592,10 +592,115 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/perfiles", async (req, res) => {
     try {
-      const perfil = await memoryUserStorage.createPerfil(req.body);
-      res.status(201).json(perfil);
+      const { nombre, descripcion, permisos } = req.body;
+      
+      if (!nombre || !nombre.trim()) {
+        return res.status(400).json({ message: "El nombre es requerido" });
+      }
+
+      // Verificar que no exista otro perfil con el mismo nombre
+      const existingPerfil = await memoryUserStorage.getPerfilByNombre(nombre);
+      if (existingPerfil) {
+        return res.status(400).json({ message: "Ya existe un perfil con ese nombre" });
+      }
+      
+      // Convertir permisos array a JSON
+      let permisosData = null;
+      if (permisos && Array.isArray(permisos)) {
+        permisosData = JSON.stringify(permisos);
+      }
+      
+      const newPerfil = await memoryUserStorage.createPerfil({
+        nombre: nombre.trim(),
+        descripcion: descripcion?.trim() || null,
+        permisos: permisosData,
+        activo: true
+      });
+      
+      res.status(201).json(newPerfil);
     } catch (error) {
       console.error("Error creando perfil:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  app.put("/api/perfiles/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { nombre, descripcion, permisos } = req.body;
+      
+      if (!nombre || !nombre.trim()) {
+        return res.status(400).json({ message: "El nombre es requerido" });
+      }
+
+      // Verificar que no exista otro perfil con el mismo nombre (excepto el actual)
+      const existingPerfil = await memoryUserStorage.getPerfilByNombre(nombre);
+      if (existingPerfil && existingPerfil.id !== id) {
+        return res.status(400).json({ message: "Ya existe un perfil con ese nombre" });
+      }
+      
+      // Convertir permisos array a JSON
+      let permisosData = null;
+      if (permisos && Array.isArray(permisos)) {
+        permisosData = JSON.stringify(permisos);
+      }
+
+      const updatedPerfil = await memoryUserStorage.updatePerfil(id, {
+        nombre: nombre.trim(),
+        descripcion: descripcion?.trim() || null,
+        permisos: permisosData
+      });
+
+      res.json(updatedPerfil);
+    } catch (error: any) {
+      console.error("Error actualizando perfil:", error);
+      if (error.message === "Perfil no encontrado") {
+        return res.status(404).json({ message: error.message });
+      }
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  app.delete("/api/perfiles/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await memoryUserStorage.deletePerfil(id);
+      res.json({ message: "Perfil eliminado exitosamente" });
+    } catch (error: any) {
+      console.error("Error eliminando perfil:", error);
+      if (error.message === "Perfil no encontrado") {
+        return res.status(404).json({ message: error.message });
+      }
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  app.get("/api/perfiles/:id/permisos", async (req, res) => {
+    try {
+      const perfilId = parseInt(req.params.id);
+      
+      const perfil = await memoryUserStorage.getPerfilById(perfilId);
+      
+      if (!perfil) {
+        return res.status(404).json({ message: "Perfil no encontrado" });
+      }
+      
+      // Parse permissions from JSON column or return empty array
+      let permisos = [];
+      if (perfil.permisos) {
+        try {
+          permisos = typeof perfil.permisos === 'string' 
+            ? JSON.parse(perfil.permisos) 
+            : perfil.permisos;
+        } catch (e) {
+          console.error('Error parsing permissions:', e);
+          permisos = [];
+        }
+      }
+      
+      res.json(permisos);
+    } catch (error) {
+      console.error("Error obteniendo permisos del perfil:", error);
       res.status(500).json({ message: "Error interno del servidor" });
     }
   });
@@ -1444,61 +1549,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // ========== PERFILES API ROUTES - MEMORIA STORAGE ==========
-  app.get("/api/perfiles", async (req, res) => {
-    try {
-      const perfiles = await memoryUserStorage.getAllPerfiles();
-      res.json(perfiles);
-    } catch (error) {
-      console.error("Error obteniendo perfiles:", error);
-      res.status(500).json({ message: "Error interno del servidor" });
-    }
-  });
+  // ========== PERFILES API ROUTES - DUPLICADA - ELIMINADA ==========
 
-  app.post("/api/perfiles", (req, res) => {
-    const perfil = req.body;
-    perfiles.push(perfil);
-    res.status(201).json(perfil);
-  });
-
-  app.put("/api/perfiles/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const { nombre, descripcion, permisos } = req.body;
-      
-      if (!nombre || !nombre.trim()) {
-        return res.status(400).json({ message: "El nombre es requerido" });
-      }
-
-      // Verificar que no exista otro perfil con el mismo nombre (excepto el actual)
-      const existingPerfil = await memoryUserStorage.getPerfilByNombre(nombre);
-      if (existingPerfil && existingPerfil.id !== id) {
-        return res.status(400).json({ message: "Ya existe un perfil con ese nombre" });
-      }
-      
-      // Convertir permisos array a JSON
-      let permisosData = null;
-      if (permisos && Array.isArray(permisos)) {
-        permisosData = JSON.stringify(permisos);
-      }
-
-      const updatedPerfil = await memoryUserStorage.updatePerfil(id, {
-        nombre: nombre.trim(),
-        descripcion: descripcion?.trim() || null,
-        permisos: permisosData
-      });
-
-      res.json(updatedPerfil);
-    } catch (error: any) {
-      console.error("Error actualizando perfil:", error);
-      if (error.message === "Perfil no encontrado") {
-        return res.status(404).json({ message: error.message });
-      }
-      res.status(500).json({ message: "Error interno del servidor" });
-    }
-  });
-
-  app.get("/api/perfiles/:id/permisos", async (req, res) => {
+  app.get("/api/perfiles/:id/permisos-legacy", async (req, res) => {
     try {
       const perfilId = parseInt(req.params.id);
       
