@@ -20,6 +20,7 @@ import PrestadoresPage from "./pages/registros/PrestadoresPage";
 import QrPage from "./pages/registros/QrPage";
 import QrPageMejorado from "./pages/registros/QrPageMejorado";
 import ExpedicionOrdenPage from "./pages/ordenes/ExpedicionOrdenPage";
+import { TemplatesPage } from "./pages/admin/ordenes/TemplatesPage";
 import AgendaMedicaPage from "./pages/clinica/AgendaMedicaPage";
 import HistoriaMedicaPage from "./pages/clinica/HistoriaMedicaPage";
 import HistoriaLaboralPage from "./pages/clinica/HistoriaLaboralPage";
@@ -140,6 +141,7 @@ const App = () => (
             
             {/* Ordenes */}
             <Route path="/ordenes/expedicion" element={<ExpedicionOrdenPage />} />
+            <Route path="/ordenes/templates" element={<TemplatesPage />} />
             
             {/* Clinica */}
             <Route path="/clinica/agenda" element={<AgendaMedicaPage />} />

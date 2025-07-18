@@ -46,6 +46,7 @@ export type Permission =
   | "editar_ordenes"
   | "eliminar_ordenes"
   | "expedicion_orden"
+  | "gestionar_templates_ordenes"
   
   // Certificados
   | "ver_certificados"
@@ -112,6 +113,7 @@ export const rolePermissions: Record<UserRole, Permission[]> = {
     "editar_ordenes",
     "eliminar_ordenes",
     "expedicion_orden",
+    "gestionar_templates_ordenes",
     
     // Certificados - acceso completo
     "ver_certificados",
@@ -265,11 +267,26 @@ export const systemMenus: MenuItem[] = [
     permission: "ver_analistas"
   },
   {
-    id: "expedicion-orden",
-    label: "Expedición de Orden",
+    id: "ordenes",
+    label: "Órdenes",
     icon: "FileText",
-    path: "/ordenes",
-    permission: "expedicion_orden"
+    permission: "expedicion_orden",
+    children: [
+      {
+        id: "expedicion-orden",
+        label: "Expedición de Orden",
+        icon: "FileText",
+        path: "/ordenes/expedicion",
+        permission: "expedicion_orden"
+      },
+      {
+        id: "templates-orden",
+        label: "Configurar Plantillas",
+        icon: "Settings",
+        path: "/ordenes/templates",
+        permission: "gestionar_templates_ordenes"
+      }
+    ]
   },
   {
     id: "expedicion-certificados",

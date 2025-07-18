@@ -14,6 +14,8 @@ import { Separator } from "@/components/ui/separator";
 import { Calendar, MapPin, User, Building, DollarSign, Clock, FileText, Users } from "lucide-react";
 import { Orden } from '@/services/ordenesService';
 import { empresasService } from '@/services/empresasService';
+import { templatesService } from '@/services/templatesService';
+import { EmpresaOrderTemplate, FieldConfiguration } from '@shared/schema';
 import WorkScheduleBuilder from './WorkScheduleBuilder';
 import { useQuery } from '@tanstack/react-query';
 
@@ -72,10 +74,20 @@ interface OrdenFormProps {
 }
 
 const OrdenForm: React.FC<OrdenFormProps> = ({ orden, onSubmit, onCancel }) => {
+  const [selectedEmpresaId, setSelectedEmpresaId] = useState<number | null>(null);
+  const [fieldConfig, setFieldConfig] = useState<FieldConfiguration>({});
+
   // Fetch companies for selector
   const { data: empresas = [] } = useQuery({
     queryKey: ['/api/empresas'],
     queryFn: () => empresasService.getAll()
+  });
+
+  // Fetch default template for selected company
+  const { data: defaultTemplate } = useQuery({
+    queryKey: ['/api/empresas', selectedEmpresaId, 'templates', 'default'],
+    queryFn: () => selectedEmpresaId ? templatesService.getDefaultTemplate(selectedEmpresaId) : Promise.resolve(null),
+    enabled: !!selectedEmpresaId
   });
 
   const form = useForm<z.infer<typeof ordenSchema>>({
@@ -127,6 +139,54 @@ const OrdenForm: React.FC<OrdenFormProps> = ({ orden, onSubmit, onCancel }) => {
       especifique: orden?.especifique || "",
     },
   });
+
+  const [workSchedule, setWorkSchedule] = useState(orden?.jornadaLaboral || "");
+
+  // Update field configuration when template changes
+  useEffect(() => {
+    if (defaultTemplate) {
+      setFieldConfig(defaultTemplate.configuracionCampos);
+    } else {
+      // If no template, show all fields by default
+      const allFieldsVisible: FieldConfiguration = {
+        nombreTrabajador: { visible: true, required: false },
+        cedulaTrabajador: { visible: true, required: true },
+        empresaSeleccionada: { visible: true, required: true },
+        cargoTrabajador: { visible: true, required: true },
+        fechaIngreso: { visible: true, required: false },
+        jornadaLaboral: { visible: true, required: false },
+        salario: { visible: true, required: false },
+        celular: { visible: true, required: false },
+        correo: { visible: true, required: false },
+        direccion: { visible: true, required: false },
+        tipoExamen: { visible: true, required: false },
+        observaciones: { visible: true, required: false }
+      };
+      setFieldConfig(allFieldsVisible);
+    }
+  }, [defaultTemplate]);
+
+  const handleScheduleChange = (schedule: string) => {
+    setWorkSchedule(schedule);
+    form.setValue('jornadaLaboral', schedule);
+  };
+
+  // Function to check if a field should be visible
+  const isFieldVisible = (fieldKey: keyof FieldConfiguration): boolean => {
+    return fieldConfig[fieldKey]?.visible ?? true;
+  };
+
+  // Function to check if a field is required
+  const isFieldRequired = (fieldKey: keyof FieldConfiguration): boolean => {
+    return fieldConfig[fieldKey]?.required ?? false;
+  };
+
+  // Handle empresa selection
+  const handleEmpresaChange = (empresaId: string) => {
+    const id = parseInt(empresaId);
+    setSelectedEmpresaId(id);
+    form.setValue('empresaUsuaria', empresas.find(e => e.id === id)?.nombreEmpresa || '');
+  };
 
   const handleSubmit = (data: z.infer<typeof ordenSchema>) => {
     const ordenData: Orden = {
@@ -233,32 +293,36 @@ const OrdenForm: React.FC<OrdenFormProps> = ({ orden, onSubmit, onCancel }) => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="celular"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Celular</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Número de celular" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="direccion"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Dirección</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Dirección de residencia" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {isFieldVisible('celular') && (
+                <FormField
+                  control={form.control}
+                  name="celular"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Celular {isFieldRequired('celular') && '*'}</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Número de celular" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+              {isFieldVisible('direccion') && (
+                <FormField
+                  control={form.control}
+                  name="direccion"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Dirección {isFieldRequired('direccion') && '*'}</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Dirección de residencia" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
             </div>
           </CardContent>
         </Card>
@@ -273,30 +337,42 @@ const OrdenForm: React.FC<OrdenFormProps> = ({ orden, onSubmit, onCancel }) => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="empresaUsuaria"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Empresa Usuaria</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccione empresa" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {empresas.map((empresa) => (
-                          <SelectItem key={empresa.Id || empresa.id} value={empresa.nombreEmpresa}>
-                            {empresa.nombreEmpresa}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {isFieldVisible('empresaSeleccionada') && (
+                <FormField
+                  control={form.control}
+                  name="empresaUsuaria"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Empresa Usuaria {isFieldRequired('empresaSeleccionada') && '*'}</FormLabel>
+                      <Select 
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          // Find the empresa and trigger template loading
+                          const empresa = empresas.find(e => e.nombreEmpresa === value);
+                          if (empresa) {
+                            handleEmpresaChange(empresa.id.toString());
+                          }
+                        }} 
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleccione empresa" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {empresas.map((empresa) => (
+                            <SelectItem key={empresa.Id || empresa.id} value={empresa.nombreEmpresa}>
+                              {empresa.nombreEmpresa}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
               <FormField
                 control={form.control}
                 name="ciudadPrestacionServicio"
@@ -338,19 +414,21 @@ const OrdenForm: React.FC<OrdenFormProps> = ({ orden, onSubmit, onCancel }) => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="cargo"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cargo *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Cargo a desempeñar" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {isFieldVisible('cargoTrabajador') && (
+                <FormField
+                  control={form.control}
+                  name="cargo"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cargo {isFieldRequired('cargoTrabajador') ? '*' : ''}</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Cargo a desempeñar" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
               <FormField
                 control={form.control}
                 name="ciudad"
@@ -367,19 +445,21 @@ const OrdenForm: React.FC<OrdenFormProps> = ({ orden, onSubmit, onCancel }) => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="fechaIngreso"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Fecha de Ingreso</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {isFieldVisible('fechaIngreso') && (
+                <FormField
+                  control={form.control}
+                  name="fechaIngreso"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Fecha de Ingreso {isFieldRequired('fechaIngreso') && '*'}</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
               <FormField
                 control={form.control}
                 name="tipoContrato"

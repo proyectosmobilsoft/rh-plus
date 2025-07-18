@@ -20,6 +20,7 @@ import {
   viewActions,
   profileViewPermissions,
   profileActionPermissions,
+  empresaOrderTemplates,
   type User,
   type InsertUser,
   type UserPerfil,
@@ -84,6 +85,9 @@ import {
   passwordResetTokens,
   type PasswordResetToken,
   type InsertPasswordResetToken,
+  type EmpresaOrderTemplate,
+  type InsertEmpresaOrderTemplate,
+  type TemplateFieldConfig,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -345,6 +349,15 @@ export interface IStorage {
 
   // Initialize system views and actions
   initializeSystemViewsAndActions(): Promise<void>;
+
+  // Order template operations
+  getEmpresaOrderTemplates(empresaId: number): Promise<EmpresaOrderTemplate[]>;
+  getEmpresaOrderTemplate(id: number): Promise<EmpresaOrderTemplate | undefined>;
+  getDefaultEmpresaOrderTemplate(empresaId: number): Promise<EmpresaOrderTemplate | undefined>;
+  createEmpresaOrderTemplate(template: InsertEmpresaOrderTemplate): Promise<EmpresaOrderTemplate>;
+  updateEmpresaOrderTemplate(id: number, template: Partial<InsertEmpresaOrderTemplate>): Promise<EmpresaOrderTemplate>;
+  deleteEmpresaOrderTemplate(id: number): Promise<void>;
+  setDefaultEmpresaOrderTemplate(empresaId: number, templateId: number): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -382,6 +395,9 @@ export class MemStorage implements IStorage {
   // Tokens de recuperación de contraseña
   private passwordResetTokens: Map<number, PasswordResetToken>;
 
+  // Plantillas de orden por empresa
+  private empresaOrderTemplates: Map<number, EmpresaOrderTemplate>;
+
   currentUserId: number;
   currentUserPerfilId: number;
   currentCandidatoId: number;
@@ -404,6 +420,7 @@ export class MemStorage implements IStorage {
   currentAlertaId: number;
   currentMetricaId: number;
   currentPasswordResetTokenId: number;
+  currentEmpresaOrderTemplateId: number;
   
   // Contadores para sistema de permisos dinámicos
   currentSystemViewId: number;
@@ -436,6 +453,7 @@ export class MemStorage implements IStorage {
     this.alertas = new Map();
     this.metricas = new Map();
     this.passwordResetTokens = new Map();
+    this.empresaOrderTemplates = new Map();
 
     // Inicializar Maps del sistema de permisos dinámicos
     this.systemViews = new Map();
@@ -465,6 +483,7 @@ export class MemStorage implements IStorage {
     this.currentAlertaId = 1;
     this.currentMetricaId = 1;
     this.currentPasswordResetTokenId = 1;
+    this.currentEmpresaOrderTemplateId = 1;
     
     // Inicializar contadores del sistema de permisos dinámicos
     this.currentSystemViewId = 1;
@@ -2706,6 +2725,99 @@ export class MemStorage implements IStorage {
           activo: true
         });
       }
+    }
+  }
+
+  // ========== ORDER TEMPLATE OPERATIONS ==========
+
+  async getEmpresaOrderTemplates(empresaId: number): Promise<EmpresaOrderTemplate[]> {
+    return Array.from(this.empresaOrderTemplates.values()).filter(
+      template => template.empresaId === empresaId && template.activo
+    );
+  }
+
+  async getEmpresaOrderTemplate(id: number): Promise<EmpresaOrderTemplate | undefined> {
+    return this.empresaOrderTemplates.get(id);
+  }
+
+  async getDefaultEmpresaOrderTemplate(empresaId: number): Promise<EmpresaOrderTemplate | undefined> {
+    return Array.from(this.empresaOrderTemplates.values()).find(
+      template => template.empresaId === empresaId && template.esDefault && template.activo
+    );
+  }
+
+  async createEmpresaOrderTemplate(template: InsertEmpresaOrderTemplate): Promise<EmpresaOrderTemplate> {
+    const id = this.currentEmpresaOrderTemplateId++;
+    
+    // Si esta plantilla se marca como default, desactivar las otras default de la misma empresa
+    if (template.esDefault) {
+      for (const [existingId, existing] of this.empresaOrderTemplates.entries()) {
+        if (existing.empresaId === template.empresaId && existing.esDefault) {
+          this.empresaOrderTemplates.set(existingId, { ...existing, esDefault: false });
+        }
+      }
+    }
+
+    const newTemplate: EmpresaOrderTemplate = {
+      id,
+      empresaId: template.empresaId,
+      nombre: template.nombre,
+      descripcion: template.descripcion || null,
+      configuracionCampos: template.configuracionCampos,
+      esDefault: template.esDefault || false,
+      activo: template.activo !== undefined ? template.activo : true,
+      fechaCreacion: new Date(),
+      fechaModificacion: new Date(),
+    };
+    
+    this.empresaOrderTemplates.set(id, newTemplate);
+    return newTemplate;
+  }
+
+  async updateEmpresaOrderTemplate(id: number, template: Partial<InsertEmpresaOrderTemplate>): Promise<EmpresaOrderTemplate> {
+    const existing = this.empresaOrderTemplates.get(id);
+    if (!existing) {
+      throw new Error(`Template with id ${id} not found`);
+    }
+
+    // Si se marca como default, desactivar las otras default de la misma empresa
+    if (template.esDefault && !existing.esDefault) {
+      for (const [existingId, existingTemplate] of this.empresaOrderTemplates.entries()) {
+        if (existingTemplate.empresaId === existing.empresaId && existingTemplate.esDefault) {
+          this.empresaOrderTemplates.set(existingId, { ...existingTemplate, esDefault: false });
+        }
+      }
+    }
+
+    const updated = { 
+      ...existing, 
+      ...template, 
+      fechaModificacion: new Date() 
+    };
+    this.empresaOrderTemplates.set(id, updated);
+    return updated;
+  }
+
+  async deleteEmpresaOrderTemplate(id: number): Promise<void> {
+    const template = this.empresaOrderTemplates.get(id);
+    if (template) {
+      // Soft delete
+      this.empresaOrderTemplates.set(id, { ...template, activo: false });
+    }
+  }
+
+  async setDefaultEmpresaOrderTemplate(empresaId: number, templateId: number): Promise<void> {
+    // Desactivar todas las plantillas default de la empresa
+    for (const [id, template] of this.empresaOrderTemplates.entries()) {
+      if (template.empresaId === empresaId && template.esDefault) {
+        this.empresaOrderTemplates.set(id, { ...template, esDefault: false });
+      }
+    }
+
+    // Activar la plantilla especificada como default
+    const template = this.empresaOrderTemplates.get(templateId);
+    if (template && template.empresaId === empresaId) {
+      this.empresaOrderTemplates.set(templateId, { ...template, esDefault: true });
     }
   }
 }

@@ -2254,6 +2254,106 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ========== ORDER TEMPLATE ROUTES ==========
+  
+  // Get templates for a specific company
+  app.get("/api/empresas/:empresaId/templates", async (req, res) => {
+    try {
+      const empresaId = parseInt(req.params.empresaId);
+      const templates = await storage.getEmpresaOrderTemplates(empresaId);
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching order templates:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Get a specific template
+  app.get("/api/order-templates/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const template = await storage.getEmpresaOrderTemplate(id);
+      if (!template) {
+        return res.status(404).json({ message: "Plantilla no encontrada" });
+      }
+      res.json(template);
+    } catch (error) {
+      console.error("Error fetching order template:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Get default template for a company
+  app.get("/api/empresas/:empresaId/templates/default", async (req, res) => {
+    try {
+      const empresaId = parseInt(req.params.empresaId);
+      const template = await storage.getDefaultEmpresaOrderTemplate(empresaId);
+      if (!template) {
+        return res.status(404).json({ message: "No hay plantilla por defecto configurada" });
+      }
+      res.json(template);
+    } catch (error) {
+      console.error("Error fetching default template:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Create a new template
+  app.post("/api/order-templates", async (req, res) => {
+    try {
+      const templateData = req.body;
+      const template = await storage.createEmpresaOrderTemplate(templateData);
+      res.status(201).json({ 
+        message: "Plantilla creada exitosamente",
+        template 
+      });
+    } catch (error) {
+      console.error("Error creating order template:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Update a template
+  app.put("/api/order-templates/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const templateData = req.body;
+      const template = await storage.updateEmpresaOrderTemplate(id, templateData);
+      res.json({ 
+        message: "Plantilla actualizada exitosamente",
+        template 
+      });
+    } catch (error) {
+      console.error("Error updating order template:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Delete a template
+  app.delete("/api/order-templates/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteEmpresaOrderTemplate(id);
+      res.json({ message: "Plantilla eliminada exitosamente" });
+    } catch (error) {
+      console.error("Error deleting order template:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Set default template for a company
+  app.post("/api/empresas/:empresaId/templates/:templateId/set-default", async (req, res) => {
+    try {
+      const empresaId = parseInt(req.params.empresaId);
+      const templateId = parseInt(req.params.templateId);
+      await storage.setDefaultEmpresaOrderTemplate(empresaId, templateId);
+      res.json({ message: "Plantilla establecida como predeterminada" });
+    } catch (error) {
+      console.error("Error setting default template:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

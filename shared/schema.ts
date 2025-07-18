@@ -771,3 +771,76 @@ export type ProfilePermissions = {
     acciones: ViewAction[];
   }>;
 };
+
+// ========== SISTEMA DE PLANTILLAS DE ORDEN POR EMPRESA ==========
+
+// Tabla de plantillas de orden personalizadas por empresa
+export const empresaOrderTemplates = pgTable("empresa_order_templates", {
+  id: serial("id").primaryKey(),
+  empresaId: integer("empresa_id").notNull().references(() => empresas.id, { onDelete: 'cascade' }),
+  nombre: varchar("nombre", { length: 100 }).notNull(), // ej: "Plantilla Ingenieros", "Plantilla Operarios"
+  descripcion: text("descripcion"),
+  configuracionCampos: jsonb("configuracion_campos").notNull(), // JSON con configuración de campos habilitados/requeridos
+  esDefault: boolean("es_default").default(false), // Si es la plantilla por defecto para la empresa
+  activo: boolean("activo").default(true),
+  fechaCreacion: timestamp("fecha_creacion").defaultNow(),
+  fechaModificacion: timestamp("fecha_modificacion").defaultNow(),
+});
+
+// Esquemas de inserción y tipos para plantillas de orden
+export const insertEmpresaOrderTemplateSchema = createInsertSchema(empresaOrderTemplates).omit({
+  id: true,
+  fechaCreacion: true,
+  fechaModificacion: true,
+});
+
+export type EmpresaOrderTemplate = typeof empresaOrderTemplates.$inferSelect;
+export type InsertEmpresaOrderTemplate = z.infer<typeof insertEmpresaOrderTemplateSchema>;
+
+// Tipo para la configuración de campos de una plantilla
+export type TemplateFieldConfig = {
+  // Información del Trabajador
+  trabajador: {
+    nombres: { visible: boolean; requerido: boolean };
+    apellidos: { visible: boolean; requerido: boolean };
+    tipoDocumento: { visible: boolean; requerido: boolean };
+    numeroDocumento: { visible: boolean; requerido: boolean };
+    fechaNacimiento: { visible: boolean; requerido: boolean };
+    edad: { visible: boolean; requerido: boolean };
+    sexo: { visible: boolean; requerido: boolean };
+    estadoCivil: { visible: boolean; requerido: boolean };
+    telefono: { visible: boolean; requerido: boolean };
+    direccion: { visible: boolean; requerido: boolean };
+    ciudad: { visible: boolean; requerido: boolean };
+    correoElectronico: { visible: boolean; requerido: boolean };
+  };
+  // Información de la Empresa
+  empresa: {
+    empresaUsuaria: { visible: boolean; requerido: boolean };
+    direccionEmpresa: { visible: boolean; requerido: boolean };
+    telefonoEmpresa: { visible: boolean; requerido: boolean };
+    ciudadEmpresa: { visible: boolean; requerido: boolean };
+    contactoEmpresa: { visible: boolean; requerido: boolean };
+    cargoContacto: { visible: boolean; requerido: boolean };
+  };
+  // Información del Cargo
+  cargo: {
+    cargoADesempenar: { visible: boolean; requerido: boolean };
+    areaDesempeno: { visible: boolean; requerido: boolean };
+    tipoContrato: { visible: boolean; requerido: boolean };
+    salario: { visible: boolean; requerido: boolean };
+    tipoSalario: { visible: boolean; requerido: boolean };
+    jornadaLaboral: { visible: boolean; requerido: boolean };
+    descripcionCargo: { visible: boolean; requerido: boolean };
+  };
+  // Exámenes Médicos
+  examenes: {
+    audioEspirometria: { visible: boolean; requerido: boolean };
+    visiometria: { visible: boolean; requerido: boolean };
+    laboratorioCompleto: { visible: boolean; requerido: boolean };
+    radiografiaTorax: { visible: boolean; requerido: boolean };
+    electrocardiograma: { visible: boolean; requerido: boolean };
+    examenFisico: { visible: boolean; requerido: boolean };
+    otrosExamenes: { visible: boolean; requerido: boolean };
+  };
+};
