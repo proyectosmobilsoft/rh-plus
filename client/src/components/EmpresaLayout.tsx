@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import logo from "../../public/logo2.svg";
 
 // Elementos del menú para empresas
 const empresaMenuItems = [
@@ -122,8 +123,15 @@ const EmpresaSidebar = () => {
       <SidebarContent className="flex flex-col h-full">
         <div className="flex-1">
           <SidebarGroup>
-            <SidebarGroupLabel className="duration-200 flex h-8 shrink-0 items-center rounded-md px-2 outline-none ring-sidebar-ring transition-[margin,opa] ease-linear focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0 group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0 text-xl font-bold text-[#ffffff]">
-              {collapsed ? "RH" : "Recursos Humanos"}
+            <SidebarGroupLabel className="duration-200 flex  shrink-0 items-center rounded-md px-2 outline-none ring-sidebar-ring transition-[margin,opa] ease-linear focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0 group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0 text-xl font-bold text-[#ffffff]">
+              {/*{collapsed ? "RH" : "Recursos Humanos"}*/}
+              {!collapsed && (
+                <div className="logo-sidebar-empresa"
+                  style={{
+                    backgroundImage: `url(${logo})`
+                  }}
+                ></div>
+              )}
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>

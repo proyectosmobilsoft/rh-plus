@@ -435,3 +435,34 @@ form button:hover {
   background-color: hsl(var(--sidebar-accent) / 0.1) !important;
   opacity: 0.7 !important;
 }
+
+.logo-login {
+  background-size: 340px;
+  height: 70px;
+  background-repeat: no-repeat;
+  width: 100%;
+  background-position: center center;
+  margin-top: 0;
+  border-radius: 5px;
+}
+
+.logo-sidebar {
+  background-size: 310px;
+  height: 30px;
+  background-repeat: no-repeat;
+  width: 100%;
+  background-position: center center;
+  margin-top: 0;
+  border-radius: 5px;
+}
+
+.logo-sidebar-empresa {
+  background-size: 310px;
+  height: 40px;
+  background-repeat: no-repeat;
+  width: 100%;
+  background-position: center center;
+  margin-top: 0;
+  border-radius: 5px;
+  margin-bottom: 10px;
+}
