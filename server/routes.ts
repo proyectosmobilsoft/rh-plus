@@ -103,7 +103,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         primerNombre: user.primerNombre || user.nombres,
         primerApellido: user.primerApellido || user.apellidos,
         role: userRole,
-        activo: user.activo
+        activo: user.activo,
+        sedeIds: user.sedeIds || []
       };
 
       res.json({
@@ -129,7 +130,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Obtener usuario según el tipo
       switch (req.session.userTable) {
         case "users":
-          user = await storage.getUser(req.session.userId);
+          user = await memoryUserStorage.getUserById(req.session.userId);
           break;
         case "candidatos":
           user = await storage.getCandidato(req.session.userId);
@@ -151,10 +152,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         primerNombre: user.primerNombre || user.nombres,
         primerApellido: user.primerApellido || user.apellidos,
         role: req.session.userType,
-        activo: user.activo
+        activo: user.activo,
+        sedeIds: user.sedeIds || []
       };
 
-      res.json({ user: userResponse });
+      res.json({ 
+        user: userResponse,
+        currentSedeId: req.session.sedeId || null
+      });
 
     } catch (error) {
       console.error("Error verificando sesión:", error);
@@ -171,6 +176,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json({ message: "Sesión cerrada exitosamente" });
     });
+  });
+
+  // Seleccionar sede
+  app.post("/api/auth/select-sede", async (req, res) => {
+    try {
+      const { sedeId } = req.body;
+      
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "No hay sesión activa" });
+      }
+      
+      if (!sedeId) {
+        return res.status(400).json({ message: "ID de sede requerido" });
+      }
+      
+      // Verificar que el usuario tiene acceso a esta sede
+      const user = await memoryUserStorage.getUserById(req.session.userId);
+      if (!user || !user.sedeIds || !user.sedeIds.includes(sedeId)) {
+        return res.status(403).json({ message: "No tienes acceso a esta sede" });
+      }
+      
+      // Guardar la sede seleccionada en la sesión
+      req.session.sedeId = sedeId;
+      
+      res.json({ message: "Sede seleccionada exitosamente", sedeId });
+    } catch (error) {
+      console.error("Error selecting sede:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Obtener sedes disponibles
+  app.get("/api/sedes", async (req, res) => {
+    try {
+      // Mock data de sedes - en producción esto vendría de la base de datos
+      const sedes = [
+        { id: 1, nombre: "Sede Central", descripcion: "Oficina principal", direccion: "Carrera 10 #20-30", estado: "activo" },
+        { id: 2, nombre: "Sede Norte", descripcion: "Sucursal Norte", direccion: "Calle 100 #15-25", estado: "activo" },
+        { id: 3, nombre: "Sede Sur", descripcion: "Sucursal Sur", direccion: "Carrera 30 #40-50", estado: "activo" },
+        { id: 4, nombre: "Sede Oeste", descripcion: "Sucursal Oeste", direccion: "Avenida 68 #80-90", estado: "activo" },
+        { id: 5, nombre: "Sede Este", descripcion: "Sucursal Este", direccion: "Carrera 50 #60-70", estado: "activo" }
+      ];
+      
+      res.json(sedes);
+    } catch (error) {
+      console.error("Error fetching sedes:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
   });
 
   // Obtener permisos del usuario
@@ -198,6 +251,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error) {
       console.error("Error obteniendo permisos:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Obtener perfiles del usuario
+  app.get("/api/usuarios/:id/perfiles", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      
+      if (!req.session.userId || req.session.userId !== userId) {
+        return res.status(401).json({ message: "No autorizado" });
+      }
+
+      // Obtener perfiles del usuario desde memory storage
+      const userPerfiles = await memoryUserStorage.getUserPerfiles(userId);
+      res.json(userPerfiles);
+
+    } catch (error) {
+      console.error("Error obteniendo perfiles del usuario:", error);
       res.status(500).json({ message: "Error interno del servidor" });
     }
   });

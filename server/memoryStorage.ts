@@ -349,6 +349,20 @@ class MemoryUserStorage {
 
   // ========== MÉTODOS DE UTILIDAD ==========
 
+  async getUserPerfiles(userId: number): Promise<MemoryPerfil[]> {
+    const userPerfilRelations = this.userPerfiles.filter(up => up.userId === userId);
+    const perfiles: MemoryPerfil[] = [];
+    
+    for (const relation of userPerfilRelations) {
+      const perfil = await this.getPerfilById(relation.perfilId);
+      if (perfil) {
+        perfiles.push(perfil);
+      }
+    }
+    
+    return perfiles;
+  }
+
   getStats() {
     return {
       totalUsers: this.users.length,

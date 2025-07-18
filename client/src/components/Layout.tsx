@@ -34,6 +34,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import { useAuth } from "@/contexts/AuthContext";
+import { UserDropdown } from "@/components/UserDropdown";
+import { filterMenuByPermissions } from "@/utils/menuPermissions";
 import logo from "../../public/logo2.svg";
 
 // Define los menús y submenús
@@ -133,11 +135,7 @@ const Header = () => {
         )}
         
         <ThemeSwitcher />
-        
-        <div className="flex items-center bg-brand-lime/10 text-brand-lime px-3 py-1 rounded-full text-sm font-medium border border-brand-lime/20 hover-lift">
-          <User className="w-4 h-4 mr-2" />
-          {user?.primerNombre || 'Administrador'}
-        </div>
+        <UserDropdown />
       </div>
     </header>
   );
@@ -146,16 +144,21 @@ const Header = () => {
 // Componente para el sidebar
 const AppSidebar = () => {
   const { state } = useSidebar();
+  const { user } = useAuth();
   const location = useLocation();
   const currentPath = location.pathname;
   const collapsed = state === "collapsed";
+  
+  // Filtrar elementos del menú basado en permisos del usuario
+  const userPermissions = user?.permissions || [];
+  const filteredMenuItems = filterMenuByPermissions(menuItems, userPermissions);
   
   // Control state for each menu group
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
     // Initialize open state based on current path
     const initialState: Record<string, boolean> = {};
-    menuItems.forEach((item, index) => {
-      if (item.subItems.some(subItem => currentPath.startsWith(subItem.path))) {
+    filteredMenuItems.forEach((item, index) => {
+      if (item.subItems && item.subItems.some((subItem: any) => currentPath.startsWith(subItem.path))) {
         initialState[index] = true;
       } else {
         initialState[index] = false;
@@ -186,7 +189,7 @@ const AppSidebar = () => {
         )}
       </div>
       <SidebarContent className="p-2 sidebar-compact">
-        {menuItems.map((item, index) => (
+        {filteredMenuItems.map((item, index) => (
           <React.Fragment key={item.title}>
             {item.subItems.length === 0 ? (
               // Elemento sin subítems

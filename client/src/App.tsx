@@ -92,7 +92,7 @@ import ResetPasswordCandidato from "./pages/candidatos/ResetPasswordCandidato";
 const queryClient = new QueryClient();
 
 function AppContent() {
-  const { user, isLoading, needsSedeSelection, selectSede } = useAuth();
+  const { user, isLoading, needsSedeSelection, selectSede, isAuthenticated } = useAuth();
 
   if (isLoading) {
     return (
@@ -105,7 +105,8 @@ function AppContent() {
     );
   }
 
-  if (needsSedeSelection && user?.sedeIds) {
+  // Si el usuario está autenticado pero necesita seleccionar sede
+  if (isAuthenticated && needsSedeSelection && user?.sedeIds) {
     return <SedeSelector userSedes={user.sedeIds} onSedeSelected={selectSede} />;
   }
 
