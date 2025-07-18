@@ -17,7 +17,6 @@ interface MemoryUser extends User {
   password: string;
   fechaCreacion: Date | null;
   activo: boolean | null;
-  sedeIds?: number[];
 }
 
 interface MemoryPerfil extends Perfil {
@@ -112,38 +111,7 @@ class MemoryUserStorage {
         username: "admin",
         password: "admin123", // En producción debería estar hasheada
         fechaCreacion: new Date(),
-        activo: true,
-        sedeIds: [1, 2, 3, 4] // Múltiples sedes para probar selector
-      },
-      {
-        id: 2,
-        identificacion: "87654321",
-        primerNombre: "Carlos",
-        segundoNombre: "José",
-        primerApellido: "Martínez",
-        segundoApellido: "López",
-        telefono: "3001234567",
-        email: "carlos.martinez@empresa.com",
-        username: "carlos",
-        password: "carlos123",
-        fechaCreacion: new Date(),
-        activo: true,
-        sedeIds: [1, 2] // Usuario con dos sedes
-      },
-      {
-        id: 3,
-        identificacion: "11223344",
-        primerNombre: "Ana",
-        segundoNombre: "María",
-        primerApellido: "García",
-        segundoApellido: "Rodríguez",
-        telefono: "3109876543",
-        email: "ana.garcia@empresa.com",
-        username: "ana",
-        password: "ana123",
-        fechaCreacion: new Date(),
-        activo: true,
-        sedeIds: [3] // Usuario con una sola sede
+        activo: true
       }
     ];
 
@@ -154,24 +122,12 @@ class MemoryUserStorage {
         userId: 1,
         perfilId: 1, // Administrador
         fechaAsignacion: new Date()
-      },
-      {
-        id: 2,
-        userId: 2,
-        perfilId: 2, // Coordinador
-        fechaAsignacion: new Date()
-      },
-      {
-        id: 3,
-        userId: 3,
-        perfilId: 4, // Analista
-        fechaAsignacion: new Date()
       }
     ];
 
-    this.userIdCounter = 4;
+    this.userIdCounter = 2;
     this.perfilIdCounter = 5; // Siguiente después de los 4 perfiles iniciales
-    this.userPerfilIdCounter = 4;
+    this.userPerfilIdCounter = 2;
   }
 
   // ========== OPERACIONES DE USUARIOS ==========
@@ -205,8 +161,7 @@ class MemoryUserStorage {
       username: userData.username,
       password: userData.password, // En producción debería hashearse
       fechaCreacion: new Date(),
-      activo: userData.activo ?? true,
-      sedeIds: (userData as any).sedeIds || []
+      activo: userData.activo ?? true
     };
 
     this.users.push(newUser);
@@ -224,8 +179,7 @@ class MemoryUserStorage {
       ...existingUser,
       ...userData,
       id: existingUser.id, // Mantener el ID original
-      fechaCreacion: existingUser.fechaCreacion, // Mantener fecha original
-      sedeIds: (userData as any).sedeIds || existingUser.sedeIds || []
+      fechaCreacion: existingUser.fechaCreacion // Mantener fecha original
     };
 
     this.users[userIndex] = updatedUser;
@@ -348,20 +302,6 @@ class MemoryUserStorage {
   }
 
   // ========== MÉTODOS DE UTILIDAD ==========
-
-  async getUserPerfiles(userId: number): Promise<MemoryPerfil[]> {
-    const userPerfilRelations = this.userPerfiles.filter(up => up.userId === userId);
-    const perfiles: MemoryPerfil[] = [];
-    
-    for (const relation of userPerfilRelations) {
-      const perfil = await this.getPerfilById(relation.perfilId);
-      if (perfil) {
-        perfiles.push(perfil);
-      }
-    }
-    
-    return perfiles;
-  }
 
   getStats() {
     return {

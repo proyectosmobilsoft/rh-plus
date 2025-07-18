@@ -5,10 +5,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import SedeSelector from "@/components/SedeSelector";
 
 import Index from "./pages/Index";
 import Layout from "./components/Layout";
@@ -87,31 +86,17 @@ import ResetPasswordEmpresa from "./pages/empresa/ResetPasswordEmpresa";
 import ForgotPasswordCandidato from "./pages/candidatos/ForgotPasswordCandidato";
 import ResetPasswordCandidato from "./pages/candidatos/ResetPasswordCandidato";
 
-
-
 const queryClient = new QueryClient();
 
-function AppContent() {
-  const { user, isLoading, needsSedeSelection, selectSede, isAuthenticated } = useAuth();
-
-  if (isLoading) {
-    return (
-      <div className="h-screen w-full bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-lime mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Si el usuario está autenticado pero necesita seleccionar sede
-  if (isAuthenticated && needsSedeSelection && user?.sedeIds) {
-    return <SedeSelector userSedes={user.sedeIds} onSedeSelected={selectSede} />;
-  }
-
-  return (
-    <Routes>
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <ThemeProvider>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+          <Routes>
           {/* Login Unificado - Única entrada al sistema */}
           <Route path="/" element={<LoginUnificado />} />
           
@@ -199,21 +184,9 @@ function AppContent() {
           {/* Ruta 404 */}
           <Route path="*" element={<NotFound />} />
         </Routes>
-    );
-}
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <AppContent />
-          </BrowserRouter>
-        </TooltipProvider>
-      </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
     </ThemeProvider>
   </QueryClientProvider>
 );

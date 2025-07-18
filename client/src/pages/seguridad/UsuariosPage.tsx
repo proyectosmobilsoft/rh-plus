@@ -38,7 +38,7 @@ const crearUsuarioSchema = z.object({
   username: z.string().min(3, "El username debe tener al menos 3 caracteres"),
   password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
   perfilIds: z.array(z.number()).min(1, "Debe seleccionar al menos un perfil"),
-  sedeIds: z.array(z.number()).optional(),
+  empresaIds: z.array(z.number()).optional(),
 });
 
 // Esquema para editar usuario (password opcional)
@@ -67,7 +67,7 @@ interface Usuario {
   username: string;
   activo: boolean;
   fechaCreacion: string;
-  sedeIds?: number[];
+  empresaIds?: number[];
   perfiles: Array<{
     id: number;
     nombre: string;
@@ -129,18 +129,18 @@ const UsuariosPage = () => {
     refetchOnWindowFocus: false
   });
 
-  // Mock data para sedes
-  const sedes = [
-    { id: 1, nombreSede: "Sede Central Bogotá" },
-    { id: 2, nombreSede: "Sede Norte" },
-    { id: 3, nombreSede: "Sede Sur" },
-    { id: 4, nombreSede: "Sede Medellín" },
-    { id: 5, nombreSede: "Sede Cali" },
-    { id: 6, nombreSede: "Sede Zona Industrial" },
+  // Mock data para empresas/almacenes
+  const empresas = [
+    { id: 1, nombreEmpresa: "Almacén Central Bogotá" },
+    { id: 2, nombreEmpresa: "Sucursal Norte" },
+    { id: 3, nombreEmpresa: "Depósito Sur" },
+    { id: 4, nombreEmpresa: "Centro Logístico Medellín" },
+    { id: 5, nombreEmpresa: "Bodega Principal Cali" },
+    { id: 6, nombreEmpresa: "Almacén Zona Industrial" },
   ];
 
-  // Loading state para sedes (mock data no necesita loading real)
-  const sedesLoading = false;
+  // Loading state para empresas (mock data no necesita loading real)
+  const empresasLoading = false;
 
   // Formulario para crear usuario
   const form = useForm<CrearUsuarioForm | EditarUsuarioForm>({
@@ -156,7 +156,7 @@ const UsuariosPage = () => {
       username: "",
       password: "",
       perfilIds: [],
-      sedeIds: [],
+      empresaIds: [],
     },
   });
 
@@ -199,7 +199,7 @@ const UsuariosPage = () => {
         username: "",
         password: "",
         perfilIds: [],
-        sedeIds: [],
+        empresaIds: [],
       });
     },
     onError: (error: any) => {
@@ -259,27 +259,8 @@ const UsuariosPage = () => {
     deleteUsuarioMutation.mutate(id);
   };
 
-  const handleSubmitCrearUsuario = (data: CrearUsuarioForm) => {
+  const handleCrearUsuario = (data: CrearUsuarioForm) => {
     createUsuarioMutation.mutate(data);
-  };
-
-  const handleCrearUsuario = () => {
-    setEditingUser(null);
-    // Formulario vacío para crear usuario
-    form.reset({
-      identificacion: "",
-      primerNombre: "",
-      segundoNombre: "",
-      primerApellido: "",
-      segundoApellido: "",
-      telefono: "",
-      email: "",
-      username: "",
-      password: "",
-      perfilIds: [],
-      sedeIds: [],
-    });
-    setIsModalOpen(true);
   };
 
   const handleEditarUsuario = (usuario: Usuario) => {
@@ -296,7 +277,7 @@ const UsuariosPage = () => {
       username: usuario.username,
       password: "", // No mostrar la contraseña actual
       perfilIds: usuario.perfiles?.map(p => p.id) || [],
-      sedeIds: usuario.sedeIds || [] // Cargar sedes asociadas si existen
+      empresaIds: usuario.empresaIds || [] // Cargar empresas asociadas si existen
     });
     setIsEditModalOpen(true);
   };
@@ -337,7 +318,7 @@ const UsuariosPage = () => {
         username: "",
         password: "",
         perfilIds: [],
-        sedeIds: [],
+        empresaIds: [],
       });
     },
     onError: (error: any) => {
@@ -386,10 +367,7 @@ const UsuariosPage = () => {
           
           <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
             <DialogTrigger asChild>
-              <Button 
-                onClick={handleCrearUsuario}
-                className="bg-brand-lime hover:bg-brand-lime/90 text-white shadow-md"
-              >
+              <Button className="bg-brand-lime hover:bg-brand-lime/90 text-white shadow-md">
                 <Plus className="w-4 h-4 mr-2" />
                 Crear Usuario
               </Button>
@@ -405,7 +383,7 @@ const UsuariosPage = () => {
             </DialogHeader>
             
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleSubmitCrearUsuario)} className="space-y-4">
+              <form onSubmit={form.handleSubmit(handleCrearUsuario)} className="space-y-4">
                 
                 {/* Grid principal más compacto - 3 columnas */}
                 <div className="grid grid-cols-3 gap-6">
@@ -616,22 +594,22 @@ const UsuariosPage = () => {
 
                     <FormField
                       control={form.control}
-                      name="sedeIds"
+                      name="empresaIds"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-sm font-medium">Sedes (Opcional)</FormLabel>
+                          <FormLabel className="text-sm font-medium">Almacenes (Opcional)</FormLabel>
                           <FormControl>
                             <div className="border-2 border-gray-300 rounded-md">
                               <MultiSelect
-                                options={sedes.map(sede => ({
-                                  id: sede.id,
-                                  name: sede.nombreSede
+                                options={empresas.map(empresa => ({
+                                  id: empresa.id,
+                                  name: empresa.nombreEmpresa
                                 }))}
                                 selected={field.value || []}
                                 onSelectionChange={(selected) => {
                                   field.onChange(selected);
                                 }}
-                                placeholder="Seleccione sedes"
+                                placeholder="Seleccione almacenes"
                               />
                             </div>
                           </FormControl>
@@ -723,7 +701,7 @@ const UsuariosPage = () => {
                       Perfiles
                     </th>
                     <th className="text-left py-3 px-4 font-medium text-gray-900">
-                      Sedes
+                      Almacenes
                     </th>
                     <th className="text-left py-3 px-4 font-medium text-gray-900">
                       Estado
@@ -769,21 +747,8 @@ const UsuariosPage = () => {
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex flex-wrap gap-1">
-                          {usuario.sedeIds?.map((sedeId) => {
-                            const sede = sedes.find(s => s.id === sedeId);
-                            return sede ? (
-                              <Badge
-                                key={sedeId}
-                                variant="outline"
-                                className="text-xs bg-blue-50 text-blue-700 border-blue-200"
-                              >
-                                {sede.nombreSede}
-                              </Badge>
-                            ) : null;
-                          }) || []}
-                          {(!usuario.sedeIds || usuario.sedeIds.length === 0) && (
-                            <span className="text-xs text-gray-400">Sin sedes</span>
-                          )}
+                          {/* TODO: Mostrar almacenes cuando esté implementado */}
+                          <span className="text-xs text-gray-400">Sin almacenes</span>
                         </div>
                       </td>
                       <td className="py-3 px-4">
@@ -1070,23 +1035,23 @@ const UsuariosPage = () => {
 
                   <FormField
                     control={form.control}
-                    name="sedeIds"
+                    name="empresaIds"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-sm font-medium">Sedes</FormLabel>
+                        <FormLabel className="text-sm font-medium">Almacenes</FormLabel>
                         <FormControl>
                           <MultiSelect
-                            options={sedes.map((sede) => ({
-                              id: sede.id,
-                              name: sede.nombreSede,
-                              description: `ID: ${sede.id}`
+                            options={empresas.map((empresa) => ({
+                              id: empresa.id,
+                              name: empresa.nombreEmpresa,
+                              description: `ID: ${empresa.id}`
                             }))}
                             selected={field.value || []}
                             onSelectionChange={field.onChange}
-                            placeholder="Seleccionar sedes..."
+                            placeholder="Seleccionar almacenes..."
                             className="h-auto"
-                            isLoading={sedesLoading}
-                            emptyText="No hay sedes disponibles"
+                            isLoading={empresasLoading}
+                            emptyText="No hay almacenes disponibles"
                           />
                         </FormControl>
                         <FormMessage />
