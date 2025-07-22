@@ -201,6 +201,18 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
                 </div>
               );
             })}
+            {/* Forzar Galería de Formularios para admin */}
+            {user.role === "admin" && (
+              <Link
+                href="/admin/form-gallery"
+                className={`block px-3 py-2 text-base rounded-md transition-colors text-gray-700 hover:bg-gray-100 hover:text-gray-900`}
+              >
+                <div className="flex items-center space-x-3">
+                  <FileText className="w-5 h-5" />
+                  <span>Galería de Formularios</span>
+                </div>
+              </Link>
+            )}
           </nav>
         </div>
       </div>

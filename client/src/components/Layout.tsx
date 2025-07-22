@@ -43,6 +43,12 @@ const menuItems = [
     subItems: [],
   },
   {
+    title: "Galería de Formularios",
+    icon: <FileText className="h-5 w-5" />,
+    path: "/admin/form-gallery",
+    subItems: [],
+  },
+  {
     title: "Registros",
     icon: <Users className="h-5 w-5" />,
     subItems: [
