@@ -115,5 +115,17 @@
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"
-  }
+  },
+  "main": "postcss.config.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/proyectosmobilsoft/rh-compensamos.git"
+  },
+  "keywords": [],
+  "author": "",
+  "bugs": {
+    "url": "https://github.com/proyectosmobilsoft/rh-compensamos/issues"
+  },
+  "homepage": "https://github.com/proyectosmobilsoft/rh-compensamos#readme",
+  "description": ""
 }
