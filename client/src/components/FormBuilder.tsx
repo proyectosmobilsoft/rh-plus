@@ -247,11 +247,42 @@ const FormBuilder: React.FC<{ precargados?: any[], readOnly?: boolean }> = ({ pr
               <div style={{ flex: 2, minWidth: 320 }}>
                 <fieldset style={{ border: '1px solid #e0e7ef', borderRadius: 12, padding: 16, marginBottom: 8 }}>
                   <legend>{selectedIdx === null ? 'Agregar campo' : 'Editar campo'}</legend>
-                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                    <select className="borde-input" name="type" value={field.type} onChange={handleFieldChange} style={{ fontSize: 16, borderRadius: 8, padding: 8, border: '1px solid #c1c1c1' }}>
-                      {FIELD_TYPES.map(ft => <option key={ft.value} value={ft.value}>{ft.label}</option>)}
-                    </select>
-                    <input className="borde-input" name="label" placeholder="Label" value={field.label} onChange={handleFieldChange} style={{ fontSize: 16, borderRadius: 8, padding: 8, border: '1px solid #c1c1c1' }} />
+                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', width: '100%' }}>
+                    <div style={{ flex: '1 1 calc(50% - 6px)', minWidth: '120px' }}>
+                      <select 
+                        className="borde-input" 
+                        name="type" 
+                        value={field.type} 
+                        onChange={handleFieldChange} 
+                        style={{ 
+                          width: '100%',
+                          fontSize: 16, 
+                          borderRadius: 8, 
+                          padding: 8, 
+                          border: '1px solid #c1c1c1',
+                          boxSizing: 'border-box'
+                        }}
+                      >
+                        {FIELD_TYPES.map(ft => <option key={ft.value} value={ft.value}>{ft.label}</option>)}
+                      </select>
+                    </div>
+                    <div style={{ flex: '1 1 calc(50% - 6px)', minWidth: '120px' }}>
+                      <input 
+                        className="borde-input" 
+                        name="label" 
+                        placeholder="Label" 
+                        value={field.label} 
+                        onChange={handleFieldChange} 
+                        style={{ 
+                          width: '100%',
+                          fontSize: 16, 
+                          borderRadius: 8, 
+                          padding: 8, 
+                          border: '1px solid #c1c1c1',
+                          boxSizing: 'border-box'
+                        }} 
+                      />
+                    </div>
                     {field.type !== 'title' && (
                       <input 
                         className="borde-input" 
