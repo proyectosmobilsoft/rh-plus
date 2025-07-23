@@ -451,6 +451,65 @@ button[class*="bg-green"]:hover {
   opacity: 0.7 !important;
 }
 
+/* Estilos para el toggle switch */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.toggle-switch input[type="checkbox"] {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+  border-radius: 24px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+  background-color: #1fb5ca; /* Color del toggle cuando está activo */
+}
+
+input:focus + .toggle-slider {
+  box-shadow: 0 0 1px #1fb5ca;
+}
+
+input:checked + .toggle-slider:before {
+  transform: translateX(20px);
+}
+
+.toggle-label {
+  vertical-align: middle;
+  margin-left: 4px;
+  font-size: 14px;
+  color: #333;
+}
+
 /* Botones secundarios - mantener color azul con opacidad */
 button[class*="bg-secondary"]:hover,
 button[class*="bg-blue"]:hover {

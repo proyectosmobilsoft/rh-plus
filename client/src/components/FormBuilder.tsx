@@ -248,28 +248,67 @@ const FormBuilder: React.FC<{ precargados?: any[], readOnly?: boolean }> = ({ pr
                 <fieldset style={{ border: '1px solid #e0e7ef', borderRadius: 12, padding: 16, marginBottom: 8 }}>
                   <legend>{selectedIdx === null ? 'Agregar campo' : 'Editar campo'}</legend>
                   <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                    <select name="type" value={field.type} onChange={handleFieldChange} style={{ fontSize: 16, borderRadius: 8, padding: 8 }}>
+                    <select className="borde-input" name="type" value={field.type} onChange={handleFieldChange} style={{ fontSize: 16, borderRadius: 8, padding: 8, border: '1px solid #c1c1c1' }}>
                       {FIELD_TYPES.map(ft => <option key={ft.value} value={ft.value}>{ft.label}</option>)}
                     </select>
-                    <input name="label" placeholder="Label" value={field.label} onChange={handleFieldChange} style={{ fontSize: 16, borderRadius: 8, padding: 8 }} />
-                    <input name="name" placeholder="Name" value={field.name} onChange={handleFieldChange} style={{ fontSize: 16, borderRadius: 8, padding: 8 }} />
-                    <input name="order" type="number" min={1} max={99} value={field.order} onChange={handleFieldChange} style={{ width: 60, fontSize: 16, borderRadius: 8, padding: 8 }} />
-                    <input name="dimension" type="number" min={1} max={12} value={field.dimension} onChange={handleFieldChange} style={{ width: 60, fontSize: 16, borderRadius: 8, padding: 8 }} />
+                    <input className="borde-input" name="label" placeholder="Label" value={field.label} onChange={handleFieldChange} style={{ fontSize: 16, borderRadius: 8, padding: 8, border: '1px solid #c1c1c1' }} />
+                    {field.type !== 'title' && (
+                      <input 
+                        className="borde-input" 
+                        name="name" 
+                        placeholder="Name" 
+                        value={field.name} 
+                        onChange={handleFieldChange} 
+                        style={{ fontSize: 16, borderRadius: 8, padding: 8, border: '1px solid #c1c1c1' }} 
+                      />
+                    )}
+                    <input className="borde-input" name="order" type="number" min={1} max={99} value={field.order} onChange={handleFieldChange} style={{ width: 60, fontSize: 16, borderRadius: 8, padding: 8, border: '1px solid #c1c1c1' }} />
+                    <input className="borde-input" name="dimension" type="number" min={1} max={12} value={field.dimension} onChange={handleFieldChange} style={{ width: 60, fontSize: 16, borderRadius: 8, padding: 8, border: '1px solid #c1c1c1' }} />
                     {(field.type === 'select' || field.type === 'radio' || field.type === 'foreignKey') && (
-                      <input name="options" placeholder="Opciones (separadas por coma)" value={field.options} onChange={handleFieldChange} style={{ fontSize: 16, borderRadius: 8, padding: 8, minWidth: 180 }} />
+                      <input className="borde-input" name="options" placeholder="Opciones (separadas por coma)" value={field.options} onChange={handleFieldChange} style={{ fontSize: 16, borderRadius: 8, padding: 8, minWidth: 180, border: '1px solid #c1c1c1' }} />
                     )}
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <input name="required" type="checkbox" checked={field.required} onChange={handleFieldChange} /> Requerido
-                    </label>
-                    {selectedIdx === null ? (
-                      <button onClick={addField} style={{ fontSize: 16, borderRadius: 8, padding: '8px 16px', background: '#a5d8ff', border: 'none', color: '#2d3142', fontWeight: 600, cursor: 'pointer' }}>Agregar</button>
-                    ) : (
-                      <>
-                        <button onClick={saveField} style={{ fontSize: 16, borderRadius: 8, padding: '8px 16px', background: '#b6e2d3', border: 'none', color: '#2d3142', fontWeight: 600, cursor: 'pointer' }}>Guardar</button>
-                        <button type="button" onClick={() => removeField(selectedIdx)} style={{ fontSize: 16, borderRadius: 8, padding: '8px 16px', background: '#ffd6e0', border: 'none', color: '#2d3142', fontWeight: 600, cursor: 'pointer', marginLeft: 8 }}>Eliminar</button>
-                        <button type="button" onClick={() => { setSelectedIdx(null); setField({ ...defaultField, id: '' }); }} style={{ fontSize: 16, borderRadius: 8, padding: '8px 16px', background: '#f0f4f8', border: 'none', color: '#2d3142', fontWeight: 600, cursor: 'pointer', marginLeft: 8 }}>Cancelar</button>
-                      </>
-                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', marginTop: 8 }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', flex: 1 }}>
+                        <div className="toggle-switch">
+                          <input className="borde-input" 
+                            name="required" 
+                            type="checkbox" 
+                            checked={field.required} 
+                            onChange={handleFieldChange}
+                            style={{ border: '1px solid #c1c1c1' }}
+                          />
+                          <span className="toggle-slider"></span>
+                        </div>
+                        <span className="toggle-label">Requerido</span>
+                      </label>
+                      {selectedIdx === null ? (
+                        <div style={{ marginLeft: 'auto' }}>
+                          <button 
+                            onClick={addField} 
+                            style={{ 
+                              fontSize: 16, 
+                              borderRadius: 8, 
+                              padding: '8px 16px', 
+                              background: '#a5d8ff', 
+                              border: 'none', 
+                              color: '#2d3142', 
+                              fontWeight: 600, 
+                              cursor: 'pointer',
+                              width: 'auto',
+                              minWidth: '100px'
+                            }}
+                          >
+                            Agregar
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+                          <button onClick={saveField} style={{ fontSize: 16, borderRadius: 8, padding: '8px 16px', background: '#b6e2d3', border: 'none', color: '#2d3142', fontWeight: 600, cursor: 'pointer' }}>Guardar</button>
+                          <button type="button" onClick={() => removeField(selectedIdx)} style={{ fontSize: 16, borderRadius: 8, padding: '8px 16px', background: '#ffd6e0', border: 'none', color: '#2d3142', fontWeight: 600, cursor: 'pointer' }}>Eliminar</button>
+                          <button type="button" onClick={() => { setSelectedIdx(null); setField({ ...defaultField, id: '' }); }} style={{ fontSize: 16, borderRadius: 8, padding: '8px 16px', background: '#f0f4f8', border: 'none', color: '#2d3142', fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </fieldset>
               </div>
