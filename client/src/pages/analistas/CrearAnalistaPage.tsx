@@ -104,6 +104,8 @@ export default function CrearAnalistaPage() {
         sucursalId: locationData.sucursalId,
       };
 
+      console.log('Datos enviados al backend:', analistaData);
+
       const response = await fetch('/api/analistas', {
         method: 'POST',
         headers: {

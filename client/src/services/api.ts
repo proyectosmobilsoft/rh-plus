@@ -1,7 +1,7 @@
 
 import { toast } from "sonner";
 
-const API_URL = "https://recursoshumanos.medicalsolutionscloud.com/";
+const API_URL = "http://localhost:3000/";
 
 // Función auxiliar para manejar errores
 const handleError = (error: unknown) => {
