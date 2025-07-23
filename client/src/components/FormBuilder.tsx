@@ -136,9 +136,32 @@ const FormBuilder: React.FC<{ precargados?: any[], readOnly?: boolean }> = ({ pr
         );
       case 'checkbox':
         return (
-          <div key={f.id} style={{ width, padding: 8, display: 'flex', alignItems: 'center' }}>
-            <input type="checkbox" name={f.name} required={f.required} style={{ marginRight: 8 }} />
-            <label style={{ fontWeight: 500 }}>{f.label}{f.required && ' *'}</label>
+          <div key={f.id} style={{ width, padding: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', width: '100%' }}>
+                <div className="toggle-switch">
+                  <input 
+                    type="checkbox" 
+                    name={f.name}
+                    checked={f.required || false}
+                    onChange={(e) => {
+                      const updatedFields = [...fields];
+                      const fieldIndex = updatedFields.findIndex(field => field.id === f.id);
+                      if (fieldIndex > -1) {
+                        updatedFields[fieldIndex] = {
+                          ...updatedFields[fieldIndex],
+                          required: e.target.checked
+                        };
+                        setFields(updatedFields);
+                      }
+                    }}
+                    style={{ display: 'none' }}
+                  />
+                  <span className="toggle-slider"></span>
+                </div>
+                <span style={{ fontWeight: 500 }}>{f.label}{f.required && ' *'}</span>
+              </label>
+            </div>
           </div>
         );
       case 'radio':
