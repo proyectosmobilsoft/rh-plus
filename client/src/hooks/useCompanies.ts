@@ -5,40 +5,37 @@ export function useCompanies(entityType: 'empresa' | 'prestador') {
   return useQuery({
     queryKey: ['companies', entityType],
     queryFn: async () => {
-      const tipoEmpresa = entityType === 'empresa' ? 'afiliada' : 'prestador';
-      
-     /* const { data, error } = await supabase
-        .from('empresas')
-        .select('*')
-        .eq('tipo_empresa', tipoEmpresa)
-        .order('created_at', { ascending: false });
-
-      if (error) {
+      try {
+        const response = await fetch('/api/empresas');
+        if (!response.ok) {
+          throw new Error('Error al obtener empresas');
+        }
+        const data = await response.json();
+        
+        // Mapear los datos recibidos al formato esperado por el frontend
+        return data.map((empresa: any): Company => ({
+          id: empresa.id.toString(),
+          name: empresa.razon_social,
+          nit: empresa.nit,
+          address: empresa.direccion,
+          city: empresa.ciudad,
+          phone: empresa.telefono,
+          email: empresa.email,
+          contactPerson: empresa.representante_legal,
+          contactPhone: empresa.telefono,
+          contactEmail: empresa.email,
+          sector: empresa.actividad_economica,
+          employeeCount: empresa.numero_empleados,
+          active: empresa.activo,
+          createdAt: empresa.created_at,
+          updatedAt: empresa.updated_at,
+          tipo_documento: empresa.tipo_documento,
+          regimen_tributario: empresa.regimen_tributario
+        }));
+      } catch (error) {
         console.error('Error fetching companies:', error);
-        throw error;
+        return [];
       }
-
-      if (!data) return [];
-
-      return data.map((empresa: CompanyRow): Company => ({
-        id: empresa.id.toString(),
-        name: empresa.razon_social,
-        nit: empresa.nit,
-        address: empresa.direccion,
-        city: empresa.ciudad,
-        phone: empresa.telefono,
-        email: empresa.email,
-        contactPerson: empresa.representante_legal,
-        contactPhone: empresa.telefono,
-        contactEmail: empresa.email,
-        sector: empresa.actividad_economica,
-        employeeCount: empresa.numero_empleados,
-        active: empresa.activo,
-        createdAt: empresa.created_at,
-        updatedAt: empresa.updated_at,
-        tipo_documento: empresa.tipo_documento,
-        regimen_tributario: empresa.regimen_tributario
-      }));*/
     },
     refetchOnMount: true,
     refetchOnWindowFocus: true,
