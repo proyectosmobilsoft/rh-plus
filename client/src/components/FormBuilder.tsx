@@ -155,7 +155,7 @@ const FormBuilder: React.FC<{ precargados?: any[], readOnly?: boolean }> = ({ pr
       case 'title':
         return (
           <div key={f.id} style={{ width, padding: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <h3 style={{ fontSize: 22, color: '#339af0', fontWeight: 700, margin: 0 }}>{f.label}</h3>
+            <h3 style={{ fontSize: 22, color: '#000', fontWeight: 700, margin: 0 }}>{f.label}</h3>
           </div>
         );
       case 'foreignKey':
@@ -173,7 +173,7 @@ const FormBuilder: React.FC<{ precargados?: any[], readOnly?: boolean }> = ({ pr
             <label style={{ fontWeight: 500 }}>{f.label}{f.required && ' *'}</label>
             <div style={{ display: 'flex', alignItems: 'center' }}>
               <input type="number" name={f.name} min={0} max={100} required={f.required} style={{ width: '100%', padding: 8, borderRadius: 8, border: '1px solid #e0e7ef', fontSize: 16 }} />
-              <span style={{ marginLeft: 6, fontWeight: 600, color: '#7b8794' }}>%</span>
+              <span style={{ marginLeft: 6, fontWeight: 600, color: '#000' }}>%</span>
             </div>
           </div>
         );
@@ -200,7 +200,7 @@ const FormBuilder: React.FC<{ precargados?: any[], readOnly?: boolean }> = ({ pr
     <div style={{ background: '#f8fafc', display: 'flex', height: '100%' }}>
       {!readOnly && (
         <div style={{ width: 260, background: '#fff', borderRight: '1px solid #e0e7ef', padding: '2rem 1rem', borderRadius: '0 24px 24px 0', boxShadow: '2px 0 12px 0 rgba(0,0,0,0.03)' }}>
-          <h3 style={{ color: '#7b8794', fontWeight: 700, fontSize: 20, marginBottom: 18 }}>Campos</h3>
+          <h3 style={{ color: '#000', fontWeight: 700, fontSize: 20, marginBottom: 18 }}>Campos</h3>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
             {fields.map((f, i) => (
               <li
@@ -226,7 +226,7 @@ const FormBuilder: React.FC<{ precargados?: any[], readOnly?: boolean }> = ({ pr
                   userSelect: 'none',
                 }}
               >
-                {f.label || '(Sin label)'} <span style={{ fontSize: 13, color: '#7b8794' }}>({f.type})</span>
+                {f.label || '(Sin label)'} <span style={{ fontSize: 13, color: '#000' }}>({f.type})</span>
               </li>
             ))}
           </ul>
@@ -236,7 +236,7 @@ const FormBuilder: React.FC<{ precargados?: any[], readOnly?: boolean }> = ({ pr
       <div style={{ flex: 1, maxWidth: 900, margin: '0 auto', padding: '2rem' }}>
         {!readOnly && (
           <>
-            <h2 style={{ textAlign: 'center', color: '#7b8794', fontWeight: 700, fontSize: 28, marginBottom: 24 }}>Generador de órdenes de servicio</h2>
+            <h2 style={{ textAlign: 'center', color: '#000', fontWeight: 700, fontSize: 28, marginBottom: 24 }}>Generador de órdenes de servicio</h2>
             <form style={{ display: 'flex', gap: 24, marginBottom: 32, flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: 220 }}>
                 <label>Nombre de la plantilla</label>
@@ -295,7 +295,7 @@ const FormBuilder: React.FC<{ precargados?: any[], readOnly?: boolean }> = ({ pr
           </>
         )}
         
-        <h3 style={{ color: '#7b8794', fontWeight: 600, fontSize: 22, margin: '24px 0 12px' }}>{readOnly ? 'Vista previa' : 'Preview'}</h3>
+        <h3 style={{ color: '#000', fontWeight: 600, fontSize: 22, margin: '24px 0 12px' }}>{readOnly ? 'Vista previa' : 'Preview'}</h3>
         <form style={{ background: '#f8fafc', borderRadius: 16, padding: 16, marginBottom: 24 }}>
           {(() => {
             const sortedFields = [...fields].sort((a, b) => a.order - b.order);

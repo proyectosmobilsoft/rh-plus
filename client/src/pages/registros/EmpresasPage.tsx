@@ -29,7 +29,7 @@ export default function RegistroEmpresas() {
       {!showForm ? (
         <>
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-brand-gray">Registro de Empresas Afiliadas</h2>
+            <h2 className="text-2xl font-bold text-black">Registro de Empresas Afiliadas</h2>
             <Button onClick={() => setShowForm(true)} className="empresa-button">
               <PlusCircle className="mr-2 h-4 w-4" />
               Nueva Empresa
@@ -40,7 +40,7 @@ export default function RegistroEmpresas() {
       ) : (
         <div className="max-w-4xl mx-auto">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-brand-gray">
+            <h2 className="text-2xl font-bold text-black">
               {editingCompany ? "Editar Empresa Afiliada" : "Registrar Nueva Empresa Afiliada"}
             </h2>
             <Button variant="outline" onClick={handleBack} className="border-brand-turquoise text-brand-turquoise hover:bg-brand-turquoise/10">

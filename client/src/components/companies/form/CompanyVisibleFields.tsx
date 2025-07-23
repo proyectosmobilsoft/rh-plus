@@ -50,10 +50,10 @@ export function CompanyVisibleFields({ form }: CompanyVisibleFieldsProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg font-semibold text-green-600">
+        <CardTitle className="text-lg font-semibold text-black">
           Campos Visibles en Órdenes
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-gray-500">
           Selecciona los campos que estarán visibles al crear órdenes para esta empresa
         </CardDescription>
       </CardHeader>
@@ -76,7 +76,7 @@ export function CompanyVisibleFields({ form }: CompanyVisibleFieldsProps) {
                     <FormLabel className="text-sm font-medium">
                       {field.label}
                     </FormLabel>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-gray-500">
                       {field.description}
                     </p>
                   </div>

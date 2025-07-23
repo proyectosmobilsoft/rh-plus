@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
+import { X, Check, ChevronDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { CompanyBasicInfo } from "./form/CompanyBasicInfo";
 import { CompanyContactInfo } from "./form/CompanyContactInfo";
@@ -10,7 +11,8 @@ import { CompanyBusinessInfo } from "./form/CompanyBusinessInfo";
 import { CompanyVisibleFields } from "./form/CompanyVisibleFields";
 import { Company } from "@/types/company";
 import { CreateEmpresaDTO, createEmpresaSchema } from "@/types/empresa";
-import { useEffect, useState } from "react";
+import * as React from "react";
+const { useEffect, useState, useRef } = React;
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import FormBuilder from "@/components/FormBuilder";
 import FormPreview from "@/components/FormPreview";
@@ -51,7 +53,26 @@ export function CompanyForm({ initialData, onSaved, entityType = 'afiliada' }: C
   const [currentTab, setCurrentTab] = useState('datos-empresa');
   
   // Estado para plantillas asignadas
-  const [plantillasAsignadas, setPlantillasAsignadas] = useState<number[]>([]);
+  const [plantillasAsignadas, setPlantillasAsignadas] = useState<number[]>(
+    (initialData as any)?.plantillas?.map((p: any) => p.id) || []
+  );
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  
+  // Cerrar el dropdown al hacer clic fuera de él
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const form = useForm<CreateEmpresaDTO>({
     resolver: zodResolver(createEmpresaSchema),
@@ -268,20 +289,61 @@ export function CompanyForm({ initialData, onSaved, entityType = 'afiliada' }: C
                   {entityType === 'afiliada' && (
                     <div>
                       <label className="block font-medium mb-1">Plantillas asignadas a la empresa</label>
-                      <select
-                        multiple
-                        value={plantillasAsignadas.map(String)}
-                        onChange={e => {
-                          const selected = Array.from(e.target.selectedOptions).map(opt => Number(opt.value));
-                          setPlantillasAsignadas(selected);
-                        }}
-                        className="w-full border rounded p-2 min-h-[60px]"
-                      >
-                        {PLANTILLAS_MOCK.map(p => (
-                          <option key={p.id} value={p.id}>{p.name} - {p.description}</option>
-                        ))}
-                      </select>
-                      <div className="text-xs text-gray-500 mt-1">Puedes seleccionar varias plantillas manteniendo presionada Ctrl (Windows) o Cmd (Mac).</div>
+                      <div className="relative" ref={dropdownRef}>
+                        <div 
+                          className="w-full min-h-10 border rounded-md p-2 flex flex-wrap gap-1 cursor-pointer"
+                          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                        >
+                          {plantillasAsignadas.length === 0 ? (
+                            <span className="text-gray-400">Seleccionar plantillas...</span>
+                          ) : (
+                            plantillasAsignadas.map(id => {
+                              const plantilla = PLANTILLAS_MOCK.find(p => p.id === id);
+                              return plantilla ? (
+                                <span 
+                                  key={id} 
+                                  className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full flex items-center gap-1"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPlantillasAsignadas(plantillasAsignadas.filter(pId => pId !== id));
+                                  }}
+                                >
+                                  {plantilla.name}
+                                  <X className="h-3 w-3" />
+                                </span>
+                              ) : null;
+                            })
+                          )}
+                          <ChevronDown className={`h-4 w-4 ml-auto self-center transition-transform ${isDropdownOpen ? 'transform rotate-180' : ''}`} />
+                        </div>
+                        
+                        {isDropdownOpen && (
+                          <div className="absolute z-10 mt-1 w-full bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
+                            {PLANTILLAS_MOCK.map(p => (
+                              <div 
+                                key={p.id} 
+                                className={`p-2 hover:bg-gray-100 cursor-pointer flex items-center ${plantillasAsignadas.includes(p.id) ? 'bg-blue-50' : ''}`}
+                                onClick={() => {
+                                  if (plantillasAsignadas.includes(p.id)) {
+                                    setPlantillasAsignadas(plantillasAsignadas.filter(id => id !== p.id));
+                                  } else {
+                                    setPlantillasAsignadas([...plantillasAsignadas, p.id]);
+                                  }
+                                }}
+                              >
+                                <div className={`w-4 h-4 border rounded mr-2 flex items-center justify-center ${plantillasAsignadas.includes(p.id) ? 'bg-blue-500 border-blue-500' : 'border-gray-300'}`}>
+                                  {plantillasAsignadas.includes(p.id) && <Check className="h-3 w-3 text-white" />}
+                                </div>
+                                <div>
+                                  <div className="font-medium">{p.name}</div>
+                                  <div className="text-xs text-gray-500">{p.description}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">Haz clic para seleccionar o deseleccionar plantillas</div>
                     </div>
                   )}
                   <div className="flex justify-end">
