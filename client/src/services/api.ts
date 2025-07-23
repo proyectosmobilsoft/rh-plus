@@ -1,7 +1,7 @@
 
 import { toast } from "sonner";
 
-const API_URL = "http://localhost:3000/";
+const API_URL = "http://localhost:3001/api/v1/";
 
 // Función auxiliar para manejar errores
 const handleError = (error: unknown) => {
@@ -52,7 +52,7 @@ const fetchAPI = async <T>(
 // Exportamos funciones para cada método HTTP
 export const api = {
   get: <T>(endpoint: string, options?: RequestInit) => 
-    fetchAPI<T>(endpoint, { ...options, method: "POST" }),
+    fetchAPI<T>(endpoint, { ...options, method: "GET" }),
   
   post: <T>(endpoint: string, data?: unknown, options?: RequestInit) =>
     fetchAPI<T>(endpoint, { 
@@ -64,17 +64,17 @@ export const api = {
   put: <T>(endpoint: string, data: unknown, options?: RequestInit) =>
     fetchAPI<T>(endpoint, {
       ...options,
-      method: "POST",
+      method: "PUT",
       body: JSON.stringify(data)
     }),
   
   patch: <T>(endpoint: string, data: unknown, options?: RequestInit) =>
     fetchAPI<T>(endpoint, {
       ...options,
-      method: "POST",
+      method: "PATCH",
       body: JSON.stringify(data)
     }),
   
   delete: <T>(endpoint: string, options?: RequestInit) =>
-    fetchAPI<T>(endpoint, { ...options, method: "POST" })
+    fetchAPI<T>(endpoint, { ...options, method: "DELETE" })
 };

@@ -18,119 +18,57 @@ import {
   FormLabel, 
   FormMessage 
 } from '@/components/ui/form';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
-import CascadingSelects from '@/components/CascadingSelects';
+import { api } from '@/services/api';
 
-// Schema de validación
+// Schema de validación actualizado
 const analistaSchema = z.object({
-  nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  apellido: z.string().min(2, 'El apellido debe tener al menos 2 caracteres'),
+  username: z.string().min(3, 'El nombre de usuario debe tener al menos 3 caracteres'),
   email: z.string().email('Ingrese un email válido'),
-  telefono: z.string().optional(),
-  clienteAsignado: z.string().optional(),
-  nivelPrioridad: z.number().min(1).max(5, 'El nivel de prioridad debe estar entre 1 y 5'),
-  estado: z.enum(['activo', 'inactivo']),
-  fechaIngreso: z.string().optional(),
+  password: z.string()
+    .min(8, 'La contraseña debe tener al menos 8 caracteres')
+    .regex(/[A-Z]/, 'Debe contener al menos una mayúscula')
+    .regex(/[a-z]/, 'Debe contener al menos una minúscula')
+    .regex(/[0-9]/, 'Debe contener al menos un número'),
+  primer_nombre: z.string().min(2, 'El primer nombre debe tener al menos 2 caracteres'),
+  segundo_nombre: z.string().optional(),
+  primer_apellido: z.string().min(2, 'El primer apellido debe tener al menos 2 caracteres'),
+  segundo_apellido: z.string().optional(),
+  activo: z.boolean().default(true)
 });
 
 type AnalistaFormData = z.infer<typeof analistaSchema>;
 
-// Datos de clientes disponibles
-const clientesDisponibles = [
-  'Empresa ABC S.A.S.',
-  'TechCorp Colombia',
-  'Industrias XYZ Ltda.',
-  'Comercial Los Andes',
-  'Servicios Integrales S.A.',
-  'Constructora del Norte',
-  'Grupo Empresarial Sur',
-  'Compañía del Valle'
-];
-
 export default function CrearAnalistaPage() {
   const navigate = useNavigate();
   
-  // Estado para manejar la selección de ubicación
-  const [locationData, setLocationData] = useState<{
-    regionId: number | null;
-    zonaId: number | null;
-    sucursalId: number | null;
-  }>({
-    regionId: null,
-    zonaId: null,
-    sucursalId: null,
-  });
-
   const form = useForm<AnalistaFormData>({
     resolver: zodResolver(analistaSchema),
     defaultValues: {
-      nombre: '',
-      apellido: '',
+      username: '',
       email: '',
-      telefono: '',
-      clienteAsignado: 'sin_asignacion',
-      nivelPrioridad: 3,
-      estado: 'activo',
-      fechaIngreso: new Date().toISOString().split('T')[0],
+      password: '',
+      primer_nombre: '',
+      segundo_nombre: '',
+      primer_apellido: '',
+      segundo_apellido: '',
+      activo: true
     },
   });
 
-  // Función para manejar cambios en los selects encadenados
-  const handleLocationChange = (regionId: number | null, zonaId: number | null, sucursalId: number | null) => {
-    setLocationData({ regionId, zonaId, sucursalId });
-  };
-
   const onSubmit = async (data: AnalistaFormData) => {
     try {
-      // Validar que se hayan seleccionado ubicaciones
-      if (!locationData.regionId || !locationData.zonaId || !locationData.sucursalId) {
-        toast.error('Debe seleccionar regional, zona y sucursal');
-        return;
-      }
+      console.log('Datos enviados al backend:', data);
 
-      // Combinar datos del formulario con datos de ubicación
-      const analistaData = {
-        ...data,
-        nivelPrioridad: Number(data.nivelPrioridad), // Convertir a número
-        regional: `Regional-${locationData.regionId}`, // Temporal para compatibilidad
-        regionId: locationData.regionId,
-        zonaId: locationData.zonaId,
-        sucursalId: locationData.sucursalId,
-      };
+      const response = await api.post('analistas', data);
 
-      console.log('Datos enviados al backend:', analistaData);
-
-      const response = await fetch('/api/analistas', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(analistaData),
-      });
-
-      if (response.ok) {
+      if (response) {
         toast.success('Analista creado exitosamente');
         navigate('/analistas');
-      } else {
-        const error = await response.json();
-        toast.error(error.message || 'Error al crear analista');
       }
     } catch (error) {
       console.error('Error creando analista:', error);
       toast.error('Error al crear analista');
     }
-  };
-
-  // Validación para habilitar el botón de submit
-  const isFormValid = () => {
-    return locationData.regionId && locationData.zonaId && locationData.sucursalId && 
-           form.formState.isValid;
   };
 
   return (
@@ -150,7 +88,7 @@ export default function CrearAnalistaPage() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Crear Nuevo Analista</h1>
             <p className="text-gray-600 mt-2">
-              Registra un nuevo analista en el sistema con ubicación y asignaciones específicas
+              Registra un nuevo analista en el sistema
             </p>
           </div>
         </div>
@@ -164,50 +102,37 @@ export default function CrearAnalistaPage() {
             Datos del Analista
           </CardTitle>
           <CardDescription>
-            Complete la información básica y asignación del nuevo analista
+            Complete la información del nuevo analista
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
               
-              {/* Información Personal */}
+              {/* Información de Acceso */}
               <div className="space-y-4">
                 <h3 className="text-lg font-medium text-blue-800 border-b border-blue-200 pb-2">
-                  Información Personal
+                  Información de Acceso
                 </h3>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
-                    name="nombre"
+                    name="username"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Nombre *</FormLabel>
+                        <FormLabel>Nombre de Usuario *</FormLabel>
                         <FormControl>
-                          <Input placeholder="Nombre del analista" {...field} />
+                          <Input placeholder="Nombre de usuario" {...field} />
                         </FormControl>
+                        <FormDescription>
+                          El nombre de usuario para iniciar sesión
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
-                  <FormField
-                    control={form.control}
-                    name="apellido"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Apellido *</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Apellido del analista" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
                     name="email"
@@ -225,66 +150,46 @@ export default function CrearAnalistaPage() {
                       </FormItem>
                     )}
                   />
-
-                  <FormField
-                    control={form.control}
-                    name="telefono"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Teléfono</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Número de teléfono" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
                 </div>
-              </div>
 
-              {/* Ubicación */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium text-blue-800 border-b border-blue-200 pb-2">
-                  Ubicación de Trabajo
-                </h3>
-                
-                <CascadingSelects 
-                  onSelectionChange={handleLocationChange}
-                  disabled={form.formState.isSubmitting}
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Contraseña *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="password" 
+                          placeholder="Contraseña" 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Mínimo 8 caracteres, una mayúscula, una minúscula y un número
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
               </div>
 
-              {/* Asignaciones y Configuración */}
+              {/* Información Personal */}
               <div className="space-y-4">
                 <h3 className="text-lg font-medium text-blue-800 border-b border-blue-200 pb-2">
-                  Asignaciones y Configuración
+                  Información Personal
                 </h3>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
-                    name="clienteAsignado"
+                    name="primer_nombre"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Cliente Asignado</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Seleccionar cliente" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="sin_asignacion">Sin asignación específica</SelectItem>
-                            {clientesDisponibles.map(cliente => (
-                              <SelectItem key={cliente} value={cliente}>
-                                {cliente}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>
-                          Cliente específico asignado al analista (opcional)
-                        </FormDescription>
+                        <FormLabel>Primer Nombre *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Primer nombre" {...field} />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -292,30 +197,13 @@ export default function CrearAnalistaPage() {
 
                   <FormField
                     control={form.control}
-                    name="nivelPrioridad"
+                    name="segundo_nombre"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Nivel de Prioridad *</FormLabel>
-                        <Select 
-                          onValueChange={(value) => field.onChange(parseInt(value))} 
-                          defaultValue={field.value.toString()}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Seleccionar nivel" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="1">1 - Muy Alto</SelectItem>
-                            <SelectItem value="2">2 - Alto</SelectItem>
-                            <SelectItem value="3">3 - Medio</SelectItem>
-                            <SelectItem value="4">4 - Bajo</SelectItem>
-                            <SelectItem value="5">5 - Muy Bajo</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>
-                          Nivel de prioridad del analista (1=Muy Alto, 5=Muy Bajo)
-                        </FormDescription>
+                        <FormLabel>Segundo Nombre</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Segundo nombre" {...field} />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -325,21 +213,13 @@ export default function CrearAnalistaPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
-                    name="estado"
+                    name="primer_apellido"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Estado *</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Estado" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="activo">Activo</SelectItem>
-                            <SelectItem value="inactivo">Inactivo</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <FormLabel>Primer Apellido *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Primer apellido" {...field} />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -347,12 +227,12 @@ export default function CrearAnalistaPage() {
 
                   <FormField
                     control={form.control}
-                    name="fechaIngreso"
+                    name="segundo_apellido"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Fecha de Ingreso</FormLabel>
+                        <FormLabel>Segundo Apellido</FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} />
+                          <Input placeholder="Segundo apellido" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -360,18 +240,6 @@ export default function CrearAnalistaPage() {
                   />
                 </div>
               </div>
-
-              {/* Información de depuración */}
-              {process.env.NODE_ENV === 'development' && (
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="font-medium mb-2">Información de Debug:</h4>
-                  <p className="text-sm">Regional ID: {locationData.regionId || 'No seleccionada'}</p>
-                  <p className="text-sm">Zona ID: {locationData.zonaId || 'No seleccionada'}</p>
-                  <p className="text-sm">Sucursal ID: {locationData.sucursalId || 'No seleccionada'}</p>
-                  <p className="text-sm">Form Valid: {form.formState.isValid ? 'Sí' : 'No'}</p>
-                  <p className="text-sm">Location Valid: {(locationData.regionId && locationData.zonaId && locationData.sucursalId) ? 'Sí' : 'No'}</p>
-                </div>
-              )}
 
               {/* Botones */}
               <div className="flex justify-end gap-4 pt-6 border-t">
@@ -385,7 +253,7 @@ export default function CrearAnalistaPage() {
                 <Button
                   type="submit"
                   className="bg-blue-600 hover:bg-blue-700"
-                  disabled={form.formState.isSubmitting || !isFormValid()}
+                  disabled={form.formState.isSubmitting}
                 >
                   <Save className="w-4 h-4 mr-2" />
                   {form.formState.isSubmitting ? 'Guardando...' : 'Crear Analista'}
