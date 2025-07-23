@@ -8,6 +8,9 @@ export type Permission =
   | "ver_dashboard_analista" 
   | "ver_dashboard_cliente"
   
+  // Galería de Formularios
+  | "ver_galeria_formularios"
+
   // Seguridad
   | "ver_usuarios"
   | "crear_usuarios"
@@ -131,7 +134,10 @@ export const rolePermissions: Record<UserRole, Permission[]> = {
     "ver_candidatos",
     "crear_candidatos",
     "editar_candidatos",
-    "eliminar_candidatos"
+    "eliminar_candidatos",
+
+    // Nueva Plantilla (Galería)
+    "ver_galeria_formularios"
   ],
   
   analista: [
@@ -207,6 +213,13 @@ export const systemMenus: MenuItem[] = [
     icon: "BarChart3",
     path: "/dashboard",
     permission: "ver_dashboard"
+  },
+  {
+    id: "galeria-formularios",
+    label: "Galería de Formularios",
+    icon: "FileText", // Puedes elegir otro icono si quieres
+    path: "/admin/form-gallery",
+    permission: "ver_galeria_formularios"
   },
   {
     id: "seguridad",

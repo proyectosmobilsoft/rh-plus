@@ -36,6 +36,15 @@ export default function DashboardEmpresa() {
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
+  // Plantillas mock globales (en memoria, igual que en CompanyForm)
+  const PLANTILLAS_MOCK = [
+    { id: 1, name: "Plantilla de Ingreso", description: "Campos para ingreso de personal" },
+    { id: 2, name: "Plantilla de Seguridad", description: "Campos de seguridad industrial" },
+    { id: 3, name: "Plantilla de Salud", description: "Campos de salud ocupacional" },
+  ];
+  // Estado simulado de plantillas asignadas (en memoria)
+  const [plantillasAsignadas] = useState<number[]>([1, 3]); // Puedes simular que la empresa tiene asignadas la 1 y la 3
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -166,6 +175,21 @@ export default function DashboardEmpresa() {
               <p className="text-sm font-medium text-gray-500">Cargo del Contacto</p>
               <p className="text-base">{empresa?.cargoContacto || 'No especificado'}</p>
             </div>
+          </div>
+          {/* Plantillas asignadas */}
+          <div className="mt-8">
+            <h3 className="text-lg font-semibold mb-2">Plantillas asignadas</h3>
+            <ul className="list-disc pl-6">
+              {plantillasAsignadas.length > 0 ? (
+                PLANTILLAS_MOCK.filter(p => plantillasAsignadas.includes(p.id)).map(p => (
+                  <li key={p.id} className="mb-1">
+                    <span className="font-medium">{p.name}</span> <span className="text-gray-500 text-sm">({p.description})</span>
+                  </li>
+                ))
+              ) : (
+                <li className="text-gray-500">No hay plantillas asignadas.</li>
+              )}
+            </ul>
           </div>
         </CardContent>
       </Card>

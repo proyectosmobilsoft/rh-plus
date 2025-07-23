@@ -143,14 +143,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Usuario no encontrado" });
       }
 
+      // Obtener permisos base del rol
+      let permissions = [];
+      if (req.session.userType === "admin") {
+        // Importar dinámicamente para evitar ciclos
+        const { rolePermissions } = await import("@/config/permissions");
+        permissions = rolePermissions["admin"] || [];
+      }
+      // Puedes agregar lógica para otros roles si lo necesitas
+
       const userResponse = {
         id: user.id,
-        username: user.username || user.email,
+        username: user.username,
         email: user.email,
-        primerNombre: user.primerNombre || user.nombres,
-        primerApellido: user.primerApellido || user.apellidos,
+        primerNombre: user.primerNombre,
+        primerApellido: user.primerApellido,
         role: req.session.userType,
-        activo: user.activo
+        activo: user.activo,
+        permissions // <-- aquí van los permisos
       };
 
       res.json({ user: userResponse });
