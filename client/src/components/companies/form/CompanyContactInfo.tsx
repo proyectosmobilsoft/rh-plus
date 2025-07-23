@@ -21,34 +21,31 @@ import {
     form: UseFormReturn<CreateEmpresaDTO>;
   }
   
+  // Mock de ciudades principales de Colombia
+  const ciudadesColombia = [
+    'Bogotá',
+    'Medellín',
+    'Cali',
+    'Barranquilla',
+    'Cartagena',
+    'Cúcuta',
+    'Bucaramanga',
+    'Pereira',
+    'Santa Marta',
+    'Ibagué',
+    'Manizales',
+    'Villavicencio',
+    'Neiva',
+    'Pasto',
+    'Montería',
+    'Armenia',
+    'Sincelejo',
+    'Popayán',
+    'Valledupar',
+    'Tunja',
+  ];
+
   export function CompanyContactInfo({ form }: CompanyContactInfoProps) {
-    const { data: ciudades=[] } = useQuery({
-      queryKey: ['ciudades'],
-      queryFn: async () => {
-       /* const { data, error } = await supabase
-          .from('ciudades')
-          .select(`
-            *,
-            departamentos (
-              nombre
-            )
-          `)
-          .order('nombre');
-        
-        if (error) throw error;
-        return data;*/
-      }
-    });
-  
-    const handleCiudadChange = (codigo: string) => {
-      const ciudad = ciudades?.find(c => c.codigo === codigo);
-      if (ciudad) {
-        form.setValue('ciudad', ciudad.codigo);
-        form.setValue('ciudad_nombre', ciudad.nombre);
-        form.setValue('departamento_nombre', ciudad.departamentos.nombre);
-      }
-    };
-  
     return (
       <div className="grid grid-cols-2 gap-4">
         <FormField
@@ -71,23 +68,18 @@ import {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Ciudad</FormLabel>
-              <Select onValueChange={handleCiudadChange} value={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccione una ciudad">
-                      {field.value && ciudades?.find(c => c.codigo === field.value)?.nombre} 
-                      {field.value && ` - ${ciudades?.find(c => c.codigo === field.value)?.departamentos.nombre}`}
-                    </SelectValue>
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {ciudades?.map((ciudad) => (
-                    <SelectItem key={ciudad.id} value={ciudad.codigo}>
-                      {ciudad.codigo} - {ciudad.nombre} - {ciudad.departamentos.nombre}
-                    </SelectItem>
+              <FormControl>
+                <select
+                  {...field}
+                  className="w-full border rounded p-2"
+                  onChange={e => field.onChange(e.target.value)}
+                >
+                  <option value="">Seleccione una ciudad</option>
+                  {ciudadesColombia.map((ciudad) => (
+                    <option key={ciudad} value={ciudad}>{ciudad}</option>
                   ))}
-                </SelectContent>
-              </Select>
+                </select>
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}

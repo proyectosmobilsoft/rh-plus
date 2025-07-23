@@ -34,6 +34,10 @@ export function ProtectedRoute({
     return null;
   }
 
+  // TEMPORALMENTE DESACTIVADO: Siempre dar acceso
+  return <>{children}</>;
+
+  /* CÓDIGO ORIGINAL COMENTADO
   // Verificar permisos específicos
   let hasAccess = true;
 
@@ -89,16 +93,16 @@ export function ProtectedRoute({
   }
 
   return <>{children}</>;
+  */
 }
 
 // Hook personalizado para verificar permisos en componentes
 export function usePermissions() {
-  const { hasPermission, hasAnyPermission } = useAuth();
-  
+  // TEMPORALMENTE DESACTIVADO: Siempre retornar true
   return {
-    hasPermission,
-    hasAnyPermission,
-    canAccess: (permission: Permission) => hasPermission(permission),
-    canAccessAny: (permissions: Permission[]) => hasAnyPermission(permissions)
+    hasPermission: () => true,
+    hasAnyPermission: () => true,
+    canAccess: () => true,
+    canAccessAny: () => true
   };
 }

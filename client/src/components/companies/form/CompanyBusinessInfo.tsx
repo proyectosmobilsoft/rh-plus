@@ -96,6 +96,48 @@ import {
       return doc ? doc.url_archivo : null;
     };
   
+    // Mock de actividades económicas (CIIU) de Colombia
+    const actividadesEconomicas = [
+      { codigo: '0111', descripcion: 'Cultivo de cereales' },
+      { codigo: '0112', descripcion: 'Cultivo de arroz' },
+      { codigo: '0113', descripcion: 'Cultivo de hortalizas' },
+      { codigo: '0141', descripcion: 'Cría de ganado bovino' },
+      { codigo: '1011', descripcion: 'Procesamiento y conservación de carne' },
+      { codigo: '1071', descripcion: 'Elaboración de productos de panadería' },
+      { codigo: '2011', descripcion: 'Fabricación de sustancias químicas' },
+      { codigo: '4711', descripcion: 'Comercio al por menor en establecimientos no especializados' },
+      { codigo: '6201', descripcion: 'Actividades de desarrollo de sistemas informáticos' },
+      { codigo: '8411', descripcion: 'Actividades de la administración pública' },
+      { codigo: '8511', descripcion: 'Educación preescolar' },
+      { codigo: '8610', descripcion: 'Actividades de hospitales' },
+      { codigo: '9311', descripcion: 'Gestión de instalaciones deportivas' },
+      { codigo: '9602', descripcion: 'Peluquería y otros tratamientos de belleza' },
+    ];
+  
+    // Mock de ciudades principales de Colombia
+    const ciudadesColombia = [
+      'Bogotá',
+      'Medellín',
+      'Cali',
+      'Barranquilla',
+      'Cartagena',
+      'Cúcuta',
+      'Bucaramanga',
+      'Pereira',
+      'Santa Marta',
+      'Ibagué',
+      'Manizales',
+      'Villavicencio',
+      'Neiva',
+      'Pasto',
+      'Montería',
+      'Armenia',
+      'Sincelejo',
+      'Popayán',
+      'Valledupar',
+      'Tunja',
+    ];
+  
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-2 gap-4">
@@ -119,22 +161,20 @@ import {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Actividad Económica (CIIU)</FormLabel>
-                <Select onValueChange={handleCIIUChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccione código CIIU">
-                        {field.value && `${field.value} - ${codigosCIIU?.find(c => c.codigo === field.value)?.descripcion}`}
-                      </SelectValue>
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {codigosCIIU?.map((codigo) => (
-                      <SelectItem key={codigo.id} value={codigo.codigo}>
-                        {codigo.codigo} - {codigo.descripcion}
-                      </SelectItem>
+                <FormControl>
+                  <select
+                    {...field}
+                    className="w-full border rounded p-2"
+                    onChange={e => field.onChange(e.target.value)}
+                  >
+                    <option value="">Seleccione código CIIU</option>
+                    {actividadesEconomicas.map((act) => (
+                      <option key={act.codigo} value={act.codigo}>
+                        {act.codigo} - {act.descripcion}
+                      </option>
                     ))}
-                  </SelectContent>
-                </Select>
+                  </select>
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -153,6 +193,29 @@ import {
                     {...field}
                     onChange={(e) => field.onChange(parseInt(e.target.value))}
                   />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="ciudad"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Ciudad</FormLabel>
+                <FormControl>
+                  <select
+                    {...field}
+                    className="w-full border rounded p-2"
+                    onChange={e => field.onChange(e.target.value)}
+                  >
+                    <option value="">Seleccione una ciudad</option>
+                    {ciudadesColombia.map((ciudad) => (
+                      <option key={ciudad} value={ciudad}>{ciudad}</option>
+                    ))}
+                  </select>
                 </FormControl>
                 <FormMessage />
               </FormItem>
