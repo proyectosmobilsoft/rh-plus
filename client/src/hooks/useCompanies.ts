@@ -8,8 +8,9 @@ export function useCompanies(entityType: 'empresa' | 'prestador') {
     queryFn: async () => {
       try {
         const allEmpresas = await empresasService.getAll();
-        // Filtrar por tipoEmpresa y active
-        const filtradas = allEmpresas.filter((empresa: any) => empresa.tipoEmpresa === entityType && empresa.active !== false);
+        console.log('Empresas normalizadas:', allEmpresas);
+        // Mostrar todas las empresas activas
+        const filtradas = allEmpresas.filter((empresa: any) => empresa.active !== false);
         console.log('Empresas después del filtro:', filtradas);
         return filtradas;
       } catch (error) {
