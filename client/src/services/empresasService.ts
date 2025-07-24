@@ -67,6 +67,9 @@ export interface Empresa {
     camaraComercio?: DocumentoInfo | null;
     rut?: DocumentoInfo | null;
   };
+  active?: boolean;
+  visibleFields?: string[];
+  tipoEmpresa?: string;
 }
 
 // Normalize empresa data from API to local format
@@ -110,48 +113,45 @@ export const normalizeEmpresa = (empresa: any): Empresa => {
     tipoDocumento: empresa.tipo_documento || empresa.TipoDocumentoId || empresa.tipoDocumento,
     regimen: empresa.regimen || empresa.RegimenId || empresa.regimen,
     ciudad: empresa.ciudad || empresa.CiudadId || empresa.ciudad,
-    documentosInfo
+    documentosInfo,
+    tipoEmpresa: empresa.tipo_empresa,
+    active: empresa.activo
   };
 };
 
 // Prepare empresa data for API with document info
-const prepareEmpresaForAPI = (empresa: Empresa) => {
-  // Create a new object with the documented properties in the format the API expects
+const prepareEmpresaForAPI = (empresa: any) => {
   return {
-    ...empresa,
-    documentos: {
-      contrato: empresa.documentosInfo?.contrato ? {
-        name: empresa.documentosInfo.contrato.name,
-        url: empresa.documentosInfo.contrato.url,
-        tipo_documento: 'contrato'
-      } : { name: null, url: null, tipo_documento: 'contrato' },
-      
-      camaraComercio: empresa.documentosInfo?.camaraComercio ? {
-        name: empresa.documentosInfo.camaraComercio.name,
-        url: empresa.documentosInfo.camaraComercio.url,
-        tipo_documento: 'camara_comercio'
-      } : { name: null, url: null, tipo_documento: 'camara_comercio' },
-      
-      rut: empresa.documentosInfo?.rut ? {
-        name: empresa.documentosInfo.rut.name,
-        url: empresa.documentosInfo.rut.url,
-        tipo_documento: 'rut'
-      } : { name: null, url: null, tipo_documento: 'rut' }
-    }
+    razon_social: empresa.razon_social,
+    nit: empresa.nit,
+    tipo_documento: empresa.tipo_documento,
+    regimen_tributario: empresa.regimen_tributario,
+    direccion: empresa.direccion,
+    ciudad: empresa.ciudad,
+    telefono: empresa.telefono,
+    email: empresa.email,
+    representante_legal: empresa.representante_legal,
+    actividad_economica: empresa.actividad_economica,
+    numero_empleados: empresa.numero_empleados,
+    tipo_empresa: empresa.tipo_empresa,
+    activo: empresa.activo,
+    campos_visibles: empresa.campos_visibles,
+    documentos: empresa.documentos
   };
 };
 
 export const empresasService = {
   getAll: async () => {
-    const response = await api.post<{ filas: any[], mensaje: string, status: boolean }>('/empresas');
+    const response = await api.get<{ data: any[], message: string }>('/empresas');
     // Map API response to local format
-    return response.filas ? response.filas.map(normalizeEmpresa) : [];
+    return response.data ? response.data.map(normalizeEmpresa) : [];
   },
   
   create: async (empresa: Omit<Empresa, 'Id'>) => {
     // Prepare data with document info
     const empresaForAPI = prepareEmpresaForAPI(empresa);
-    return api.post<{ mensaje: string, status: boolean }>('/empresas/guardar', empresaForAPI);
+    console.log('Payload enviado al backend (empresa):', empresaForAPI);
+    return api.post<{ mensaje: string, status: boolean }>('/empresas', empresaForAPI);
   },
   
   update: async (empresa: Empresa) => {

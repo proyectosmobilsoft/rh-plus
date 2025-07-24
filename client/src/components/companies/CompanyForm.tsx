@@ -18,6 +18,7 @@ import FormBuilder from "@/components/FormBuilder";
 import FormPreview from "@/components/FormPreview";
 import { useMemo } from "react";
 import { v4 as uuidv4 } from 'uuid';
+import { empresasService } from '@/services/empresasService';
 
 // Plantillas mock globales (en memoria)
 const PLANTILLAS_MOCK = [
@@ -144,98 +145,9 @@ export function CompanyForm({ initialData, onSaved, entityType = 'afiliada' }: C
 
   const onSubmit = async (data: CreateEmpresaDTO) => {
     try {
-      let empresaId: number | undefined;
-      
-      const empresaData = {
-        razon_social: data.razon_social,
-        nit: data.nit,
-        nit_base: data.nit_base,
-        nit_verification: data.nit_verification,
-        tipo_documento: data.tipo_documento,
-        regimen_tributario: data.regimen_tributario,
-        direccion: data.direccion,
-        ciudad: data.ciudad,
-        telefono: data.telefono,
-        email: data.email,
-        representante_legal: data.representante_legal,
-        actividad_economica: data.actividad_economica,
-        numero_empleados: data.numero_empleados,
-        activo: data.activo,
-        tipo_empresa: entityType,
-        campos_visibles: data.campos_visibles
-      };
-      
-      if (initialData?.id) {
-        /*const { error } = await supabase
-          .from("empresas")
-          .update(empresaData)
-          .eq("id", parseInt(initialData.id));
-
-        if (error) throw error;
-        empresaId = parseInt(initialData.id);*/
-      } else {
-       /* const { data: newEmpresa, error } = await supabase
-          .from("empresas")
-          .insert(empresaData)
-          .select()
-          .single();
-
-        if (error) throw error;
-        empresaId = newEmpresa.id;*/
-      }
-
-      // Luego subimos los documentos si hay alguno
-      if (data.documentos && data.documentos.length > 0 && empresaId) {
-        for (const doc of data.documentos) {
-          const fileExt = doc.archivo.name.split('.').pop();
-          const fileName = `${empresaId}/${doc.tipo}_${Date.now()}.${fileExt}`;
-
-          // Check if a document of this type already exists
-        /*  const { data: existingDocs } = await supabase
-            .from('documentos_empresa')
-            .select('*')
-            .eq('empresa_id', empresaId)
-            .eq('tipo', doc.tipo);
-
-          // Upload the new file
-          const { error: uploadError } = await supabase.storage
-            .from('documentos-empresas')
-            .upload(fileName, doc.archivo);
-
-          if (uploadError) throw uploadError;
-
-          const { data: urlData } = supabase.storage
-            .from('documentos-empresas')
-            .getPublicUrl(fileName);
-
-          if (existingDocs && existingDocs.length > 0) {
-            // Update existing document
-            const { error: docError } = await supabase
-              .from('documentos_empresa')
-              .update({
-                nombre_archivo: doc.nombre,
-                url_archivo: urlData.publicUrl
-              })
-              .eq('empresa_id', empresaId)
-              .eq('tipo', doc.tipo);
-
-            if (docError) throw docError;
-          } else {
-            // Insert new document
-            const { error: docError } = await supabase
-              .from('documentos_empresa')
-              .insert({
-                empresa_id: empresaId,
-                tipo: doc.tipo,
-                nombre_archivo: doc.nombre,
-                url_archivo: urlData.publicUrl
-              });
-
-            if (docError) throw docError;
-          }*/
-        }
-      }
-
+      console.log('Datos enviados desde el formulario:', data);
+      // Llama al servicio real para guardar la empresa
+      await empresasService.create(data as any);
       toast({
         title: initialData 
           ? `${entityType === 'prestador' ? 'Prestador' : 'Empresa'} actualizada` 
@@ -244,11 +156,9 @@ export function CompanyForm({ initialData, onSaved, entityType = 'afiliada' }: C
           ? `La información del ${entityType === 'prestador' ? 'prestador' : 'la empresa'} ha sido actualizada exitosamente.`
           : `${entityType === 'prestador' ? 'El prestador' : 'La empresa'} ha sido registrada exitosamente.`,
       });
-
       if (!initialData) {
         form.reset();
       }
-
       if (onSaved) {
         onSaved();
       }

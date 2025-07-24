@@ -30,7 +30,6 @@ export function useApiData<T>(endpoint: string, initialData: T, options: ApiOpti
   const fetchData = useCallback(async () => {
     // If already fetched and autoFetch is disabled, don't fetch again
     if (isFetched && !mergedOptions.autoFetch) {
-      console.log('Data already fetched and autoFetch is disabled');
       return data;
     }
     
@@ -38,16 +37,16 @@ export function useApiData<T>(endpoint: string, initialData: T, options: ApiOpti
     setError(null);
 
     try {
-      console.log(`Fetching data from ${endpoint}`);
-      const response = await api.post<any>(endpoint);
-      console.log("API Response:", response);
+      const response = await api.get<any>(endpoint);
       
       // Handle API responses that contain data in a nested structure
       let responseData;
-      if (response && typeof response === 'object') {
-        // Check if we have a specific data structure with 'filas' or similar field
-        if ('filas' in response) {
-          console.log("Found 'filas' in response:", response.filas);
+      if (Array.isArray(response)) {
+        responseData = response;
+      } else if (response && typeof response === 'object') {
+        if ('data' in response) {
+          responseData = response.data;
+        } else if ('filas' in response) {
           responseData = Array.isArray(response.filas) ? response.filas : [];
         } else {
           responseData = response;
@@ -56,7 +55,6 @@ export function useApiData<T>(endpoint: string, initialData: T, options: ApiOpti
         responseData = initialData; // Fallback to initial data if response is not as expected
       }
 
-      console.log("Processed data:", responseData);
       setData(responseData as T);
       setIsFetched(true);
       
@@ -84,7 +82,6 @@ export function useApiData<T>(endpoint: string, initialData: T, options: ApiOpti
     setError(null);
 
     try {
-      console.log(`Creating data at ${endpoint}/guardar`);
       const response = await api.post<T>(`${endpoint}/guardar`, newData);
       
       if (mergedOptions.showSuccessToast) {
@@ -111,7 +108,6 @@ export function useApiData<T>(endpoint: string, initialData: T, options: ApiOpti
     setError(null);
 
     try {
-      console.log(`Updating data at ${endpoint}/editar`);
       const response = await api.post<T>(`${endpoint}/editar`, updatedData);
       
       if (mergedOptions.showSuccessToast) {
@@ -138,7 +134,6 @@ export function useApiData<T>(endpoint: string, initialData: T, options: ApiOpti
     setError(null);
 
     try {
-      console.log(`Deleting data at ${endpoint}/eliminar`);
       await api.post(`${endpoint}/eliminar`, { id });
       
       if (mergedOptions.showSuccessToast) {

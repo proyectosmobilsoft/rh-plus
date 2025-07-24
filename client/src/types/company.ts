@@ -1,5 +1,11 @@
 export interface Company {
-    id: string;
+    id?: number;
+    razonSocial?: string;
+    direccion?: string;
+    ciudad?: string;
+    correoElectronico?: string;
+    telefono?: string;
+    representanteLegal?: string;
     name: string;
     nit: string;
     address: string;

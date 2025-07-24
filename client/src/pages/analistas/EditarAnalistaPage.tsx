@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, UserCheck } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -26,90 +26,88 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { useApiData } from '@/hooks/useApiData';
+import { API_URL } from '@/services/api';
 
-// Schema de validación
+// Nuevo schema de validación para editar, igual que en crear
 const analistaSchema = z.object({
-  nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  apellido: z.string().min(2, 'El apellido debe tener al menos 2 caracteres'),
+  username: z.string().min(3, 'El nombre de usuario debe tener al menos 3 caracteres'),
   email: z.string().email('Ingrese un email válido'),
-  telefono: z.string().optional(),
-  regional: z.string().min(1, 'Seleccione una regional'),
-  clienteAsignado: z.string().optional(),
-  nivelPrioridad: z.enum(['alto', 'medio', 'bajo']),
-  estado: z.enum(['activo', 'inactivo']),
-  fechaIngreso: z.string().optional(),
+  password: z.string().optional(), // No es obligatorio al editar
+  primer_nombre: z.string().min(2, 'El primer nombre debe tener al menos 2 caracteres'),
+  segundo_nombre: z.string().optional(),
+  primer_apellido: z.string().min(2, 'El primer apellido debe tener al menos 2 caracteres'),
+  segundo_apellido: z.string().optional(),
+  nivelPrioridad: z.enum(['alto', 'medio', 'bajo']).default('medio'),
+  activo: z.boolean().default(true)
 });
 
 type AnalistaFormData = z.infer<typeof analistaSchema>;
-
-interface Analista {
-  id: number;
-  nombre: string;
-  apellido: string;
-  email: string;
-  telefono?: string;
-  regional: string;
-  clienteAsignado?: string;
-  nivelPrioridad: 'alto' | 'medio' | 'bajo';
-  estado: 'activo' | 'inactivo';
-  fechaIngreso: string;
-  fechaCreacion: string;
-  fechaActualizacion: string;
-}
 
 export default function EditarAnalistaPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
 
-  const { data: analista, isLoading } = useApiData<Analista>(
-    `/api/analistas/${id}`,
-    {} as Analista,
+  // Cambia la obtención del analista para usar .data si existe
+  const { data: apiResponse, isLoading, fetchData } = useApiData<any>(
+    `analistas/${id}`,
+    {} as any,
     { showSuccessToast: false }
   );
+  const analista = apiResponse?.data || apiResponse || {};
 
+  // Inicializar el formulario con los datos del analista
   const form = useForm<AnalistaFormData>({
     resolver: zodResolver(analistaSchema),
     defaultValues: {
-      nombre: '',
-      apellido: '',
+      username: '',
       email: '',
-      telefono: '',
-      regional: '',
-      clienteAsignado: '',
+      password: '',
+      primer_nombre: '',
+      segundo_nombre: '',
+      primer_apellido: '',
+      segundo_apellido: '',
       nivelPrioridad: 'medio',
-      estado: 'activo',
-      fechaIngreso: '',
+      activo: true
     },
   });
 
-  // Cargar datos del analista cuando se obtengan
+  // Forzar fetch de datos cada vez que cambie el id
+  useEffect(() => {
+    fetchData();
+  }, [id, fetchData]);
+
+  // Cuando llegan los datos, prellenar el formulario
   useEffect(() => {
     if (analista && analista.id) {
-      const fechaIngreso = analista.fechaIngreso ? 
-        new Date(analista.fechaIngreso).toISOString().split('T')[0] : '';
-      
       form.reset({
-        nombre: analista.nombre,
-        apellido: analista.apellido,
-        email: analista.email,
-        telefono: analista.telefono || '',
-        regional: analista.regional,
-        clienteAsignado: analista.clienteAsignado || '',
-        nivelPrioridad: analista.nivelPrioridad,
-        estado: analista.estado,
-        fechaIngreso: fechaIngreso,
-      });
+        username: analista.username || '',
+        email: analista.email || '',
+        password: '', // No mostrar la contraseña
+        primer_nombre: analista.primer_nombre || analista.nombre || '',
+        segundo_nombre: analista.segundo_nombre || '',
+        primer_apellido: analista.primer_apellido || analista.apellido || '',
+        segundo_apellido: analista.segundo_apellido || '',
+        nivelPrioridad: analista.nivelPrioridad || 'medio',
+        activo: analista.activo !== undefined ? analista.activo : true
+      })
     }
   }, [analista, form]);
 
+  // Log de depuración para ver el analista y el id
+  // (Eliminados los console.log de depuración innecesarios, solo queda el de datos enviados al backend)
+
   const onSubmit = async (data: AnalistaFormData) => {
     try {
-      const response = await fetch(`/api/analistas/${id}`, {
+      console.log('Datos enviados al backend (editar):', data);
+      // No enviar password si está vacío
+      const payload = { ...data };
+      if (!payload.password) delete payload.password;
+      const response = await fetch(`${API_URL}analistas/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
@@ -125,19 +123,6 @@ export default function EditarAnalistaPage() {
     }
   };
 
-  const regionales = [
-    'Bogotá',
-    'Medellín', 
-    'Cali',
-    'Barranquilla',
-    'Cartagena',
-    'Bucaramanga',
-    'Pereira',
-    'Manizales',
-    'Ibagué',
-    'Cúcuta'
-  ];
-
   if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -146,7 +131,8 @@ export default function EditarAnalistaPage() {
     );
   }
 
-  if (!analista || !analista.id) {
+  // Solo muestra 'Analista no encontrado' si apiResponse es null o undefined
+  if (apiResponse == null) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center text-red-600">Analista no encontrado</div>
@@ -166,144 +152,149 @@ export default function EditarAnalistaPage() {
           <ArrowLeft className="w-4 h-4" />
           Volver
         </Button>
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Editar Analista</h1>
-          <p className="text-gray-600 mt-2">
-            Actualiza la información del analista {analista.nombre} {analista.apellido}
-          </p>
+        <div className="flex items-center gap-3">
+          <UserCheck className="w-8 h-8 text-blue-600" />
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Editar Analista</h1>
+            <p className="text-gray-600 mt-2">
+              Modifica la información del analista
+            </p>
+          </div>
         </div>
       </div>
 
       {/* Formulario */}
-      <Card className="max-w-2xl">
-        <CardHeader>
-          <CardTitle>Datos del Analista</CardTitle>
+      <Card className="max-w-4xl mx-auto">
+        <CardHeader className="bg-blue-50">
+          <CardTitle className="flex items-center gap-2 text-blue-800">
+            <UserCheck className="w-5 h-5" />
+            Datos del Analista
+          </CardTitle>
           <CardDescription>
             Modifica la información del analista
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              {/* Información Personal */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="nombre"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nombre *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Nombre del analista" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="apellido"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Apellido *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Apellido del analista" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {/* Contacto */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email *</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="email" 
-                          placeholder="correo@ejemplo.com" 
-                          {...field} 
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="telefono"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Teléfono</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Número de teléfono" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {/* Asignaciones */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="regional"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Regional *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              {/* Información de Acceso */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium text-blue-800 border-b border-blue-200 pb-2">
+                  Información de Acceso
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <FormField
+                    control={form.control}
+                    name="username"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nombre de Usuario *</FormLabel>
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Seleccione una regional" />
-                          </SelectTrigger>
+                          <Input placeholder="Nombre de usuario" {...field} />
                         </FormControl>
-                        <SelectContent>
-                          {regionales.map(regional => (
-                            <SelectItem key={regional} value={regional}>
-                              {regional}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
+                        <FormDescription>
+                          El nombre de usuario para iniciar sesión
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email *</FormLabel>
+                        <FormControl>
+                          <Input type="email" placeholder="correo@ejemplo.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+              {/* Información Personal */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium text-blue-800 border-b border-blue-200 pb-2">
+                  Información Personal
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <FormField
+                    control={form.control}
+                    name="primer_nombre"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Primer Nombre *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Primer nombre" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="segundo_nombre"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Segundo Nombre</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Segundo nombre" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <FormField
+                    control={form.control}
+                    name="primer_apellido"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Primer Apellido *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Primer apellido" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="segundo_apellido"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Segundo Apellido</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Segundo apellido" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+              {/* Estado y Nivel */}
+              <div className="flex items-center gap-8">
                 <FormField
                   control={form.control}
-                  name="clienteAsignado"
+                  name="activo"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Cliente Asignado</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Nombre del cliente" {...field} />
-                      </FormControl>
-                      <FormDescription>
-                        Cliente específico asignado al analista
-                      </FormDescription>
+                      <FormLabel>Activo</FormLabel>
+                      <input type="checkbox" checked={field.value} onChange={e => field.onChange(e.target.checked)} />
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-              </div>
-
-              {/* Configuración */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <FormField
                   control={form.control}
                   name="nivelPrioridad"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nivel de Prioridad *</FormLabel>
+                      <FormLabel>Nivel de Prioridad</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
@@ -320,46 +311,9 @@ export default function EditarAnalistaPage() {
                     </FormItem>
                   )}
                 />
-
-                <FormField
-                  control={form.control}
-                  name="estado"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Estado *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Estado" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="activo">Activo</SelectItem>
-                          <SelectItem value="inactivo">Inactivo</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="fechaIngreso"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Fecha de Ingreso</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </div>
-
               {/* Botones */}
-              <div className="flex justify-end gap-4 pt-6">
+              <div className="flex justify-end gap-4 pt-6 border-t">
                 <Button
                   type="button"
                   variant="outline"

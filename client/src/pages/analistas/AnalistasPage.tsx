@@ -68,14 +68,34 @@ export default function AnalistasPage() {
   const [filterEstado, setFilterEstado] = useState('todos');
 
   const { data: analistas = [], isLoading, fetchData } = useApiData<Analista[]>(
-    '/api/analistas',
+    'analistas',
     [],
     { showSuccessToast: false }
   );
 
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Mapear los datos recibidos para que coincidan con la estructura esperada
+  const analistasMapeados = analistas.map((a: any) => ({
+    id: a.id,
+    nombre: a.nombre || a.primer_nombre || '',
+    apellido: a.apellido || a.primer_apellido || '',
+    email: a.email || '',
+    telefono: a.telefono || '',
+    regional: a.regional || '',
+    clienteAsignado: a.clienteAsignado || '',
+    nivelPrioridad: a.nivelPrioridad || 'medio',
+    estado: a.estado || (a.activo ? 'activo' : 'inactivo'),
+    fechaIngreso: a.fechaIngreso || a.created_at || '',
+    fechaCreacion: a.fechaCreacion || '',
+    fechaActualizacion: a.fechaActualizacion || ''
+  }));
+
   // Aplicar filtros
   useEffect(() => {
-    let filtered = analistas;
+    let filtered = analistasMapeados;
 
     // Filtro de búsqueda
     if (searchTerm) {
@@ -104,7 +124,7 @@ export default function AnalistasPage() {
     }
 
     setFilteredAnalistas(filtered);
-  }, [analistas, searchTerm, filterRegional, filterNivel, filterEstado]);
+  }, [analistasMapeados, searchTerm, filterRegional, filterNivel, filterEstado]);
 
   const handleEliminarAnalista = async (id: number) => {
     try {
@@ -171,7 +191,7 @@ export default function AnalistasPage() {
   };
 
   // Obtener regionales únicas para el filtro
-  const regionalesUnicas = Array.from(new Set(analistas.map(a => a.regional)));
+  const regionalesUnicas = Array.from(new Set(analistasMapeados.map(a => a.regional)));
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -210,7 +230,7 @@ export default function AnalistasPage() {
             <UserCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analistas.length}</div>
+            <div className="text-2xl font-bold">{analistasMapeados.length}</div>
           </CardContent>
         </Card>
         
@@ -221,7 +241,7 @@ export default function AnalistasPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              {analistas.filter(a => a.estado === 'activo').length}
+              {analistasMapeados.filter(a => a.estado === 'activo').length}
             </div>
           </CardContent>
         </Card>
@@ -233,7 +253,7 @@ export default function AnalistasPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">
-              {analistas.filter(a => a.nivelPrioridad === 'alto').length}
+              {analistasMapeados.filter(a => a.nivelPrioridad === 'alto').length}
             </div>
           </CardContent>
         </Card>
@@ -272,7 +292,7 @@ export default function AnalistasPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todas">Todas las regionales</SelectItem>
-                {regionalesUnicas.map(regional => (
+                {regionalesUnicas.filter(r => r).map(regional => (
                   <SelectItem key={regional} value={regional}>{regional}</SelectItem>
                 ))}
               </SelectContent>
@@ -344,7 +364,10 @@ export default function AnalistasPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => navigate(`/analistas/${analista.id}/editar`)}
+                          onClick={() => {
+                            navigate(`/analistas/${analista.id}/editar`, { replace: true });
+                            window.location.reload();
+                          }}
                         >
                           <Edit3 className="w-4 h-4" />
                         </Button>

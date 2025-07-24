@@ -1,7 +1,7 @@
 
 import { toast } from "sonner";
 
-const API_URL = "http://localhost:3001/api/v1/";
+export const API_URL = "http://localhost:3000/api/v1/";
 
 // Función auxiliar para manejar errores
 const handleError = (error: unknown) => {
@@ -16,7 +16,8 @@ const fetchAPI = async <T>(
   options: RequestInit = {}
 ): Promise<T> => {
   try {
-    const url = `${API_URL}${endpoint}`;
+    // Construir la URL evitando duplicar barras
+    const url = `${API_URL.replace(/\/+$/, '')}/${endpoint.replace(/^\/+/, '')}`;
     console.log(`Fetching: ${url}`, options.method || 'GET');
     
     const defaultHeaders = {
@@ -43,6 +44,10 @@ const fetchAPI = async <T>(
 
     const data = await response.json();
     console.log("API Response data:", data);
+    // Si la respuesta tiene una propiedad 'data', devolverla directamente
+    if (data && typeof data === 'object' && 'data' in data) {
+      return data.data as T;
+    }
     return data as T;
   } catch (error) {
     return handleError(error) as T;

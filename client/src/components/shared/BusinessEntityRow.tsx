@@ -46,12 +46,12 @@ export function BusinessEntityRow({
   return (
     <TableRow key={entity.id} className="text-[11px]">
       <TableCell className="py-1 px-2 whitespace-nowrap">{entity.nit}</TableCell>
-      <TableCell className="py-1 px-2 font-medium whitespace-nowrap">{entity.name}</TableCell>
-      <TableCell className="py-1 px-2 whitespace-nowrap">{entity.address}</TableCell>
-      <TableCell className="py-1 px-2 whitespace-nowrap">{getCityName(entity.city)}</TableCell>
-      <TableCell className="py-1 px-2 whitespace-nowrap">{entity.email}</TableCell>
-      <TableCell className="py-1 px-2 whitespace-nowrap">{entity.phone}</TableCell>
-      <TableCell className="py-1 px-2 whitespace-nowrap">{entity.contactPerson}</TableCell>
+      <TableCell className="py-1 px-2 font-medium whitespace-nowrap">{entity.razonSocial}</TableCell>
+      <TableCell className="py-1 px-2 whitespace-nowrap">{entity.direccion}</TableCell>
+      <TableCell className="py-1 px-2 whitespace-nowrap">{getCityName(entity.ciudad)}</TableCell>
+      <TableCell className="py-1 px-2 whitespace-nowrap">{entity.correoElectronico}</TableCell>
+      <TableCell className="py-1 px-2 whitespace-nowrap">{entity.telefono}</TableCell>
+      <TableCell className="py-1 px-2 whitespace-nowrap">{entity.representanteLegal}</TableCell>
       <TableCell className="py-1 px-2 whitespace-nowrap">
         <Badge 
           variant={entity.active ? "default" : "destructive"}
@@ -75,7 +75,7 @@ export function BusinessEntityRow({
               <AlertDialogHeader>
                 <AlertDialogTitle>¿Está seguro?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Esta acción no se puede deshacer. Se eliminará permanentemente {entityType === 'empresa' ? 'la empresa' : 'el prestador'} {entity.name} y todos sus documentos asociados.
+                  Esta acción no se puede deshacer. Se eliminará permanentemente {entityType === 'empresa' ? 'la empresa' : 'el prestador'} {entity.razonSocial} y todos sus documentos asociados.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
