@@ -21,6 +21,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { AdvancedProfileManager } from "@/components/profiles/AdvancedProfileManager";
 import { PermissionsForm } from "@/components/profiles/PermissionsForm";
 import { type UserProfile } from "@shared/mock-permissions";
+import { rolesService } from '@/services/rolesService';
 
 // Schema para el formulario de perfil
 const perfilSchema = z.object({
@@ -308,22 +309,13 @@ const PerfilesPage = () => {
     return iconMap[iconName] || Eye;
   };
 
-  // Fetch perfiles
+  // Fetch perfiles desde Supabase
   const { data: perfiles = [], isLoading, refetch } = useQuery({
-    queryKey: ['/api/perfiles'],
+    queryKey: ['roles'],
     queryFn: async () => {
-      const response = await fetch('/api/perfiles', {
-        cache: 'no-store', // Evitar caché del browser
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
-      });
-      if (!response.ok) throw new Error('Failed to fetch perfiles');
-      return response.json();
+      return await rolesService.listRoles();
     },
-    staleTime: 0, // Sin caché para actualizaciones inmediatas
+    staleTime: 0,
     refetchOnWindowFocus: false
   });
 
@@ -344,72 +336,46 @@ const PerfilesPage = () => {
   // Create/Update perfil mutation
   const savePerfilMutation = useMutation({
     mutationFn: async (data: PerfilForm) => {
-      const url = editingPerfil ? `/api/perfiles/${editingPerfil.id}` : '/api/perfiles';
-      const method = editingPerfil ? 'PUT' : 'POST';
-      
-      return await apiRequest(url, {
-        method,
-        body: JSON.stringify(data)
-      });
+      if (editingPerfil) {
+        // Editar
+        const updated = await rolesService.updateRole(editingPerfil.id, { nombre: data.nombre, descripcion: data.descripcion });
+        // Guardar acciones (único registro de permisos)
+        await rolesService.setAccionesToRol(editingPerfil.id, data.permisos.map(p => ({ permiso_id: Number(p.viewId), acciones: p.actions })));
+        return updated;
+      } else {
+        // Crear
+        const created = await rolesService.createRole({ nombre: data.nombre, descripcion: data.descripcion });
+        // Guardar acciones (único registro de permisos)
+        await rolesService.setAccionesToRol(created.id, data.permisos.map(p => ({ permiso_id: Number(p.viewId), acciones: p.actions })));
+        return created;
+      }
     },
     onSuccess: async () => {
       setIsModalOpen(false);
       setEditingPerfil(null);
-      
-      // FORZAR actualización inmediata - método simplificado
-      queryClient.removeQueries({ queryKey: ['/api/perfiles'] });
+      queryClient.removeQueries({ queryKey: ['roles'] });
       await refetch();
-      
-      // Redirigir a la tabla de perfiles
-      setActiveTab("perfiles");
-      
-      // Limpiar completamente el formulario después de crear/editar
-      form.reset({
-        codigo: 0,
-        nombre: "",
-        descripcion: "",
-        permisos: []
-      });
-      
-      toast({
-        title: "✅ Éxito",
-        description: editingPerfil ? "Perfil actualizado correctamente" : "Perfil creado correctamente",
-        variant: "default",
-      });
+      setActiveTab('perfiles');
+      form.reset({ codigo: 0, nombre: '', descripcion: '', permisos: [] });
+      toast({ title: '✅ Éxito', description: editingPerfil ? 'Perfil actualizado correctamente' : 'Perfil creado correctamente', variant: 'default' });
     },
     onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message || "Error al guardar el perfil",
-        variant: "destructive",
-      });
+      toast({ title: 'Error', description: error.message || 'Error al guardar el perfil', variant: 'destructive' });
     }
   });
 
   // Delete perfil mutation
   const deletePerfilMutation = useMutation({
     mutationFn: async (id: number) => {
-      return await apiRequest(`/api/perfiles/${id}`, {
-        method: 'DELETE'
-      });
+      return await rolesService.deleteRole(id);
     },
     onSuccess: async () => {
-      // FORZAR actualización inmediata - método simplificado
-      queryClient.removeQueries({ queryKey: ['/api/perfiles'] });
+      queryClient.removeQueries({ queryKey: ['roles'] });
       await refetch();
-      
-      toast({
-        title: "✅ Éxito",
-        description: "Perfil eliminado correctamente",
-        variant: "default",
-      });
+      toast({ title: '✅ Éxito', description: 'Perfil eliminado correctamente', variant: 'default' });
     },
     onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message || "Error al eliminar el perfil",
-        variant: "destructive",
-      });
+      toast({ title: 'Error', description: error.message || 'Error al eliminar el perfil', variant: 'destructive' });
     }
   });
 
@@ -417,50 +383,30 @@ const PerfilesPage = () => {
     savePerfilMutation.mutate(data);
   };
 
+  // handleEdit debe cargar los permisos del rol desde Supabase y mostrarlos en la tabla para editar
   const handleEdit = async (perfil: any) => {
     setEditingPerfil(perfil);
-    
     try {
-      // Load existing permissions for this profile
-      const response = await fetch(`/api/perfiles/${perfil.id}/permisos`);
-      if (!response.ok) throw new Error('Failed to load permissions');
-      const existingPermisos = await response.json();
-      
-      // Normalize permissions to ensure actions is always an array
-      const normalizedPermisos = existingPermisos.map((permiso: any) => ({
-        ...permiso,
-        actions: permiso.actions || []
+      // Obtener permisos completos (ahora incluye módulo)
+      const permisosDetalle = await rolesService.listPermisosDetalleByRol(perfil.id);
+      // Obtener acciones guardadas
+      const accionesGuardadas = await rolesService.getAccionesByRol(perfil.id);
+      // Mapear a estructura del form
+      const permisos = permisosDetalle.map((permiso: any) => ({
+        viewId: String(permiso.permiso_id), // Asegurar que viewId es string para el esquema del formulario
+        viewName: permiso.nombre,
+        actions: accionesGuardadas.filter(a => a.permiso_id === permiso.permiso_id).map(a => a.accion_codigo)
       }));
-      
-      form.reset({
-        codigo: perfil.id,
-        nombre: perfil.nombre,
-        descripcion: perfil.descripcion || "",
-        permisos: normalizedPermisos
-      });
-      
-      // Switch to the vistas tab which now contains the form
-      setActiveTab("vistas");
+      form.reset({ codigo: perfil.id, nombre: perfil.nombre, descripcion: perfil.descripcion || '', permisos });
+      setActiveTab('vistas');
     } catch (error) {
-      console.error('Error loading permissions:', error);
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar los permisos del perfil",
-        variant: "destructive",
-      });
-      
-      // Fallback: open form without permissions
-      form.reset({
-        codigo: perfil.id,
-        nombre: perfil.nombre,
-        descripcion: perfil.descripcion || "",
-        permisos: []
-      });
-      // Switch to the vistas tab which now contains the form
-      setActiveTab("vistas");
+      toast({ title: 'Error', description: 'No se pudieron cargar los permisos del perfil', variant: 'destructive' });
+      form.reset({ codigo: perfil.id, nombre: perfil.nombre, descripcion: perfil.descripcion || '', permisos: [] });
+      setActiveTab('vistas');
     }
   };
 
+  // handleDelete ya usa deletePerfilMutation
   const handleDelete = (id: number) => {
     deletePerfilMutation.mutate(id);
   };

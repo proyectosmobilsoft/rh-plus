@@ -50,6 +50,7 @@ import {
   type SystemView,
   type ViewAction
 } from '@shared/mock-permissions';
+import { rolesService } from '@/services/rolesService';
 
 interface AdvancedProfileManagerProps {
   open: boolean;
@@ -82,8 +83,56 @@ export const AdvancedProfileManager: React.FC<AdvancedProfileManagerProps> = ({
   const [userEmail, setUserEmail] = useState('');
   const [createCompanyUser, setCreateCompanyUser] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [systemViews, setSystemViews] = useState<any[]>([]);
+  const [actionsByView, setActionsByView] = useState<Record<string, any[]>>({});
+  const [loadingViews, setLoadingViews] = useState(false);
 
-  const viewsByModule = getViewsByModule();
+  // Cargar vistas y acciones desde Supabase
+  useEffect(() => {
+    const fetchViewsAndActions = async () => {
+      setLoadingViews(true);
+      try {
+        // Obtener todos los permisos
+        const permisos = await rolesService.listPermisos();
+        // Agrupar por módulo como "vistas"
+        const viewsMap: Record<string, any> = {};
+        const actionsMap: Record<string, any[]> = {};
+        permisos.forEach((permiso: any) => {
+          // Usar modulo como vista, nombre como acción
+          if (!viewsMap[permiso.modulo]) {
+            viewsMap[permiso.modulo] = {
+              id: permiso.modulo,
+              name: permiso.modulo.charAt(0).toUpperCase() + permiso.modulo.slice(1),
+              description: '',
+              actions: []
+            };
+          }
+          // Agregar acción a la vista
+          viewsMap[permiso.modulo].actions.push({
+            id: permiso.id,
+            name: permiso.nombre,
+            description: permiso.descripcion,
+            type: permiso.modulo
+          });
+          // Mapear acciones por vista
+          if (!actionsMap[permiso.modulo]) actionsMap[permiso.modulo] = [];
+          actionsMap[permiso.modulo].push({
+            id: permiso.id,
+            name: permiso.nombre,
+            description: permiso.descripcion,
+            type: permiso.modulo
+          });
+        });
+        setSystemViews(Object.values(viewsMap));
+        setActionsByView(actionsMap);
+      } catch (e) {
+        toast.error('Error cargando vistas y permisos desde la base de datos');
+      } finally {
+        setLoadingViews(false);
+      }
+    };
+    fetchViewsAndActions();
+  }, []);
 
   // Resetear formulario cuando se abre
   useEffect(() => {
@@ -119,7 +168,7 @@ export const AdvancedProfileManager: React.FC<AdvancedProfileManagerProps> = ({
 
     // Si se desactiva una vista, desactivar todas sus acciones
     if (!enabled) {
-      const viewActions = getActionsByView(viewId);
+      const viewActions = actionsByView[viewId] || [];
       const updatedActionPermissions = { ...actionPermissions };
       viewActions.forEach(action => {
         updatedActionPermissions[action.id] = false;
@@ -300,25 +349,18 @@ export const AdvancedProfileManager: React.FC<AdvancedProfileManagerProps> = ({
                   </p>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  {Object.entries(viewsByModule).map(([module, views]) => (
-                    <div key={module} className="space-y-3">
-                      <h3 className="font-semibold text-base border-b pb-2">{module}</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {views.map((view) => (
-                          <div key={view.id} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50">
-                            <Switch
-                              id={`view_${view.id}`}
-                              checked={viewPermissions[view.id] || false}
-                              onCheckedChange={(checked) => handleViewPermissionChange(view.id, checked)}
-                            />
-                            <div className="flex-1">
-                              <Label htmlFor={`view_${view.id}`} className="font-medium cursor-pointer">
-                                {view.name}
-                              </Label>
-                              <p className="text-xs text-gray-600 mt-1">{view.description}</p>
-                            </div>
-                          </div>
-                        ))}
+                  {systemViews.map((view) => (
+                    <div key={view.id} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50">
+                      <Switch
+                        id={`view_${view.id}`}
+                        checked={viewPermissions[view.id] || false}
+                        onCheckedChange={(checked) => handleViewPermissionChange(view.id, checked)}
+                      />
+                      <div className="flex-1">
+                        <Label htmlFor={`view_${view.id}`} className="font-medium cursor-pointer">
+                          {view.name}
+                        </Label>
+                        <p className="text-xs text-gray-600 mt-1">{view.description}</p>
                       </div>
                     </div>
                   ))}
@@ -335,10 +377,10 @@ export const AdvancedProfileManager: React.FC<AdvancedProfileManagerProps> = ({
                   </p>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  {mockSystemViews
+                  {systemViews
                     .filter(view => viewPermissions[view.id])
                     .map((view) => {
-                      const actions = getActionsByView(view.id);
+                      const actions = actionsByView[view.id] || [];
                       return (
                         <div key={view.id} className="space-y-3">
                           <h3 className="font-semibold text-base border-b pb-2 flex items-center gap-2">
@@ -368,7 +410,6 @@ export const AdvancedProfileManager: React.FC<AdvancedProfileManagerProps> = ({
                         </div>
                       );
                     })}
-                  
                   {Object.values(viewPermissions).every(v => !v) && (
                     <div className="text-center py-8 text-gray-500">
                       <Lock className="w-12 h-12 mx-auto mb-4 text-gray-400" />

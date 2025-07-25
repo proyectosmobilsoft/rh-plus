@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Check, X, Edit, Eye, Plus, Trash2, Users, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import systemViewsData from "@shared/system-views-actions.json";
+import { rolesService } from '@/services/rolesService';
+import { MultiSelect, Option } from '@/components/ui/multi-select';
 
 interface PermissionsFormProps {
   selectedPermissions: {
@@ -27,6 +28,7 @@ interface SystemView {
   acciones: {
     codigo: string;
     nombre: string;
+    description?: string; 
   }[];
 }
 
@@ -50,18 +52,34 @@ const getActionIcon = (actionCode: string) => {
 
 export function PermissionsForm({ selectedPermissions, onPermissionsChange }: PermissionsFormProps) {
   const [selectedView, setSelectedView] = useState<string>("");
-  const [filterText, setFilterText] = useState("");
-  
-  const systemViews = systemViewsData as SystemView[];
+  const [filterText, setFilterText] = useState(""); 
+  const [modulos, setModulos] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  // Ensure all permissions have a valid actions array
+  useEffect(() => {
+    setLoading(true);
+    rolesService.listModulosConPermisos().then(data => {
+      setModulos(data);
+      setLoading(false);
+    });
+  }, []);
+
+  const systemViews: SystemView[] = modulos.map(modulo => ({
+    codigo: String(modulo.id),
+    nombre: modulo.nombre,
+    acciones: modulo.modulo_permisos.map((p: any) => ({
+      codigo: String(p.id),
+      nombre: p.nombre,
+      description: p.descripcion
+    }))
+  }));
+
   useEffect(() => {
     const normalizedPermissions = selectedPermissions.map(permission => ({
       ...permission,
       actions: permission.actions || []
     }));
     
-    // Only update if there are actual differences
     const hasUndefinedActions = selectedPermissions.some(p => !p.actions);
     if (hasUndefinedActions) {
       onPermissionsChange(normalizedPermissions);
@@ -74,7 +92,6 @@ export function PermissionsForm({ selectedPermissions, onPermissionsChange }: Pe
     const view = systemViews.find(v => v.codigo === selectedView);
     if (!view) return;
 
-    // Check if view already exists
     const existingIndex = selectedPermissions.findIndex(p => p.viewId === selectedView);
     if (existingIndex >= 0) return;
 
@@ -94,7 +111,7 @@ export function PermissionsForm({ selectedPermissions, onPermissionsChange }: Pe
 
   const toggleAction = (viewId: string, actionCode: string) => {
     const updatedPermissions = selectedPermissions.map(permission => {
-      if (permission.viewId === viewId) {
+      if (String(permission.viewId) === String(viewId)) {
         const currentActions = permission.actions || [];
         const actions = currentActions.includes(actionCode)
           ? currentActions.filter(a => a !== actionCode)
@@ -109,7 +126,7 @@ export function PermissionsForm({ selectedPermissions, onPermissionsChange }: Pe
   };
 
   const filteredViews = systemViews.filter(view => 
-    !selectedPermissions.some(p => p.viewId === view.codigo)
+    !selectedPermissions.some(p => String(p.viewId) === String(view.codigo))
   );
 
   const filteredPermissions = selectedPermissions.filter(permission =>
@@ -118,7 +135,6 @@ export function PermissionsForm({ selectedPermissions, onPermissionsChange }: Pe
 
   return (
     <div className="space-y-6">
-      {/* Header Section */}
       <div className="bg-gradient-to-r from-cyan-400 to-cyan-500 text-white p-4 rounded-t-lg">
         <h3 className="text-lg font-semibold text-center">Gestiona los Permisos</h3>
         <p className="text-center text-cyan-50 text-sm mt-1">
@@ -126,7 +142,6 @@ export function PermissionsForm({ selectedPermissions, onPermissionsChange }: Pe
         </p>
       </div>
 
-      {/* Add View Section */}
       <div className="p-4 border rounded-lg bg-gray-50">
         <div className="flex gap-2 items-end">
           <div className="flex-1">
@@ -156,7 +171,6 @@ export function PermissionsForm({ selectedPermissions, onPermissionsChange }: Pe
         </div>
       </div>
 
-      {/* Filter Section */}
       {selectedPermissions.length > 0 && (
         <div className="p-2">
           <Input
@@ -168,69 +182,56 @@ export function PermissionsForm({ selectedPermissions, onPermissionsChange }: Pe
         </div>
       )}
 
-      {/* Permissions Table */}
       {filteredPermissions.length > 0 && (
         <div className="border rounded-lg overflow-hidden">
-          {/* Table Header */}
           <div className="bg-cyan-100 border-b">
             <div className="grid grid-cols-8 gap-2 p-3 font-medium text-gray-700">
               <div className="col-span-4">Nombre De La Vista</div>
-              <TooltipProvider>
-                <div className="col-span-1 text-center">
-                  <Tooltip>
-                    <TooltipTrigger>{getActionIcon('edit')}</TooltipTrigger>
-                    <TooltipContent>Editar</TooltipContent>
-                  </Tooltip>
-                </div>
-                <div className="col-span-1 text-center">
-                  <Tooltip>
-                    <TooltipTrigger>{getActionIcon('create')}</TooltipTrigger>
-                    <TooltipContent>Crear</TooltipContent>
-                  </Tooltip>
-                </div>
-                <div className="col-span-1 text-center">
-                  <Tooltip>
-                    <TooltipTrigger><Trash2 className="h-4 w-4" /></TooltipTrigger>
-                    <TooltipContent>Eliminar</TooltipContent>
-                  </Tooltip>
-                </div>
-              </TooltipProvider>
-              <div className="col-span-1 text-center">Acciones</div>
+              <div className="col-span-3 text-center">Acciones Asociadas</div>
+              <div className="col-span-1 text-center">Eliminar</div>
             </div>
           </div>
 
-          {/* Table Body */}
           <div className="divide-y">
             {filteredPermissions.map((permission) => {
-              const view = systemViews.find(v => v.codigo === permission.viewId);
+              const view = systemViews.find(v => String(v.codigo) === String(permission.viewId));
               if (!view) return null;
 
               return (
                 <div key={permission.viewId} className="bg-white hover:bg-gray-50">
                   <div className="grid grid-cols-8 gap-2 p-3 items-center">
-                    {/* View Name */}
                     <div className="col-span-4">
                       <div className="bg-yellow-50 p-2 rounded border">
                         <span className="text-sm font-medium">{permission.viewName}</span>
                       </div>
                     </div>
 
-                    {/* Action Switches - Solo mostrar las primeras 3 acciones (editar, crear, eliminar) */}
-                    {view.acciones.map((action, index) => {
-                      if (index < 3) {
-                        const isSelected = permission.actions?.includes(action.codigo) || false;
-                        return (
-                          <div key={action.codigo} className="col-span-1 text-center">
-                            <Switch
-                              checked={isSelected}
-                              onCheckedChange={() => toggleAction(permission.viewId, action.codigo)}
-                              className="data-[state=checked]:bg-green-500"
-                            />
-                          </div>
-                        );
-                      }
-                      return null;
-                    })}
+                    <div className="col-span-3 text-center">
+                      <MultiSelect
+                        options={view.acciones.map((a) => ({
+                          id: Number(a.codigo),
+                          value: a.codigo,
+                          label: a.nombre,
+                          name: a.nombre,
+                          description: a.description
+                        })) as Option[]} 
+                        selected={permission.actions.map((actionCode: string) => {
+                          const foundAction = view.acciones.find(act => act.codigo === actionCode);
+                          return foundAction ? Number(foundAction.codigo) : -1;
+                        }).filter(id => id !== -1)}
+                        onSelectionChange={(selectedIds: number[]) => {
+                          const actions = selectedIds.map(id => {
+                            const found = view.acciones.find(act => Number(act.codigo) === id);
+                            return found ? found.codigo : undefined;
+                          }).filter(Boolean) as string[];
+                          const updatedPermissions = selectedPermissions.map(p =>
+                            p.viewId === permission.viewId ? { ...p, actions } : p
+                          );
+                          onPermissionsChange(updatedPermissions);
+                        }}
+                        placeholder="Seleccionar acciones..."
+                      />
+                    </div>
 
                     {/* Remove Button */}
                     <div className="col-span-1 text-center">
@@ -244,31 +245,6 @@ export function PermissionsForm({ selectedPermissions, onPermissionsChange }: Pe
                       </Button>
                     </div>
                   </div>
-
-                  {/* Action Details (mostrar todas las acciones adicionales) */}
-                  {view.acciones.length > 3 && (
-                    <div className="px-3 pb-3">
-                      <div className="text-xs text-gray-600 mb-2">Acciones adicionales:</div>
-                      <div className="flex flex-wrap gap-2">
-                        {view.acciones.slice(3).map((action) => {
-                          const isSelected = permission.actions?.includes(action.codigo) || false;
-                          return (
-                            <button
-                              key={action.codigo}
-                              onClick={() => toggleAction(permission.viewId, action.codigo)}
-                              className={`px-2 py-1 text-xs rounded border transition-colors ${
-                                isSelected 
-                                  ? 'bg-green-100 border-green-400 text-green-700' 
-                                  : 'bg-gray-100 border-gray-300 text-gray-600 hover:border-green-400'
-                              }`}
-                            >
-                              {action.nombre}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
                 </div>
               );
             })}
@@ -276,7 +252,6 @@ export function PermissionsForm({ selectedPermissions, onPermissionsChange }: Pe
         </div>
       )}
 
-      {/* Empty State */}
       {selectedPermissions.length === 0 && (
         <div className="text-center py-8 text-gray-500">
           <Users className="h-12 w-12 mx-auto text-gray-400 mb-3" />
@@ -285,7 +260,6 @@ export function PermissionsForm({ selectedPermissions, onPermissionsChange }: Pe
         </div>
       )}
 
-      {/* Selected Permissions Summary */}
       {selectedPermissions.length > 0 && (
         <div className="bg-blue-50 p-4 rounded-lg">
           <h4 className="font-medium text-blue-900 mb-2">Resumen de Permisos</h4>
