@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertTriangle, TrendingUp, Users, Clock, FileText, Activity } from "lucide-react";
+import { supabase } from '@/services/supabaseClient';
 import { useQuery } from "@tanstack/react-query";
 
 interface DashboardData {
@@ -26,9 +27,26 @@ interface LeadTimeAnalista {
 }
 
 export default function DashboardReportes() {
-  const { data: dashboardData, isLoading: loadingDashboard } = useQuery<DashboardData>({
-    queryKey: ["/api/reportes/dashboard"],
+  // Query real a Supabase para órdenes de servicio
+  const { data: ordenes = [], isLoading: loadingOrdenes } = useQuery({
+    queryKey: ['ordenes_servicio'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('ordenes_servicio').select('*');
+      if (error) throw error;
+      return data || [];
+    }
   });
+
+  // KPIs calculados en frontend
+  const ordenesTotales = ordenes.length;
+  const hoy = new Date().toISOString().slice(0, 10);
+  const ordenesHoy = ordenes.filter((o: any) => o.created_at && o.created_at.slice(0, 10) === hoy).length;
+  const ordenesPorEstado: { estado: string, cantidad: number }[] = Object.entries(
+    ordenes.reduce((acc: any, o: any) => {
+      acc[o.estado] = (acc[o.estado] || 0) + 1;
+      return acc;
+    }, {})
+  ).map(([estado, cantidad]) => ({ estado, cantidad }));
 
   const { data: leadTimeData, isLoading: loadingLeadTime } = useQuery<LeadTimeAnalista[]>({
     queryKey: ["/api/reportes/leadtime-analistas"],
@@ -59,7 +77,7 @@ export default function DashboardReportes() {
     }
   };
 
-  if (loadingDashboard || loadingLeadTime) {
+  if (loadingOrdenes || loadingLeadTime) {
     return (
       <div className="p-6 space-y-6">
         <div className="flex items-center justify-between">
@@ -105,7 +123,7 @@ export default function DashboardReportes() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{dashboardData?.ordenesTotales || 0}</div>
+            <div className="text-2xl font-bold">{ordenesTotales || 0}</div>
             <p className="text-xs text-muted-foreground">Total de órdenes en el sistema</p>
           </CardContent>
         </Card>
@@ -116,7 +134,7 @@ export default function DashboardReportes() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{dashboardData?.ordenesHoy || 0}</div>
+            <div className="text-2xl font-bold">{ordenesHoy || 0}</div>
             <p className="text-xs text-muted-foreground">Creadas el día de hoy</p>
           </CardContent>
         </Card>
@@ -183,7 +201,7 @@ export default function DashboardReportes() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {dashboardData?.ordenesPorEstado?.map((item, index) => (
+                {ordenesPorEstado?.map((item, index) => (
                   <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
                     <div className="flex items-center space-x-3">
                       {getEstadoBadge(item.estado)}
@@ -192,8 +210,8 @@ export default function DashboardReportes() {
                     <div className="text-right">
                       <div className="text-2xl font-bold">{item.cantidad}</div>
                       <div className="text-sm text-gray-500">
-                        {dashboardData.ordenesTotales > 0 
-                          ? Math.round((item.cantidad / dashboardData.ordenesTotales) * 100)
+                        {ordenesTotales > 0 
+                          ? Math.round((item.cantidad / ordenesTotales) * 100)
                           : 0}%
                       </div>
                     </div>

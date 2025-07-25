@@ -30,17 +30,14 @@ export function BusinessEntityRow({
   onDelete,
   entityType,
 }: BusinessEntityRowProps) {
-  const getCityName = (cityCode: string) => {
-    if (!cityCode) return '';
-    
-    const cityInfo = Object.values(cityData).find(info => info.startsWith(`${cityCode} -`));
-    if (!cityInfo) return cityCode;
-    
-    const parts = cityInfo.split(' - ');
-    if (parts.length < 2) return cityInfo;
-    
-    const nameParts = parts[1].split(',');
-    return nameParts[0].trim();
+  const getCityName = (cityId: string | number) => {
+    if (!cityId) return '';
+    // cityData es { [idDepartamento]: { nombre, ciudades: [{id, nombre}] } }
+    for (const dep of Object.values(cityData)) {
+      const ciudad = dep.ciudades.find((c: any) => String(c.id) === String(cityId));
+      if (ciudad) return ciudad.nombre;
+    }
+    return cityId;
   };
 
   return (

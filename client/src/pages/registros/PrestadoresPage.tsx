@@ -20,6 +20,8 @@ import {
 import { useApiData } from '@/hooks/useApiData';
 import { Briefcase, Search, Plus, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { prestadoresService } from '@/services/prestadoresService';
+import { useQuery, useMutation } from '@tanstack/react-query';
 
 interface Prestador {
   id: number;
@@ -45,86 +47,45 @@ const PrestadoresPage = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
 
-  // Datos simulados mientras se configura la API
-  const mockPrestadores: Prestador[] = [
-    { id: 1, identificacion: '12345678', nombre: 'Laura', apellido: 'Martínez', especialidad: 'Medicina General', telefono: '3101234567', correo: 'laura@ejemplo.com' },
-    { id: 2, identificacion: '87654321', nombre: 'Pedro', apellido: 'Sánchez', especialidad: 'Fisioterapia', telefono: '3209876543', correo: 'pedro@ejemplo.com' },
-    { id: 3, identificacion: '56781234', nombre: 'Ana', apellido: 'López', especialidad: 'Psicología', telefono: '3112345678', correo: 'ana@ejemplo.com' },
-  ];
-
-  // Hook para consumir la API
-  const {
-    data: prestadores,
-    isLoading,
-    error,
-    fetchData,
-    createData,
-    updateData,
-    deleteData,
-  } = useApiData<Prestador[]>('/prestadores', mockPrestadores, {
-    showSuccessToast: true,
-    successMessage: 'Datos de prestadores cargados correctamente',
-    errorMessage: 'Error al cargar los datos de prestadores',
+  // Hook para consumir Supabase
+  const { data: prestadores = [], isLoading, refetch } = useQuery({
+    queryKey: ['prestadores'],
+    queryFn: prestadoresService.getAll,
+    staleTime: 0,
+    refetchOnWindowFocus: false
   });
 
-  // Simulamos la carga de datos
-  useEffect(() => {
-    // Descomentar cuando la API esté disponible
-    // fetchData();
+  const createPrestadorMutation = useMutation({
+    mutationFn: async (data: any) => prestadoresService.create(data),
+    onSuccess: async () => { await refetch(); setDialogOpen(false); resetForm(); toast({ title: 'Éxito', description: 'Prestador registrado correctamente' }); },
+    onError: (error: Error) => { toast({ title: 'Error', description: error.message, variant: 'destructive' }); },
+  });
+  const updatePrestadorMutation = useMutation({
+    mutationFn: async ({ id, data }: any) => prestadoresService.update(id, data),
+    onSuccess: async () => { await refetch(); setDialogOpen(false); resetForm(); toast({ title: 'Éxito', description: 'Prestador actualizado correctamente' }); },
+    onError: (error: Error) => { toast({ title: 'Error', description: error.message, variant: 'destructive' }); },
+  });
+  const deletePrestadorMutation = useMutation({
+    mutationFn: async (id: number) => prestadoresService.delete(id),
+    onSuccess: async () => { await refetch(); toast({ title: 'Éxito', description: 'Prestador eliminado correctamente' }); },
+    onError: (error: Error) => { toast({ title: 'Error', description: error.message, variant: 'destructive' }); },
+  });
 
-    // Por ahora simulamos la carga
-    console.log('Simulando carga de datos de prestadores...');
-  }, []);
+  const resetForm = () => {
+    setFormData({ identificacion: '', nombre: '', apellido: '', especialidad: '', telefono: '', correo: '' });
+    setEditingId(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      // Validaciones básicas
-      if (!formData.identificacion || !formData.nombre || !formData.especialidad) {
-        toast({
-          title: "Error de validación",
-          description: "Por favor complete los campos requeridos",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (editingId) {
-        // Actualizando prestador existente
-        // Descomentar cuando la API esté disponible
-        // await updateData(editingId, formData);
-        
-        // Por ahora simulamos la actualización
-        console.log('Prestador a actualizar:', formData);
-        toast({
-          title: "Éxito",
-          description: "Prestador actualizado correctamente",
-        });
-      } else {
-        // Creando nuevo prestador
-        // Descomentar cuando la API esté disponible
-        // await createData(formData);
-        
-        // Por ahora simulamos la creación
-        console.log('Prestador a crear:', formData);
-        toast({
-          title: "Éxito",
-          description: "Prestador registrado correctamente",
-        });
-      }
-
-      setDialogOpen(false);
-      setFormData({
-        identificacion: '',
-        nombre: '',
-        apellido: '',
-        especialidad: '',
-        telefono: '',
-        correo: '',
-      });
-      setEditingId(null);
-    } catch (error) {
-      console.error('Error al procesar prestador:', error);
+    if (!formData.identificacion || !formData.nombre || !formData.especialidad) {
+      toast({ title: 'Error de validación', description: 'Por favor complete los campos requeridos', variant: 'destructive' });
+      return;
+    }
+    if (editingId) {
+      updatePrestadorMutation.mutate({ id: editingId, data: formData });
+    } else {
+      createPrestadorMutation.mutate(formData);
     }
   };
 
@@ -135,19 +96,7 @@ const PrestadoresPage = () => {
   };
 
   const handleDelete = async (id: number) => {
-    try {
-      // Descomentar cuando la API esté disponible
-      // await deleteData(id);
-      
-      // Por ahora simulamos la eliminación
-      console.log('Eliminando prestador con ID:', id);
-      toast({
-        title: "Éxito",
-        description: "Prestador eliminado correctamente",
-      });
-    } catch (error) {
-      console.error('Error al eliminar prestador:', error);
-    }
+    deletePrestadorMutation.mutate(id);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
