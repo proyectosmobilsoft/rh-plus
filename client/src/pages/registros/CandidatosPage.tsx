@@ -122,6 +122,14 @@ const CandidatosPage = () => {
     refetch();
   }, []);
 
+  const { data: empresasReales = [] } = useCompanies('empresa');
+
+  // Lookup helpers para empresa y ciudad
+  const getEmpresaNombre = (empresa_id: number) => {
+    const empresa = empresasReales.find((e: any) => e.id === empresa_id);
+    return empresa ? empresa.razonSocial : '';
+  };
+
   // Filtrar candidatos usando los campos reales de Supabase
   const filteredCandidatos = candidatos.filter((candidato: any) => {
     const matchesSearch =
@@ -223,13 +231,6 @@ const CandidatosPage = () => {
     setDialogOpen(true);
   };
 
-  const { data: empresasReales = [] } = useCompanies('empresa');
-
-  // Lookup helpers para empresa y ciudad
-  const getEmpresaNombre = (empresa_id: number) => {
-    const empresa = empresasReales.find((e: any) => e.id === empresa_id);
-    return empresa ? empresa.razonSocial : '';
-  };
   const getCiudadNombre = (ciudad_id: number) => {
     for (const dep of Object.values(cityData as Record<string, any>)) {
       const ciudad = dep.ciudades.find((c: any) => c.id === ciudad_id);
