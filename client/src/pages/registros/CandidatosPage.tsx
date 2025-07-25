@@ -407,16 +407,23 @@ const CandidatosPage = () => {
                   <Select
                     value={formData.ciudad_id ? String(formData.ciudad_id) : ''}
                     onValueChange={(value) => setFormData({ ...formData, ciudad_id: Number(value) })}
-                    disabled={!selectedDepartamento}
+                    disabled={!selectedDepartamento || loadingCities}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar ciudad" />
                     </SelectTrigger>
                     <SelectContent>
-                      {selectedDepartamento && Array.isArray((cityData as Record<string, { nombre: string, ciudades: { id: number, nombre: string }[] }>)[String(selectedDepartamento)]?.ciudades) &&
+                      {selectedDepartamento &&
+                        Array.isArray((cityData as Record<string, { nombre: string, ciudades: { id: number, nombre: string }[] }>)[String(selectedDepartamento)]?.ciudades) &&
                         (cityData as Record<string, { nombre: string, ciudades: { id: number, nombre: string }[] }>)[String(selectedDepartamento)]?.ciudades.map((ciudad: { id: number, nombre: string }) => (
                           <SelectItem key={ciudad.id} value={String(ciudad.id)}>{ciudad.nombre}</SelectItem>
                         ))}
+                      {selectedDepartamento &&
+                        (!cityData[selectedDepartamento]?.ciudades || cityData[selectedDepartamento].ciudades.length === 0) && (
+                          <SelectItem value="" disabled>
+                            No hay ciudades disponibles
+                          </SelectItem>
+                        )}
                     </SelectContent>
                   </Select>
                 </div>
