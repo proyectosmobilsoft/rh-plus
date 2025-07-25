@@ -27,6 +27,7 @@ import {
 import { User, Search, Plus, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from "@/lib/queryClient";
+import { useCompanies } from '@/hooks/useCompanies';
 
 interface Candidato {
   id: number;
@@ -168,8 +169,7 @@ const CandidatosPage = () => {
     setDialogOpen(true);
   };
 
-  // Obtener lista única de empresas para el filtro
-  const empresas = Array.from(new Set(candidatos.map((candidato: any) => candidato.empresa).filter(Boolean)));
+  const { data: empresasReales = [] } = useCompanies('empresa');
 
   if (isLoading) {
     return (
@@ -208,9 +208,9 @@ const CandidatosPage = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todas">Todas las empresas</SelectItem>
-                {empresas.map((empresa) => (
-                  <SelectItem key={empresa} value={empresa}>
-                    {empresa}
+                {empresasReales.map((empresa) => (
+                  <SelectItem key={empresa.id} value={empresa.razonSocial}>
+                    {empresa.razonSocial}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -298,11 +298,21 @@ const CandidatosPage = () => {
                 
                 <div>
                   <label className="block text-sm font-medium mb-1">Empresa</label>
-                  <Input
+                  <Select
                     value={formData.empresa || ''}
-                    onChange={(e) => setFormData({ ...formData, empresa: e.target.value })}
-                    placeholder="Empresa"
-                  />
+                    onValueChange={(value) => setFormData({ ...formData, empresa: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar empresa" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {empresasReales.map((empresa) => (
+                        <SelectItem key={empresa.id} value={empresa.razonSocial}>
+                          {empresa.razonSocial}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 
                 <div>

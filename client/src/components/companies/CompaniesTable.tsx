@@ -34,7 +34,7 @@ import {
     };
   
     return (
-      <div className="space-y-2 overflow-x-auto">
+      <div className="space-y-2">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">

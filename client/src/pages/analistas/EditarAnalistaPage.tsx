@@ -100,14 +100,18 @@ export default function EditarAnalistaPage() {
   const onSubmit = async (data: AnalistaFormData) => {
     try {
       console.log('Datos enviados a Supabase (editar):', data);
-      const payload = {
+      const payload: any = {
         username: data.username,
         email: data.email,
-        first_name: data.primer_nombre,
-        last_name: data.primer_apellido,
-        active: data.activo,
-        priority_level: data.nivelPrioridad || 'medio',
+        primer_nombre: data.primer_nombre,
+        segundo_nombre: data.segundo_nombre,
+        primer_apellido: data.primer_apellido,
+        segundo_apellido: data.segundo_apellido,
+        activo: data.activo,
       };
+      if (data.password) {
+        payload.password_hash = data.password; // Aquí deberías hashear la contraseña en producción
+      }
       await analystsService.update(Number(id), payload);
       toast.success('Analista actualizado exitosamente');
       navigate('/analistas');

@@ -145,9 +145,24 @@ export function CompanyForm({ initialData, onSaved, entityType = 'afiliada' }: C
 
   const onSubmit = async (data: CreateEmpresaDTO) => {
     try {
-      console.log('Datos enviados desde el formulario:', data);
-      // Llama al servicio real para guardar la empresa
-      await empresasService.create(data as any);
+      // Filtra solo los campos válidos para la tabla empresas
+      const empresaPayload = {
+        razon_social: data.razon_social,
+        nit: data.nit,
+        tipo_documento: data.tipo_documento,
+        regimen_tributario: data.regimen_tributario,
+        direccion: data.direccion,
+        ciudad: data.ciudad,
+        telefono: data.telefono,
+        email: data.email,
+        representante_legal: data.representante_legal,
+        actividad_economica: data.actividad_economica,
+        numero_empleados: data.numero_empleados,
+        tipo_empresa: data.tipo_empresa,
+        activo: data.activo,
+      };
+      console.log('Payload enviado a Supabase:', empresaPayload);
+      await empresasService.create(empresaPayload);
       toast({
         title: initialData 
           ? `${entityType === 'prestador' ? 'Prestador' : 'Empresa'} actualizada` 
