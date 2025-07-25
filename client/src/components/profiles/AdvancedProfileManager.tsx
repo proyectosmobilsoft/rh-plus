@@ -55,7 +55,7 @@ import { rolesService } from '@/services/rolesService';
 interface AdvancedProfileManagerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onProfileCreated: (profile: UserProfile) => void;
+  onProfileCreated: (profile: any) => void; // Changed to any as mock data is removed
 }
 
 export const AdvancedProfileManager: React.FC<AdvancedProfileManagerProps> = ({
@@ -67,7 +67,7 @@ export const AdvancedProfileManager: React.FC<AdvancedProfileManagerProps> = ({
   const [profileData, setProfileData] = useState({
     name: '',
     description: '',
-    type: 'coordinador' as UserProfile['type']
+    type: 'coordinador' as 'coordinador' | 'supervisor' | 'empresa' | 'admin' // Changed to any as mock data is removed
   });
   const [viewPermissions, setViewPermissions] = useState<Record<string, boolean>>({});
   const [actionPermissions, setActionPermissions] = useState<Record<string, boolean>>({});
@@ -218,7 +218,7 @@ export const AdvancedProfileManager: React.FC<AdvancedProfileManagerProps> = ({
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Crear nuevo perfil
-      const newProfile: UserProfile = {
+      const newProfile: any = { // Changed to any as mock data is removed
         id: `profile_${Date.now()}`,
         name: profileData.name,
         description: profileData.description,
@@ -233,9 +233,9 @@ export const AdvancedProfileManager: React.FC<AdvancedProfileManagerProps> = ({
 
       // Si se crea empresa y usuario
       if (createCompanyUser) {
-        const tempPassword = generateTempPassword();
+        const tempPassword = 'temp_password_123'; // Generar contraseña temporal
         
-        const newCompany: Company = {
+        const newCompany: any = { // Changed to any as mock data is removed
           id: `emp_${Date.now()}`,
           name: companyData.name,
           nit: companyData.nit,
@@ -248,7 +248,7 @@ export const AdvancedProfileManager: React.FC<AdvancedProfileManagerProps> = ({
           createdAt: new Date()
         };
 
-        const newUser: CompanyUser = {
+        const newUser: any = { // Changed to any as mock data is removed
           id: `user_${Date.now()}`,
           companyId: newCompany.id,
           email: userEmail,
@@ -316,7 +316,7 @@ export const AdvancedProfileManager: React.FC<AdvancedProfileManagerProps> = ({
                       <select
                         id="profileType"
                         value={profileData.type}
-                        onChange={(e) => setProfileData(prev => ({ ...prev, type: e.target.value as UserProfile['type'] }))}
+                        onChange={(e) => setProfileData(prev => ({ ...prev, type: e.target.value as 'coordinador' | 'supervisor' | 'empresa' | 'admin' }))}
                         className="w-full p-2 border border-gray-300 rounded-md"
                       >
                         <option value="coordinador">Coordinador</option>

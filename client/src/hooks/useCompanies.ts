@@ -1,14 +1,26 @@
-import { useApiData } from '@/hooks/useApiData';
+import { empresasService } from '@/services/empresasService';
+import { useEffect, useState } from 'react';
 
 export function useCompanies(entityType: 'empresa' | 'prestador') {
-  // Usa useApiData igual que en analistas
-  const { data: empresas = [], isLoading, fetchData } = useApiData<any[]>(
-    'empresas',
-    [],
-    { showSuccessToast: false }
-  );
+  const [empresas, setEmpresas] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Mapea los datos para que coincidan con la tabla
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const data = await empresasService.getAll();
+      setEmpresas(data || []);
+    } catch (error) {
+      // Puedes mostrar un toast de error si lo deseas
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
   const empresasMapeadas = empresas.map((e: any) => ({
     id: e.id,
     razonSocial: e.razon_social || '',

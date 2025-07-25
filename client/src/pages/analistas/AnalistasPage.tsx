@@ -44,29 +44,15 @@ import {
 } from '@/components/ui/alert-dialog';
 import { analystsService, Analyst } from '@/services/analystsService';
 
-interface Analista {
-  id: number;
-  nombre: string;
-  apellido: string;
-  email: string;
-  telefono?: string;
-  regional: string;
-  clienteAsignado?: string;
-  nivelPrioridad: 'alto' | 'medio' | 'bajo';
-  estado: 'activo' | 'inactivo';
-  fechaIngreso: string;
-  fechaCreacion: string;
-  fechaActualizacion: string;
-}
-
 export default function AnalistasPage() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
-  const [filteredAnalistas, setFilteredAnalistas] = useState<Analista[]>([]);
+  // Usa el tipo de analistasMapeados para el tipado
+  const [filteredAnalistas, setFilteredAnalistas] = useState<any[]>([]);
   const [filterRegional, setFilterRegional] = useState('todas');
   const [filterNivel, setFilterNivel] = useState('todos');
   const [filterEstado, setFilterEstado] = useState('todos');
-  const [analistas, setAnalistas] = useState<Analyst[]>([]);
+  const [analistas, setAnalistas] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -87,17 +73,17 @@ export default function AnalistasPage() {
   // Mapear los datos recibidos para que coincidan con la estructura esperada
   const analistasMapeados = analistas.map((a: any) => ({
     id: a.id,
-    nombre: a.first_name || a.nombre || a.primer_nombre || '',
-    apellido: a.last_name || a.apellido || a.primer_apellido || '',
+    username: a.username || '',
     email: a.email || '',
-    telefono: a.telefono || '',
-    regional: a.regional || '',
-    clienteAsignado: a.clienteAsignado || '',
-    nivelPrioridad: a.priority_level || a.nivelPrioridad || 'medio',
-    estado: a.active !== false ? 'activo' : 'inactivo' as 'activo' | 'inactivo',
-    fechaIngreso: a.created_at || '',
-    fechaCreacion: a.fechaCreacion || '',
-    fechaActualizacion: a.fechaActualizacion || ''
+    primer_nombre: a.primer_nombre || '',
+    segundo_nombre: a.segundo_nombre || '',
+    primer_apellido: a.primer_apellido || '',
+    segundo_apellido: a.segundo_apellido || '',
+    activo: a.activo !== false ? 'activo' : 'inactivo' as 'activo' | 'inactivo',
+    created_at: a.created_at || '',
+    updated_at: a.updated_at || '',
+    regional: a.regional || '', // Assuming 'regional' is part of the Analyst type or derived
+    nivelPrioridad: a.nivel_prioridad || 'bajo' // Assuming 'nivel_prioridad' is part of the Analyst type or derived
   }));
 
   // Aplicar filtros
@@ -107,31 +93,22 @@ export default function AnalistasPage() {
     // Filtro de búsqueda
     if (searchTerm) {
       filtered = filtered.filter(analista =>
-        analista.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        analista.apellido.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        analista.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
         analista.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        analista.regional.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (analista.clienteAsignado && analista.clienteAsignado.toLowerCase().includes(searchTerm.toLowerCase()))
+        analista.primer_nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        analista.segundo_nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        analista.primer_apellido.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        analista.segundo_apellido.toLowerCase().includes(searchTerm.toLowerCase())
       );
-    }
-
-    // Filtro por regional
-    if (filterRegional !== 'todas') {
-      filtered = filtered.filter(analista => analista.regional === filterRegional);
-    }
-
-    // Filtro por nivel de prioridad
-    if (filterNivel !== 'todos') {
-      filtered = filtered.filter(analista => analista.nivelPrioridad === filterNivel);
     }
 
     // Filtro por estado
     if (filterEstado !== 'todos') {
-      filtered = filtered.filter(analista => analista.estado === filterEstado);
+      filtered = filtered.filter(analista => analista.activo === filterEstado);
     }
 
     setFilteredAnalistas(filtered);
-  }, [analistasMapeados, searchTerm, filterRegional, filterNivel, filterEstado]);
+  }, [analistasMapeados, searchTerm, filterEstado]);
 
   const handleEliminarAnalista = async (id: number) => {
     try {
@@ -149,15 +126,17 @@ export default function AnalistasPage() {
   const handleExportarExcel = () => {
     // Función para exportar a Excel - implementación simplificada
     const csvContent = [
-      ['Nombre', 'Apellido', 'Email', 'Regional', 'Cliente', 'Nivel', 'Estado'].join(','),
+      ['Usuario', 'Email', 'Primer Nombre', 'Segundo Nombre', 'Primer Apellido', 'Segundo Apellido', 'Estado', 'Creado', 'Actualizado'].join(','),
       ...filteredAnalistas.map(analista => [
-        analista.nombre,
-        analista.apellido,
+        analista.username,
         analista.email,
-        analista.regional,
-        analista.clienteAsignado || '',
-        analista.nivelPrioridad,
-        analista.estado
+        analista.primer_nombre,
+        analista.segundo_nombre,
+        analista.primer_apellido,
+        analista.segundo_apellido,
+        analista.activo,
+        analista.created_at,
+        analista.updated_at
       ].join(','))
     ].join('\n');
 
@@ -242,7 +221,7 @@ export default function AnalistasPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              {analistasMapeados.filter(a => a.estado === 'activo').length}
+              {analistasMapeados.filter(a => a.activo === 'activo').length}
             </div>
           </CardContent>
         </Card>
@@ -340,26 +319,34 @@ export default function AnalistasPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nombre</TableHead>
+                  <TableHead>Usuario</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Regional</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Nivel</TableHead>
+                  <TableHead>Primer Nombre</TableHead>
+                  <TableHead>Segundo Nombre</TableHead>
+                  <TableHead>Primer Apellido</TableHead>
+                  <TableHead>Segundo Apellido</TableHead>
                   <TableHead>Estado</TableHead>
+                  <TableHead>Creado</TableHead>
+                  <TableHead>Actualizado</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredAnalistas.map((analista) => (
                   <TableRow key={analista.id}>
-                    <TableCell className="font-medium">
-                      {analista.nombre} {analista.apellido}
-                    </TableCell>
+                    <TableCell>{analista.username}</TableCell>
                     <TableCell>{analista.email}</TableCell>
-                    <TableCell>{analista.regional}</TableCell>
-                    <TableCell>{analista.clienteAsignado || '-'}</TableCell>
-                    <TableCell>{getNivelBadge(analista.nivelPrioridad)}</TableCell>
-                    <TableCell>{getEstadoBadge(analista.estado)}</TableCell>
+                    <TableCell>{analista.primer_nombre}</TableCell>
+                    <TableCell>{analista.segundo_nombre}</TableCell>
+                    <TableCell>{analista.primer_apellido}</TableCell>
+                    <TableCell>{analista.segundo_apellido}</TableCell>
+                    <TableCell>{analista.activo === 'activo' ? (
+                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Activo</Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Inactivo</Badge>
+                    )}</TableCell>
+                    <TableCell>{analista.created_at}</TableCell>
+                    <TableCell>{analista.updated_at}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button
@@ -382,7 +369,7 @@ export default function AnalistasPage() {
                             <AlertDialogHeader>
                               <AlertDialogTitle>¿Eliminar analista?</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Esta acción no se puede deshacer. Se eliminará permanentemente el analista {analista.nombre} {analista.apellido}.
+                                Esta acción no se puede deshacer. Se eliminará permanentemente el analista {analista.username}.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>

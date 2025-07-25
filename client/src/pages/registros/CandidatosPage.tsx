@@ -26,7 +26,10 @@ import {
 } from '@/components/ui/select';
 import { User, Search, Plus, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { apiRequest } from "@/lib/queryClient";
+import { candidatosService } from '@/services/candidatosService';
+import { useCompanies } from '@/hooks/useCompanies';
+import { useCityData } from '@/hooks/useCityData';
+import React from 'react';
 
 interface Candidato {
   id: number;
@@ -46,43 +49,36 @@ const CandidatosPage = () => {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedEmpresa, setSelectedEmpresa] = useState('todas');
-  const [formData, setFormData] = useState<Partial<Candidato>>({
+  const [formData, setFormData] = useState<Partial<Candidato> & { empresa_id?: number, ciudad_id?: number }>({
     identificacion: '',
     tipoDocumento: '',
     nombre: '',
     apellido: '',
     telefono: '',
     correo: '',
-    empresa: '',
-    ciudad: '',
+    empresa_id: undefined,
+    ciudad_id: undefined,
     direccion: ''
   });
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const { data: cityData = {}, isLoading: loadingCities } = useCityData();
+  const [selectedDepartamento, setSelectedDepartamento] = useState<string>('');
 
-  // Query para obtener candidatos - usando la misma configuración que usuarios y perfiles
-  const { data: candidatos = [], isLoading, refetch } = useQuery<Candidato[]>({
-    queryKey: ["/api/admin/candidatos"],
-    queryFn: async () => {
-      const response = await fetch('/api/admin/candidatos');
-      if (!response.ok) throw new Error('Failed to fetch candidatos');
-      return response.json();
-    },
+  // Query para obtener candidatos desde Supabase
+  const { data: candidatos = [], isLoading, refetch } = useQuery({
+    queryKey: ['candidatos'],
+    queryFn: candidatosService.getAll,
     staleTime: 0,
     refetchOnWindowFocus: false
   });
 
-  // Mutation para crear candidato
+  // Mutation para crear candidato en Supabase
   const createCandidatoMutation = useMutation({
-    mutationFn: async (data: Partial<Candidato>) => {
-      const response = await apiRequest("/api/admin/candidatos", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
-      return response;
+    mutationFn: async (data: any) => {
+      return candidatosService.create(data);
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["/api/admin/candidatos"] });
       await refetch();
       setDialogOpen(false);
       resetForm();
@@ -100,16 +96,48 @@ const CandidatosPage = () => {
     },
   });
 
-  // Filtrar candidatos
+  // Mutation para eliminar candidato en Supabase
+  const deleteCandidatoMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return candidatosService.delete(id);
+    },
+    onSuccess: async () => {
+      await refetch();
+      toast({
+        title: "Eliminado",
+        description: "Candidato eliminado correctamente",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Refresca la lista al abrir la página o cambiar de ruta
+  React.useEffect(() => {
+    refetch();
+  }, []);
+
+  const { data: empresasReales = [] } = useCompanies('empresa');
+
+  // Lookup helpers para empresa y ciudad
+  const getEmpresaNombre = (empresa_id: number) => {
+    const empresa = empresasReales.find((e: any) => e.id === empresa_id);
+    return empresa ? empresa.razonSocial : '';
+  };
+
+  // Filtrar candidatos usando los campos reales de Supabase
   const filteredCandidatos = candidatos.filter((candidato: any) => {
-    const matchesSearch = 
-      candidato.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      candidato.apellido?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      candidato.identificacion?.includes(searchTerm) ||
-      candidato.correo?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesEmpresa = selectedEmpresa === 'todas' || candidato.empresa === selectedEmpresa;
-    
+    const matchesSearch =
+      (candidato.primer_nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      candidato.primer_apellido?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      candidato.numero_documento?.includes(searchTerm) ||
+      candidato.email?.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesEmpresa = selectedEmpresa === 'todas' || getEmpresaNombre(candidato.empresa_id) === selectedEmpresa;
     return matchesSearch && matchesEmpresa;
   });
 
@@ -122,8 +150,8 @@ const CandidatosPage = () => {
       apellido: '',
       telefono: '',
       correo: '',
-      empresa: '',
-      ciudad: '',
+      empresa_id: undefined,
+      ciudad_id: undefined,
       direccion: ''
     });
     setEditingId(null);
@@ -131,16 +159,40 @@ const CandidatosPage = () => {
 
   // Función para manejar envío del formulario
   const handleSubmit = () => {
-    if (formData.identificacion && formData.nombre && formData.apellido && formData.correo) {
+    if (formData.identificacion && formData.nombre && formData.apellido && formData.correo && formData.empresa_id) {
+      const candidatoPayload = {
+        tipo_documento: formData.tipoDocumento,
+        numero_documento: formData.identificacion,
+        primer_nombre: formData.nombre,
+        primer_apellido: formData.apellido,
+        telefono: formData.telefono,
+        email: formData.correo,
+        direccion: formData.direccion,
+        ciudad_id: formData.ciudad_id,
+        empresa_id: formData.empresa_id,
+      };
       if (editingId) {
-        // Actualizar candidato existente
-        toast({
-          title: "Información",
-          description: "Función de edición pendiente de implementar",
-        });
+        // Actualizar candidato existente en Supabase
+        candidatosService.update(editingId, candidatoPayload)
+          .then(() => {
+            refetch();
+            setDialogOpen(false);
+            resetForm();
+            toast({
+              title: "Éxito",
+              description: "Candidato actualizado correctamente",
+            });
+          })
+          .catch((error) => {
+            toast({
+              title: "Error",
+              description: error.message,
+              variant: "destructive",
+            });
+          });
       } else {
         // Crear nuevo candidato
-        createCandidatoMutation.mutate(formData);
+        createCandidatoMutation.mutate(candidatoPayload);
       }
     } else {
       toast({
@@ -151,25 +203,41 @@ const CandidatosPage = () => {
     }
   };
 
+  // Helper para obtener el departamento a partir del id de ciudad
+  const getDepartamentoIdByCiudadId = (ciudad_id: number) => {
+    for (const [depId, dep] of Object.entries(cityData as Record<string, any>)) {
+      if (dep.ciudades.some((c: any) => c.id === ciudad_id)) {
+        return depId;
+      }
+    }
+    return '';
+  };
+
   // Función para abrir modal de edición
   const handleEdit = (candidato: any) => {
     setFormData({
-      identificacion: candidato.identificacion || '',
-      tipoDocumento: candidato.tipoDocumento || '',
-      nombre: candidato.nombre || '',
-      apellido: candidato.apellido || '',
+      identificacion: candidato.numero_documento || '',
+      tipoDocumento: candidato.tipo_documento || '',
+      nombre: candidato.primer_nombre || '',
+      apellido: candidato.primer_apellido || '',
       telefono: candidato.telefono || '',
-      correo: candidato.correo || '',
-      empresa: candidato.empresa || '',
-      ciudad: candidato.ciudad || '',
+      correo: candidato.email || '',
+      empresa_id: candidato.empresa_id || undefined,
+      ciudad_id: candidato.ciudad_id || undefined,
       direccion: candidato.direccion || ''
     });
+    setSelectedDepartamento(getDepartamentoIdByCiudadId(candidato.ciudad_id));
     setEditingId(candidato.id);
     setDialogOpen(true);
   };
 
-  // Obtener lista única de empresas para el filtro
-  const empresas = Array.from(new Set(candidatos.map((candidato: any) => candidato.empresa).filter(Boolean)));
+  const getCiudadNombre = (ciudad_id: number) => {
+    for (const dep of Object.values(cityData as Record<string, any>)) {
+      const ciudad = dep.ciudades.find((c: any) => c.id === ciudad_id);
+      if (ciudad) return ciudad.nombre;
+    }
+    return '';
+  };
 
   if (isLoading) {
     return (
@@ -208,9 +276,9 @@ const CandidatosPage = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todas">Todas las empresas</SelectItem>
-                {empresas.map((empresa) => (
-                  <SelectItem key={empresa} value={empresa}>
-                    {empresa}
+                {empresasReales.map((empresa) => (
+                  <SelectItem key={empresa.id} value={empresa.razonSocial}>
+                    {empresa.razonSocial}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -298,20 +366,67 @@ const CandidatosPage = () => {
                 
                 <div>
                   <label className="block text-sm font-medium mb-1">Empresa</label>
-                  <Input
-                    value={formData.empresa || ''}
-                    onChange={(e) => setFormData({ ...formData, empresa: e.target.value })}
-                    placeholder="Empresa"
-                  />
+                  <Select
+                    value={formData.empresa_id ? String(formData.empresa_id) : ''}
+                    onValueChange={(value) => setFormData({ ...formData, empresa_id: Number(value) })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar empresa" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {empresasReales.map((empresa) => (
+                        <SelectItem key={empresa.id} value={String(empresa.id)}>
+                          {empresa.razonSocial}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-1">Departamento</label>
+                  <Select
+                    value={selectedDepartamento}
+                    onValueChange={(value) => {
+                      setSelectedDepartamento(value);
+                      setFormData({ ...formData, ciudad_id: undefined });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar departamento" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(cityData).map(([depId, dep]) => (
+                        <SelectItem key={depId} value={depId}>{dep.nombre}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium mb-1">Ciudad</label>
-                  <Input
-                    value={formData.ciudad || ''}
-                    onChange={(e) => setFormData({ ...formData, ciudad: e.target.value })}
-                    placeholder="Ciudad"
-                  />
+                  <Select
+                    value={formData.ciudad_id ? String(formData.ciudad_id) : ''}
+                    onValueChange={(value) => setFormData({ ...formData, ciudad_id: Number(value) })}
+                    disabled={!selectedDepartamento || loadingCities}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar ciudad" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {selectedDepartamento &&
+                        Array.isArray((cityData as Record<string, { nombre: string, ciudades: { id: number, nombre: string }[] }>)[String(selectedDepartamento)]?.ciudades) &&
+                        (cityData as Record<string, { nombre: string, ciudades: { id: number, nombre: string }[] }>)[String(selectedDepartamento)]?.ciudades.map((ciudad: { id: number, nombre: string }) => (
+                          <SelectItem key={ciudad.id} value={String(ciudad.id)}>{ciudad.nombre}</SelectItem>
+                        ))}
+                      {selectedDepartamento &&
+                        (!cityData[selectedDepartamento]?.ciudades || cityData[selectedDepartamento].ciudades.length === 0) && (
+                          <SelectItem value="" disabled>
+                            No hay ciudades disponibles
+                          </SelectItem>
+                        )}
+                    </SelectContent>
+                  </Select>
                 </div>
                 
                 <div className="md:col-span-2">
@@ -366,6 +481,7 @@ const CandidatosPage = () => {
                     <TableHead>Teléfono</TableHead>
                     <TableHead>Correo</TableHead>
                     <TableHead>Empresa</TableHead>
+                    <TableHead>Ciudad</TableHead>
                     <TableHead>Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -373,13 +489,14 @@ const CandidatosPage = () => {
                   {filteredCandidatos.map((candidato: any) => (
                     <TableRow key={candidato.id}>
                       <TableCell className="font-medium">
-                        {candidato.identificacion}
+                        {candidato.numero_documento}
                       </TableCell>
-                      <TableCell>{candidato.nombre}</TableCell>
-                      <TableCell>{candidato.apellido}</TableCell>
+                      <TableCell>{candidato.primer_nombre}</TableCell>
+                      <TableCell>{candidato.primer_apellido}</TableCell>
                       <TableCell>{candidato.telefono}</TableCell>
-                      <TableCell>{candidato.correo}</TableCell>
-                      <TableCell>{candidato.empresa}</TableCell>
+                      <TableCell>{candidato.email}</TableCell>
+                      <TableCell>{getEmpresaNombre(candidato.empresa_id)}</TableCell>
+                      <TableCell>{getCiudadNombre(candidato.ciudad_id)}</TableCell>
                       <TableCell>
                         <div className="flex gap-2">
                           <Button
@@ -393,6 +510,7 @@ const CandidatosPage = () => {
                             variant="outline"
                             size="sm"
                             className="text-red-600 hover:text-red-700"
+                            onClick={() => deleteCandidatoMutation.mutate(candidato.id)}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>

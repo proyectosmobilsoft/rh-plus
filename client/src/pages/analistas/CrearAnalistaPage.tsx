@@ -62,10 +62,12 @@ export default function CrearAnalistaPage() {
       const payload = {
         username: data.username,
         email: data.email,
-        first_name: data.primer_nombre,
-        last_name: data.primer_apellido,
-        active: data.activo,
-        priority_level: 'medio', // Puedes ajustar si tienes el campo en el formulario
+        password_hash: data.password, // Aquí deberías hashear la contraseña en producción
+        primer_nombre: data.primer_nombre,
+        segundo_nombre: data.segundo_nombre,
+        primer_apellido: data.primer_apellido,
+        segundo_apellido: data.segundo_apellido,
+        activo: data.activo,
       };
       await analystsService.create(payload);
       toast.success('Analista creado exitosamente');
