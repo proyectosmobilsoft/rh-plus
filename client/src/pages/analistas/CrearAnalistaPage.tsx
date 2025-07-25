@@ -18,7 +18,7 @@ import {
   FormLabel, 
   FormMessage 
 } from '@/components/ui/form';
-import { api } from '@/services/api';
+import { analystsService } from '@/services/analystsService';
 
 // Schema de validación actualizado
 const analistaSchema = z.object({
@@ -57,14 +57,19 @@ export default function CrearAnalistaPage() {
 
   const onSubmit = async (data: AnalistaFormData) => {
     try {
-      console.log('Datos enviados al backend:', data);
-
-      const response = await api.post('analistas', data);
-
-      if (response) {
-        toast.success('Analista creado exitosamente');
-        navigate('/analistas');
-      }
+      console.log('Datos enviados a Supabase:', data);
+      // Mapear campos al modelo de Supabase
+      const payload = {
+        username: data.username,
+        email: data.email,
+        first_name: data.primer_nombre,
+        last_name: data.primer_apellido,
+        active: data.activo,
+        priority_level: 'medio', // Puedes ajustar si tienes el campo en el formulario
+      };
+      await analystsService.create(payload);
+      toast.success('Analista creado exitosamente');
+      navigate('/analistas');
     } catch (error) {
       console.error('Error creando analista:', error);
       toast.error('Error al crear analista');

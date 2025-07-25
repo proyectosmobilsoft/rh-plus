@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/select';
 import { useApiData } from '@/hooks/useApiData';
 import { API_URL } from '@/services/api';
+import { analystsService } from '@/services/analystsService';
 
 // Nuevo schema de validación para editar, igual que en crear
 const analistaSchema = z.object({
@@ -98,25 +99,18 @@ export default function EditarAnalistaPage() {
 
   const onSubmit = async (data: AnalistaFormData) => {
     try {
-      console.log('Datos enviados al backend (editar):', data);
-      // No enviar password si está vacío
-      const payload = { ...data };
-      if (!payload.password) delete payload.password;
-      const response = await fetch(`${API_URL}analistas/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (response.ok) {
-        toast.success('Analista actualizado exitosamente');
-        navigate('/analistas');
-      } else {
-        const error = await response.json();
-        toast.error(error.message || 'Error al actualizar analista');
-      }
+      console.log('Datos enviados a Supabase (editar):', data);
+      const payload = {
+        username: data.username,
+        email: data.email,
+        first_name: data.primer_nombre,
+        last_name: data.primer_apellido,
+        active: data.activo,
+        priority_level: data.nivelPrioridad || 'medio',
+      };
+      await analystsService.update(Number(id), payload);
+      toast.success('Analista actualizado exitosamente');
+      navigate('/analistas');
     } catch (error) {
       console.error('Error actualizando analista:', error);
       toast.error('Error al actualizar analista');

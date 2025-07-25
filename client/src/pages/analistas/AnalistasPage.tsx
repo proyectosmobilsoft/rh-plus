@@ -42,7 +42,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { useApiData } from '@/hooks/useApiData';
+import { analystsService, Analyst } from '@/services/analystsService';
 
 interface Analista {
   id: number;
@@ -66,29 +66,36 @@ export default function AnalistasPage() {
   const [filterRegional, setFilterRegional] = useState('todas');
   const [filterNivel, setFilterNivel] = useState('todos');
   const [filterEstado, setFilterEstado] = useState('todos');
-
-  const { data: analistas = [], isLoading, fetchData } = useApiData<Analista[]>(
-    'analistas',
-    [],
-    { showSuccessToast: false }
-  );
+  const [analistas, setAnalistas] = useState<Analyst[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    const fetchAnalistas = async () => {
+      setIsLoading(true);
+      try {
+        const data = await analystsService.getAll();
+        setAnalistas(data || []);
+      } catch (error) {
+        toast.error('Error al cargar analistas de Supabase');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchAnalistas();
+  }, []);
 
   // Mapear los datos recibidos para que coincidan con la estructura esperada
   const analistasMapeados = analistas.map((a: any) => ({
     id: a.id,
-    nombre: a.nombre || a.primer_nombre || '',
-    apellido: a.apellido || a.primer_apellido || '',
+    nombre: a.first_name || a.nombre || a.primer_nombre || '',
+    apellido: a.last_name || a.apellido || a.primer_apellido || '',
     email: a.email || '',
     telefono: a.telefono || '',
     regional: a.regional || '',
     clienteAsignado: a.clienteAsignado || '',
-    nivelPrioridad: a.nivelPrioridad || 'medio',
-    estado: a.estado || (a.activo ? 'activo' : 'inactivo'),
-    fechaIngreso: a.fechaIngreso || a.created_at || '',
+    nivelPrioridad: a.priority_level || a.nivelPrioridad || 'medio',
+    estado: a.active !== false ? 'activo' : 'inactivo' as 'activo' | 'inactivo',
+    fechaIngreso: a.created_at || '',
     fechaCreacion: a.fechaCreacion || '',
     fechaActualizacion: a.fechaActualizacion || ''
   }));
@@ -128,17 +135,11 @@ export default function AnalistasPage() {
 
   const handleEliminarAnalista = async (id: number) => {
     try {
-      const response = await fetch(`/api/analistas/${id}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        toast.success('Analista eliminado exitosamente');
-        fetchData();
-      } else {
-        const error = await response.json();
-        toast.error(error.message || 'Error al eliminar analista');
-      }
+      await analystsService.remove(id);
+      toast.success('Analista eliminado exitosamente');
+      // Refrescar la lista
+      const data = await analystsService.getAll();
+      setAnalistas(data || []);
     } catch (error) {
       console.error('Error eliminando analista:', error);
       toast.error('Error al eliminar analista');
