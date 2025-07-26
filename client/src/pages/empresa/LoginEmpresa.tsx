@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useAuth } from '@/contexts/AuthContext';
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -22,7 +21,6 @@ type LoginForm = z.infer<typeof loginSchema>;
 export default function LoginEmpresa() {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const { login } = useAuth();
 
   const form = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -35,11 +33,24 @@ export default function LoginEmpresa() {
   const onSubmit = async (data: LoginForm) => {
     setIsLoading(true);
     try {
-      await login(data.email, data.password);
-      // Redirigir al dashboard de empresa
-      navigate('/empresa/dashboard');
-    } catch (error: any) {
-      toast.error(error.message || 'Error en el login');
+      const response = await fetch('/api/empresa/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        toast.success(`Bienvenido ${result.empresa.nombreEmpresa}`);
+        navigate('/empresa/dashboard');
+      } else {
+        const error = await response.json();
+        toast.error(error.message || 'Error en el login');
+      }
+    } catch (error) {
+      toast.error('Error de conexión');
     } finally {
       setIsLoading(false);
     }

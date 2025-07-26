@@ -1,119 +1,188 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase, authService, type AuthUser } from '@/services/supabaseClient';
-import { toast } from 'sonner';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { UserRole, Permission, getUserPermissions } from '@/config/permissions';
+
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  primerNombre: string;
+  primerApellido: string;
+  role: UserRole;
+  permissions: Permission[];
+  activo: boolean;
+}
 
 interface AuthContextType {
-  user: AuthUser | null;
-  loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  user: User | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+  login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
-  signUp: (email: string, password: string, metadata?: any) => Promise<void>;
-  resetPassword: (email: string) => Promise<void>;
+  hasPermission: (permission: Permission) => boolean;
+  hasAnyPermission: (permissions: Permission[]) => boolean;
+}
+
+interface LoginCredentials {
+  username: string;
+  password: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const useAuth = () => {
+export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-};
-
-interface AuthProviderProps {
-  children: React.ReactNode;
 }
 
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(true);
+interface AuthProviderProps {
+  children: ReactNode;
+}
 
+export function AuthProvider({ children }: AuthProviderProps) {
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Verificar sesión existente al cargar
   useEffect(() => {
-    // Obtener sesión inicial
-    const getInitialSession = async () => {
-      try {
-        const session = await authService.getSession();
-        setUser(session?.user || null);
-      } catch (error) {
-        console.error('Error getting initial session:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    getInitialSession();
-
-    // Escuchar cambios en la autenticación
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setUser(session?.user || null);
-        setLoading(false);
-      }
-    );
-
-    return () => subscription.unsubscribe();
+    checkSession();
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const checkSession = async () => {
     try {
-      setLoading(true);
-      await authService.login(email, password);
-      toast.success('Inicio de sesión exitoso');
-    } catch (error: any) {
-      toast.error(error.message || 'Error en el inicio de sesión');
-      throw error;
+      setIsLoading(true);
+      const response = await fetch('/api/auth/session', {
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const sessionData = await response.json();
+        if (sessionData.user) {
+          // Obtener permisos del usuario desde la base de datos
+          const userPermissions = await getUserPermissionsFromDB(sessionData.user.id, sessionData.user.role);
+          
+          setUser({
+            ...sessionData.user,
+            permissions: userPermissions
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error checking session:', error);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
+    }
+  };
+
+  const login = async (credentials: LoginCredentials) => {
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(credentials),
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Error en las credenciales');
+      }
+
+      const data = await response.json();
+      
+      // Obtener permisos del usuario
+      const userPermissions = await getUserPermissionsFromDB(data.user.id, data.user.role);
+      
+      const userWithPermissions = {
+        ...data.user,
+        permissions: userPermissions
+      };
+
+      setUser(userWithPermissions);
+      
+      // Redirigir según el rol del usuario
+      const dashboard = getDefaultDashboard(data.user.role);
+      window.location.href = dashboard;
+
+    } catch (error) {
+      throw error;
     }
   };
 
   const logout = async () => {
     try {
-      setLoading(true);
-      await authService.logout();
-      toast.success('Sesión cerrada exitosamente');
-    } catch (error: any) {
-      toast.error(error.message || 'Error al cerrar sesión');
-      throw error;
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include'
+      });
+    } catch (error) {
+      console.error('Error during logout:', error);
     } finally {
-      setLoading(false);
+      setUser(null);
+      window.location.href = '/login';
     }
   };
 
-  const signUp = async (email: string, password: string, metadata?: any) => {
+  // Función para obtener permisos del usuario desde la base de datos
+  const getUserPermissionsFromDB = async (userId: number, role: UserRole): Promise<Permission[]> => {
     try {
-      setLoading(true);
-      await authService.signUp(email, password, metadata);
-      toast.success('Usuario registrado exitosamente');
-    } catch (error: any) {
-      toast.error(error.message || 'Error en el registro');
-      throw error;
-    } finally {
-      setLoading(false);
+      // Obtener permisos base del rol
+      const basePermissions = getUserPermissions(role);
+      
+      // Obtener permisos adicionales del usuario desde la base de datos
+      const response = await fetch(`/api/usuarios/${userId}/permisos`, {
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const additionalPermissions = await response.json();
+        return getUserPermissions(role, additionalPermissions);
+      }
+      
+      return basePermissions;
+    } catch (error) {
+      console.error('Error loading user permissions:', error);
+      return getUserPermissions(role);
     }
   };
 
-  const resetPassword = async (email: string) => {
-    try {
-      setLoading(true);
-      await authService.resetPassword(email);
-      toast.success('Se ha enviado un enlace de recuperación a tu email');
-    } catch (error: any) {
-      toast.error(error.message || 'Error al enviar el enlace de recuperación');
-      throw error;
-    } finally {
-      setLoading(false);
+  const hasPermission = (permission: Permission): boolean => {
+    if (!user) return false;
+    return user.permissions.includes(permission);
+  };
+
+  const hasAnyPermission = (permissions: Permission[]): boolean => {
+    if (!user) return false;
+    return permissions.some(permission => user.permissions.includes(permission));
+  };
+
+  const getDefaultDashboard = (role: UserRole): string => {
+    switch (role) {
+      case "admin":
+        return "/dashboard";
+      case "analista":
+        return "/dashboard";
+      case "cliente":
+        return "/empresa/dashboard";
+      case "candidato":
+        return "/candidato/perfil";
+      default:
+        return "/dashboard";
     }
   };
 
   const value: AuthContextType = {
     user,
-    loading,
+    isLoading,
+    isAuthenticated: !!user,
     login,
     logout,
-    signUp,
-    resetPassword,
+    hasPermission,
+    hasAnyPermission
   };
 
   return (
@@ -121,4 +190,4 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       {children}
     </AuthContext.Provider>
   );
-};
+}
