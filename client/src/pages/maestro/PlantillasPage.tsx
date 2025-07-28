@@ -4,25 +4,39 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Settings, Plus, Edit, Trash2, Star } from "lucide-react";
 import { TemplateForm } from "@/components/ordenes/TemplateForm";
+import { plantillasService, Plantilla } from "@/services/plantillasService";
 
 const PlantillasPage: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<any>(null);
+  const [editingTemplate, setEditingTemplate] = useState<Plantilla | null>(null);
+  const [templates, setTemplates] = useState<Plantilla[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  // Mock data - Plantillas globales
-  const templates = [
-    { id: 1, nombre: "Plantilla Estándar", descripcion: "Plantilla básica para evaluaciones", esDefault: true },
-    { id: 2, nombre: "Plantilla Completa", descripcion: "Plantilla con todos los campos", esDefault: false },
-    { id: 3, nombre: "Plantilla de Ingreso", descripcion: "Plantilla específica para nuevos empleados", esDefault: false },
-    { id: 4, nombre: "Plantilla de Seguridad", descripcion: "Plantilla para evaluaciones de seguridad", esDefault: false },
-  ];
+  // Cargar plantillas desde Supabase
+  React.useEffect(() => {
+    const fetchTemplates = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await plantillasService.getAll();
+        setTemplates(data);
+      } catch (err: any) {
+        setError("Error al cargar las plantillas");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchTemplates();
+  }, []);
 
   const startCreating = () => {
     setIsCreating(true);
     setEditingTemplate(null);
   };
 
-  const startEditing = (template: any) => {
+  const startEditing = (template: Plantilla) => {
     setEditingTemplate(template);
     setIsCreating(true);
   };
@@ -34,7 +48,32 @@ const PlantillasPage: React.FC = () => {
 
   const handleSaved = () => {
     resetForm();
-    // Aquí podrías recargar las plantillas
+    // Recargar las plantillas desde Supabase
+    setLoading(true);
+    plantillasService.getAll()
+      .then(setTemplates)
+      .catch(() => setError("Error al recargar las plantillas"))
+      .finally(() => setLoading(false));
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!window.confirm('¿Estás seguro de que deseas eliminar esta plantilla?')) return;
+    setDeletingId(id);
+    setError(null);
+    try {
+      await plantillasService.delete(id);
+      alert('Plantilla eliminada exitosamente');
+      // Recargar la lista
+      setLoading(true);
+      const data = await plantillasService.getAll();
+      setTemplates(data);
+    } catch (err) {
+      setError('Error al eliminar la plantilla');
+      alert('Error al eliminar la plantilla');
+    } finally {
+      setDeletingId(null);
+      setLoading(false);
+    }
   };
 
   return (
@@ -61,7 +100,19 @@ const PlantillasPage: React.FC = () => {
             </Button>
           </div>
 
-          {templates.length === 0 ? (
+          {loading ? (
+            <Card>
+              <CardContent className="py-8 text-center">
+                <span>Cargando plantillas...</span>
+              </CardContent>
+            </Card>
+          ) : error ? (
+            <Card>
+              <CardContent className="py-8 text-center text-red-500">
+                <span>{error}</span>
+              </CardContent>
+            </Card>
+          ) : templates.length === 0 ? (
             <Card>
               <CardContent className="py-8 text-center">
                 <Settings className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -83,7 +134,7 @@ const PlantillasPage: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
                         <CardTitle className="text-lg">{template.nombre}</CardTitle>
-                        {template.esDefault && (
+                        {template.es_default && (
                           <Badge variant="secondary" className="flex items-center space-x-1">
                             <Star className="h-3 w-3" />
                             <span>Predeterminada</span>
@@ -91,7 +142,7 @@ const PlantillasPage: React.FC = () => {
                         )}
                       </div>
                       <div className="flex items-center space-x-2">
-                        {!template.esDefault && (
+                        {!template.es_default && (
                           <Button variant="outline" size="sm">
                             <Star className="h-4 w-4 mr-2" />
                             Establecer como Predeterminada
@@ -105,7 +156,10 @@ const PlantillasPage: React.FC = () => {
                           <Edit className="h-4 w-4 mr-2" />
                           Editar
                         </Button>
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" 
+                          onClick={() => handleDelete(template.id)}
+                          disabled={deletingId === template.id || loading}
+                        >
                           <Trash2 className="h-4 w-4 mr-2" />
                           Eliminar
                         </Button>
