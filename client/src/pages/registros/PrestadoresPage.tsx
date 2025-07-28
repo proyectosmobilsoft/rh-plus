@@ -17,6 +17,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { useApiData } from '@/hooks/useApiData';
 import { Briefcase, Search, Plus, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -36,6 +38,7 @@ interface Prestador {
 const PrestadoresPage = () => {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
+  const [showEspecialidad, setShowEspecialidad] = useState(false);
   const [formData, setFormData] = useState<Partial<Prestador>>({
     identificacion: '',
     nombre: '',
@@ -74,11 +77,12 @@ const PrestadoresPage = () => {
   const resetForm = () => {
     setFormData({ identificacion: '', nombre: '', apellido: '', especialidad: '', telefono: '', correo: '' });
     setEditingId(null);
+    setShowEspecialidad(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.identificacion || !formData.nombre || !formData.especialidad) {
+    if (!formData.identificacion || !formData.nombre || (showEspecialidad && !formData.especialidad)) {
       toast({ title: 'Error de validación', description: 'Por favor complete los campos requeridos', variant: 'destructive' });
       return;
     }
@@ -92,6 +96,7 @@ const PrestadoresPage = () => {
   const handleEdit = (prestador: Prestador) => {
     setFormData(prestador);
     setEditingId(prestador.id);
+    setShowEspecialidad(!!prestador.especialidad);
     setDialogOpen(true);
   };
 
@@ -102,6 +107,13 @@ const PrestadoresPage = () => {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleEspecialidadToggle = (checked: boolean) => {
+    setShowEspecialidad(checked);
+    if (!checked) {
+      setFormData(prev => ({ ...prev, especialidad: '' }));
+    }
   };
 
   const filteredPrestadores = prestadores.filter(prestador => 
@@ -131,6 +143,7 @@ const PrestadoresPage = () => {
                   correo: '',
                 });
                 setEditingId(null);
+                setShowEspecialidad(false);
               }}>
                 <Plus className="h-4 w-4 mr-2" />
                 Crear Prestador
@@ -158,19 +171,21 @@ const PrestadoresPage = () => {
                       required
                     />
                   </div>
+                  
+                  {/* Switch para controlar la especialidad */}
                   <div className="space-y-2">
-                    <label htmlFor="especialidad" className="text-sm font-medium">
-                      Especialidad *
-                    </label>
-                    <Input
-                      id="especialidad"
-                      name="especialidad"
-                      placeholder="Especialidad del prestador"
-                      value={formData.especialidad}
-                      onChange={handleInputChange}
-                      required
-                    />
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="show-especialidad"
+                        checked={showEspecialidad}
+                        onCheckedChange={handleEspecialidadToggle}
+                      />
+                      <Label htmlFor="show-especialidad" className="text-sm font-medium">
+                        Incluir Especialidad
+                      </Label>
+                    </div>
                   </div>
+                  
                   <div className="space-y-2">
                     <label htmlFor="nombre" className="text-sm font-medium">
                       Nombre *
@@ -223,6 +238,23 @@ const PrestadoresPage = () => {
                     />
                   </div>
                 </div>
+                
+                {/* Campo de especialidad que se muestra condicionalmente */}
+                {showEspecialidad && (
+                  <div className="space-y-2">
+                    <label htmlFor="especialidad" className="text-sm font-medium">
+                      Especialidad *
+                    </label>
+                    <Input
+                      id="especialidad"
+                      name="especialidad"
+                      placeholder="Especialidad del prestador"
+                      value={formData.especialidad}
+                      onChange={handleInputChange}
+                      required={showEspecialidad}
+                    />
+                  </div>
+                )}
                 
                 {/* Botones de acción */}
                 <div className="flex justify-end space-x-2 pt-4 border-t">

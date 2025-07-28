@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { usePlantillas } from "@/pages/admin/FormGalleryPage";
 import { useNavigate } from "react-router-dom";
+import { plantillasService } from '@/services/plantillasService';
 
 const FIELD_TYPES = [
   { value: 'text', label: 'Texto' },
@@ -44,7 +44,7 @@ const FormBuilder: React.FC<{ precargados?: any[], readOnly?: boolean }> = ({ pr
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
 
-  const plantillasCtx = !readOnly ? (() => { try { return usePlantillas(); } catch { return null; } })() : null;
+
   const navigate = !readOnly ? (() => { try { return useNavigate(); } catch { return () => {}; } })() : null;
 
   // Inicializar campos precargados con IDs únicos
@@ -259,7 +259,7 @@ const FormBuilder: React.FC<{ precargados?: any[], readOnly?: boolean }> = ({ pr
       <div style={{ flex: 1, maxWidth: 900, margin: '0 auto', padding: '2rem' }}>
         {!readOnly && (
           <>
-            <h2 style={{ textAlign: 'center', color: '#000', fontWeight: 700, fontSize: 28, marginBottom: 24 }}>Generador de órdenes de servicio</h2>
+            <h2 style={{ textAlign: 'center', color: '#000', fontWeight: 700, fontSize: 28, marginBottom: 24 }}>Generador de campos del formulario</h2>
             <form style={{ display: 'flex', gap: 24, marginBottom: 32, flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: 220 }}>
                 <label>Nombre de la plantilla</label>
@@ -368,17 +368,27 @@ const FormBuilder: React.FC<{ precargados?: any[], readOnly?: boolean }> = ({ pr
               </div>
             </form>
             <button
-              onClick={() => {
-                if (plantillasCtx && navigate) {
-                  plantillasCtx.addPlantilla({
-                    id: Date.now(),
-                    name: formName,
-                    description: formDesc,
-                    fields: fields,
-                  });
-                  navigate("/admin/form-gallery");
-                } else {
-                  alert(JSON.stringify(formJson, null, 2));
+              onClick={async () => {
+                try {
+                  if (formName.trim() && fields.length > 0) {
+                    await plantillasService.create({
+                      nombre: formName,
+                      descripcion: formDesc,
+                      estructura_formulario: fields,
+                      es_default: false,
+                      activa: true,
+                    });
+                    if (navigate) {
+                      navigate("/maestro/plantillas");
+                    } else {
+                      alert('Plantilla guardada exitosamente');
+                    }
+                  } else {
+                    alert('Por favor complete el nombre de la plantilla y agregue al menos un campo');
+                  }
+                } catch (error) {
+                  console.error('Error al guardar la plantilla:', error);
+                  alert('Error al guardar la plantilla');
                 }
               }}
               style={{ fontSize: 16, borderRadius: 8, padding: '10px 18px', background: '#339af0', border: 'none', color: '#fff', fontWeight: 600, cursor: 'pointer', marginBottom: 16 }}
@@ -388,6 +398,8 @@ const FormBuilder: React.FC<{ precargados?: any[], readOnly?: boolean }> = ({ pr
           </>
         )}
         
+        {/* Eliminar Preview y botón Mostrar estructura JSON */}
+        {/*
         <h3 style={{ color: '#000', fontWeight: 600, fontSize: 22, margin: '24px 0 12px' }}>{readOnly ? 'Vista previa' : 'Preview'}</h3>
         <form style={{ background: '#f8fafc', borderRadius: 16, padding: 16, marginBottom: 24 }}>
           {(() => {
@@ -413,7 +425,6 @@ const FormBuilder: React.FC<{ precargados?: any[], readOnly?: boolean }> = ({ pr
             ));
           })()}
         </form>
-        
         {!readOnly && (
           <>
             <button onClick={() => setShowJson(s => !s)} style={{ fontSize: 16, borderRadius: 8, padding: '10px 18px', background: '#b6e2d3', border: 'none', color: '#2d3142', fontWeight: 600, cursor: 'pointer', marginBottom: 16 }}>
@@ -424,6 +435,7 @@ const FormBuilder: React.FC<{ precargados?: any[], readOnly?: boolean }> = ({ pr
             )}
           </>
         )}
+        */}
       </div>
     </div>
   );

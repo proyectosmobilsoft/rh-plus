@@ -836,10 +836,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "No autorizado" });
       }
 
-      // Obtener perfiles del usuario desde mock data
-      const { getMockData } = await import("@shared/mockData");
-      const user = getMockData.getUserById(userId);
-      const userPerfiles = user ? user.perfiles : [];
+      // Obtener perfiles del usuario desde storage
+      const user = await memoryUserStorage.getUserById(userId);
+      const userPerfiles = user ? user.perfiles || [] : [];
       const additionalPermissions: string[] = [];
       
       // Combinar permisos de todos los perfiles
@@ -861,9 +860,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Temporary auto-login route for development
   app.get("/api/auto-login", async (req, res) => {
     try {
-      // Get the admin user from mock data
-      const { getMockData } = await import("@shared/mockData");
-      const adminUser = getMockData.getUserByUsername("admin");
+      // Get the admin user from memory storage
+      const adminUser = await memoryUserStorage.getUserByUsername("admin");
       if (adminUser) {
         req.session.userId = adminUser.id;
         req.session.userType = "admin";
@@ -1142,8 +1140,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin routes to manage candidatos
   app.get("/api/admin/candidatos", async (req, res) => {
     try {
-      const { getMockData } = await import("@shared/mockData");
-      const candidatos = getMockData.getAllCandidatos();
+      const candidatos = await storage.getAllCandidatos();
       res.json(candidatos);
     } catch (error) {
       console.error("Error obteniendo candidatos:", error);
@@ -1155,23 +1152,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const candidatoData = req.body;
       
-      const { candidatos, getNextId } = await import("@shared/mockData");
-      
-      const newCandidato = {
-        id: getNextId.candidato(),
-        identificacion: candidatoData.identificacion,
-        tipoDocumento: candidatoData.tipoDocumento,
-        nombre: candidatoData.nombre,
-        apellido: candidatoData.apellido,
-        telefono: candidatoData.telefono || "",
-        correo: candidatoData.correo,
-        empresa: candidatoData.empresa || "",
-        ciudad: candidatoData.ciudad || "",
-        direccion: candidatoData.direccion || ""
-      };
-      
-      // Agregar a la lista mock
-      candidatos.push(newCandidato);
+      const newCandidato = await storage.createCandidato(candidatoData);
       
       res.json(newCandidato);
     } catch (error) {
@@ -1180,10 +1161,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Endpoint para empresas usando datos mock
+  // Endpoint para empresas usando storage
   app.get("/api/empresas", async (req, res) => {
     try {
-      const { empresas } = await import("@shared/mockData");
+      const empresas = await storage.getAllEmpresas();
       res.json(empresas);
     } catch (error) {
       console.error("Error obteniendo empresas:", error);
@@ -3005,6 +2986,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Plantilla establecida como predeterminada" });
     } catch (error) {
       console.error("Error setting default template:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Endpoint para países
+  app.get("/api/paises", async (req, res) => {
+    try {
+      const paises = await storage.getAllPaises();
+      res.json(paises);
+    } catch (error) {
+      console.error("Error obteniendo países:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Endpoint para crear país
+  app.post("/api/paises", async (req, res) => {
+    try {
+      const { nombre } = req.body;
+      if (!nombre) {
+        return res.status(400).json({ message: "Nombre del país es requerido" });
+      }
+      const nuevoPais = await storage.createPais({ nombre });
+      res.status(201).json(nuevoPais);
+    } catch (error) {
+      console.error("Error creando país:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Endpoint para obtener departamentos
+  app.get("/api/departamentos", async (req, res) => {
+    try {
+      const departamentos = await storage.getAllDepartamentos();
+      res.json(departamentos);
+    } catch (error) {
+      console.error("Error obteniendo departamentos:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Endpoint para crear departamento
+  app.post("/api/departamentos", async (req, res) => {
+    try {
+      const { nombre, pais_id } = req.body;
+      if (!nombre || !pais_id) {
+        return res.status(400).json({ message: "Nombre y país son requeridos" });
+      }
+      const nuevoDepartamento = await storage.createDepartamento({ nombre, pais_id });
+      res.status(201).json(nuevoDepartamento);
+    } catch (error) {
+      console.error("Error creando departamento:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Endpoint para obtener ciudades
+  app.get("/api/ciudades", async (req, res) => {
+    try {
+      const ciudades = await storage.getAllCiudades();
+      res.json(ciudades);
+    } catch (error) {
+      console.error("Error obteniendo ciudades:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Endpoint para crear ciudad
+  app.post("/api/ciudades", async (req, res) => {
+    try {
+      const { nombre, departamento_id, pais_id } = req.body;
+      if (!nombre || !departamento_id || !pais_id) {
+        return res.status(400).json({ message: "Nombre, departamento y país son requeridos" });
+      }
+      const nuevaCiudad = await storage.createCiudad({ nombre, departamento_id, pais_id });
+      res.status(201).json(nuevaCiudad);
+    } catch (error) {
+      console.error("Error creando ciudad:", error);
       res.status(500).json({ message: "Error interno del servidor" });
     }
   });

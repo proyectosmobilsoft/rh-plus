@@ -4,6 +4,14 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthGuard, PublicRoute } from './components/AuthGuard';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import Layout from './components/Layout';
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
+import { QueryInvalidator } from "@/components/QueryInvalidator";
 
 // Páginas de autenticación
 import LoginUnificado from './pages/LoginUnificado';
@@ -27,6 +35,25 @@ import EditarUsuarioPage from './pages/seguridad/EditarUsuarioPage';
 import PerfilesPage from './pages/seguridad/PerfilesPage';
 import GestionPermisosPage from './pages/seguridad/GestionPermisosPage';
 import MenuPage from './pages/seguridad/MenuPage';
+// Páginas para cada sección
+import ExpedicionOrdenPage from "./pages/ordenes/ExpedicionOrdenPage";
+import AgendaMedicaPage from "./pages/clinica/AgendaMedicaPage";
+import HistoriaMedicaPage from "./pages/clinica/HistoriaMedicaPage";
+import HistoriaLaboralPage from "./pages/clinica/HistoriaLaboralPage";
+import ConsultoriosPage from "./pages/clinica/ConsultoriosPage";
+import EspecialidadesPage from "./pages/clinica/EspecialidadesPage";
+import EspecialistasPage from "./pages/clinica/EspecialistasPage";
+import CitasProgramadasPage from "./pages/clinica/CitasProgramadasPage";
+import ExpedicionCertificadosPage from "./pages/certificados/ExpedicionCertificadosPage";
+import CrearCandidatoPage from "./pages/seguridad/CrearCandidatoPage";
+import CrearAdministradorPage from "./pages/seguridad/CrearAdministradorPage";
+import CrearCoordinadorPage from "./pages/seguridad/CrearCoordinadorPage";
+import CrearAdminGeneralPage from "./pages/seguridad/CrearAdminGeneralPage";
+import CrearClientePage from "./pages/seguridad/CrearClientePage";
+
+// Maestro pages
+import PlantillasPage from "./pages/maestro/PlantillasPage";
+import UbicacionesPage from "./pages/maestro/UbicacionesPage";
 
 // Páginas de reportes
 import DashboardReportes from './pages/reportes/DashboardReportes';
@@ -49,6 +76,7 @@ import CrearCandidatoSimple from './pages/empresa/CrearCandidatoSimple';
 import DetalleCandidatoEmpresa from './pages/empresa/DetalleCandidatoEmpresa';
 import ForgotPasswordEmpresa from './pages/empresa/ForgotPasswordEmpresa';
 import ResetPasswordEmpresa from './pages/empresa/ResetPasswordEmpresa';
+import TestConnection from "./components/TestConnection";
 
 // Páginas de analistas
 import AnalistasPage from './pages/analistas/AnalistasPage';
@@ -59,24 +87,9 @@ import EditarAnalistaPage from './pages/analistas/EditarAnalistaPage';
 import TiposCandidatosPage from './pages/maestro/TiposCandidatosPage';
 
 // Páginas de admin
-import FormGalleryPage from './pages/admin/FormGalleryPage';
-import PlantillasPage from './pages/admin/PlantillasPage';
 import TemplatesPage from './pages/admin/ordenes/TemplatesPage';
 
 // Páginas de certificados
-import ExpedicionCertificadosPage from './pages/certificados/ExpedicionCertificadosPage';
-
-// Páginas de órdenes
-import ExpedicionOrdenPage from './pages/ordenes/ExpedicionOrdenPage';
-
-// Páginas de clínica
-import AgendaMedicaPage from './pages/clinica/AgendaMedicaPage';
-import CitasProgramadasPage from './pages/clinica/CitasProgramadasPage';
-import ConsultoriosPage from './pages/clinica/ConsultoriosPage';
-import EspecialidadesPage from './pages/clinica/EspecialidadesPage';
-import EspecialistasPage from './pages/clinica/EspecialistasPage';
-import HistoriaLaboralPage from './pages/clinica/HistoriaLaboralPage';
-import HistoriaMedicaPage from './pages/clinica/HistoriaMedicaPage';
 
 // Páginas de QR
 import QrConfiguracionPage from './pages/empresa/QrConfiguracionPage';
@@ -396,17 +409,7 @@ function App() {
               </ProtectedRoute>
             } />
 
-            {/* Rutas de admin */}
-            <Route path="/form-gallery" element={
-              <ProtectedRoute>
-                <FormGalleryPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/form-gallery" element={
-              <ProtectedRoute>
-                <FormGalleryPage />
-              </ProtectedRoute>
-            } />
+           
             <Route path="/plantillas" element={
               <ProtectedRoute>
                 <PlantillasPage />

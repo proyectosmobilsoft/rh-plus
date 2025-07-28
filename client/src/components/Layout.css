@@ -1,0 +1,140 @@
+/* Estilos personalizados para la sidebar */
+.sidebar-transition {
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, opacity;
+}
+
+.sidebar-collapsed {
+  width: 16rem !important; /* Mantener el ancho para la animación */
+  min-width: 16rem !important;
+  opacity: 0;
+  overflow: hidden;
+  border: none !important;
+  border-right: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  transform: translateX(-100%);
+  position: absolute;
+  left: 0;
+  z-index: -1;
+  box-shadow: none !important;
+}
+
+.sidebar-expanded {
+  width: 16rem !important; /* 256px */
+  min-width: 16rem !important;
+  opacity: 1;
+  transform: translateX(0);
+  position: relative;
+  left: 0;
+  z-index: auto;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Mejorar la transición del contenido principal */
+.main-content {
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: width, margin-left, transform;
+}
+
+.main-content-sidebar-hidden {
+  margin-left: 0;
+  width: 100% !important;
+  transform: translateX(0);
+}
+
+.main-content-sidebar-visible {
+  margin-left: 0; /* El contenido principal siempre ocupa todo el espacio disponible */
+  width: calc(100% - 16rem) !important;
+  transform: translateX(0);
+}
+
+/* Estilos para el botón de toggle */
+.sidebar-toggle-button {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, background-color;
+}
+
+.sidebar-toggle-button:hover {
+  transform: scale(1.1);
+  background-color: hsl(var(--accent) / 0.1);
+}
+
+.sidebar-toggle-button:active {
+  transform: scale(0.95);
+}
+
+/* Asegurar que la sidebar no interfiera cuando está oculta */
+.sidebar-hidden {
+  position: absolute;
+  left: -100%;
+  z-index: -1;
+}
+
+/* Animación para el logo */
+.logo-sidebar {
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, opacity;
+}
+
+.sidebar-collapsed .logo-sidebar {
+  transform: scale(0.8);
+  opacity: 0;
+}
+
+.sidebar-expanded .logo-sidebar {
+  transform: scale(1);
+  opacity: 1;
+}
+
+/* Eliminar cualquier borde residual */
+.sidebar-collapsed * {
+  border: none !important;
+  outline: none !important;
+  opacity: 0;
+  transition: opacity 0.3s ease-out;
+  transform: translateX(-10px);
+}
+
+.sidebar-expanded * {
+  opacity: 1;
+  transition: opacity 0.4s ease-in, transform 0.4s ease-in;
+  transform: translateX(0);
+}
+
+/* Asegurar que el contenedor principal no tenga bordes cuando la sidebar está oculta */
+.main-content-sidebar-hidden {
+  border-left: none !important;
+  border-right: none !important;
+}
+
+/* Animación para el contenido cuando la sidebar se oculta */
+@keyframes slideIn {
+  from {
+    transform: translateX(-20px);
+    opacity: 0.9;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-20px);
+    opacity: 0.9;
+  }
+}
+
+.main-content-sidebar-hidden {
+  animation: slideIn 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.main-content-sidebar-visible {
+  animation: slideOut 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+} 

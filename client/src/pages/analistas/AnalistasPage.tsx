@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Plus, 
   Search, 
@@ -43,32 +44,49 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { analystsService, Analyst } from '@/services/analystsService';
+import { testConnection, testAnalistas } from '@/services/testConnection';
 
 export default function AnalistasPage() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
-  // Usa el tipo de analistasMapeados para el tipado
-  const [filteredAnalistas, setFilteredAnalistas] = useState<any[]>([]);
   const [filterRegional, setFilterRegional] = useState('todas');
   const [filterNivel, setFilterNivel] = useState('todos');
   const [filterEstado, setFilterEstado] = useState('todos');
-  const [analistas, setAnalistas] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    const fetchAnalistas = async () => {
-      setIsLoading(true);
+  // Usar React Query para cargar analistas
+  const { data: analistas = [], isLoading, error } = useQuery({
+    queryKey: ['analistas'],
+    queryFn: async () => {
       try {
+        // Primero probar la conexión
+        console.log('🔍 Iniciando test de conexión...');
+        const connectionTest = await testConnection();
+        console.log('Resultado test conexión:', connectionTest);
+        
+        if (!connectionTest.success) {
+          throw new Error('No se pudo conectar a Supabase');
+        }
+        
+        // Luego probar cargar analistas
+        console.log('🔍 Probando carga de analistas...');
+        const analistasTest = await testAnalistas();
+        console.log('Resultado test analistas:', analistasTest);
+        
+        // Finalmente cargar con el servicio normal
         const data = await analystsService.getAll();
-        setAnalistas(data || []);
+        console.log('Analistas cargados con servicio:', data);
+        return data || [];
       } catch (error) {
+        console.error('Error cargando analistas:', error);
         toast.error('Error al cargar analistas de Supabase');
-      } finally {
-        setIsLoading(false);
+        throw error;
       }
-    };
-    fetchAnalistas();
-  }, []);
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutos
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+  });
 
   // Mapear los datos recibidos para que coincidan con la estructura esperada
   const analistasMapeados = analistas.map((a: any) => ({
@@ -80,14 +98,12 @@ export default function AnalistasPage() {
     primer_apellido: a.primer_apellido || '',
     segundo_apellido: a.segundo_apellido || '',
     activo: a.activo !== false ? 'activo' : 'inactivo' as 'activo' | 'inactivo',
-    created_at: a.created_at || '',
-    updated_at: a.updated_at || '',
-    regional: a.regional || '', // Assuming 'regional' is part of the Analyst type or derived
-    nivelPrioridad: a.nivel_prioridad || 'bajo' // Assuming 'nivel_prioridad' is part of the Analyst type or derived
+    regional: a.regional || 'N/A',
+    nivelPrioridad: a.nivel_prioridad || 'bajo'
   }));
 
-  // Aplicar filtros
-  useEffect(() => {
+  // Aplicar filtros usando useMemo para mejor rendimiento
+  const filteredAnalistas = React.useMemo(() => {
     let filtered = analistasMapeados;
 
     // Filtro de búsqueda
@@ -107,16 +123,15 @@ export default function AnalistasPage() {
       filtered = filtered.filter(analista => analista.activo === filterEstado);
     }
 
-    setFilteredAnalistas(filtered);
+    return filtered;
   }, [analistasMapeados, searchTerm, filterEstado]);
 
   const handleEliminarAnalista = async (id: number) => {
     try {
       await analystsService.remove(id);
       toast.success('Analista eliminado exitosamente');
-      // Refrescar la lista
-      const data = await analystsService.getAll();
-      setAnalistas(data || []);
+      // Invalidar la query para refrescar los datos
+      queryClient.invalidateQueries({ queryKey: ['analistas'] });
     } catch (error) {
       console.error('Error eliminando analista:', error);
       toast.error('Error al eliminar analista');
@@ -126,7 +141,7 @@ export default function AnalistasPage() {
   const handleExportarExcel = () => {
     // Función para exportar a Excel - implementación simplificada
     const csvContent = [
-      ['Usuario', 'Email', 'Primer Nombre', 'Segundo Nombre', 'Primer Apellido', 'Segundo Apellido', 'Estado', 'Creado', 'Actualizado'].join(','),
+      ['Usuario', 'Email', 'Primer Nombre', 'Segundo Nombre', 'Primer Apellido', 'Segundo Apellido', 'Estado'].join(','),
       ...filteredAnalistas.map(analista => [
         analista.username,
         analista.email,
@@ -134,9 +149,7 @@ export default function AnalistasPage() {
         analista.segundo_nombre,
         analista.primer_apellido,
         analista.segundo_apellido,
-        analista.activo,
-        analista.created_at,
-        analista.updated_at
+        analista.activo
       ].join(','))
     ].join('\n');
 
@@ -326,8 +339,6 @@ export default function AnalistasPage() {
                   <TableHead>Primer Apellido</TableHead>
                   <TableHead>Segundo Apellido</TableHead>
                   <TableHead>Estado</TableHead>
-                  <TableHead>Creado</TableHead>
-                  <TableHead>Actualizado</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -345,8 +356,6 @@ export default function AnalistasPage() {
                     ) : (
                       <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Inactivo</Badge>
                     )}</TableCell>
-                    <TableCell>{analista.created_at}</TableCell>
-                    <TableCell>{analista.updated_at}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button
