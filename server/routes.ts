@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
 import { memoryUserStorage } from "./memoryStorage";
+import { supabase } from "../client/src/services/supabaseClient";
 import {
   insertCandidatoSchema,
   createCandidatoFromPerfilSchema,
@@ -13,6 +14,8 @@ import {
 import { z } from "zod";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
+import { generateToken, verifyToken, JWTPayload } from "./config/jwt";
+import { authMiddleware } from "./middleware/auth";
 // Note: Import para getUserPermissions se hará dinámicamente según necesidad
 
 // Session middleware for simple login
@@ -27,6 +30,346 @@ declare module "express-session" {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Endpoint de prueba
+  app.get("/api/test", (req, res) => {
+    res.json({ message: "Servidor funcionando correctamente" });
+  });
+
+  // Endpoint para verificar usuarios en la base de datos
+  app.get("/api/test/users", async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      res.json({ 
+        message: "Usuarios encontrados", 
+        count: users.length,
+        users: users.slice(0, 3) // Solo mostrar los primeros 3
+      });
+    } catch (error) {
+      console.error("Error obteniendo usuarios:", error);
+      res.status(500).json({ message: "Error obteniendo usuarios" });
+    }
+  });
+
+  // Endpoint para verificar token JWT
+  app.get("/api/auth/verify", authMiddleware, (req, res) => {
+    try {
+      // El middleware ya verificó el token y agregó req.user
+      res.json({
+        message: "Token válido",
+        user: req.user
+      });
+    } catch (error) {
+      console.error("Error verificando token:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Endpoint para renovar token
+  app.post("/api/auth/refresh", authMiddleware, (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Usuario no autenticado" });
+      }
+
+      // Generar nuevo token
+      const newToken = generateToken(req.user);
+
+      res.json({
+        message: "Token renovado exitosamente",
+        token: newToken
+      });
+    } catch (error) {
+      console.error("Error renovando token:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Endpoint para logout
+  app.post("/api/auth/logout", (req, res) => {
+    try {
+      // En JWT, el logout se maneja del lado del cliente eliminando el token
+      res.json({
+        message: "Logout exitoso"
+      });
+    } catch (error) {
+      console.error("Error en logout:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Endpoint para verificar conectividad con Supabase
+  app.get("/api/test/supabase", async (req, res) => {
+    try {
+      const { data, error } = await supabase
+        .from('gen_usuarios')
+        .select('id, username, email')
+        .limit(3);
+      
+      if (error) {
+        res.status(500).json({ 
+          message: "Error conectando con Supabase", 
+          error: error.message 
+        });
+      } else {
+        res.json({ 
+          message: "Conexión con Supabase exitosa", 
+          count: data?.length || 0,
+          users: data 
+        });
+      }
+    } catch (error) {
+      console.error("Error en test de Supabase:", error);
+      res.status(500).json({ message: "Error en test de Supabase" });
+    }
+  });
+
+  // Endpoint para probar login específico
+  app.post("/api/test/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      
+      console.log('Test login - Credenciales:', { username, password: '***' });
+
+      // Buscar usuario
+      const { data: dbUser, error: userError } = await supabase
+        .from('gen_usuarios')
+        .select('*')
+        .or(`email.eq.${username},username.eq.${username}`)
+        .eq('activo', true)
+        .single();
+
+      console.log('Test login - Usuario encontrado:', { dbUser: dbUser ? 'Sí' : 'No', userError });
+
+      if (userError || !dbUser) {
+        return res.status(401).json({ 
+          message: "Usuario no encontrado", 
+          error: userError?.message 
+        });
+      }
+
+      // Probar check_password
+      const { data: verifyData, error: verifyError } = await supabase.rpc('check_password', {
+        password_to_check: password,
+        stored_hash: dbUser.password_hash
+      });
+
+      console.log('Test login - Resultado check_password:', { verifyData, verifyError });
+
+      if (verifyError) {
+        return res.status(500).json({ 
+          message: "Error en verificación de contraseña", 
+          error: verifyError.message 
+        });
+      }
+
+      const isValid = verifyData === true;
+      
+      res.json({
+        message: isValid ? "Login exitoso" : "Contraseña incorrecta",
+        user: {
+          id: dbUser.id,
+          username: dbUser.username,
+          email: dbUser.email,
+          primerNombre: dbUser.primer_nombre,
+          primerApellido: dbUser.primer_apellido,
+          activo: dbUser.activo
+        },
+        passwordValid: isValid,
+        hashType: dbUser.password_hash?.startsWith('$2b$') ? 'bcrypt' : 'legacy'
+      });
+
+    } catch (error) {
+      console.error("Error en test login:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Endpoint para simular login completo con redirección
+  app.post("/api/test/login-complete", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      
+      console.log('Test login completo - Credenciales:', { username, password: '***' });
+
+      // Simular el proceso completo de login
+      let user: any = null;
+      let userRole: "admin" | "candidato" | "cliente" | "empresa" | "analista" | undefined = undefined;
+      let userTable: "users" | "candidatos" | "empresas" | undefined = undefined;
+
+      // Buscar en gen_usuarios
+      const { data: dbUser, error: userError } = await supabase
+        .from('gen_usuarios')
+        .select('*')
+        .or(`email.eq.${username},username.eq.${username}`)
+        .eq('activo', true)
+        .single();
+
+      if (!userError && dbUser) {
+        // Verificar contraseña
+        const { data: verifyData, error: verifyError } = await supabase.rpc('check_password', {
+          password_to_check: password,
+          stored_hash: dbUser.password_hash
+        });
+
+        if (!verifyError && verifyData === true) {
+          user = {
+            id: dbUser.id,
+            username: dbUser.username,
+            email: dbUser.email,
+            primerNombre: dbUser.primer_nombre,
+            primerApellido: dbUser.primer_apellido,
+            activo: dbUser.activo
+          };
+          userRole = "admin";
+          userTable = "users";
+        }
+      }
+
+      if (!user || !userRole || !userTable) {
+        return res.status(401).json({ 
+          message: "Credenciales inválidas",
+          debug: {
+            userFound: !!dbUser,
+            userError: userError?.message,
+            passwordValid: user ? true : false
+          }
+        });
+      }
+
+      // Simular respuesta exitosa
+      const userResponse = {
+        id: user.id,
+        username: user.username || user.email,
+        email: user.email,
+        primerNombre: user.primerNombre || "",
+        primerApellido: user.primerApellido || "",
+        role: userRole,
+        activo: user.activo || true
+      };
+
+      console.log('Test login completo - Login exitoso:', userResponse);
+
+      res.json({
+        message: "Login exitoso",
+        user: userResponse,
+        redirectTo: "/dashboard"
+      });
+
+    } catch (error) {
+      console.error("Error en test login completo:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Endpoint para probar login con empresa específico
+  app.post("/api/test/login-with-empresa", async (req, res) => {
+    try {
+      const { username, password, empresaId } = req.body;
+      
+      console.log('Test login con empresa - Credenciales:', { username, empresaId, password: '***' });
+
+      if (!username || !password || !empresaId) {
+        return res.status(400).json({ message: "Usuario, contraseña y empresa son requeridos" });
+      }
+
+      // Buscar usuario
+      const { data: dbUser, error: userError } = await supabase
+        .from('gen_usuarios')
+        .select('*')
+        .or(`email.eq.${username},username.eq.${username}`)
+        .eq('activo', true)
+        .single();
+
+      console.log('Test login con empresa - Usuario encontrado:', { dbUser: dbUser ? 'Sí' : 'No', userError });
+
+      if (userError || !dbUser) {
+        return res.status(401).json({ 
+          message: "Usuario no encontrado", 
+          error: userError?.message 
+        });
+      }
+
+      // Verificar contraseña
+      const { data: verifyData, error: verifyError } = await supabase.rpc('check_password', {
+        password_to_check: password,
+        stored_hash: dbUser.password_hash
+      });
+
+      console.log('Test login con empresa - Resultado check_password:', { verifyData, verifyError });
+
+      if (verifyError || verifyData !== true) {
+        return res.status(401).json({ 
+          message: "Contraseña incorrecta",
+          debug: { verifyData, verifyError }
+        });
+      }
+
+      // Simular empresa (para pruebas)
+      const empresa = {
+        id: parseInt(empresaId),
+        nombreEmpresa: `Empresa ${empresaId}`
+      };
+
+      console.log('Test login con empresa - Login exitoso');
+
+      res.json({
+        message: "Login exitoso",
+        user: {
+          id: dbUser.id,
+          username: dbUser.username || dbUser.email,
+          email: dbUser.email,
+          primerNombre: dbUser.primer_nombre || "",
+          primerApellido: dbUser.primer_apellido || "",
+          role: "admin",
+          activo: dbUser.activo
+        },
+        empresa: {
+          id: empresa.id,
+          nombreEmpresa: empresa.nombreEmpresa
+        }
+      });
+
+    } catch (error) {
+      console.error("Error en test login con empresa:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Endpoint para crear usuario de prueba
+  app.post("/api/test/create-user", async (req, res) => {
+    try {
+      const testUser = {
+        username: 'testuser',
+        email: 'test@example.com',
+        primer_nombre: 'Usuario',
+        primer_apellido: 'Prueba',
+        password_hash: btoa('password123'), // Hash simple en base64
+        activo: true
+      };
+
+      const { data, error } = await supabase
+        .from('gen_usuarios')
+        .insert(testUser)
+        .select()
+        .single();
+
+      if (error) {
+        res.status(500).json({ 
+          message: "Error creando usuario de prueba", 
+          error: error.message 
+        });
+      } else {
+        res.json({ 
+          message: "Usuario de prueba creado exitosamente", 
+          user: data 
+        });
+      }
+    } catch (error) {
+      console.error("Error creando usuario de prueba:", error);
+      res.status(500).json({ message: "Error creando usuario de prueba" });
+    }
+  });
+
   // Sistema de autenticación unificado
   
   // Login unificado para todos los tipos de usuario
@@ -39,9 +382,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Buscar usuario en todas las tablas posibles
-      let user = null;
-      let userRole = null;
-      let userTable = null;
+      let user: any = null;
+      let userRole: "admin" | "candidato" | "cliente" | "empresa" | "analista" | undefined = undefined;
+      let userTable: "users" | "candidatos" | "empresas" | undefined = undefined;
 
       // 1. Buscar en usuarios memoria storage
       const adminUser = await memoryUserStorage.getUserByUsername(username);
@@ -54,7 +397,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // 2. Buscar en tabla de candidatos
+      // 2. Buscar en tabla gen_usuarios de Supabase
+      if (!user) {
+        try {
+          console.log('Buscando usuario en gen_usuarios:', username);
+          
+          const { data: dbUser, error: userError } = await supabase
+            .from('gen_usuarios')
+            .select('*')
+            .or(`email.eq.${username},username.eq.${username}`)
+            .eq('activo', true)
+            .single();
+
+          console.log('Resultado búsqueda gen_usuarios:', { dbUser, userError });
+
+          if (!userError && dbUser) {
+            console.log('Usuario encontrado en gen_usuarios, verificando contraseña...');
+            
+            // Verificar contraseña usando la función RPC
+            try {
+              const { data: verifyData, error: verifyError } = await supabase.rpc('check_password', {
+                password_to_check: password,
+                stored_hash: dbUser.password_hash
+              });
+
+              console.log('Resultado check_password:', { verifyData, verifyError });
+
+              if (!verifyError && verifyData === true) {
+                console.log('Contraseña válida, creando sesión...');
+                user = {
+                  id: dbUser.id,
+                  username: dbUser.username,
+                  email: dbUser.email,
+                  primerNombre: dbUser.primer_nombre,
+                  primerApellido: dbUser.primer_apellido,
+                  activo: dbUser.activo
+                };
+                userRole = "admin";
+                userTable = "users";
+              } else {
+                console.log('Contraseña inválida o error en RPC:', { verifyData, verifyError });
+              }
+            } catch (rpcError) {
+              console.log('Función RPC no disponible, usando fallback:', rpcError);
+              
+              // Fallback: verificación manual
+              const storedHash = dbUser.password_hash;
+              const inputHash = btoa(password); // Hash simple en base64
+              const isValidPassword = storedHash === inputHash;
+
+              console.log('Fallback - Comparando hashes:', { 
+                storedHash: storedHash?.substring(0, 20) + '...', 
+                inputHash: inputHash?.substring(0, 20) + '...',
+                isValidPassword 
+              });
+
+              if (isValidPassword) {
+                console.log('Contraseña válida (fallback), creando sesión...');
+                user = {
+                  id: dbUser.id,
+                  username: dbUser.username,
+                  email: dbUser.email,
+                  primerNombre: dbUser.primer_nombre,
+                  primerApellido: dbUser.primer_apellido,
+                  activo: dbUser.activo
+                };
+                userRole = "admin";
+                userTable = "users";
+              }
+            }
+          } else {
+            console.log('Usuario no encontrado en gen_usuarios:', { userError });
+          }
+        } catch (error) {
+          console.log('Error buscando en gen_usuarios:', error);
+        }
+      }
+
+      // 3. Buscar en tabla de candidatos
       if (!user) {
         const candidato = await storage.getCandidatoByEmail(username);
         if (candidato) {
@@ -67,7 +487,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // 3. Buscar en tabla de empresas/clientes
+      // 4. Buscar en tabla de empresas/clientes
       if (!user) {
         const empresa = await storage.getEmpresaByEmail(username);
         if (empresa) {
@@ -80,38 +500,260 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      if (!user) {
+      if (!user || !userRole || !userTable) {
+        console.log('Login fallido - Usuario no encontrado o credenciales inválidas');
         return res.status(401).json({ message: "Credenciales inválidas" });
       }
 
       // Verificar si el usuario está activo
       if (user.activo === false) {
+        console.log('Login fallido - Usuario inactivo');
         return res.status(401).json({ message: "Usuario inactivo" });
       }
 
-      // Crear sesión
-      req.session.userId = user.id;
-      req.session.userType = userRole;
-      req.session.userTable = userTable;
+      // Generar JWT token
+      const tokenPayload: JWTPayload = {
+        userId: user.id,
+        username: user.username || user.email,
+        email: user.email,
+        role: userRole
+      };
+
+      const token = generateToken(tokenPayload);
+
+      console.log('Token generado:', { 
+        userId: user.id, 
+        userType: userRole, 
+        userTable: userTable,
+        tokenExpires: '24h'
+      });
 
       // Preparar respuesta del usuario
       const userResponse = {
         id: user.id,
         username: user.username || user.email,
         email: user.email,
-        primerNombre: user.primerNombre || user.nombres,
-        primerApellido: user.primerApellido || user.apellidos,
+        primerNombre: user.primerNombre || user.nombres || "",
+        primerApellido: user.primerApellido || user.apellidos || "",
         role: userRole,
-        activo: user.activo
+        activo: user.activo || true
       };
+
+      console.log('Login exitoso - Respuesta:', userResponse);
 
       res.json({
         message: "Login exitoso",
-        user: userResponse
+        user: userResponse,
+        token: token
       });
 
     } catch (error) {
       console.error("Error en login:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
+  // Login con empresa seleccionada
+  app.post("/api/auth/login-with-empresa", async (req, res) => {
+    try {
+      const { username, password, empresaId, skipCredentials } = req.body;
+
+      console.log('Login con empresa - Credenciales:', { username, empresaId, password: '***', skipCredentials });
+
+      // Si skipCredentials es true, el usuario ya está autenticado
+      if (skipCredentials) {
+        // Verificar token de autorización
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+          return res.status(401).json({ message: "Token de autorización requerido" });
+        }
+
+        const token = authHeader.substring(7);
+        const decoded = verifyToken(token);
+        
+        if (!decoded) {
+          return res.status(401).json({ message: "Token inválido" });
+        }
+
+        // Obtener información de la empresa desde Supabase
+        const { data: empresa, error: empresaError } = await supabase
+          .from('empresas')
+          .select('*')
+          .eq('id', parseInt(empresaId))
+          .single();
+
+        if (empresaError || !empresa) {
+          console.log('Login con empresa - Empresa no encontrada:', empresaId, empresaError);
+          return res.status(404).json({ message: "Empresa no encontrada" });
+        }
+
+        // Generar nuevo JWT token con información de empresa
+        const tokenPayload: JWTPayload = {
+          userId: decoded.userId,
+          username: decoded.username,
+          email: decoded.email,
+          role: decoded.role,
+          empresaId: parseInt(empresaId)
+        };
+
+        const newToken = generateToken(tokenPayload);
+
+        console.log('Login con empresa - Token actualizado:', { 
+          userId: decoded.userId, 
+          userType: decoded.role, 
+          empresaId: parseInt(empresaId),
+          tokenExpires: '24h'
+        });
+
+              // Preparar respuesta del usuario
+      const userResponse = {
+        id: decoded.userId,
+        username: decoded.username,
+        email: decoded.email,
+        primerNombre: decoded.username.split('@')[0] || "",
+        primerApellido: "",
+        role: decoded.role,
+        activo: true,
+        selectedEmpresa: {
+          id: empresa.id,
+          nombreEmpresa: empresa.razon_social,
+          email: empresa.email,
+          nit: empresa.nit,
+          direccion: empresa.direccion,
+          telefono: empresa.telefono,
+          ciudad: empresa.ciudad,
+          estado: empresa.activo ? "activo" : "inactivo"
+        }
+      };
+
+        res.json({
+          message: "Empresa seleccionada exitosamente",
+          user: userResponse,
+          token: newToken
+        });
+        return;
+      }
+
+      // Flujo normal con credenciales
+      if (!username || !password || !empresaId) {
+        return res.status(400).json({ message: "Usuario, contraseña y empresa son requeridos" });
+      }
+
+      // Buscar usuario en la tabla gen_usuarios usando Supabase directamente
+      const { data: dbUser, error: userError } = await supabase
+        .from('gen_usuarios')
+        .select('*')
+        .or(`email.eq.${username},username.eq.${username}`)
+        .eq('activo', true)
+        .single();
+
+      console.log('Login con empresa - Usuario encontrado:', { dbUser: dbUser ? 'Sí' : 'No', userError });
+
+      if (userError || !dbUser) {
+        console.log('Login con empresa - Usuario no encontrado');
+        return res.status(401).json({ message: "Credenciales inválidas" });
+      }
+
+                  // Verificar contraseña usando check_password (más confiable)
+            try {
+              const { data: verifyData, error: verifyError } = await supabase.rpc('check_password', {
+                password_to_check: password,
+                stored_hash: dbUser.password_hash
+              });
+
+              console.log('Login con empresa - Resultado check_password:', { verifyData, verifyError });
+
+              if (verifyError || verifyData !== true) {
+                console.log('Login con empresa - Contraseña incorrecta, probando fallback');
+                
+                // Fallback: verificación manual con bcrypt
+                const bcrypt = require('bcrypt');
+                const isValidPassword = await bcrypt.compare(password, dbUser.password_hash);
+                
+                if (!isValidPassword) {
+                  console.log('Login con empresa - Contraseña incorrecta (fallback también falló)');
+                  return res.status(401).json({ message: "Contraseña incorrecta" });
+                }
+              }
+
+      } catch (rpcError) {
+        console.log('Login con empresa - Función RPC no disponible, usando fallback:', rpcError);
+        
+        // Fallback: verificación manual
+        const storedHash = dbUser.password_hash;
+        const inputHash = btoa(password); // Hash simple en base64
+        const isValidPassword = storedHash === inputHash;
+
+        console.log('Login con empresa - Fallback - Comparando hashes:', { 
+          storedHash: storedHash?.substring(0, 20) + '...', 
+          inputHash: inputHash?.substring(0, 20) + '...',
+          isValidPassword 
+        });
+
+        if (!isValidPassword) {
+          console.log('Login con empresa - Contraseña incorrecta (fallback)');
+          return res.status(401).json({ message: "Contraseña incorrecta" });
+        }
+      }
+
+      // Obtener información de la empresa desde Supabase
+      const { data: empresa, error: empresaError } = await supabase
+        .from('empresas')
+        .select('*')
+        .eq('id', parseInt(empresaId))
+        .single();
+
+      if (empresaError || !empresa) {
+        console.log('Login con empresa - Empresa no encontrada:', empresaId, empresaError);
+        return res.status(404).json({ message: "Empresa no encontrada" });
+      }
+
+      console.log('Login con empresa - Empresa encontrada:', empresa);
+
+      // Generar JWT token con información de empresa
+      const tokenPayload: JWTPayload = {
+        userId: dbUser.id,
+        username: dbUser.username || dbUser.email,
+        email: dbUser.email,
+        role: "admin",
+        empresaId: parseInt(empresaId)
+      };
+
+      const token = generateToken(tokenPayload);
+
+      console.log('Login con empresa - Token generado:', { 
+        userId: dbUser.id, 
+        userType: "admin", 
+        userTable: "users",
+        empresaId: parseInt(empresaId),
+        tokenExpires: '24h'
+      });
+
+      // Preparar respuesta del usuario
+      const userResponse = {
+        id: dbUser.id,
+        username: dbUser.username || dbUser.email,
+        email: dbUser.email,
+        primerNombre: dbUser.primer_nombre || "",
+        primerApellido: dbUser.primer_apellido || "",
+        role: "admin" as const,
+        activo: dbUser.activo
+      };
+
+      console.log('Login con empresa - Login exitoso:', userResponse);
+
+      res.json({
+        message: "Login exitoso",
+        user: userResponse,
+        empresa: {
+          id: empresa.id,
+          nombreEmpresa: empresa.razon_social
+        },
+        token: token
+      });
+
+    } catch (error) {
+      console.error("Error en login con empresa:", error);
       res.status(500).json({ message: "Error interno del servidor" });
     }
   });
@@ -173,13 +815,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Logout
   app.post("/api/auth/logout", (req, res) => {
-    req.session.destroy((err) => {
-      if (err) {
-        console.error("Error al cerrar sesión:", err);
-        return res.status(500).json({ message: "Error al cerrar sesión" });
-      }
+    try {
+      // Para JWT tokens, el logout es principalmente del lado del cliente
+      // El servidor puede invalidar tokens si es necesario, pero por ahora
+      // solo confirmamos que el logout fue exitoso
+      console.log('Logout solicitado');
       res.json({ message: "Sesión cerrada exitosamente" });
-    });
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error);
+      res.status(500).json({ message: "Error al cerrar sesión" });
+    }
   });
 
   // Obtener permisos del usuario

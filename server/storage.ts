@@ -358,6 +358,11 @@ export interface IStorage {
   updateEmpresaOrderTemplate(id: number, template: Partial<InsertEmpresaOrderTemplate>): Promise<EmpresaOrderTemplate>;
   deleteEmpresaOrderTemplate(id: number): Promise<void>;
   setDefaultEmpresaOrderTemplate(empresaId: number, templateId: number): Promise<void>;
+
+  // Database user authentication methods
+  getUsuarioByEmailOrUsername(identifier: string): Promise<any>;
+  verifyUserPassword(userId: number, password: string): Promise<boolean>;
+  verifyUserEmpresaAccess(userId: number, empresaId: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -675,7 +680,22 @@ export class MemStorage implements IStorage {
       fechaRegistro: new Date(),
       estado: "activo",
     });
-    this.currentEmpresaId = 3;
+
+    this.empresas.set(5, {
+      id: 5,
+      email: "empresa5@ejemplo.com",
+      password: "empresa789", // Will be hashed after construction
+      nombreEmpresa: "Desarrollo Web S.A.S",
+      nit: "9001237890",
+      direccion: "Calle 72 #10-15",
+      telefono: "6015551234",
+      ciudad: "Bogotá",
+      contactoPrincipal: "Ana Martínez",
+      cargoContacto: "Directora de Tecnología",
+      fechaRegistro: new Date(),
+      estado: "activo",
+    });
+    this.currentEmpresaId = 6;
 
     // Create default tipos de candidatos
     this.tiposCandidatos.set(1, {
@@ -2819,6 +2839,54 @@ export class MemStorage implements IStorage {
     if (template && template.empresaId === empresaId) {
       this.empresaOrderTemplates.set(templateId, { ...template, esDefault: true });
     }
+  }
+
+  // ========== DATABASE USER AUTHENTICATION METHODS ==========
+
+  async getUsuarioByEmailOrUsername(identifier: string): Promise<any> {
+    // Buscar en usuarios memoria storage (simulación de base de datos)
+    const adminUser = await this.getUserByUsername(identifier);
+    if (adminUser) {
+      return {
+        id: adminUser.id,
+        username: adminUser.username,
+        email: adminUser.email,
+        primer_nombre: adminUser.primerNombre,
+        primer_apellido: adminUser.primerApellido,
+        activo: adminUser.activo,
+        password_hash: adminUser.password // En memoria, la contraseña está sin hash
+      };
+    }
+
+    // Buscar por email
+    const userByEmail = await this.getUserByEmail(identifier);
+    if (userByEmail) {
+      return {
+        id: userByEmail.id,
+        username: userByEmail.username,
+        email: userByEmail.email,
+        primer_nombre: userByEmail.primerNombre,
+        primer_apellido: userByEmail.primerApellido,
+        activo: userByEmail.activo,
+        password_hash: userByEmail.password // En memoria, la contraseña está sin hash
+      };
+    }
+
+    return null;
+  }
+
+  async verifyUserPassword(userId: number, password: string): Promise<boolean> {
+    const user = await this.getUser(userId);
+    if (!user) return false;
+
+    // En memoria, comparar directamente
+    return user.password === password;
+  }
+
+  async verifyUserEmpresaAccess(userId: number, empresaId: number): Promise<boolean> {
+    // En memoria, simular que todos los usuarios tienen acceso a todas las empresas
+    // En una implementación real, esto verificaría la tabla gen_usuario_empresas
+    return true;
   }
 }
 

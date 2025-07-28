@@ -1,201 +1,520 @@
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { SidebarProvider } from "@/components/ui/sidebar";
-import { AuthProvider } from "@/contexts/AuthContext";
-import { ThemeProvider } from "@/contexts/ThemeContext";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { PlantillasProvider } from "./pages/admin/FormGalleryPage";
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthGuard, PublicRoute } from './components/AuthGuard';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import Layout from './components/Layout';
 
-import Index from "./pages/Index";
-import Layout from "./components/Layout";
-import NotFound from "./pages/NotFound";
+// Páginas de autenticación
+import LoginUnificado from './pages/LoginUnificado';
+import LoginAdmin from './pages/LoginAdmin';
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
+import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 
-// Páginas para cada sección
-import EmpresasPage from "./pages/registros/EmpresasPage";
-import CandidatosPage from "./pages/registros/CandidatosPage";
-import PrestadoresPage from "./pages/registros/PrestadoresPage";
-import QrPage from "./pages/registros/QrPage";
-import QrPageMejorado from "./pages/registros/QrPageMejorado";
-import ExpedicionOrdenPage from "./pages/ordenes/ExpedicionOrdenPage";
-import { TemplatesPage } from "./pages/admin/ordenes/TemplatesPage";
-import FormGalleryPage from "./pages/admin/FormGalleryPage";
-import AgendaMedicaPage from "./pages/clinica/AgendaMedicaPage";
-import HistoriaMedicaPage from "./pages/clinica/HistoriaMedicaPage";
-import HistoriaLaboralPage from "./pages/clinica/HistoriaLaboralPage";
-import ConsultoriosPage from "./pages/clinica/ConsultoriosPage";
-import EspecialidadesPage from "./pages/clinica/EspecialidadesPage";
-import EspecialistasPage from "./pages/clinica/EspecialistasPage";
-import CitasProgramadasPage from "./pages/clinica/CitasProgramadasPage";
-import ExpedicionCertificadosPage from "./pages/certificados/ExpedicionCertificadosPage";
-import UsuariosPage from "./pages/seguridad/UsuariosPage";
-import CrearUsuarioPage from "./pages/seguridad/CrearUsuarioPage";
-import EditarUsuarioPage from "./pages/seguridad/EditarUsuarioPage";
-import PerfilesPage from "./pages/seguridad/PerfilesPage";
-import CrearCandidatoPage from "./pages/seguridad/CrearCandidatoPage";
-import CrearAdministradorPage from "./pages/seguridad/CrearAdministradorPage";
-import CrearCoordinadorPage from "./pages/seguridad/CrearCoordinadorPage";
-import CrearAdminGeneralPage from "./pages/seguridad/CrearAdminGeneralPage";
-import CrearClientePage from "./pages/seguridad/CrearClientePage";
-import MenuPage from "./pages/seguridad/MenuPage";
-import GestionPermisosPage from "./pages/seguridad/GestionPermisosPage";
+// Páginas protegidas
+import Index from './pages/Index';
+import CandidatosPage from './pages/registros/CandidatosPage';
+import AspirantesPage from './pages/registros/AspirantesPage';
+import EmpresasPage from './pages/registros/EmpresasPage';
+import PrestadoresPage from './pages/registros/PrestadoresPage';
+import QrPage from './pages/registros/QrPage';
+import QrPageMejorado from './pages/registros/QrPageMejorado';
 
-// Maestro pages
-import TiposCandidatosPage from "./pages/maestro/TiposCandidatosPage";
+// Páginas de seguridad
+import UsuariosPage from './pages/seguridad/UsuariosPage';
+import CrearUsuarioPage from './pages/seguridad/CrearUsuarioPage';
+import EditarUsuarioPage from './pages/seguridad/EditarUsuarioPage';
+import PerfilesPage from './pages/seguridad/PerfilesPage';
+import GestionPermisosPage from './pages/seguridad/GestionPermisosPage';
+import MenuPage from './pages/seguridad/MenuPage';
 
-// Analistas pages
-import AnalistasPage from "./pages/analistas/AnalistasPage";
-import CrearAnalistaPage from "./pages/analistas/CrearAnalistaPage";
-import EditarAnalistaPage from "./pages/analistas/EditarAnalistaPage";
+// Páginas de reportes
+import DashboardReportes from './pages/reportes/DashboardReportes';
 
-// Reportes pages
-import DashboardReportes from "./pages/reportes/DashboardReportes";
+// Páginas de candidatos
+import LoginCandidato from './pages/candidatos/LoginCandidato';
+import RegistroCandidato from './pages/candidatos/RegistroCandidato';
+import PerfilCandidato from './pages/candidatos/PerfilCandidato';
+import CambiarPassword from './pages/candidatos/CambiarPassword';
+import ForgotPasswordCandidato from './pages/candidatos/ForgotPasswordCandidato';
+import ResetPasswordCandidato from './pages/candidatos/ResetPasswordCandidato';
 
-// Test pages
-import TestCascadingSelects from "./pages/TestCascadingSelects";
+// Páginas de empresa
+import LoginEmpresa from './pages/empresa/LoginEmpresa';
+import DashboardEmpresaSimple from './pages/empresa/DashboardEmpresaSimple';
+import CandidatosEmpresa from './pages/empresa/CandidatosEmpresa';
+import CandidatosEmpresaMejorado from './pages/empresa/CandidatosEmpresaMejorado';
+import CrearCandidatoEmpresa from './pages/empresa/CrearCandidatoEmpresa';
+import CrearCandidatoSimple from './pages/empresa/CrearCandidatoSimple';
+import DetalleCandidatoEmpresa from './pages/empresa/DetalleCandidatoEmpresa';
+import ForgotPasswordEmpresa from './pages/empresa/ForgotPasswordEmpresa';
+import ResetPasswordEmpresa from './pages/empresa/ResetPasswordEmpresa';
 
-// Candidate portal pages
-import LoginCandidato from "./pages/candidatos/LoginCandidato";
-import RegistroCandidato from "./pages/candidatos/RegistroCandidato";
-import PerfilCandidato from "./pages/candidatos/PerfilCandidato";
-import CambiarPassword from "./pages/candidatos/CambiarPassword";
+// Páginas de analistas
+import AnalistasPage from './pages/analistas/AnalistasPage';
+import CrearAnalistaPage from './pages/analistas/CrearAnalistaPage';
+import EditarAnalistaPage from './pages/analistas/EditarAnalistaPage';
 
-// Admin login and Auth components
-import LoginAdmin from "./pages/LoginAdmin";
-import LoginUnificado from "./pages/LoginUnificado";
-import LoginRedirect from "./components/LoginRedirect";
+// Páginas de maestro
+import TiposCandidatosPage from './pages/maestro/TiposCandidatosPage';
 
-// Empresa portal pages
-import LoginEmpresa from "./pages/empresa/LoginEmpresa";
-import DashboardEmpresa from "./pages/empresa/DashboardEmpresaSimple";
-import CandidatosEmpresa from "./pages/empresa/CandidatosEmpresaMejorado";
-import CrearCandidatoEmpresa from "./pages/empresa/CrearCandidatoEmpresa";
-import CrearCandidatoSimple from "./pages/empresa/CrearCandidatoSimple";
-import DetalleCandidatoEmpresa from "./pages/empresa/DetalleCandidatoEmpresa";
-import QrGenerarPage from "./pages/empresa/QrGenerarPage";
-import QrConfiguracionPage from "./pages/empresa/QrConfiguracionPage";
-import QrWhatsAppPage from "./pages/empresa/QrWhatsAppPage";
-import QrEmailPage from "./pages/empresa/QrEmailPage";
-import EmpresaLayout from "./components/EmpresaLayout";
+// Páginas de admin
+import FormGalleryPage from './pages/admin/FormGalleryPage';
+import PlantillasPage from './pages/admin/PlantillasPage';
+import TemplatesPage from './pages/admin/ordenes/TemplatesPage';
 
-// Auth pages
-import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
-import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
-import ForgotPasswordEmpresa from "./pages/empresa/ForgotPasswordEmpresa";
-import ResetPasswordEmpresa from "./pages/empresa/ResetPasswordEmpresa";
-import ForgotPasswordCandidato from "./pages/candidatos/ForgotPasswordCandidato";
-import ResetPasswordCandidato from "./pages/candidatos/ResetPasswordCandidato";
+// Páginas de certificados
+import ExpedicionCertificadosPage from './pages/certificados/ExpedicionCertificadosPage';
 
-const queryClient = new QueryClient();
+// Páginas de órdenes
+import ExpedicionOrdenPage from './pages/ordenes/ExpedicionOrdenPage';
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-          <Routes>
-          {/* Login Unificado - Única entrada al sistema */}
-          <Route path="/" element={<LoginUnificado />} />
-          
-          {/* Auth Routes - No Layout */}
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
-          
-          {/* Redirecciones automáticas al login unificado */}
-          <Route path="/admin" element={<LoginRedirect />} />
-          <Route path="/candidato/login" element={<LoginRedirect />} />
-          <Route path="/empresa/login" element={<LoginRedirect />} />
-          
-          {/* Rutas de registro y funcionalidades específicas sin login */}
-          <Route path="/candidato/registro" element={<RegistroCandidato />} />
-          <Route path="/candidato/cambiar-password" element={<CambiarPassword />} />
-          <Route path="/candidato/perfil" element={<PerfilCandidato />} />
-          
-          {/* Empresa Portal Routes - With Layout */}
-          <Route element={<SidebarProvider><EmpresaLayout /></SidebarProvider>}>
-            <Route path="/empresa/dashboard" element={<DashboardEmpresa />} />
-            <Route path="/empresa/candidatos" element={<CandidatosEmpresa />} />
-            <Route path="/empresa/candidatos/crear" element={<CrearCandidatoSimple />} />
-            <Route path="/empresa/candidatos/crear-completo" element={<CrearCandidatoEmpresa />} />
-            <Route path="/empresa/candidatos/:id" element={<DetalleCandidatoEmpresa />} />
-            <Route path="/empresa/qr/generar" element={<QrGenerarPage />} />
-            <Route path="/empresa/qr/configuracion" element={<QrConfiguracionPage />} />
-            <Route path="/empresa/qr/whatsapp" element={<QrWhatsAppPage />} />
-            <Route path="/empresa/qr/email" element={<QrEmailPage />} />
-          </Route>
-          
-          {/* Admin Portal Routes - With Layout (Protected) */}
-          <Route element={<ProtectedRoute><SidebarProvider><Layout /></SidebarProvider></ProtectedRoute>}>
-            {/* Dashboard */}
-            <Route path="/dashboard" element={<Index />} />
-            
-            {/* Registros */}
-            <Route path="/registros/empresas" element={<EmpresasPage />} />
-            <Route path="/registros/candidatos" element={<CandidatosPage />} />
-            <Route path="/registros/prestadores" element={<PrestadoresPage />} />
-            <Route path="/registros/qr" element={<QrPageMejorado />} />
-            
-            {/* Ordenes */}
-            <Route path="/ordenes/expedicion" element={<ExpedicionOrdenPage />} />
-            <Route path="/ordenes/templates" element={<TemplatesPage />} />
-            
-            {/* Galería de Formularios */}
-            <Route path="/admin/form-gallery" element={<PlantillasProvider><FormGalleryPage /></PlantillasProvider>} />
-            
-            {/* Clinica */}
-            <Route path="/clinica/agenda" element={<AgendaMedicaPage />} />
-            <Route path="/clinica/historia-medica" element={<HistoriaMedicaPage />} />
-            <Route path="/clinica/historia-laboral" element={<HistoriaLaboralPage />} />
-            <Route path="/clinica/consultorios" element={<ConsultoriosPage />} />
-            <Route path="/clinica/especialidades" element={<EspecialidadesPage />} />
-            <Route path="/clinica/especialistas" element={<EspecialistasPage />} />
-            <Route path="/clinica/citas" element={<CitasProgramadasPage />} />
-            
-            {/* Certificados */}
-            <Route path="/certificados/expedicion" element={<ExpedicionCertificadosPage />} />
-            
-            {/* Seguridad */}
-            <Route path="/seguridad/usuarios" element={<UsuariosPage />} />
-            <Route path="/seguridad/usuarios/crear" element={<CrearUsuarioPage />} />
-            <Route path="/seguridad/usuarios/editar/:id" element={<EditarUsuarioPage />} />
-            <Route path="/seguridad/perfiles" element={<PerfilesPage />} />
-            <Route path="/seguridad/perfiles/crear-candidato" element={<CrearCandidatoPage />} />
-            <Route path="/seguridad/perfiles/crear-administrador" element={<CrearAdministradorPage />} />
-            <Route path="/seguridad/perfiles/crear-coordinador" element={<CrearCoordinadorPage />} />
-            <Route path="/seguridad/perfiles/crear-admin-general" element={<CrearAdminGeneralPage />} />
-            <Route path="/seguridad/perfiles/crear-cliente" element={<CrearClientePage />} />
-            <Route path="/seguridad/menu" element={<MenuPage />} />
-            <Route path="/seguridad/permisos" element={<GestionPermisosPage />} />
-            
-            {/* Maestro */}
-            <Route path="/maestro/tipos-candidatos" element={<TiposCandidatosPage />} />
-            
-            {/* Analistas */}
-            <Route path="/analistas" element={<AnalistasPage />} />
-            <Route path="/analistas/crear" element={<CrearAnalistaPage />} />
-            <Route path="/analistas/:id/editar" element={<EditarAnalistaPage />} />
-            
-            {/* Reportes */}
-            <Route path="/reportes/dashboard" element={<DashboardReportes />} />
-            
-            {/* Test page for cascading selects */}
-            <Route path="/test-cascading" element={<TestCascadingSelects />} />
-          </Route>
-          
-          {/* Ruta 404 */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
-    </ThemeProvider>
-  </QueryClientProvider>
-);
+// Páginas de clínica
+import AgendaMedicaPage from './pages/clinica/AgendaMedicaPage';
+import CitasProgramadasPage from './pages/clinica/CitasProgramadasPage';
+import ConsultoriosPage from './pages/clinica/ConsultoriosPage';
+import EspecialidadesPage from './pages/clinica/EspecialidadesPage';
+import EspecialistasPage from './pages/clinica/EspecialistasPage';
+import HistoriaLaboralPage from './pages/clinica/HistoriaLaboralPage';
+import HistoriaMedicaPage from './pages/clinica/HistoriaMedicaPage';
+
+// Páginas de QR
+import QrConfiguracionPage from './pages/empresa/QrConfiguracionPage';
+import QrEmailPage from './pages/empresa/QrEmailPage';
+import QrGenerarPage from './pages/empresa/QrGenerarPage';
+import QrWhatsAppPage from './pages/empresa/QrWhatsAppPage';
+
+// Páginas de prueba
+import TestCascadingSelects from './pages/TestCascadingSelects';
+import NotFound from './pages/NotFound';
+
+import './App.css';
+
+function App() {
+  return (
+    <Router>
+      <div className="App">
+        <Routes>
+          {/* Ruta de prueba para verificar providers */}
+          <Route path="/test" element={
+            <div>
+              <h1>Test Route - Providers OK</h1>
+              <p>Si puedes ver esto, los providers están funcionando correctamente.</p>
+            </div>
+          } />
+            {/* Rutas públicas */}
+            <Route path="/login" element={
+              <PublicRoute>
+                <LoginUnificado />
+              </PublicRoute>
+            } />
+            <Route path="/login-admin" element={
+              <PublicRoute>
+                <LoginAdmin />
+              </PublicRoute>
+            } />
+            <Route path="/forgot-password" element={
+              <PublicRoute>
+                <ForgotPasswordPage />
+              </PublicRoute>
+            } />
+            <Route path="/reset-password" element={
+              <PublicRoute>
+                <ResetPasswordPage />
+              </PublicRoute>
+            } />
+            <Route path="/login-candidato" element={
+              <PublicRoute>
+                <LoginCandidato />
+              </PublicRoute>
+            } />
+            <Route path="/registro-candidato" element={
+              <PublicRoute>
+                <RegistroCandidato />
+              </PublicRoute>
+            } />
+            <Route path="/forgot-password-candidato" element={
+              <PublicRoute>
+                <ForgotPasswordCandidato />
+              </PublicRoute>
+            } />
+            <Route path="/reset-password-candidato" element={
+              <PublicRoute>
+                <ResetPasswordCandidato />
+              </PublicRoute>
+            } />
+            <Route path="/login-empresa" element={
+              <PublicRoute>
+                <LoginEmpresa />
+              </PublicRoute>
+            } />
+            <Route path="/forgot-password-empresa" element={
+              <PublicRoute>
+                <ForgotPasswordEmpresa />
+              </PublicRoute>
+            } />
+            <Route path="/reset-password-empresa" element={
+              <PublicRoute>
+                <ResetPasswordEmpresa />
+              </PublicRoute>
+            } />
+
+            {/* Layout con menú para rutas protegidas */}
+            <Route element={<Layout />}>
+              <Route path="/" element={
+                <ProtectedRoute>
+                  <Index />
+                </ProtectedRoute>
+              } />
+              <Route path="/dashboard" element={
+                <ProtectedRoute>
+                  <Index />
+                </ProtectedRoute>
+              } />
+
+            {/* Rutas de registros */}
+            <Route path="/candidatos" element={
+              <ProtectedRoute>
+                <CandidatosPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/registros/candidatos" element={
+              <ProtectedRoute>
+                <CandidatosPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/aspirantes" element={
+              <ProtectedRoute>
+                <AspirantesPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/registros/aspirantes" element={
+              <ProtectedRoute>
+                <AspirantesPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/empresas" element={
+              <ProtectedRoute>
+                <EmpresasPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/registros/empresas" element={
+              <ProtectedRoute>
+                <EmpresasPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/prestadores" element={
+              <ProtectedRoute>
+                <PrestadoresPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/registros/prestadores" element={
+              <ProtectedRoute>
+                <PrestadoresPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/qr" element={
+              <ProtectedRoute>
+                <QrPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/registros/qr" element={
+              <ProtectedRoute>
+                <QrPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/qr-mejorado" element={
+              <ProtectedRoute>
+                <QrPageMejorado />
+              </ProtectedRoute>
+            } />
+            <Route path="/registros/qr-mejorado" element={
+              <ProtectedRoute>
+                <QrPageMejorado />
+              </ProtectedRoute>
+            } />
+
+            {/* Rutas de seguridad */}
+            <Route path="/usuarios" element={
+              <ProtectedRoute>
+                <UsuariosPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/seguridad/usuarios" element={
+              <ProtectedRoute>
+                <UsuariosPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/crear-usuario" element={
+              <ProtectedRoute>
+                <CrearUsuarioPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/seguridad/crear-usuario" element={
+              <ProtectedRoute>
+                <CrearUsuarioPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/editar-usuario/:id" element={
+              <ProtectedRoute>
+                <EditarUsuarioPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/seguridad/editar-usuario/:id" element={
+              <ProtectedRoute>
+                <EditarUsuarioPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/perfiles" element={
+              <ProtectedRoute>
+                <PerfilesPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/seguridad/perfiles" element={
+              <ProtectedRoute>
+                <PerfilesPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/gestion-permisos" element={
+              <ProtectedRoute>
+                <GestionPermisosPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/seguridad/gestion-permisos" element={
+              <ProtectedRoute>
+                <GestionPermisosPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/menu" element={
+              <ProtectedRoute>
+                <MenuPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/seguridad/menu" element={
+              <ProtectedRoute>
+                <MenuPage />
+              </ProtectedRoute>
+            } />
+
+            {/* Rutas de reportes */}
+            <Route path="/reportes" element={
+              <ProtectedRoute>
+                <DashboardReportes />
+              </ProtectedRoute>
+            } />
+            <Route path="/reportes/dashboard" element={
+              <ProtectedRoute>
+                <DashboardReportes />
+              </ProtectedRoute>
+            } />
+
+            {/* Rutas de candidatos */}
+            <Route path="/perfil-candidato" element={
+              <ProtectedRoute>
+                <PerfilCandidato />
+              </ProtectedRoute>
+            } />
+            <Route path="/cambiar-password" element={
+              <ProtectedRoute>
+                <CambiarPassword />
+              </ProtectedRoute>
+            } />
+
+            {/* Rutas de empresa */}
+            <Route path="/dashboard-empresa" element={
+              <ProtectedRoute>
+                <DashboardEmpresaSimple />
+              </ProtectedRoute>
+            } />
+            <Route path="/candidatos-empresa" element={
+              <ProtectedRoute>
+                <CandidatosEmpresa />
+              </ProtectedRoute>
+            } />
+            <Route path="/candidatos-empresa-mejorado" element={
+              <ProtectedRoute>
+                <CandidatosEmpresaMejorado />
+              </ProtectedRoute>
+            } />
+            <Route path="/crear-candidato-empresa" element={
+              <ProtectedRoute>
+                <CrearCandidatoEmpresa />
+              </ProtectedRoute>
+            } />
+            <Route path="/crear-candidato-simple" element={
+              <ProtectedRoute>
+                <CrearCandidatoSimple />
+              </ProtectedRoute>
+            } />
+            <Route path="/detalle-candidato-empresa/:id" element={
+              <ProtectedRoute>
+                <DetalleCandidatoEmpresa />
+              </ProtectedRoute>
+            } />
+
+            {/* Rutas de analistas */}
+            <Route path="/analistas" element={
+              <ProtectedRoute>
+                <AnalistasPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/analistas/lista" element={
+              <ProtectedRoute>
+                <AnalistasPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/crear-analista" element={
+              <ProtectedRoute>
+                <CrearAnalistaPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/analistas/crear" element={
+              <ProtectedRoute>
+                <CrearAnalistaPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/editar-analista/:id" element={
+              <ProtectedRoute>
+                <EditarAnalistaPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/analistas/editar/:id" element={
+              <ProtectedRoute>
+                <EditarAnalistaPage />
+              </ProtectedRoute>
+            } />
+
+            {/* Rutas de maestro */}
+            <Route path="/tipos-candidatos" element={
+              <ProtectedRoute>
+                <TiposCandidatosPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/maestro/tipos-candidatos" element={
+              <ProtectedRoute>
+                <TiposCandidatosPage />
+              </ProtectedRoute>
+            } />
+
+            {/* Rutas de admin */}
+            <Route path="/form-gallery" element={
+              <ProtectedRoute>
+                <FormGalleryPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/form-gallery" element={
+              <ProtectedRoute>
+                <FormGalleryPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/plantillas" element={
+              <ProtectedRoute>
+                <PlantillasPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/plantillas" element={
+              <ProtectedRoute>
+                <PlantillasPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/templates" element={
+              <ProtectedRoute>
+                <TemplatesPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/ordenes/templates" element={
+              <ProtectedRoute>
+                <TemplatesPage />
+              </ProtectedRoute>
+            } />
+
+            {/* Rutas de certificados */}
+            <Route path="/expedicion-certificados" element={
+              <ProtectedRoute>
+                <ExpedicionCertificadosPage />
+              </ProtectedRoute>
+            } />
+
+            {/* Rutas de órdenes */}
+            <Route path="/expedicion-orden" element={
+              <ProtectedRoute>
+                <ExpedicionOrdenPage />
+              </ProtectedRoute>
+            } />
+
+            {/* Rutas de clínica */}
+            <Route path="/agenda-medica" element={
+              <ProtectedRoute>
+                <AgendaMedicaPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/citas-programadas" element={
+              <ProtectedRoute>
+                <CitasProgramadasPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/consultorios" element={
+              <ProtectedRoute>
+                <ConsultoriosPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/especialidades" element={
+              <ProtectedRoute>
+                <EspecialidadesPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/especialistas" element={
+              <ProtectedRoute>
+                <EspecialistasPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/historia-laboral" element={
+              <ProtectedRoute>
+                <HistoriaLaboralPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/historia-medica" element={
+              <ProtectedRoute>
+                <HistoriaMedicaPage />
+              </ProtectedRoute>
+            } />
+
+            {/* Rutas de QR */}
+            <Route path="/qr-configuracion" element={
+              <ProtectedRoute>
+                <QrConfiguracionPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/qr-email" element={
+              <ProtectedRoute>
+                <QrEmailPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/qr-generar" element={
+              <ProtectedRoute>
+                <QrGenerarPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/qr-whatsapp" element={
+              <ProtectedRoute>
+                <QrWhatsAppPage />
+              </ProtectedRoute>
+            } />
+
+            {/* Rutas de prueba */}
+            <Route path="/test-cascading-selects" element={
+              <ProtectedRoute>
+                <TestCascadingSelects />
+              </ProtectedRoute>
+            } />
+            </Route>
+
+            {/* Ruta 404 */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </div>
+      </Router>
+  );
+}
 
 export default App;

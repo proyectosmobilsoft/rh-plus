@@ -530,8 +530,8 @@ const PerfilesPage = () => {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4 max-w-full mx-auto">
+      <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold text-gray-900">Gestión de Perfiles y Vistas</h1>
       </div>
 
@@ -583,7 +583,7 @@ const PerfilesPage = () => {
 
             {/* Tabla similar a la imagen */}
             <div className="overflow-x-auto">
-              <div className="flex flex-wrap items-center gap-4 p-4 bg-cyan-50 rounded-lg mb-6 shadow-sm">
+              <div className="flex flex-wrap items-center gap-4 p-3 bg-cyan-50 rounded-lg mb-4 shadow-sm">
                 <div className="flex-1 min-w-[200px]">
                   <Input
                     placeholder="Buscar por nombre..."
@@ -615,13 +615,13 @@ const PerfilesPage = () => {
                 )}
                 <Table className="w-full">
                   <TableHeader className="bg-cyan-50">
-                    <TableRow className="text-left text-sm font-medium text-gray-600">
-                      <TableHead className="px-4 py-3 text-teal-600">Acciones</TableHead>
-                      <TableHead className="px-4 py-3">Código</TableHead>
-                      <TableHead className="px-4 py-3">Nombre</TableHead>
-                      <TableHead className="px-4 py-3">Descripción</TableHead>
-                      <TableHead className="px-4 py-3">Cantidad de Módulos</TableHead>
-                      <TableHead className="px-4 py-3">Estado</TableHead>
+                                      <TableRow className="text-left text-sm font-medium text-gray-600">
+                    <TableHead className="px-3 py-2 text-teal-600">Acciones</TableHead>
+                      <TableHead className="px-3 py-2">Código</TableHead>
+                      <TableHead className="px-3 py-2">Nombre</TableHead>
+                      <TableHead className="px-3 py-2">Descripción</TableHead>
+                      <TableHead className="px-3 py-2">Cantidad de Módulos</TableHead>
+                      <TableHead className="px-3 py-2">Estado</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

@@ -4,8 +4,8 @@ export const rolesService = {
   // Listar roles (incluyendo cantidad de modulos asignados y estado activo)
   async listRoles() {
     const { data, error } = await supabase
-      .from('roles')
-      .select('id, nombre, descripcion, activo, roles_modulos(count)'); // Seleccionar 'activo' y count de roles_modulos
+      .from('gen_roles')
+      .select('id, nombre, descripcion, activo, gen_roles_modulos(count)'); // Seleccionar 'activo' y count de roles_modulos
 
     if (error) {
       console.error("Error al listar roles:", error);
@@ -15,21 +15,21 @@ export const rolesService = {
     // Mapear para incluir el count de módulos y asegurar que 'activo' sea booleano
     return data.map(rol => ({
       ...rol,
-      modulos_count: rol.roles_modulos ? rol.roles_modulos[0]?.count || 0 : 0, // Extraer el count
+      modulos_count: rol.gen_roles_modulos ? rol.gen_roles_modulos[0]?.count || 0 : 0, // Extraer el count
       activo: rol.activo === true // Asegurar que activo sea booleano
     }));
   },
 
   // Crear un nuevo rol
   async createRole({ nombre, descripcion }: { nombre: string; descripcion?: string }) {
-    const { data, error } = await supabase.from('roles').insert([{ nombre, descripcion }]).select().single();
+    const { data, error } = await supabase.from('gen_roles').insert([{ nombre, descripcion }]).select().single();
     if (error) throw error;
     return data;
   },
 
   // Editar rol
   async updateRole(id: number, { nombre, descripcion }: { nombre: string; descripcion?: string }) {
-    const { data, error } = await supabase.from('roles').update({ nombre, descripcion }).eq('id', id).select().single();
+    const { data, error } = await supabase.from('gen_roles').update({ nombre, descripcion }).eq('id', id).select().single();
     if (error) throw error;
     return data;
   },
@@ -37,7 +37,7 @@ export const rolesService = {
   // Eliminar (inactivar) un rol
   async deleteRole(id: number) {
     const { data, error } = await supabase
-      .from('roles')
+      .from('gen_roles')
       .update({ activo: false, updated_at: new Date().toISOString() })
       .eq('id', id)
       .select();
@@ -52,7 +52,7 @@ export const rolesService = {
   // Eliminar definitivamente un rol
   async deleteRolePermanent(id: number) {
     const { data, error } = await supabase
-      .from('roles')
+      .from('gen_roles')
       .delete()
       .eq('id', id);
     if (error) {
@@ -65,7 +65,7 @@ export const rolesService = {
   // Activar un rol inactivo
   async activateRole(id: number) {
     const { data, error } = await supabase
-      .from('roles')
+      .from('gen_roles')
       .update({ activo: true, updated_at: new Date().toISOString() })
       .eq('id', id)
       .select();
@@ -79,7 +79,7 @@ export const rolesService = {
   // Listar solo roles activos
   async listActiveRoles() {
     const { data, error } = await supabase
-      .from('roles')
+      .from('gen_roles')
       .select('id, nombre')
       .eq('activo', true);
     if (error) {
@@ -98,8 +98,8 @@ export const rolesService = {
   // Obtener todas las acciones completas para un rol (ahora desde roles_modulos)
   async getAccionesCompletasPorRol(rol_id: number) {
     const { data, error } = await supabase
-      .from('roles_modulos')
-      .select('modulo_id, selected_actions_codes, modulos(id, nombre)') // Seleccionar el id y nombre del modulo
+      .from('gen_roles_modulos')
+      .select('modulo_id, selected_actions_codes, gen_modulos(id, nombre)') // Seleccionar el id y nombre del modulo
       .eq('rol_id', rol_id);
     
     if (error) {
@@ -111,7 +111,7 @@ export const rolesService = {
     const flattenedActions: any[] = [];
     for (const entry of data) {
       const moduloId = entry.modulo_id;
-      const moduloNombre = (Array.isArray(entry.modulos) ? entry.modulos[0] : entry.modulos)?.nombre || '';
+      const moduloNombre = (Array.isArray(entry.gen_modulos) ? entry.gen_modulos[0] : entry.gen_modulos)?.nombre || '';
       const selectedActions = entry.selected_actions_codes as string[] || [];
 
       for (const actionCode of selectedActions) {
@@ -132,8 +132,8 @@ export const rolesService = {
   // Obtener detalles de un permiso de módulo específico
   async getModuloPermisoDetails(permiso_id: number) {
     const { data, error } = await supabase
-      .from('modulo_permisos')
-      .select('id, nombre, descripcion, code, modulos(nombre)')
+      .from('gen_modulo_permisos')
+      .select('id, nombre, descripcion, code, gen_modulos(nombre)')
       .eq('id', permiso_id)
       .single();
 
@@ -146,7 +146,7 @@ export const rolesService = {
       throw new Error("Permiso de módulo no encontrado");
     }
 
-    const moduloInfo = (Array.isArray(data.modulos) ? data.modulos[0] : data.modulos) as { nombre: string } | null; // Asegurar el tipo
+    const moduloInfo = (Array.isArray(data.gen_modulos) ? data.gen_modulos[0] : data.gen_modulos) as { nombre: string } | null; // Asegurar el tipo
 
     return {
       permiso_id: data.id,
@@ -161,7 +161,7 @@ export const rolesService = {
   async setAccionesToRol(rol_id: number, modulosConAcciones: { modulo_id: number; acciones: string[] }[]) {
     // Primero, eliminar todas las entradas existentes para este rol en roles_modulos
     const { error: deleteError } = await supabase
-      .from('roles_modulos')
+      .from('gen_roles_modulos')
       .delete()
       .eq('rol_id', rol_id);
 
@@ -179,7 +179,7 @@ export const rolesService = {
 
     if (inserts.length > 0) {
       const { data, error } = await supabase
-        .from('roles_modulos')
+        .from('gen_roles_modulos')
         .insert(inserts)
         .select();
 
@@ -194,7 +194,7 @@ export const rolesService = {
 
   // Consultar acciones por permiso para un rol
   async getAccionesByRol(rol_id: number) {
-    const { data, error } = await supabase.from('roles_acciones').select('*').eq('rol_id', rol_id);
+    const { data, error } = await supabase.from('gen_roles_acciones').select('*').eq('rol_id', rol_id);
     if (error) throw error;
     return data;
   },
@@ -202,12 +202,12 @@ export const rolesService = {
   // Listar módulos con sus permisos y acciones (incluyendo descripción del módulo)
   async listModulosConPermisos() {
     const { data, error } = await supabase
-      .from('modulos')
+      .from('gen_modulos')
       .select(`
         id,
         nombre,
         descripcion,
-        modulo_permisos (
+        gen_modulo_permisos (
           id,
           nombre,
           descripcion,
@@ -221,11 +221,11 @@ export const rolesService = {
   // Listar permisos (con nombre de módulo)
   async listPermisos() {
     const { data, error } = await supabase
-      .from('modulo_permisos')
-      .select('*, modulos(nombre)');
+      .from('gen_modulo_permisos')
+      .select('*, gen_modulos(nombre)');
     if (error) throw error;
     return data.map(p => {
-      const moduloObj = (Array.isArray(p.modulos) ? p.modulos[0] : p.modulos) as { nombre: string } | null; // Asegurar el tipo
+      const moduloObj = (Array.isArray(p.gen_modulos) ? p.gen_modulos[0] : p.gen_modulos) as { nombre: string } | null; // Asegurar el tipo
       return {
         ...p,
         modulo: moduloObj?.nombre || ''

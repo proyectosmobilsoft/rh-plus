@@ -42,7 +42,17 @@ interface DynamicSidebarProps {
 
 export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
   const [location] = useLocation();
-  const { user, logout, hasPermission } = useAuth();
+  
+  // Verificar si AuthProvider está disponible
+  let authContext;
+  try {
+    authContext = useAuth();
+  } catch (error) {
+    // Si AuthProvider no está disponible, retornar null
+    return null;
+  }
+
+  const { user, logout, hasPermission } = authContext;
   const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set());
 
   if (!user) return null;

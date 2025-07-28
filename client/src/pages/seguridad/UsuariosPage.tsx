@@ -1,12 +1,11 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Plus, Search, Users, Save, RefreshCw } from "lucide-react";
+import { Edit, Trash2, Plus, Search, Users, Save, RefreshCw, Loader2, Lock, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Link } from "wouter";
 import {
@@ -16,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
@@ -25,27 +25,59 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { PasswordStrength } from "@/components/ui/password-strength";
 import { rolesService } from "@/services/rolesService";
-import { empresasService, Empresa } from "@/services/empresasService"; // Importar Empresa desde el servicio
-// Los tipos se importan automáticamente desde el schema
+import { empresasService, Empresa } from "@/services/empresasService";
+import { usuariosService, UsuarioData } from "@/services/usuariosService";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Esquema de validación para crear usuario
 const crearUsuarioSchema = z.object({
   identificacion: z.string().min(1, "La identificación es requerida"),
-  primerNombre: z.string().min(1, "El primer nombre es requerido"),
-  segundoNombre: z.string().optional(),
-  primerApellido: z.string().min(1, "El primer apellido es requerido"),
-  segundoApellido: z.string().optional(),
+  primer_nombre: z.string().min(1, "El primer nombre es requerido"),
+  segundo_nombre: z.string().optional(),
+  primer_apellido: z.string().min(1, "El primer apellido es requerido"),
+  segundo_apellido: z.string().optional(),
   telefono: z.string().optional(),
   email: z.string().email("Email inválido"),
   username: z.string().min(3, "El username debe tener al menos 3 caracteres"),
-  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
+  password: z.string()
+    .min(8, "La contraseña debe tener al menos 8 caracteres")
+    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, "La contraseña debe contener al menos una letra mayúscula, una minúscula y un número"),
+  confirmPassword: z.string(),
   perfilIds: z.array(z.number()).min(1, "Debe seleccionar al menos un perfil"),
   empresaIds: z.array(z.number()).optional(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Las contraseñas no coinciden",
+  path: ["confirmPassword"],
 });
 
 // Esquema para editar usuario (password opcional)
-const editarUsuarioSchema = crearUsuarioSchema.extend({
-  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres").or(z.literal("")).optional(),
+const editarUsuarioSchema = z.object({
+  identificacion: z.string().min(1, "La identificación es requerida"),
+  primer_nombre: z.string().min(1, "El primer nombre es requerido"),
+  segundo_nombre: z.string().optional(),
+  primer_apellido: z.string().min(1, "El primer apellido es requerido"),
+  segundo_apellido: z.string().optional(),
+  telefono: z.string().optional(),
+  email: z.string().email("Email inválido"),
+  username: z.string().min(3, "El username debe tener al menos 3 caracteres"),
+  password: z.string()
+    .min(8, "La contraseña debe tener al menos 8 caracteres")
+    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, "La contraseña debe contener al menos una letra mayúscula, una minúscula y un número")
+    .or(z.literal(""))
+    .optional(),
+  confirmPassword: z.string().optional(),
+  perfilIds: z.array(z.number()).min(1, "Debe seleccionar al menos un perfil"),
+  empresaIds: z.array(z.number()).optional(),
+}).refine((data) => {
+  if (data.password && data.password !== "") {
+    return data.password === data.confirmPassword;
+  }
+  return true;
+}, {
+  message: "Las contraseñas no coinciden",
+  path: ["confirmPassword"],
 });
 
 type CrearUsuarioForm = z.infer<typeof crearUsuarioSchema>;
@@ -57,67 +89,42 @@ interface Perfil {
   descripcion?: string;
 }
 
+// INTERFAZ DE USUARIO CON LA ESTRUCTURA CORRECTA DE SUPABASE
 interface Usuario {
   id: number;
-  identificacion: string;
-  primerNombre: string;
-  segundoNombre?: string;
-  primerApellido: string;
-  segundoApellido?: string;
+  identificacion?: string;
+  primer_nombre: string;
+  segundo_nombre?: string;
+  primer_apellido: string;
+  segundo_apellido?: string;
   telefono?: string;
   email: string;
   username: string;
   activo: boolean;
-  fechaCreacion: string;
-  empresaIds?: number[];
-  perfiles: Array<{
-    id: number;
-    nombre: string;
-    descripcion?: string;
-  }>;
+  gen_usuario_roles: Array<{ id: number; rol_id: number; created_at: string; gen_roles: { id: number; nombre: string } }>;
+  gen_usuario_empresas: Array<{ id: number; empresa_id: number; created_at: string; empresas: { id: number; razon_social: string } }>;
 }
 
 const UsuariosPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [activeTab, setActiveTab] = useState("usuarios");
   const [editingUser, setEditingUser] = useState<Usuario | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Función para forzar actualización de usuarios
-  const forceRefreshUsuarios = async () => {
-    console.log('Forzando actualización de usuarios...');
-    queryClient.removeQueries({ queryKey: ["/api/usuarios"] });
-    await refetchUsuarios();
-    console.log('Usuarios actualizados!');
-  };
-
-  // Query para obtener usuarios - usando la misma configuración que perfiles
-  const { data: usuarios = [], isLoading: usuariosLoading, refetch: refetchUsuarios } = useQuery<Usuario[]>({
-    queryKey: ["/api/usuarios"],
-    queryFn: async () => {
-      const response = await fetch('/api/usuarios', {
-        cache: 'no-store', // Evitar caché del browser
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
-      });
-      if (!response.ok) throw new Error('Failed to fetch usuarios');
-      return response.json();
-    },
-    staleTime: 0, // Sin caché para actualizaciones inmediatas
-    refetchOnWindowFocus: false
+  // Query para obtener usuarios desde Supabase
+  const { data: usuarios = [], isLoading, refetch } = useQuery<Usuario[]>({
+    queryKey: ["usuarios"],
+    queryFn: usuariosService.listUsuarios,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
   // Query para obtener perfiles activos
   const { data: perfilesActivos = [], isLoading: perfilesLoading } = useQuery<Perfil[]>({
     queryKey: ["perfilesActivos"],
-    queryFn: async () => {
-      return await rolesService.listActiveRoles();
-    },
+    queryFn: rolesService.listActiveRoles,
     staleTime: 5 * 60 * 1000, // 5 minutos
   });
 
@@ -128,298 +135,532 @@ const UsuariosPage = () => {
     staleTime: 5 * 60 * 1000, // 5 minutos
   });
 
-  // Mock data para empresas/almacenes
-  const empresasMock = [
-    { id: 1, nombreEmpresa: "Almacén Central Bogotá" },
-    { id: 2, nombreEmpresa: "Sucursal Norte" },
-    { id: 3, nombreEmpresa: "Depósito Sur" },
-    { id: 4, nombreEmpresa: "Centro Logístico Medellín" },
-    { id: 5, nombreEmpresa: "Bodega Principal Cali" },
-    { id: 6, nombreEmpresa: "Almacén Zona Industrial" },
-  ];
-
-  // Loading state para empresas (mock data no necesita loading real)
-  // const empresasLoading = false; // Eliminado
-
   // Formulario para crear usuario
   const form = useForm<CrearUsuarioForm>({
     resolver: zodResolver(crearUsuarioSchema),
     defaultValues: {
       identificacion: "",
-      primerNombre: "",
-      segundoNombre: "",
-      primerApellido: "",
-      segundoApellido: "",
+      primer_nombre: "",
+      segundo_nombre: "",
+      primer_apellido: "",
+      segundo_apellido: "",
       telefono: "",
       email: "",
       username: "",
       password: "",
+      confirmPassword: "",
       perfilIds: [],
       empresaIds: [],
     },
   });
 
-  // Formulario para editar usuario
-  const editForm = useForm<EditarUsuarioForm>({
-    resolver: zodResolver(editarUsuarioSchema),
-    defaultValues: {
-      identificacion: "",
-      primerNombre: "",
-      segundoNombre: "",
-      primerApellido: "",
-      segundoApellido: "",
-      telefono: "",
-      email: "",
-      username: "",
-      password: "",
-      perfilIds: [],
-      empresaIds: [],
+  // Mutaciones
+  const createUserMutation = useMutation({
+    mutationFn: (data: any) => {
+      const { password, perfilIds, empresaIds, ...userData } = data;
+      return usuariosService.createUsuario(userData, password, perfilIds, empresaIds);
     },
-  });
-
-  // Mutation para crear usuario
-  const createUsuarioMutation = useMutation({
-    mutationFn: async (data: CrearUsuarioForm) => {
-      console.log('Enviando datos de usuario:', data);
-      const response = await apiRequest("/api/usuarios", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
-      return response;
-    },
-    onSuccess: async (data) => {
-      console.log('Usuario creado exitosamente:', data);
-      
-      // Cerrar modal primero
-      setIsModalOpen(false);
-      
-      // FORZAR actualización inmediata - método simplificado
-      queryClient.removeQueries({ queryKey: ["/api/usuarios"] });
-      await refetchUsuarios();
-      
-      // Mostrar toast
+    onSuccess: () => {
       toast({
-        title: "✅ Usuario creado",
-        description: "El usuario se ha creado exitosamente.",
-        variant: "default",
+        title: "Usuario creado",
+        description: "El usuario ha sido creado exitosamente",
       });
-      
-      // Resetear formulario
-      form.reset({
-        identificacion: "",
-        primerNombre: "",
-        segundoNombre: "",
-        primerApellido: "",
-        segundoApellido: "",
-        telefono: "",
-        email: "",
-        username: "",
-        password: "",
-        perfilIds: [],
-        empresaIds: [],
-      });
+      queryClient.invalidateQueries({ queryKey: ["usuarios"] });
+      form.reset();
+      setActiveTab("usuarios");
     },
     onError: (error: any) => {
-      console.error('Error creando usuario:', error);
       toast({
-        title: "❌ Error al crear usuario",
-        description: error.message || "No se pudo crear el usuario",
+        title: "Error al crear usuario",
+        description: error.message || "Hubo un error al crear el usuario",
         variant: "destructive",
       });
     },
   });
 
-  // Mutation para eliminar usuario
-  const deleteUsuarioMutation = useMutation({
-    mutationFn: async (id: number) => {
-      await apiRequest(`/api/usuarios/${id}`, {
-        method: "DELETE",
-      });
+  const updateUserMutation = useMutation({
+    mutationFn: (data: EditarUsuarioForm) => {
+      const { password, ...userData } = data;
+      return usuariosService.updateUsuario(userData.id, userData);
     },
-    onSuccess: async () => {
-      // FORZAR actualización inmediata - método simplificado
-      queryClient.removeQueries({ queryKey: ["/api/usuarios"] });
-      await refetchUsuarios();
-      
+    onSuccess: () => {
       toast({
-        title: "✅ Usuario eliminado",
-        description: "El usuario ha sido eliminado exitosamente.",
+        title: "Usuario actualizado",
+        description: "El usuario ha sido actualizado exitosamente",
       });
+      queryClient.invalidateQueries({ queryKey: ["usuarios"] });
+      setEditingUser(null);
+      setActiveTab("usuarios");
     },
     onError: (error: any) => {
       toast({
-        title: "❌ Error",
-        description: error.message || "No se pudo eliminar el usuario.",
+        title: "Error al actualizar usuario",
+        description: error.message || "Hubo un error al actualizar el usuario",
         variant: "destructive",
       });
     },
   });
 
-  // Filtrar usuarios basado en búsqueda con useMemo para optimización
+  const deleteUserMutation = useMutation({
+    mutationFn: usuariosService.deleteUsuario,
+    onSuccess: () => {
+      toast({
+        title: "Usuario eliminado",
+        description: "El usuario ha sido eliminado exitosamente",
+      });
+      queryClient.invalidateQueries({ queryKey: ["usuarios"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error al eliminar usuario",
+        description: error.message || "Hubo un error al eliminar el usuario",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const activateUserMutation = useMutation({
+    mutationFn: usuariosService.activateUsuario,
+    onSuccess: () => {
+      toast({
+        title: "Usuario activado",
+        description: "El usuario ha sido activado exitosamente",
+      });
+      queryClient.invalidateQueries({ queryKey: ["usuarios"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error al activar usuario",
+        description: error.message || "Hubo un error al activar el usuario",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deactivateUserMutation = useMutation({
+    mutationFn: usuariosService.deactivateUsuario,
+    onSuccess: () => {
+      toast({
+        title: "Usuario desactivado",
+        description: "El usuario ha sido desactivado exitosamente",
+      });
+      queryClient.invalidateQueries({ queryKey: ["usuarios"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error al desactivar usuario",
+        description: error.message || "Hubo un error al desactivar el usuario",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Filtrado de usuarios
   const usuariosFiltrados = useMemo(() => {
-    if (!usuarios.length) return [];
-    
-    return usuarios.filter((usuario) => {
-      const searchLower = searchTerm.toLowerCase();
-      const nombreCompleto = `${usuario.primerNombre} ${usuario.segundoNombre || ""} ${usuario.primerApellido} ${usuario.segundoApellido || ""}`.toLowerCase();
+    return usuarios.filter(usuario => {
+      const matchesSearch = 
+        usuario.primer_nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        usuario.primer_apellido.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        usuario.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        usuario.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (usuario.identificacion || "").toLowerCase().includes(searchTerm.toLowerCase());
       
-      return (
-        nombreCompleto.includes(searchLower) ||
-        usuario.email.toLowerCase().includes(searchLower) ||
-        usuario.username.toLowerCase().includes(searchLower) ||
-        usuario.identificacion.includes(searchTerm)
-      );
+      const matchesStatus = 
+        statusFilter === "all" ? true :
+        statusFilter === "active" ? usuario.activo :
+        !usuario.activo;
+      
+      return matchesSearch && matchesStatus;
     });
-  }, [usuarios, searchTerm]);
+  }, [usuarios, searchTerm, statusFilter]);
 
+  // Handlers
   const handleEliminarUsuario = async (id: number) => {
-    deleteUsuarioMutation.mutate(id);
+    deleteUserMutation.mutate(id);
+  };
+
+  const handleActivarUsuario = async (id: number) => {
+    activateUserMutation.mutate(id);
+  };
+
+  const handleInactivarUsuario = async (id: number) => {
+    deactivateUserMutation.mutate(id);
   };
 
   const handleCrearUsuario = (data: CrearUsuarioForm) => {
-    createUsuarioMutation.mutate(data);
+    // Filtrar campos que no deben enviarse al backend
+    const { confirmPassword, perfilIds, empresaIds, ...userData } = data;
+    const password = data.password;
+    
+    createUserMutation.mutate({
+      ...userData,
+      password,
+      perfilIds,
+      empresaIds
+    });
+  };
+
+  const handleActualizarUsuario = (data: EditarUsuarioForm) => {
+    updateUserMutation.mutate(data);
   };
 
   const handleEditarUsuario = (usuario: Usuario) => {
     setEditingUser(usuario);
-    // Prellenar el formulario con los datos del usuario
-    editForm.reset({
-      identificacion: usuario.identificacion,
-      primerNombre: usuario.primerNombre,
-      segundoNombre: usuario.segundoNombre || "",
-      primerApellido: usuario.primerApellido,
-      segundoApellido: usuario.segundoApellido || "",
+    form.reset({
+      id: usuario.id,
+      identificacion: usuario.identificacion || "",
+      primer_nombre: usuario.primer_nombre,
+      segundo_nombre: usuario.segundo_nombre || "",
+      primer_apellido: usuario.primer_apellido,
+      segundo_apellido: usuario.segundo_apellido || "",
       telefono: usuario.telefono || "",
       email: usuario.email,
       username: usuario.username,
-      password: "", // No mostrar la contraseña actual
-      perfilIds: usuario.perfiles?.map(p => p.id) || [],
-      empresaIds: usuario.empresaIds || [] // Cargar empresas asociadas si existen
+      password: "",
+      perfilIds: usuario.gen_usuario_roles?.map(r => r.rol_id) || [],
+      empresaIds: usuario.gen_usuario_empresas?.map(e => e.empresa_id) || []
     });
-    setIsEditModalOpen(true);
-  };
-
-  // Mutation para actualizar usuario
-  const updateUsuarioMutation = useMutation({
-    mutationFn: async (data: EditarUsuarioForm & { id: number }) => {
-      console.log('Actualizando usuario:', data);
-      const { id, ...updateData } = data;
-      const response = await apiRequest(`/api/usuarios/${id}`, {
-        method: "PUT",
-        body: JSON.stringify(updateData),
-      });
-      return response;
-    },
-    onSuccess: async () => {
-      setIsEditModalOpen(false);
-      setEditingUser(null);
-      
-      // FORZAR actualización inmediata - método simplificado
-      queryClient.removeQueries({ queryKey: ["/api/usuarios"] });
-      await refetchUsuarios();
-      
-      toast({
-        title: "✅ Usuario actualizado",
-        description: "El usuario se ha actualizado exitosamente.",
-        variant: "default",
-      });
-      
-      editForm.reset({
-        identificacion: "",
-        primerNombre: "",
-        segundoNombre: "",
-        primerApellido: "",
-        segundoApellido: "",
-        telefono: "",
-        email: "",
-        username: "",
-        password: "",
-        perfilIds: [],
-        empresaIds: [],
-      });
-    },
-    onError: (error: any) => {
-      console.error('Error actualizando usuario:', error);
-      toast({
-        title: "❌ Error al actualizar usuario",
-        description: error.message || "No se pudo actualizar el usuario",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleActualizarUsuario = (data: EditarUsuarioForm) => {
-    if (editingUser) {
-      updateUsuarioMutation.mutate({ ...data, id: editingUser.id });
-    }
+    setActiveTab("registro");
   };
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Users className="w-8 h-8 text-brand-lime" />
-          <div>
-            <h1 className="text-2xl font-semibold text-brand-gray">
-              Gestión de Usuarios
-            </h1>
-            <p className="text-brand-gray/70">
-              Administra usuarios del sistema y sus perfiles asignados
-            </p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Button 
-            onClick={() => forceRefreshUsuarios()}
-            variant="outline"
-            size="sm"
-            disabled={usuariosLoading}
-            className="border-brand-lime text-brand-lime hover:bg-brand-lime hover:text-white"
+    <div className="p-4 max-w-full mx-auto">
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-bold text-gray-900">Gestión de Usuarios</h1>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2 bg-cyan-100/60 p-1 rounded-lg">
+          <TabsTrigger 
+            value="usuarios" 
+            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
           >
-            <RefreshCw className={`w-4 h-4 ${usuariosLoading ? 'animate-spin mr-1' : 'mr-2'}`} />
-            <span className={usuariosLoading ? 'hidden' : ''}>Refrescar</span>
-            <span className={usuariosLoading ? '' : 'hidden'}>Cargando...</span>
-          </Button>
-          
-          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-brand-lime hover:bg-brand-lime/90 text-white shadow-md">
-                <Plus className="w-4 h-4 mr-2" />
-                Crear Usuario
-              </Button>
-            </DialogTrigger>
-          <DialogContent className="max-w-6xl max-h-[85vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="text-xl font-semibold text-brand-lime">
-                Crear Nuevo Usuario
-              </DialogTitle>
-              <DialogDescription>
-                Complete la información del usuario
-              </DialogDescription>
-            </DialogHeader>
-            
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleCrearUsuario)} className="space-y-4">
-                
-                {/* Grid principal más compacto - 3 columnas */}
-                <div className="grid grid-cols-3 gap-6">
-                  {/* Columna 1 - Datos personales */}
-                  <div className="space-y-4">
-                    <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Datos Personales</h4>
-                    
+            Listado de Usuarios
+          </TabsTrigger>
+          <TabsTrigger 
+            value="registro" 
+            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+          >
+            Registro de Usuario
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="usuarios" className="mt-6">
+          {/* Header similar a perfiles */}
+          <div className="bg-white rounded-lg border">
+            <div className="flex items-center justify-between p-4 border-b">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-orange-100 rounded flex items-center justify-center">
+                  <Users className="w-5 h-5 text-orange-600" />
+                </div>
+                <span className="text-lg font-semibold text-gray-700">USUARIOS</span>
+              </div>
+              <div className="flex space-x-2">
+                <Button 
+                  onClick={() => {
+                    setEditingUser(null);
+                    form.reset();
+                    setActiveTab("registro");
+                  }}
+                  className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
+                  size="sm"
+                >
+                  Adicionar Registro
+                </Button>
+              </div>
+            </div>
+
+            {/* Filtros y búsqueda */}
+            <div className="flex flex-wrap items-center gap-4 p-3 bg-cyan-50 rounded-lg mb-4 shadow-sm">
+              <div className="flex-1 min-w-[200px]">
+                <Input
+                  placeholder="Buscar por nombre, email, username..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+              <div className="min-w-[180px]">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as "all" | "active" | "inactive")}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-600 focus:border-transparent"
+                >
+                  <option value="all">Todos los estados</option>
+                  <option value="active">Solo activos</option>
+                  <option value="inactive">Solo inactivos</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Tabla de usuarios */}
+            <div className="relative">
+              {isLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-white/70 z-20">
+                  <div className="flex flex-col items-center gap-2">
+                    <Loader2 className="animate-spin h-10 w-10 text-cyan-600" />
+                    <span className="text-cyan-700 font-semibold">Cargando usuarios...</span>
+                  </div>
+                </div>
+              )}
+              <Table className="w-full">
+                <TableHeader className="bg-cyan-50">
+                  <TableRow className="text-left text-sm font-medium text-gray-600">
+                    <TableHead className="px-3 py-2 text-teal-600">Acciones</TableHead>
+                    <TableHead className="px-3 py-2">Identificación</TableHead>
+                    <TableHead className="px-3 py-2">Nombre Completo</TableHead>
+                    <TableHead className="px-3 py-2">Email</TableHead>
+                    <TableHead className="px-3 py-2">Username</TableHead>
+                    <TableHead className="px-3 py-2">Teléfono</TableHead>
+                    <TableHead className="px-3 py-2">Perfiles</TableHead>
+                    <TableHead className="px-3 py-2">Empresas asociadas</TableHead>
+                    <TableHead className="px-3 py-2">Estado</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {!isLoading && (usuariosFiltrados.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={9} className="h-24 text-center">
+                        No hay usuarios disponibles.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    usuariosFiltrados.map((usuario) => (
+                      <TableRow key={usuario.id} className="hover:bg-gray-50">
+                        <TableCell className="px-3 py-2">
+                          <div className="flex space-x-2">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleEditarUsuario(usuario)}
+                                    aria-label="Editar usuario"
+                                  >
+                                    <Edit className="h-5 w-5 text-blue-600 hover:text-blue-800 transition-colors" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Editar</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                            
+                            {usuario.activo ? (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          aria-label="Inactivar usuario"
+                                        >
+                                          <Lock className="h-5 w-5 text-yellow-600 hover:text-yellow-800 transition-colors" />
+                                        </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>¿Inactivar usuario?</AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            ¿Estás seguro de que deseas inactivar el usuario{" "}
+                                            <strong>{usuario.primer_nombre} {usuario.primer_apellido}</strong>?
+                                            El usuario no podrá acceder al sistema hasta que sea reactivado.
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                          <AlertDialogAction
+                                            onClick={() => handleInactivarUsuario(usuario.id)}
+                                            className="bg-yellow-600 hover:bg-yellow-700"
+                                          >
+                                            Inactivar
+                                          </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Inactivar</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            ) : (
+                              <>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            aria-label="Activar usuario"
+                                          >
+                                            <CheckCircle className="h-5 w-5 text-green-600 hover:text-green-800 transition-colors" />
+                                          </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>¿Activar usuario?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                              ¿Estás seguro de que deseas activar el usuario{" "}
+                                              <strong>{usuario.primer_nombre} {usuario.primer_apellido}</strong>?
+                                              El usuario podrá acceder al sistema nuevamente.
+                                            </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                            <AlertDialogAction
+                                              onClick={() => handleActivarUsuario(usuario.id)}
+                                              className="bg-green-600 hover:bg-green-700"
+                                            >
+                                              Activar
+                                            </AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Activar</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            aria-label="Eliminar usuario"
+                                          >
+                                            <Trash2 className="h-5 w-5 text-rose-600 hover:text-rose-800 transition-colors" />
+                                          </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>¿Eliminar usuario?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                              ¿Estás seguro de que deseas eliminar permanentemente el usuario{" "}
+                                              <strong>{usuario.primer_nombre} {usuario.primer_apellido}</strong>?
+                                              Esta acción no se puede deshacer.
+                                            </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                            <AlertDialogAction
+                                              onClick={() => handleEliminarUsuario(usuario.id)}
+                                              className="bg-red-600 hover:bg-red-700"
+                                            >
+                                              Eliminar
+                                            </AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Eliminar</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-3 py-2 text-sm text-gray-900">
+                          {usuario.identificacion || "-"}
+                        </TableCell>
+                        <TableCell className="px-3 py-2 text-sm text-gray-900">
+                          {`${usuario.primer_nombre} ${usuario.segundo_nombre || ""} ${usuario.primer_apellido} ${usuario.segundo_apellido || ""}`.trim()}
+                        </TableCell>
+                        <TableCell className="px-3 py-2 text-sm text-gray-900">
+                          {usuario.email}
+                        </TableCell>
+                        <TableCell className="px-3 py-2 text-sm text-gray-900">
+                          {usuario.username}
+                        </TableCell>
+                        <TableCell className="px-3 py-2 text-sm text-gray-900">
+                          {usuario.telefono || "-"}
+                        </TableCell>
+                        <TableCell className="px-3 py-2">
+                          <div className="flex flex-wrap gap-1">
+                            {usuario.gen_usuario_roles?.map((role) => (
+                              <Badge
+                                key={role.id}
+                                variant="outline"
+                                className="text-xs bg-green-50 text-green-700 border-green-200"
+                              >
+                                {role.gen_roles?.nombre || 'Sin nombre'}
+                              </Badge>
+                            )) || []}
+                            {(!usuario.gen_usuario_roles || usuario.gen_usuario_roles.length === 0) && (
+                              <span className="text-xs text-gray-400">Sin perfiles</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-3 py-2">
+                          <div className="flex flex-wrap gap-1">
+                            {usuario.gen_usuario_empresas?.map((empresa) => (
+                              <Badge
+                                key={empresa.id}
+                                variant="outline"
+                                className="text-xs bg-blue-50 text-blue-700 border-blue-200"
+                              >
+                                {empresa.empresas?.razon_social || 'Sin nombre'}
+                              </Badge>
+                            )) || []}
+                            {(!usuario.gen_usuario_empresas || usuario.gen_usuario_empresas.length === 0) && (
+                              <span className="text-xs text-gray-400">Sin empresas</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-3 py-2">
+                          <Badge
+                            variant={usuario.activo ? "default" : "secondary"}
+                            className={
+                              usuario.activo
+                                ? "bg-green-100 text-green-800"
+                                : "bg-gray-100 text-gray-800"
+                            }
+                          >
+                            {usuario.activo ? "Activo" : "Inactivo"}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="registro" className="space-y-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-800">
+              {editingUser ? 'Editar Usuario' : 'Registro de Nuevo Usuario'}
+            </h2>
+          </div>
+
+          {/* Formulario de usuario en el tab de registro */}
+          <Card>
+            <CardContent className="p-6">
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(handleCrearUsuario)} className="space-y-6">
+                  {/* Campos personales */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <FormField
                       control={form.control}
                       name="identificacion"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-sm font-medium">Identificación *</FormLabel>
+                          <FormLabel>Identificación *</FormLabel>
                           <FormControl>
-                            <Input 
-                              className="h-11 border-2 border-gray-300 focus:border-brand-lime focus:ring-brand-lime text-base" 
-                              placeholder="Número de identificación" 
-                              {...field} 
-                            />
+                            <Input placeholder="Número de identificación" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -428,16 +669,12 @@ const UsuariosPage = () => {
 
                     <FormField
                       control={form.control}
-                      name="primerNombre"
+                      name="primer_nombre"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-sm font-medium">Primer Nombre *</FormLabel>
+                          <FormLabel>Primer Nombre *</FormLabel>
                           <FormControl>
-                            <Input 
-                              className="h-11 border-2 border-gray-300 focus:border-brand-lime focus:ring-brand-lime text-base" 
-                              placeholder="Primer nombre" 
-                              {...field} 
-                            />
+                            <Input placeholder="Primer nombre" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -446,16 +683,12 @@ const UsuariosPage = () => {
 
                     <FormField
                       control={form.control}
-                      name="segundoNombre"
+                      name="segundo_nombre"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-sm font-medium">Segundo Nombre</FormLabel>
+                          <FormLabel>Segundo Nombre</FormLabel>
                           <FormControl>
-                            <Input 
-                              className="h-11 border-2 border-gray-300 focus:border-green-500 focus:ring-green-500 text-base" 
-                              placeholder="Segundo nombre" 
-                              {...field} 
-                            />
+                            <Input placeholder="Segundo nombre (opcional)" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -464,16 +697,12 @@ const UsuariosPage = () => {
 
                     <FormField
                       control={form.control}
-                      name="primerApellido"
+                      name="primer_apellido"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-sm font-medium">Primer Apellido *</FormLabel>
+                          <FormLabel>Primer Apellido *</FormLabel>
                           <FormControl>
-                            <Input 
-                              className="h-11 border-2 border-gray-300 focus:border-green-500 focus:ring-green-500 text-base" 
-                              placeholder="Primer apellido" 
-                              {...field} 
-                            />
+                            <Input placeholder="Primer apellido" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -482,126 +711,185 @@ const UsuariosPage = () => {
 
                     <FormField
                       control={form.control}
-                      name="segundoApellido"
+                      name="segundo_apellido"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-sm font-medium">Segundo Apellido</FormLabel>
+                          <FormLabel>Segundo Apellido</FormLabel>
                           <FormControl>
-                            <Input 
-                              className="h-11 border-2 border-gray-300 focus:border-green-500 focus:ring-green-500 text-base" 
-                              placeholder="Segundo apellido" 
-                              {...field} 
-                            />
+                            <Input placeholder="Segundo apellido (opcional)" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                  </div>
 
-                  {/* Columna 2 - Contacto y credenciales */}
-                  <div className="space-y-4">
-                    <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Contacto y Acceso</h4>
-                    
                     <FormField
                       control={form.control}
                       name="telefono"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-sm font-medium">Teléfono</FormLabel>
+                          <FormLabel>Teléfono</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Número de teléfono" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {/* Credenciales de Acceso */}
+                  <div className="p-4 border rounded-lg bg-slate-50 mt-6">
+                    <h3 className="text-lg font-semibold mb-4 text-gray-800 flex items-center gap-2">
+                      <Lock className="w-5 h-5 text-blue-600" />
+                      Credenciales de Acceso
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Email *</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="email" 
+                                placeholder="correo@ejemplo.com" 
+                                autoComplete="off"
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="username"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Username *</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Nombre de usuario" 
+                                autoComplete="off"
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                                          <FormField
+                      control={form.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Contraseña *</FormLabel>
                           <FormControl>
                             <Input 
-                              className="h-11 border-2 border-gray-300 focus:border-green-500 focus:ring-green-500 text-base" 
-                              placeholder="Número de teléfono" 
+                              type="password" 
+                              placeholder="Contraseña" 
+                              autoComplete="new-password"
                               {...field} 
                             />
                           </FormControl>
                           <FormMessage />
+                          {field.value && (
+                            <div className="mt-2 space-y-1">
+                              <div className="flex items-center gap-2">
+                                <div className={`w-2 h-2 rounded-full ${field.value.length >= 8 ? 'bg-green-500' : 'bg-gray-300'}`} />
+                                <span className={`text-xs ${field.value.length >= 8 ? 'text-green-600' : 'text-gray-500'}`}>
+                                  Mínimo 8 caracteres
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className={`w-2 h-2 rounded-full ${/[a-z]/.test(field.value) ? 'bg-green-500' : 'bg-gray-300'}`} />
+                                <span className={`text-xs ${/[a-z]/.test(field.value) ? 'text-green-600' : 'text-gray-500'}`}>
+                                  Al menos una letra minúscula
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className={`w-2 h-2 rounded-full ${/[A-Z]/.test(field.value) ? 'bg-green-500' : 'bg-gray-300'}`} />
+                                <span className={`text-xs ${/[A-Z]/.test(field.value) ? 'text-green-600' : 'text-gray-500'}`}>
+                                  Al menos una letra mayúscula
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className={`w-2 h-2 rounded-full ${/\d/.test(field.value) ? 'bg-green-500' : 'bg-gray-300'}`} />
+                                <span className={`text-xs ${/\d/.test(field.value) ? 'text-green-600' : 'text-gray-500'}`}>
+                                  Al menos un número
+                                </span>
+                              </div>
+                            </div>
+                          )}
                         </FormItem>
                       )}
                     />
 
                     <FormField
                       control={form.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm font-medium">Email *</FormLabel>
-                          <FormControl>
-                            <Input 
-                              className="h-11 border-2 border-gray-300 focus:border-green-500 focus:ring-green-500 text-base" 
-                              type="email" 
-                              placeholder="correo@ejemplo.com" 
-                              {...field} 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                      name="confirmPassword"
+                      render={({ field }) => {
+                        const password = form.watch("password");
+                        const isMatch = field.value === password && field.value !== "";
+                        return (
+                          <FormItem>
+                            <FormLabel>Confirmar Contraseña *</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="password" 
+                                placeholder="Confirmar contraseña" 
+                                autoComplete="new-password"
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                            {field.value && password && (
+                              <div className="mt-2">
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-2 h-2 rounded-full ${isMatch ? 'bg-green-500' : 'bg-red-500'}`} />
+                                  <span className={`text-xs ${isMatch ? 'text-green-600' : 'text-red-600'}`}>
+                                    {isMatch ? 'Las contraseñas coinciden' : 'Las contraseñas no coinciden'}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                          </FormItem>
+                        );
+                      }}
                     />
-
-                    <div className="p-4 border rounded-lg bg-slate-50 mt-6">
-                      <h3 className="text-lg font-semibold mb-4 text-gray-800">Credenciales de Acceso</h3>
-                      <div className="flex flex-col gap-4"> {/* Cambiado a una columna */}
-                        <FormField
-                          control={form.control}
-                          name="username"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Usuario</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Nombre de usuario" {...field} autoComplete="off" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="password"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Contraseña</FormLabel>
-                              <FormControl>
-                                <Input type="password" placeholder="Contraseña" {...field} autoComplete="new-password" />
-                              </FormControl>
-                              <PasswordStrength password={field.value} /> {/* Añadido de nuevo */}
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
                     </div>
                   </div>
 
-                  {/* Columna 3 - Perfiles y Almacenes */}
-                  <div className="space-y-4">
-                    <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Asignaciones</h4>
-                    
-                    <FormField
+                  {/* Perfiles y Empresas */}
+                  <div className="p-4 border rounded-lg bg-blue-50 mt-6">
+                    <h3 className="text-lg font-semibold mb-4 text-gray-800 flex items-center gap-2">
+                      <Users className="w-5 h-5 text-blue-600" />
+                      Asignaciones
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                          <FormField
                       control={form.control}
                       name="perfilIds"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-sm font-medium">Perfiles Asociados *</FormLabel>
+                          <FormLabel>Perfiles *</FormLabel>
                           <FormControl>
-                            <div className="border-2 border-gray-300 rounded-md">
-                              <MultiSelect
-                                placeholder="Seleccione perfiles"
-                                options={perfilesActivos.map(p => ({
-                                  id: p.id,
-                                  value: String(p.id),
-                                  label: p.nombre, // Asegurar que se usa 'label'
-                                  description: p.descripcion || ''
-                                }))}
-                                selected={field.value || []}
-                                onSelectionChange={(selected) => {
-                                  field.onChange(selected);
-                                }}
-                                placeholder="Seleccione perfiles"
-                                isLoading={perfilesLoading}
-                              />
-                            </div>
+                            <MultiSelect
+                              options={perfilesActivos.map(perfil => ({
+                                id: perfil.id,
+                                value: perfil.id.toString(),
+                                label: perfil.nombre
+                              }))}
+                              selected={field.value || []}
+                              onSelectionChange={(selected) => {
+                                field.onChange(selected);
+                              }}
+                              placeholder="Seleccionar perfiles..."
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -613,499 +901,57 @@ const UsuariosPage = () => {
                       name="empresaIds"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-sm font-medium">Empresas asociadas</FormLabel>
+                          <FormLabel>Empresas asociadas</FormLabel>
                           <FormControl>
                             <MultiSelect
-                              placeholder="Seleccione empresas"
-                              options={empresas.map(e => ({
-                                id: e.id!,
-                                value: e.nit,
-                                label: e.razon_social, // Asegurar que se usa 'label'
-                                description: `NIT: ${e.nit}`
+                              options={empresas.map(empresa => ({
+                                id: empresa.id!,
+                                value: empresa.id!.toString(),
+                                label: empresa.razon_social
                               }))}
                               selected={field.value || []}
-                              onSelectionChange={field.onChange}
-                              isLoading={empresasLoading}
+                              onSelectionChange={(selected) => {
+                                field.onChange(selected);
+                              }}
+                              placeholder="Seleccionar empresas..."
                             />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                  </div>
-                </div>
-
-                {/* Botones */}
-                <div className="flex justify-end gap-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsModalOpen(false)}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={createUsuarioMutation.isPending}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    {createUsuarioMutation.isPending ? "Creando..." : "Crear Usuario"}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-        </div>
-      </div>
-
-      {/* Barra de búsqueda */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <Input
-            placeholder="Buscar por nombre, email, username o identificación..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-      </div>
-
-      {/* Lista de usuarios */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>Usuarios Registrados</span>
-            <Badge variant="secondary">{usuariosFiltrados.length} usuarios</Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {usuariosLoading ? (
-            <div className="text-center py-8">
-              <div className="flex items-center justify-center">
-                <RefreshCw className="w-6 h-6 animate-spin text-brand-lime mr-2" />
-                <span className="text-gray-500">Cargando usuarios...</span>
-              </div>
-            </div>
-          ) : usuariosFiltrados.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              {searchTerm ? "No se encontraron usuarios" : "No hay usuarios registrados"}
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b">
-                  <tr>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">
-                      Identificación
-                    </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">
-                      Nombre Completo
-                    </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">
-                      Email
-                    </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">
-                      Username
-                    </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">
-                      Teléfono
-                    </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">
-                      Perfiles
-                    </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">
-                      Almacenes
-                    </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">
-                      Estado
-                    </th>
-                    <th className="text-right py-3 px-4 font-medium text-gray-900">
-                      Acciones
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {usuariosFiltrados.map((usuario) => (
-                    <tr key={usuario.id} className="border-b hover:bg-gray-50">
-                      <td className="py-3 px-4 text-sm text-gray-900">
-                        {usuario.identificacion}
-                      </td>
-                      <td className="py-3 px-4 text-sm text-gray-900">
-                        {`${usuario.primerNombre} ${usuario.segundoNombre || ""} ${usuario.primerApellido} ${usuario.segundoApellido || ""}`.trim()}
-                      </td>
-                      <td className="py-3 px-4 text-sm text-gray-900">
-                        {usuario.email}
-                      </td>
-                      <td className="py-3 px-4 text-sm text-gray-900">
-                        {usuario.username}
-                      </td>
-                      <td className="py-3 px-4 text-sm text-gray-900">
-                        {usuario.telefono || "-"}
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex flex-wrap gap-1">
-                          {usuario.perfiles?.map((perfil) => (
-                            <Badge
-                              key={perfil.id}
-                              variant="outline"
-                              className="text-xs bg-green-50 text-green-700 border-green-200"
-                            >
-                              {perfil.nombre}
-                            </Badge>
-                          )) || []}
-                          {(!usuario.perfiles || usuario.perfiles.length === 0) && (
-                            <span className="text-xs text-gray-400">Sin perfiles</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex flex-wrap gap-1">
-                          {/* TODO: Mostrar almacenes cuando esté implementado */}
-                          <span className="text-xs text-gray-400">Sin almacenes</span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <Badge
-                          variant={usuario.activo ? "default" : "secondary"}
-                          className={
-                            usuario.activo
-                              ? "bg-green-100 text-green-800"
-                              : "bg-gray-100 text-gray-800"
-                          }
-                        >
-                          {usuario.activo ? "Activo" : "Inactivo"}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex gap-1 justify-end">
-                          <Button
-                            size="sm"
-                            onClick={() => handleEditarUsuario(usuario)}
-                            className="h-8 w-8 p-0 bg-blue-500 hover:bg-blue-600 text-white border-0 rounded"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                size="sm"
-                                className="h-8 w-8 p-0 bg-red-500 hover:bg-red-600 text-white border-0 rounded"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>¿Eliminar usuario?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  ¿Estás seguro de que deseas eliminar el usuario{" "}
-                                  <strong>{usuario.primerNombre} {usuario.primerApellido}</strong>?
-                                  Esta acción no se puede deshacer.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleEliminarUsuario(usuario.id)}
-                                  className="bg-red-600 hover:bg-red-700"
-                                >
-                                  Eliminar
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Modal de edición */}
-      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="max-w-6xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-semibold text-blue-600">
-              Editar Usuario: {editingUser?.primerNombre} {editingUser?.primerApellido}
-            </DialogTitle>
-            <DialogDescription>
-              Actualice la información del usuario
-            </DialogDescription>
-          </DialogHeader>
-          
-          <Form {...editForm}>
-            <form onSubmit={editForm.handleSubmit(handleActualizarUsuario)} className="space-y-4">
-              
-              {/* Reutilizar el mismo formulario pero con diferentes datos */}
-              <div className="grid grid-cols-3 gap-6">
-                {/* Columna 1 - Datos personales */}
-                <div className="space-y-4">
-                  <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Datos Personales</h4>
-                  
-                  <FormField
-                    control={editForm.control}
-                    name="identificacion"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm font-medium">Identificación *</FormLabel>
-                        <FormControl>
-                          <Input 
-                            className="h-11 border-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-base" 
-                            placeholder="Número de identificación" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={editForm.control}
-                    name="primerNombre"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm font-medium">Primer Nombre *</FormLabel>
-                        <FormControl>
-                          <Input 
-                            className="h-11 border-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-base" 
-                            placeholder="Primer nombre" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={editForm.control}
-                    name="segundoNombre"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm font-medium">Segundo Nombre</FormLabel>
-                        <FormControl>
-                          <Input 
-                            className="h-11 border-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-base" 
-                            placeholder="Segundo nombre" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={editForm.control}
-                    name="primerApellido"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm font-medium">Primer Apellido *</FormLabel>
-                        <FormControl>
-                          <Input 
-                            className="h-11 border-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-base" 
-                            placeholder="Primer apellido" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={editForm.control}
-                    name="segundoApellido"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm font-medium">Segundo Apellido</FormLabel>
-                        <FormControl>
-                          <Input 
-                            className="h-11 border-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-base" 
-                            placeholder="Segundo apellido" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                {/* Columna 2 - Contacto y credenciales */}
-                <div className="space-y-4">
-                  <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Contacto y Acceso</h4>
-                  
-                  <FormField
-                    control={editForm.control}
-                    name="telefono"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm font-medium">Teléfono</FormLabel>
-                        <FormControl>
-                          <Input 
-                            className="h-11 border-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-base" 
-                            placeholder="Número de teléfono" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={editForm.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm font-medium">Email *</FormLabel>
-                        <FormControl>
-                          <Input 
-                            className="h-11 border-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-base" 
-                            type="email" 
-                            placeholder="correo@ejemplo.com" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="p-4 border rounded-lg bg-slate-50 mt-6">
-                    <h3 className="text-lg font-semibold mb-4 text-gray-800">Credenciales de Acceso</h3>
-                    <div className="flex flex-col gap-4"> {/* Cambiado a una columna */}
-                      <FormField
-                        control={editForm.control}
-                        name="username"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Usuario</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Nombre de usuario" {...field} autoComplete="off" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={editForm.control}
-                        name="password"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Contraseña (dejar en blanco para no cambiar)</FormLabel>
-                            <FormControl>
-                              <Input type="password" placeholder="Nueva contraseña" {...field} autoComplete="new-password" />
-                            </FormControl>
-                            <PasswordStrength password={field.value} /> {/* Añadido de nuevo */}
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
                     </div>
                   </div>
-                </div>
 
-                {/* Columna 3 - Perfiles y almacenes */}
-                <div className="space-y-4">
-                  <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Asignaciones</h4>
-                  
-                  <FormField
-                    control={editForm.control}
-                    name="perfilIds"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm font-medium">Perfiles Asociados</FormLabel>
-                        <FormControl>
-                          <MultiSelect
-                            options={perfilesActivos.map((perfil) => ({
-                              id: perfil.id,
-                              value: String(perfil.id),
-                              label: perfil.nombre,
-                              description: perfil.descripcion || `Perfil con ID ${perfil.id}`
-                            }))}
-                            selected={field.value || []}
-                            onSelectionChange={field.onChange}
-                            placeholder="Seleccionar perfiles..."
-                            className="h-auto"
-                            isLoading={false} // No need to show loading for active roles
-                            emptyText="No hay perfiles disponibles"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={editForm.control}
-                    name="empresaIds"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm font-medium">Empresas asociadas</FormLabel>
-                        <FormControl>
-                          <MultiSelect
-                            options={empresas.map(e => ({
-                              id: e.id!,
-                              value: e.nit,
-                              label: e.razon_social, // Usar 'name' para el texto
-                              description: `NIT: ${e.nit}`
-                            }))}
-                            selected={field.value || []}
-                            onSelectionChange={field.onChange}
-                            placeholder="Seleccionar empresas..."
-                            className="h-auto"
-                            isLoading={empresasLoading}
-                            emptyText="No hay empresas disponibles"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
-
-              {/* Botones */}
-              <div className="flex justify-end gap-3 pt-4 border-t">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsEditModalOpen(false)}
-                  disabled={updateUsuarioMutation.isPending}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  type="submit"
-                  className="bg-blue-600 hover:bg-blue-700 text-white min-w-[120px]"
-                  disabled={updateUsuarioMutation.isPending}
-                >
-                  {updateUsuarioMutation.isPending ? (
-                    <div className="flex items-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Actualizando...
-                    </div>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4 mr-2" />
-                      Actualizar Usuario
-                    </>
-                  )}
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
+                  <div className="flex justify-end space-x-2 pt-4">
+                    <Button 
+                      type="button" 
+                      variant="outline"
+                      onClick={() => {
+                        setActiveTab("usuarios");
+                        setEditingUser(null);
+                        form.reset();
+                      }}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button 
+                      type="submit"
+                      className="bg-green-500 hover:bg-green-600 text-white border-0 shadow-sm px-6 py-2 rounded text-sm font-medium transition-colors"
+                      disabled={createUserMutation.isPending}
+                    >
+                      {createUserMutation.isPending ? 
+                          (editingUser ? 'Actualizando...' : 'Guardando...') : 
+                          (editingUser ? 'Actualizar' : 'Guardar')
+                        }
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

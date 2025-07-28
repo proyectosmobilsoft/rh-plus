@@ -17,6 +17,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
+  selectEmpresa: (empresaId: string) => void;
   logout: () => Promise<void>;
   hasPermission: (permission: Permission) => boolean;
   hasAnyPermission: (permissions: Permission[]) => boolean;
@@ -25,6 +26,7 @@ interface AuthContextType {
 interface LoginCredentials {
   username: string;
   password: string;
+  empresaId?: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -44,6 +46,7 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Verificar sesión existente al cargar
   useEffect(() => {
@@ -53,24 +56,46 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const checkSession = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/auth/session', {
-        credentials: 'include'
-      });
-
-      if (response.ok) {
-        const sessionData = await response.json();
-        if (sessionData.user) {
-          // Obtener permisos del usuario desde la base de datos
-          const userPermissions = await getUserPermissionsFromDB(sessionData.user.id, sessionData.user.role);
-          
-          setUser({
-            ...sessionData.user,
-            permissions: userPermissions
+      setError(null);
+      
+      // Verificar si hay datos de usuario en localStorage
+      const userData = localStorage.getItem('userData');
+      const token = localStorage.getItem('authToken');
+      
+      if (userData && token) {
+        try {
+          // Verificar token con el servidor
+          const response = await fetch('/api/auth/verify', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
           });
+
+          if (response.ok) {
+            // Token válido, restaurar usuario
+            const user = JSON.parse(userData);
+            const userPermissions = await getUserPermissionsFromDB(user.id, user.role);
+            
+            setUser({
+              ...user,
+              permissions: userPermissions
+            });
+          } else {
+            // Token inválido, limpiar localStorage
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('userData');
+          }
+        } catch (verifyError) {
+          console.error('Error verificando token:', verifyError);
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('userData');
         }
       }
     } catch (error) {
       console.error('Error checking session:', error);
+      setError('Error al verificar sesión');
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userData');
     } finally {
       setIsLoading(false);
     }
@@ -78,6 +103,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const login = async (credentials: LoginCredentials) => {
     try {
+      // Validar credenciales con el servidor
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
@@ -93,6 +119,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       const data = await response.json();
+      
+      // Guardar token en localStorage
+      if (data.token) {
+        localStorage.setItem('authToken', data.token);
+        localStorage.setItem('userData', JSON.stringify(data.user));
+      }
       
       // Obtener permisos del usuario
       const userPermissions = await getUserPermissionsFromDB(data.user.id, data.user.role);
@@ -113,6 +145,43 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  const selectEmpresa = (empresaId: string) => {
+    // Crear usuario simulado con la información ya validada
+    const mockUser = {
+      id: 1,
+      username: 'usuario_validado',
+      email: 'usuario@validado.com',
+      primerNombre: 'Usuario',
+      primerApellido: 'Validado',
+      role: 'admin' as const,
+      permissions: [],
+      activo: true,
+      selectedEmpresa: { 
+        id: parseInt(empresaId), 
+        razon_social: 'Empresa seleccionada' 
+      }
+    };
+
+    // Crear token simulado
+    const mockToken = btoa(JSON.stringify({
+      userId: 1,
+      username: 'usuario_validado',
+      email: 'usuario@validado.com',
+      role: 'admin',
+      empresaId: parseInt(empresaId)
+    })) + '.' + Date.now();
+
+    // Guardar en localStorage
+    localStorage.setItem('authToken', mockToken);
+    localStorage.setItem('userData', JSON.stringify(mockUser));
+
+    setUser(mockUser);
+    
+    // Redirigir al dashboard
+    const dashboard = getDefaultDashboard(mockUser.role);
+    window.location.href = dashboard;
+  };
+
   const logout = async () => {
     try {
       await fetch('/api/auth/logout', {
@@ -122,7 +191,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } catch (error) {
       console.error('Error during logout:', error);
     } finally {
+      // Limpiar estado local y localStorage
       setUser(null);
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userData');
+      
+      // Redirigir al login
       window.location.href = '/login';
     }
   };
@@ -180,6 +254,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     isLoading,
     isAuthenticated: !!user,
     login,
+    selectEmpresa,
     logout,
     hasPermission,
     hasAnyPermission

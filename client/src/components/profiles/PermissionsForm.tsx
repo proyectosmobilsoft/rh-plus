@@ -68,14 +68,17 @@ export function PermissionsForm({ selectedPermissions, onPermissionsChange }: Pe
     });
   }, []);
 
-  const systemViews: SystemView[] = modulos.map(modulo => ({
+  const systemViews = (modulos || []).map((modulo: any) => ({
+    id: modulo.id,
+    displayName: modulo.nombre,
+    descripcion: modulo.descripcion || '',
     codigo: String(modulo.id),
     nombre: modulo.nombre,
-    acciones: modulo.modulo_permisos.map((p: any) => ({
-      id: p.id, // Usar el ID numérico del permiso
-      codigo: p.code, // Usar el nuevo campo 'code'
-      nombre: p.nombre, // Usar el campo 'nombre' amigable
-      description: p.descripcion
+    acciones: modulo.gen_modulo_permisos.map((p: any) => ({
+      id: p.id,
+      codigo: p.code,
+      nombre: p.nombre,
+      descripcion: p.descripcion || ''
     }))
   }));
 

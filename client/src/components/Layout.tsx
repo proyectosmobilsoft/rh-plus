@@ -1,6 +1,7 @@
 
 import React, { useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Sidebar,
   SidebarContent,
@@ -12,6 +13,7 @@ import {
   SidebarMenuItem,
   SidebarTrigger,
   useSidebar,
+  SidebarProvider,
 } from "@/components/ui/sidebar";
 import {
   Users,
@@ -31,7 +33,6 @@ import {
   QrCode,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import logo from "../../public/logo2.svg";
 
 // Define los menús y submenús
@@ -96,6 +97,15 @@ const menuItems = [
 
 // Componente para el header
 const Header = () => {
+  // Obtener función de logout del AuthContext
+  let logout: (() => Promise<void>) | null = null;
+  try {
+    const auth = useAuth();
+    logout = auth.logout;
+  } catch (error) {
+    console.warn('AuthProvider no disponible para logout en header');
+  }
+
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center border-b bg-background px-4">
       <SidebarTrigger />
@@ -103,11 +113,29 @@ const Header = () => {
         <h1 className="text-lg font-semibold text-gray-800">Sistema de Recursos Humanos</h1>
       </div>
       <div className="ml-auto flex items-center space-x-4">
-        <ThemeSwitcher />
+        {/* ThemeSwitcher temporalmente removido */}
         <div className="flex items-center bg-brand-lime/10 text-brand-lime px-3 py-1 rounded-full text-sm font-medium border border-brand-lime/20 hover-lift">
           <User className="w-4 h-4 mr-2" />
           Administrador
         </div>
+        {/* Botón de cerrar sesión en header */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+          onClick={async () => {
+            if (logout) {
+              await logout();
+            } else {
+              localStorage.removeItem('authToken');
+              localStorage.removeItem('userData');
+              window.location.href = '/login';
+            }
+          }}
+        >
+          <LogOut className="h-4 w-4 mr-1" />
+          Cerrar
+        </Button>
       </div>
     </header>
   );
@@ -119,6 +147,15 @@ const AppSidebar = () => {
   const location = useLocation();
   const currentPath = location.pathname;
   const collapsed = state === "collapsed";
+  
+  // Obtener función de logout del AuthContext
+  let logout: (() => Promise<void>) | null = null;
+  try {
+    const auth = useAuth();
+    logout = auth.logout;
+  } catch (error) {
+    console.warn('AuthProvider no disponible para logout');
+  }
   
   // Control state for each menu group
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
@@ -227,11 +264,16 @@ const AppSidebar = () => {
           <Button
             variant="ghost"
             className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent/50"
-            onClick={() => {
-              // Clear local storage
-              localStorage.removeItem('admin_authenticated');
-              // Redirect to admin login
-              window.location.href = '/';
+            onClick={async () => {
+              if (logout) {
+                // Usar función de logout del AuthContext
+                await logout();
+              } else {
+                // Fallback: limpiar localStorage y redirigir
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('userData');
+                window.location.href = '/login';
+              }
             }}
           >
             <LogOut className="h-4 w-4" />
@@ -245,15 +287,17 @@ const AppSidebar = () => {
 
 const Layout = () => {
   return (
-    <div className="flex h-screen w-full">
-      <AppSidebar />
-      <div className="flex flex-col flex-1 overflow-hidden">
-        <Header />
-        <main className="flex-1 overflow-auto">
-          <Outlet />
-        </main>
+    <SidebarProvider>
+      <div className="flex h-screen w-full">
+        <AppSidebar />
+        <div className="flex flex-col flex-1 overflow-hidden">
+          <Header />
+          <main className="flex-1 overflow-auto">
+            <Outlet />
+          </main>
+        </div>
       </div>
-    </div>
+    </SidebarProvider>
   );
 };
 
