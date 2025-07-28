@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { usePlantillas } from "@/pages/admin/FormGalleryPage";
 import { useNavigate } from "react-router-dom";
 
 const FIELD_TYPES = [
@@ -44,7 +43,7 @@ const FormBuilder: React.FC<{ precargados?: any[], readOnly?: boolean }> = ({ pr
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
 
-  const plantillasCtx = !readOnly ? (() => { try { return usePlantillas(); } catch { return null; } })() : null;
+
   const navigate = !readOnly ? (() => { try { return useNavigate(); } catch { return () => {}; } })() : null;
 
   // Inicializar campos precargados con IDs únicos
@@ -369,17 +368,7 @@ const FormBuilder: React.FC<{ precargados?: any[], readOnly?: boolean }> = ({ pr
             </form>
             <button
               onClick={() => {
-                if (plantillasCtx && navigate) {
-                  plantillasCtx.addPlantilla({
-                    id: Date.now(),
-                    name: formName,
-                    description: formDesc,
-                    fields: fields,
-                  });
-                  navigate("/admin/form-gallery");
-                } else {
-                  alert(JSON.stringify(formJson, null, 2));
-                }
+                alert(JSON.stringify(formJson, null, 2));
               }}
               style={{ fontSize: 16, borderRadius: 8, padding: '10px 18px', background: '#339af0', border: 'none', color: '#fff', fontWeight: 600, cursor: 'pointer', marginBottom: 16 }}
             >

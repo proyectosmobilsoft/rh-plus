@@ -8,8 +8,7 @@ export type Permission =
   | "ver_dashboard_analista" 
   | "ver_dashboard_cliente"
   
-  // Galería de Formularios
-  | "ver_galeria_formularios"
+
 
   // Seguridad
   | "ver_usuarios"
@@ -214,13 +213,7 @@ export const systemMenus: MenuItem[] = [
     path: "/dashboard",
     permission: "ver_dashboard"
   },
-  {
-    id: "galeria-formularios",
-    label: "Galería de Formularios",
-    icon: "FileText", // Puedes elegir otro icono si quieres
-    path: "/admin/form-gallery",
-    permission: "ver_galeria_formularios"
-  },
+
   {
     id: "seguridad",
     label: "Seguridad",

@@ -8,7 +8,6 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { PlantillasProvider } from "./pages/admin/FormGalleryPage";
 import { QueryInvalidator } from "@/components/QueryInvalidator";
 
 import Index from "./pages/Index";
@@ -23,7 +22,6 @@ import QrPage from "./pages/registros/QrPage";
 import QrPageMejorado from "./pages/registros/QrPageMejorado";
 import ExpedicionOrdenPage from "./pages/ordenes/ExpedicionOrdenPage";
 import { TemplatesPage } from "./pages/admin/ordenes/TemplatesPage";
-import FormGalleryPage from "./pages/admin/FormGalleryPage";
 import AgendaMedicaPage from "./pages/clinica/AgendaMedicaPage";
 import HistoriaMedicaPage from "./pages/clinica/HistoriaMedicaPage";
 import HistoriaLaboralPage from "./pages/clinica/HistoriaLaboralPage";
@@ -47,6 +45,7 @@ import GestionPermisosPage from "./pages/seguridad/GestionPermisosPage";
 // Maestro pages
 import TiposCandidatosPage from "./pages/maestro/TiposCandidatosPage";
 import PlantillasPage from "./pages/maestro/PlantillasPage";
+import UbicacionesPage from "./pages/maestro/UbicacionesPage";
 
 // Analistas pages
 import AnalistasPage from "./pages/analistas/AnalistasPage";
@@ -159,8 +158,7 @@ const App = () => (
             <Route path="/ordenes/expedicion" element={<ExpedicionOrdenPage />} />
             <Route path="/ordenes/templates" element={<TemplatesPage />} />
             
-            {/* Galería de Formularios */}
-            <Route path="/admin/form-gallery" element={<PlantillasProvider><FormGalleryPage /></PlantillasProvider>} />
+
             
             {/* Clinica */}
             <Route path="/clinica/agenda" element={<AgendaMedicaPage />} />
@@ -190,6 +188,7 @@ const App = () => (
             {/* Maestro */}
             <Route path="/maestro/tipos-candidatos" element={<TiposCandidatosPage />} />
             <Route path="/maestro/plantillas" element={<PlantillasPage />} />
+            <Route path="/maestro/ubicaciones" element={<UbicacionesPage />} />
             
             {/* Analistas */}
             <Route path="/analistas" element={<AnalistasPage />} />

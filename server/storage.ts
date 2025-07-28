@@ -1,4 +1,11 @@
 import bcrypt from "bcrypt";
+import { createClient } from '@supabase/supabase-js';
+
+// Configuración de Supabase
+const supabaseUrl = process.env.SUPABASE_URL || 'https://clffvmueangquavnaokd.supabase.co';
+const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsZmZ2bXVlYW5ncXVhdm5hb2tkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTgzMTcsImV4cCI6MjA2OTAzNDMxN30.NyUOwOMmJgpWqz5FRSV52EELCaEMkrHTLWd5JDw3ZiU';
+const supabase = createClient(supabaseUrl, supabaseKey);
+
 import {
   users,
   candidatos,
@@ -358,6 +365,14 @@ export interface IStorage {
   updateEmpresaOrderTemplate(id: number, template: Partial<InsertEmpresaOrderTemplate>): Promise<EmpresaOrderTemplate>;
   deleteEmpresaOrderTemplate(id: number): Promise<void>;
   setDefaultEmpresaOrderTemplate(empresaId: number, templateId: number): Promise<void>;
+  
+  // Métodos para ubicaciones
+  getAllPaises(): Promise<any[]>;
+  createPais(data: { nombre: string }): Promise<any>;
+  getAllDepartamentos(): Promise<any[]>;
+  createDepartamento(data: { nombre: string; pais_id: number }): Promise<any>;
+  getAllCiudades(): Promise<any[]>;
+  createCiudad(data: { nombre: string; departamento_id: number; pais_id: number }): Promise<any>;
 }
 
 export class MemStorage implements IStorage {
@@ -2818,6 +2833,153 @@ export class MemStorage implements IStorage {
     const template = this.empresaOrderTemplates.get(templateId);
     if (template && template.empresaId === empresaId) {
       this.empresaOrderTemplates.set(templateId, { ...template, esDefault: true });
+    }
+  }
+
+  // ========== UBICACIONES OPERATIONS ==========
+
+  async getAllPaises(): Promise<any[]> {
+    try {
+      const { data, error } = await supabase
+        .from('paises')
+        .select('*')
+        .order('nombre');
+      
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error obteniendo países:', error);
+      return [];
+    }
+  }
+
+  async createPais(data: { nombre: string; codigo_iso?: string }): Promise<any> {
+    try {
+      const { data: nuevoPais, error } = await supabase
+        .from('paises')
+        .insert({
+          nombre: data.nombre,
+          codigo_iso: data.codigo_iso || null
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      console.log("País creado:", nuevoPais);
+      return nuevoPais;
+    } catch (error) {
+      console.error('Error creando país:', error);
+      throw error;
+    }
+  }
+
+  async getAllDepartamentos(): Promise<any[]> {
+    try {
+      const { data, error } = await supabase
+        .from('departamentos')
+        .select(`
+          *,
+          paises (
+            id,
+            nombre,
+            codigo_iso
+          )
+        `)
+        .order('nombre');
+      
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error obteniendo departamentos:', error);
+      return [];
+    }
+  }
+
+  async createDepartamento(data: { nombre: string; pais_id: number; codigo_dane?: string }): Promise<any> {
+    try {
+      const { data: nuevoDepartamento, error } = await supabase
+        .from('departamentos')
+        .insert({
+          nombre: data.nombre,
+          pais_id: data.pais_id,
+          codigo_dane: data.codigo_dane || null
+        })
+        .select(`
+          *,
+          paises (
+            id,
+            nombre,
+            codigo_iso
+          )
+        `)
+        .single();
+      
+      if (error) throw error;
+      console.log("Departamento creado:", nuevoDepartamento);
+      return nuevoDepartamento;
+    } catch (error) {
+      console.error('Error creando departamento:', error);
+      throw error;
+    }
+  }
+
+  async getAllCiudades(): Promise<any[]> {
+    try {
+      const { data, error } = await supabase
+        .from('ciudades')
+        .select(`
+          *,
+          departamentos (
+            id,
+            nombre,
+            codigo_dane,
+            paises (
+              id,
+              nombre,
+              codigo_iso
+            )
+          )
+        `)
+        .order('nombre');
+      
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error obteniendo ciudades:', error);
+      return [];
+    }
+  }
+
+  async createCiudad(data: { nombre: string; departamento_id: number; codigo_dane?: string }): Promise<any> {
+    try {
+      const { data: nuevaCiudad, error } = await supabase
+        .from('ciudades')
+        .insert({
+          nombre: data.nombre,
+          departamento_id: data.departamento_id,
+          codigo_dane: data.codigo_dane || null
+        })
+        .select(`
+          *,
+          departamentos (
+            id,
+            nombre,
+            codigo_dane,
+            paises (
+              id,
+              nombre,
+              codigo_iso
+            )
+          )
+        `)
+        .single();
+      
+      if (error) throw error;
+      console.log("Ciudad creada:", nuevaCiudad);
+      return nuevaCiudad;
+    } catch (error) {
+      console.error('Error creando ciudad:', error);
+      throw error;
     }
   }
 }

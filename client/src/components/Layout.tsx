@@ -1,6 +1,7 @@
 
 import React, { useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
+import "./Layout.css";
 import {
   Sidebar,
   SidebarContent,
@@ -29,6 +30,7 @@ import {
   Activity,
   ChevronRight,
   QrCode,
+  MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
@@ -40,12 +42,6 @@ const menuItems = [
     title: "Dashboard",
     icon: <Activity className="h-5 w-5" />,
     path: "/dashboard",
-    subItems: [],
-  },
-  {
-    title: "Galería de Formularios",
-    icon: <FileText className="h-5 w-5" />,
-    path: "/admin/form-gallery",
     subItems: [],
   },
   {
@@ -84,6 +80,7 @@ const menuItems = [
     subItems: [
       { title: "Tipos de Documentos", path: "/maestro/tipos-candidatos", icon: <FileText className="h-4 w-4" /> },
       { title: "Plantillas", path: "/maestro/plantillas", icon: <Layers className="h-4 w-4" /> },
+      { title: "Ubicaciones", path: "/maestro/ubicaciones", icon: <MapPin className="h-4 w-4" /> },
     ],
   },
   {
@@ -98,9 +95,27 @@ const menuItems = [
 
 // Componente para el header
 const Header = () => {
+  const { state, setOpen } = useSidebar();
+  const isCollapsed = state === "collapsed";
+
+  const toggleSidebar = () => {
+    if (isCollapsed) {
+      setOpen(true);
+    } else {
+      setOpen(false);
+    }
+  };
+
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center border-b bg-background px-4">
-      <SidebarTrigger />
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={toggleSidebar}
+        className="mr-2 sidebar-toggle-button"
+      >
+        <Menu className="h-5 w-5" />
+      </Button>
       <div className="ml-4">
         <h1 className="text-lg font-semibold text-gray-800">Sistema de Recursos Humanos</h1>
       </div>
@@ -145,7 +160,7 @@ const AppSidebar = () => {
 
   return (
     <Sidebar
-      className={`border-r h-screen ${collapsed ? "w-14" : "w-64"}`}
+      className={`border-r h-screen sidebar-transition ${collapsed ? "sidebar-collapsed" : "sidebar-expanded"}`}
       collapsible="icon"
     >
       <div className="p-4 flex justify-center items-center">
@@ -246,10 +261,13 @@ const AppSidebar = () => {
 };
 
 const Layout = () => {
+  const { state } = useSidebar();
+  const collapsed = state === "collapsed";
+  
   return (
     <div className="flex h-screen w-full">
       <AppSidebar />
-      <div className="flex flex-col flex-1 overflow-hidden">
+      <div className={`flex flex-col overflow-hidden main-content ${collapsed ? 'main-content-sidebar-hidden' : 'main-content-sidebar-visible'}`}>
         <Header />
         <main className="flex-1 overflow-auto">
           <Outlet />

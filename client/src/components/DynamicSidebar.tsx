@@ -204,7 +204,7 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
             {/* Forzar Galería de Formularios para admin */}
             {user.role === "admin" && (
               <Link
-                href="/admin/form-gallery"
+                href="/dashboard"
                 className={`block px-3 py-2 text-base rounded-md transition-colors text-gray-700 hover:bg-gray-100 hover:text-gray-900`}
               >
                 <div className="flex items-center space-x-3">
