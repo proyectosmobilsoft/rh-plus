@@ -1,140 +1,104 @@
-/* Estilos personalizados para la sidebar */
+/* Estilos para el Layout */
+
+/* Transiciones del sidebar */
 .sidebar-transition {
-  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-  will-change: transform, opacity;
+  transition: width 0.3s ease-in-out;
 }
 
 .sidebar-collapsed {
-  width: 16rem !important; /* Mantener el ancho para la animación */
-  min-width: 16rem !important;
-  opacity: 0;
-  overflow: hidden;
-  border: none !important;
-  border-right: none !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  transform: translateX(-100%);
-  position: absolute;
-  left: 0;
-  z-index: -1;
-  box-shadow: none !important;
+  width: 3.5rem;
 }
 
 .sidebar-expanded {
-  width: 16rem !important; /* 256px */
-  min-width: 16rem !important;
-  opacity: 1;
-  transform: translateX(0);
-  position: relative;
-  left: 0;
-  z-index: auto;
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+  width: 16rem;
 }
 
-/* Mejorar la transición del contenido principal */
-.main-content {
-  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-  will-change: width, margin-left, transform;
-}
-
-.main-content-sidebar-hidden {
-  margin-left: 0;
-  width: 100% !important;
-  transform: translateX(0);
-}
-
-.main-content-sidebar-visible {
-  margin-left: 0; /* El contenido principal siempre ocupa todo el espacio disponible */
-  width: calc(100% - 16rem) !important;
-  transform: translateX(0);
-}
-
-/* Estilos para el botón de toggle */
+/* Botón de toggle del sidebar */
 .sidebar-toggle-button {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  will-change: transform, background-color;
+  transition: all 0.2s ease-in-out;
 }
 
 .sidebar-toggle-button:hover {
-  transform: scale(1.1);
-  background-color: hsl(var(--accent) / 0.1);
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
-.sidebar-toggle-button:active {
-  transform: scale(0.95);
+/* Estilos del sidebar */
+.sidebar-item {
+  transition: all 0.2s ease-in-out;
+  border-radius: 0.5rem;
+  margin-bottom: 0.25rem;
 }
 
-/* Asegurar que la sidebar no interfiera cuando está oculta */
-.sidebar-hidden {
-  position: absolute;
-  left: -100%;
-  z-index: -1;
+.sidebar-item:hover {
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
-/* Animación para el logo */
+.sidebar-item.active {
+  background-color: rgba(59, 130, 246, 0.1);
+  color: rgb(59, 130, 246);
+}
+
+.sidebar-submenu-item {
+  padding-left: 1rem;
+  font-size: 0.875rem;
+}
+
+.sidebar-submenu-item:hover {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+.sidebar-submenu-item.active {
+  background-color: rgba(59, 130, 246, 0.08);
+  color: rgb(59, 130, 246);
+}
+
+/* Logo del sidebar */
 .logo-sidebar {
-  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-  will-change: transform, opacity;
+  width: 120px;
+  height: 40px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
 }
 
-.sidebar-collapsed .logo-sidebar {
-  transform: scale(0.8);
-  opacity: 0;
+/* Contenido compacto del sidebar */
+.sidebar-compact {
+  padding: 0.5rem;
 }
 
-.sidebar-expanded .logo-sidebar {
-  transform: scale(1);
-  opacity: 1;
+/* Flecha del dropdown */
+.dropdown-arrow {
+  transition: transform 0.2s ease-in-out;
 }
 
-/* Eliminar cualquier borde residual */
-.sidebar-collapsed * {
-  border: none !important;
-  outline: none !important;
-  opacity: 0;
-  transition: opacity 0.3s ease-out;
-  transform: translateX(-10px);
+.dropdown-arrow.open {
+  transform: rotate(90deg);
 }
 
-.sidebar-expanded * {
-  opacity: 1;
-  transition: opacity 0.4s ease-in, transform 0.4s ease-in;
-  transform: translateX(0);
+/* Estilos del header */
+.header-title {
+  font-weight: 600;
+  color: rgb(31, 41, 55);
 }
 
-/* Asegurar que el contenedor principal no tenga bordes cuando la sidebar está oculta */
-.main-content-sidebar-hidden {
-  border-left: none !important;
-  border-right: none !important;
+/* Botón de cerrar sesión */
+.logout-button {
+  color: rgb(220, 38, 38);
+  transition: all 0.2s ease-in-out;
 }
 
-/* Animación para el contenido cuando la sidebar se oculta */
-@keyframes slideIn {
-  from {
-    transform: translateX(-20px);
-    opacity: 0.9;
+.logout-button:hover {
+  color: rgb(185, 28, 28);
+  background-color: rgba(220, 38, 38, 0.1);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sidebar-expanded {
+    width: 14rem;
   }
-  to {
-    transform: translateX(0);
-    opacity: 1;
+  
+  .header-title {
+    font-size: 1rem;
   }
-}
-
-@keyframes slideOut {
-  from {
-    transform: translateX(0);
-    opacity: 1;
-  }
-  to {
-    transform: translateX(-20px);
-    opacity: 0.9;
-  }
-}
-
-.main-content-sidebar-hidden {
-  animation: slideIn 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.main-content-sidebar-visible {
-  animation: slideOut 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 } 

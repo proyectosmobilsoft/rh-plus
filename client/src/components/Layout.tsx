@@ -35,7 +35,7 @@ import {
   MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import logo from "../../public/logo2.svg";
+import logo from "/logo2.svg";
 
 // Define los menús y submenús
 const menuItems = [
@@ -104,27 +104,10 @@ const Header = () => {
   } catch (error) {
     console.warn('AuthProvider no disponible para logout en header');
   }
-  const { state, setOpen } = useSidebar();
-  const isCollapsed = state === "collapsed";
-
-  const toggleSidebar = () => {
-    if (isCollapsed) {
-      setOpen(true);
-    } else {
-      setOpen(false);
-    }
-  };
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center border-b bg-background px-4">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={toggleSidebar}
-        className="mr-2 sidebar-toggle-button"
-      >
-        <Menu className="h-5 w-5" />
-      </Button>
+      <SidebarTrigger />
       <div className="ml-4">
         <h1 className="text-lg font-semibold text-gray-800">Sistema de Recursos Humanos</h1>
       </div>
@@ -302,9 +285,6 @@ const AppSidebar = () => {
 };
 
 const Layout = () => {
-  const { state } = useSidebar();
-  const collapsed = state === "collapsed";
-  
   return (
     <SidebarProvider>
       <div className="flex h-screen w-full">
