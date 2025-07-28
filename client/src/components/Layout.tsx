@@ -81,8 +81,10 @@ const menuItems = [
   {
     title: "Maestro",
     icon: <Settings className="h-5 w-5" />,
-    path: "/maestro/tipos-candidatos",
-    subItems: [],
+    subItems: [
+      { title: "Tipos de Documentos", path: "/maestro/tipos-candidatos", icon: <FileText className="h-4 w-4" /> },
+      { title: "Plantillas", path: "/maestro/plantillas", icon: <Layers className="h-4 w-4" /> },
+    ],
   },
   {
     title: "Seguridad",

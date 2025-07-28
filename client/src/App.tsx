@@ -45,6 +45,7 @@ import GestionPermisosPage from "./pages/seguridad/GestionPermisosPage";
 
 // Maestro pages
 import TiposCandidatosPage from "./pages/maestro/TiposCandidatosPage";
+import PlantillasPage from "./pages/maestro/PlantillasPage";
 
 // Analistas pages
 import AnalistasPage from "./pages/analistas/AnalistasPage";
@@ -175,6 +176,7 @@ const App = () => (
             
             {/* Maestro */}
             <Route path="/maestro/tipos-candidatos" element={<TiposCandidatosPage />} />
+            <Route path="/maestro/plantillas" element={<PlantillasPage />} />
             
             {/* Analistas */}
             <Route path="/analistas" element={<AnalistasPage />} />
