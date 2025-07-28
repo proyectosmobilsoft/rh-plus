@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import { Plus, Edit, Trash2, X, ChevronDown, Eye, Settings, Building, Users, FileText, Award, BarChart, UserCheck, QrCode, Crown, Shield } from "lucide-react";
+import { Plus, Edit, Trash2, X, ChevronDown, Eye, Settings, Building, Users, FileText, Award, BarChart, UserCheck, QrCode, Crown, Shield, Loader2, Lock, CheckCircle, PackageOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,8 +20,10 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { AdvancedProfileManager } from "@/components/profiles/AdvancedProfileManager";
 import { PermissionsForm } from "@/components/profiles/PermissionsForm";
-import { type UserProfile } from "@shared/mock-permissions";
 import { rolesService } from '@/services/rolesService';
+import { Skeleton } from "@/components/ui/skeleton"; // Importar Skeleton
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Schema para el formulario de perfil
 const perfilSchema = z.object({
@@ -37,7 +39,15 @@ const perfilSchema = z.object({
 
 type PerfilForm = z.infer<typeof perfilSchema>;
 
-// Interfaces para las vistas del sistema
+interface Perfil {
+  id: number;
+  nombre: string;
+  descripcion?: string;
+  activo: boolean;
+  modulos_count: number;
+}
+
+// Mock data de las vistas del sistema (Mantengo el mock por si lo necesitas para referencia, aunque ya no se usa directamente)
 interface ViewAction {
   id: number;
   nombre: string;
@@ -61,7 +71,6 @@ interface SystemView {
   acciones: ViewAction[];
 }
 
-// Mock data de las vistas del sistema
 const mockSystemViews: SystemView[] = [
   {
     id: 1,
@@ -197,7 +206,7 @@ const mockSystemViews: SystemView[] = [
       { id: 30, nombre: "ver_ordenes", displayName: "Ver Órdenes", descripcion: "Listar órdenes médicas", tipo: "visualizacion", orden: 1, activo: true },
       { id: 31, nombre: "crear_orden", displayName: "Crear Orden", descripcion: "Generar nuevas órdenes", tipo: "creacion", orden: 2, activo: true },
       { id: 32, nombre: "editar_orden", displayName: "Editar Orden", descripcion: "Modificar órdenes existentes", tipo: "edicion", orden: 3, activo: true },
-      { id: 33, nombre: "eliminar_orden", displayName: "Eliminar Orden", descripcion: "Cancelar órdenes", tipo: "eliminacion", orden: 4, activo: true },
+      { id: 33, nombre: "eliminar_orden", displayName: "Anular Orden", descripcion: "Cancelar órdenes", tipo: "eliminacion", orden: 4, activo: true },
       { id: 34, nombre: "firmar_orden", displayName: "Firmar Orden", descripcion: "Firmar órdenes médicas", tipo: "aprobacion", orden: 5, activo: true }
     ]
   },
@@ -259,6 +268,11 @@ const PerfilesPage = () => {
   const [isAdvancedModalOpen, setIsAdvancedModalOpen] = useState(false);
   const [editingPerfil, setEditingPerfil] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("perfiles");
+  const [search, setSearch] = useState("");
+  const [estadoFilter, setEstadoFilter] = useState<string | null>("activo");
+  const [isModulesModalOpen, setIsModulesModalOpen] = useState(false);
+  const [viewingModules, setViewingModules] = useState<{ modulo_nombre: string }[] | null>(null);
+  const [selectedProfileForModules, setSelectedProfileForModules] = useState<Perfil | null>(null);
   
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -310,16 +324,26 @@ const PerfilesPage = () => {
   };
 
   // Fetch perfiles desde Supabase
-  const { data: perfiles = [], isLoading, refetch } = useQuery({
+  const { data: perfiles = [], isLoading, refetch, error: queryError } = useQuery<Perfil[], Error>({
     queryKey: ['roles'],
     queryFn: async () => {
-      return await rolesService.listRoles();
+      const fetchedRoles = await rolesService.listRoles();
+      console.log("Roles fetched from service:", fetchedRoles);
+      return fetchedRoles;
     },
     staleTime: 0,
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
   });
 
+  // Manejar errores de la consulta (si ocurren)
+  React.useEffect(() => {
+    if (queryError) {
+      console.error("Error al cargar perfiles:", queryError);
+      toast({ title: 'Error', description: 'No se pudieron cargar los perfiles', variant: 'destructive' });
+    }
+  }, [queryError, toast]);
 
+  console.log("Perfiles data in component:", perfiles);
 
   const form = useForm<PerfilForm>({
     resolver: zodResolver(perfilSchema),
@@ -336,17 +360,21 @@ const PerfilesPage = () => {
   // Create/Update perfil mutation
   const savePerfilMutation = useMutation({
     mutationFn: async (data: PerfilForm) => {
+      // Mapear los permisos del formulario a la estructura esperada por setAccionesToRol
+      const modulosParaGuardar = data.permisos.map(p => ({
+        modulo_id: Number(p.viewId), // viewId del formulario es ahora el modulo_id
+        acciones: p.actions // actions del formulario ya contiene los codes
+      }));
+
       if (editingPerfil) {
         // Editar
         const updated = await rolesService.updateRole(editingPerfil.id, { nombre: data.nombre, descripcion: data.descripcion });
-        // Guardar acciones (único registro de permisos)
-        await rolesService.setAccionesToRol(editingPerfil.id, data.permisos.map(p => ({ permiso_id: Number(p.viewId), acciones: p.actions })));
+        await rolesService.setAccionesToRol(editingPerfil.id, modulosParaGuardar);
         return updated;
       } else {
         // Crear
         const created = await rolesService.createRole({ nombre: data.nombre, descripcion: data.descripcion });
-        // Guardar acciones (único registro de permisos)
-        await rolesService.setAccionesToRol(created.id, data.permisos.map(p => ({ permiso_id: Number(p.viewId), acciones: p.actions })));
+        await rolesService.setAccionesToRol(created.id, modulosParaGuardar);
         return created;
       }
     },
@@ -379,6 +407,35 @@ const PerfilesPage = () => {
     }
   });
 
+  // Mutaciones para eliminar permanente y activar
+  const deletePerfilPermanentMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return await rolesService.deleteRolePermanent(id);
+    },
+    onSuccess: async () => {
+      queryClient.removeQueries({ queryKey: ['roles'] });
+      await refetch();
+      toast({ title: '✅ Éxito', description: 'Perfil eliminado permanentemente', variant: 'default' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error', description: error.message || 'Error al eliminar el perfil', variant: 'destructive' });
+    }
+  });
+
+  const activatePerfilMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return await rolesService.activateRole(id);
+    },
+    onSuccess: async () => {
+      queryClient.removeQueries({ queryKey: ['roles'] });
+      await refetch();
+      toast({ title: '✅ Éxito', description: 'Perfil activado correctamente', variant: 'default' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error', description: error.message || 'Error al activar el perfil', variant: 'destructive' });
+    }
+  });
+
   const onSubmit = (data: PerfilForm) => {
     savePerfilMutation.mutate(data);
   };
@@ -387,19 +444,43 @@ const PerfilesPage = () => {
   const handleEdit = async (perfil: any) => {
     setEditingPerfil(perfil);
     try {
-      // Obtener permisos completos (ahora incluye módulo)
-      const permisosDetalle = await rolesService.listPermisosDetalleByRol(perfil.id);
-      // Obtener acciones guardadas
-      const accionesGuardadas = await rolesService.getAccionesByRol(perfil.id);
-      // Mapear a estructura del form
-      const permisos = permisosDetalle.map((permiso: any) => ({
-        viewId: String(permiso.permiso_id), // Asegurar que viewId es string para el esquema del formulario
-        viewName: permiso.nombre,
-        actions: accionesGuardadas.filter(a => a.permiso_id === permiso.permiso_id).map(a => a.accion_codigo)
-      }));
-      form.reset({ codigo: perfil.id, nombre: perfil.nombre, descripcion: perfil.descripcion || '', permisos });
+      const accionesCompletas = await rolesService.getAccionesCompletasPorRol(perfil.id);
+      // console.log("Acciones completas fetched:", accionesCompletas); // Comentado para limpiar consola
+      
+      // Agrupar acciones por modulo_id y recopilar las acciones de cada modulo
+      const modulosConAcciones: Record<number, { nombre: string; acciones: string[] }> = {};
+      
+      accionesCompletas.forEach(accion => {
+        // Acceso directo a modulo_id y modulo_nombre, ya que rolesService los devuelve así
+        const moduloId = accion.modulo_id;
+        const moduloNombre = accion.modulo_nombre;
+
+        if (moduloId !== null && moduloId !== undefined && moduloNombre) {
+          if (!modulosConAcciones[moduloId]) {
+            modulosConAcciones[moduloId] = { nombre: moduloNombre, acciones: [] };
+          }
+          // Añadir el código de la acción (accion.accion_codigo) al array de acciones del módulo
+          if (!modulosConAcciones[moduloId].acciones.includes(accion.accion_codigo)) {
+            modulosConAcciones[moduloId].acciones.push(accion.accion_codigo);
+          }
+        }
+      });
+
+      // Construir el array de permisos para el formulario usando los módulos agrupados
+      const permisosParaForm = Object.keys(modulosConAcciones).map(moduloIdStr => {
+        const moduloId = Number(moduloIdStr);
+        const moduloData = modulosConAcciones[moduloId];
+        return {
+          viewId: String(moduloId), // El ID del módulo
+          viewName: moduloData.nombre, // El nombre del módulo
+          actions: moduloData.acciones // Las acciones asociadas a los permisos de este módulo
+        };
+      });
+
+      form.reset({ codigo: perfil.id, nombre: perfil.nombre, descripcion: perfil.descripcion || '', permisos: permisosParaForm });
       setActiveTab('vistas');
     } catch (error) {
+      console.error("Error al cargar permisos del perfil:", error);
       toast({ title: 'Error', description: 'No se pudieron cargar los permisos del perfil', variant: 'destructive' });
       form.reset({ codigo: perfil.id, nombre: perfil.nombre, descripcion: perfil.descripcion || '', permisos: [] });
       setActiveTab('vistas');
@@ -411,7 +492,7 @@ const PerfilesPage = () => {
     deletePerfilMutation.mutate(id);
   };
 
-  const handleAdvancedProfileCreated = async (profile: UserProfile) => {
+  const handleAdvancedProfileCreated = async (profile: any) => {
     // Invalidar cache para actualizar la lista y refrescar
     await queryClient.invalidateQueries({ queryKey: ['/api/perfiles'] });
     await refetch();
@@ -424,6 +505,24 @@ const PerfilesPage = () => {
     });
   };
 
+  const handleViewModules = async (perfil: Perfil) => {
+    setSelectedProfileForModules(perfil);
+    try {
+      const acciones = await rolesService.getAccionesCompletasPorRol(perfil.id);
+      const uniqueModules = [...new Map(acciones.map(item => [item.modulo_nombre, item])).values()];
+      setViewingModules(uniqueModules);
+      setIsModulesModalOpen(true);
+    } catch (error) {
+      toast({ title: 'Error', description: 'No se pudieron cargar los módulos del perfil', variant: 'destructive' });
+    }
+  };
+
+  // Filtrado de perfiles
+  const filteredPerfiles = perfiles.filter(perfil => {
+    const matchesSearch = perfil.nombre.toLowerCase().includes(search.toLowerCase()) || (perfil.descripcion || '').toLowerCase().includes(search.toLowerCase());
+    const matchesEstado = estadoFilter === null ? true : (estadoFilter === 'activo' ? perfil.activo : !perfil.activo);
+    return matchesSearch && matchesEstado;
+  });
 
 
   if (isLoading) {
@@ -436,13 +535,23 @@ const PerfilesPage = () => {
         <h1 className="text-2xl font-bold text-gray-900">Gestión de Perfiles y Vistas</h1>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="perfiles">Perfiles de Usuario</TabsTrigger>
-          <TabsTrigger value="vistas">Vistas del Sistema</TabsTrigger>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2 bg-cyan-100/60 p-1 rounded-lg">
+          <TabsTrigger 
+            value="perfiles" 
+            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+          >
+            Listado de Perfiles
+          </TabsTrigger>
+          <TabsTrigger 
+            value="vistas" 
+            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+          >
+            Registro de Perfil
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="perfiles" className="space-y-6">
+        <TabsContent value="perfiles" className="mt-6">
           {/* Header similar a la imagen */}
           <div className="bg-white rounded-lg border">
             <div className="flex items-center justify-between p-4 border-b">
@@ -474,62 +583,221 @@ const PerfilesPage = () => {
 
             {/* Tabla similar a la imagen */}
             <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-cyan-50">
-                  <tr className="text-left text-sm font-medium text-gray-600">
-                    <th className="px-4 py-3 text-teal-600">Acciones</th>
-                    <th className="px-4 py-3">Item</th>
-                    <th className="px-4 py-3">Código</th>
-                    <th className="px-4 py-3">Nombre</th>
-                    <th className="px-4 py-3">Rol sistema</th>
-                    <th className="px-4 py-3">Estado</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {perfiles.map((perfil, index) => (
-                    <tr key={perfil.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3">
+              <div className="flex flex-wrap items-center gap-4 p-4 bg-cyan-50 rounded-lg mb-6 shadow-sm">
+                <div className="flex-1 min-w-[200px]">
+                  <Input
+                    placeholder="Buscar por nombre..."
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+                <div className="min-w-[180px]">
+                  <Select value={estadoFilter ?? undefined} onValueChange={v => setEstadoFilter(v === 'activo' ? 'activo' : v === 'inactivo' ? 'inactivo' : null)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Filtrar por estado" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="activo">Activo</SelectItem>
+                      <SelectItem value="inactivo">Inactivo</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="relative">
+                {isLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-white/70 z-20">
+                    <div className="flex flex-col items-center gap-2">
+                      <Loader2 className="animate-spin h-10 w-10 text-cyan-600" />
+                      <span className="text-cyan-700 font-semibold">Cargando perfiles...</span>
+                    </div>
+                  </div>
+                )}
+                <Table className="w-full">
+                  <TableHeader className="bg-cyan-50">
+                    <TableRow className="text-left text-sm font-medium text-gray-600">
+                      <TableHead className="px-4 py-3 text-teal-600">Acciones</TableHead>
+                      <TableHead className="px-4 py-3">Código</TableHead>
+                      <TableHead className="px-4 py-3">Nombre</TableHead>
+                      <TableHead className="px-4 py-3">Descripción</TableHead>
+                      <TableHead className="px-4 py-3">Cantidad de Módulos</TableHead>
+                      <TableHead className="px-4 py-3">Estado</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {!isLoading && (filteredPerfiles.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="h-24 text-center">
+                          No hay perfiles disponibles.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredPerfiles.map((perfil: Perfil, index: number) => (
+                        <TableRow key={perfil.id} className="hover:bg-gray-50">
+                          <TableCell className="px-4 py-3">
                         <div className="flex space-x-2">
-                          <button 
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
                             onClick={() => handleEdit(perfil)}
-                            className="text-blue-500 hover:text-blue-700"
-                            title="Editar"
-                          >
-                            ✏️
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(perfil.id)}
-                            className="text-red-500 hover:text-red-700"
-                            title="Eliminar"
-                          >
-                            🗑️
-                          </button>
+                                      aria-label="Editar perfil"
+                                    >
+                                      <Edit className="h-5 w-5 text-blue-600 hover:text-blue-800 transition-colors" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Editar</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                              {perfil.activo ? (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            aria-label="Inactivar perfil"
+                                          >
+                                            <Lock className="h-5 w-5 text-yellow-600 hover:text-yellow-800 transition-colors" />
+                                          </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>¿Inactivar perfil?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                              Esta acción inactivará el perfil y no podrá ser usado hasta que se reactive. ¿Estás seguro?
+                                            </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleDelete(perfil.id)}>
+                                              Sí, inactivar
+                                            </AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Inactivar</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              ) : (
+                                <>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <AlertDialog>
+                                          <AlertDialogTrigger asChild>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              aria-label="Eliminar perfil"
+                                            >
+                                              <Trash2 className="h-5 w-5 text-rose-600 hover:text-rose-800 transition-colors" />
+                                            </Button>
+                                          </AlertDialogTrigger>
+                                          <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                              <AlertDialogTitle>¿Eliminar perfil?</AlertDialogTitle>
+                                              <AlertDialogDescription>
+                                                Esta acción eliminará el perfil de forma permanente. ¿Estás seguro?
+                                              </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                              <AlertDialogAction onClick={() => deletePerfilPermanentMutation.mutate(perfil.id)}>
+                                                Sí, eliminar
+                                              </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                          </AlertDialogContent>
+                                        </AlertDialog>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Eliminar</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <AlertDialog>
+                                          <AlertDialogTrigger asChild>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              aria-label="Activar perfil"
+                                            >
+                                              <CheckCircle className="h-5 w-5 text-green-600 hover:text-green-800 transition-colors" />
+                                            </Button>
+                                          </AlertDialogTrigger>
+                                          <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                              <AlertDialogTitle>¿Activar perfil?</AlertDialogTitle>
+                                              <AlertDialogDescription>
+                                                Esta acción reactivará el perfil y estará disponible para su uso. ¿Estás seguro?
+                                              </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                              <AlertDialogAction onClick={() => activatePerfilMutation.mutate(perfil.id)}>
+                                                Sí, activar
+                                              </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                          </AlertDialogContent>
+                                        </AlertDialog>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Activar</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </>
+                              )}
                         </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">{index + 1}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900">{String(perfil.id).padStart(3, '0')}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900">{perfil.nombre}</td>
-                      <td className="px-4 py-3">
-                        <span className="text-sm text-gray-600">
-                          {perfil.nombre === 'ADMINISTRADOR SYS' ? 'SI' : 'NO'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          ACTIV...
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                  {perfiles.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
-                        No hay roles registrados
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                          </TableCell>
+                          <TableCell className="px-4 py-3 text-sm text-gray-900">{String(perfil.id).padStart(3, '0')}</TableCell>
+                          <TableCell className="px-4 py-3 text-sm text-gray-900">{perfil.nombre}</TableCell>
+                          <TableCell className="px-4 py-3 text-sm text-gray-500">{perfil.descripcion || 'N/A'}</TableCell>
+                          <TableCell className="px-4 py-3 text-center font-bold text-cyan-700">
+    <div className="flex items-center justify-center gap-2">
+      <span>{perfil.modulos_count}</span>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => handleViewModules(perfil)}
+              aria-label="Ver módulos"
+              className="h-6 w-6"
+            >
+              <Eye className="h-4 w-4 text-gray-500 hover:text-gray-700" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Ver Módulos Asignados</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    </div>
+  </TableCell>
+                          <TableCell className="px-4 py-3">
+                            <Badge variant={perfil.activo ? "default" : "secondary"} className={perfil.activo ? "bg-green-100 text-green-700 border-green-200" : "bg-gray-200 text-gray-600 border-gray-300"}>
+                              {perfil.activo ? "Activo" : "Inactivo"}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ))}
+                  </TableBody>
+                </Table>
             </div>
           </div>
 
@@ -639,13 +907,17 @@ const PerfilesPage = () => {
                     className="bg-green-500 hover:bg-green-600 text-white border-0 shadow-sm px-6 py-2 rounded text-sm font-medium transition-colors"
                     disabled={savePerfilMutation.isPending}
                   >
-                    {savePerfilMutation.isPending ? 'Guardando...' : 'Guardar'}
+                    {savePerfilMutation.isPending ? 
+                        (editingPerfil ? 'Actualizando...' : 'Guardando...') : 
+                        (editingPerfil ? 'Actualizar' : 'Guardar')
+                      }
                   </Button>
                 </div>
               </form>
             </Form>
           </DialogContent>
         </Dialog>
+      </div>
         </TabsContent>
 
         <TabsContent value="vistas" className="space-y-6">
@@ -738,7 +1010,10 @@ const PerfilesPage = () => {
                       className="bg-green-500 hover:bg-green-600 text-white border-0 shadow-sm px-6 py-2 rounded text-sm font-medium transition-colors"
                       disabled={savePerfilMutation.isPending}
                     >
-                      {savePerfilMutation.isPending ? 'Guardando...' : 'Guardar'}
+                      {savePerfilMutation.isPending ? 
+                        (editingPerfil ? 'Actualizando...' : 'Guardando...') : 
+                        (editingPerfil ? 'Actualizar' : 'Guardar')
+                      }
                     </Button>
                   </div>
                 </form>
@@ -787,6 +1062,35 @@ const PerfilesPage = () => {
         onOpenChange={setIsAdvancedModalOpen}
         onProfileCreated={handleAdvancedProfileCreated}
       />
+
+      {/* Modal para ver módulos asignados */}
+      <Dialog open={isModulesModalOpen} onOpenChange={setIsModulesModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Módulos Asignados a: {selectedProfileForModules?.nombre}</DialogTitle>
+            <DialogDescription>
+              Estos son los módulos que tiene asignados este perfil.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto p-4">
+            {viewingModules && viewingModules.length > 0 ? (
+              <ul className="space-y-2">
+                {viewingModules.map((modulo, index) => (
+                  <li key={index} className="flex items-center gap-3 rounded-md border bg-gray-50 p-3">
+                    <PackageOpen className="h-5 w-5 text-cyan-600" />
+                    <span className="font-medium text-gray-800">{modulo.modulo_nombre}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-center text-gray-500">No hay módulos asignados a este perfil.</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setIsModulesModalOpen(false)}>Cerrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -24,6 +24,8 @@ import { z } from "zod";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { PasswordStrength } from "@/components/ui/password-strength";
+import { rolesService } from "@/services/rolesService";
+import { empresasService, Empresa } from "@/services/empresasService"; // Importar Empresa desde el servicio
 // Los tipos se importan automáticamente desde el schema
 
 // Esquema de validación para crear usuario
@@ -110,27 +112,24 @@ const UsuariosPage = () => {
     refetchOnWindowFocus: false
   });
 
-  // Query para obtener perfiles disponibles - usando la misma configuración que en PerfilesPage
-  const { data: perfiles = [], isLoading: perfilesLoading } = useQuery<Perfil[]>({
-    queryKey: ["/api/perfiles"],
+  // Query para obtener perfiles activos
+  const { data: perfilesActivos = [], isLoading: perfilesLoading } = useQuery<Perfil[]>({
+    queryKey: ["perfilesActivos"],
     queryFn: async () => {
-      const response = await fetch('/api/perfiles', {
-        cache: 'no-store', // Evitar caché del browser
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
-      });
-      if (!response.ok) throw new Error('Failed to fetch perfiles');
-      return response.json();
+      return await rolesService.listActiveRoles();
     },
-    staleTime: 0,
-    refetchOnWindowFocus: false
+    staleTime: 5 * 60 * 1000, // 5 minutos
+  });
+
+  // Query para obtener empresas
+  const { data: empresas = [], isLoading: empresasLoading } = useQuery<Empresa[]>({
+    queryKey: ["empresas"],
+    queryFn: empresasService.getAll,
+    staleTime: 5 * 60 * 1000, // 5 minutos
   });
 
   // Mock data para empresas/almacenes
-  const empresas = [
+  const empresasMock = [
     { id: 1, nombreEmpresa: "Almacén Central Bogotá" },
     { id: 2, nombreEmpresa: "Sucursal Norte" },
     { id: 3, nombreEmpresa: "Depósito Sur" },
@@ -140,11 +139,29 @@ const UsuariosPage = () => {
   ];
 
   // Loading state para empresas (mock data no necesita loading real)
-  const empresasLoading = false;
+  // const empresasLoading = false; // Eliminado
 
   // Formulario para crear usuario
-  const form = useForm<CrearUsuarioForm | EditarUsuarioForm>({
-    resolver: zodResolver(editingUser ? editarUsuarioSchema : crearUsuarioSchema),
+  const form = useForm<CrearUsuarioForm>({
+    resolver: zodResolver(crearUsuarioSchema),
+    defaultValues: {
+      identificacion: "",
+      primerNombre: "",
+      segundoNombre: "",
+      primerApellido: "",
+      segundoApellido: "",
+      telefono: "",
+      email: "",
+      username: "",
+      password: "",
+      perfilIds: [],
+      empresaIds: [],
+    },
+  });
+
+  // Formulario para editar usuario
+  const editForm = useForm<EditarUsuarioForm>({
+    resolver: zodResolver(editarUsuarioSchema),
     defaultValues: {
       identificacion: "",
       primerNombre: "",
@@ -266,7 +283,7 @@ const UsuariosPage = () => {
   const handleEditarUsuario = (usuario: Usuario) => {
     setEditingUser(usuario);
     // Prellenar el formulario con los datos del usuario
-    form.reset({
+    editForm.reset({
       identificacion: usuario.identificacion,
       primerNombre: usuario.primerNombre,
       segundoNombre: usuario.segundoNombre || "",
@@ -307,7 +324,7 @@ const UsuariosPage = () => {
         variant: "default",
       });
       
-      form.reset({
+      editForm.reset({
         identificacion: "",
         primerNombre: "",
         segundoNombre: "",
@@ -523,43 +540,38 @@ const UsuariosPage = () => {
                       )}
                     />
 
-                    <FormField
-                      control={form.control}
-                      name="username"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm font-medium">Username *</FormLabel>
-                          <FormControl>
-                            <Input 
-                              className="h-11 border-2 border-gray-300 focus:border-green-500 focus:ring-green-500 text-base" 
-                              placeholder="Nombre de usuario" 
-                              {...field} 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm font-medium">Contraseña *</FormLabel>
-                          <FormControl>
-                            <Input 
-                              className="h-11 border-2 border-gray-300 focus:border-green-500 focus:ring-green-500 text-base" 
-                              type="password" 
-                              placeholder="Contraseña (mín. 6 caracteres)" 
-                              {...field} 
-                            />
-                          </FormControl>
-                          <PasswordStrength password={field.value} />
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <div className="p-4 border rounded-lg bg-slate-50 mt-6">
+                      <h3 className="text-lg font-semibold mb-4 text-gray-800">Credenciales de Acceso</h3>
+                      <div className="flex flex-col gap-4"> {/* Cambiado a una columna */}
+                        <FormField
+                          control={form.control}
+                          name="username"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Usuario</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Nombre de usuario" {...field} autoComplete="off" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="password"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Contraseña</FormLabel>
+                              <FormControl>
+                                <Input type="password" placeholder="Contraseña" {...field} autoComplete="new-password" />
+                              </FormControl>
+                              <PasswordStrength password={field.value} /> {/* Añadido de nuevo */}
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   {/* Columna 3 - Perfiles y Almacenes */}
@@ -575,15 +587,19 @@ const UsuariosPage = () => {
                           <FormControl>
                             <div className="border-2 border-gray-300 rounded-md">
                               <MultiSelect
-                                options={perfiles.map(perfil => ({
-                                  id: perfil.id,
-                                  name: perfil.nombre
+                                placeholder="Seleccione perfiles"
+                                options={perfilesActivos.map(p => ({
+                                  id: p.id,
+                                  value: String(p.id),
+                                  label: p.nombre, // Asegurar que se usa 'label'
+                                  description: p.descripcion || ''
                                 }))}
                                 selected={field.value || []}
                                 onSelectionChange={(selected) => {
                                   field.onChange(selected);
                                 }}
                                 placeholder="Seleccione perfiles"
+                                isLoading={perfilesLoading}
                               />
                             </div>
                           </FormControl>
@@ -597,21 +613,20 @@ const UsuariosPage = () => {
                       name="empresaIds"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-sm font-medium">Almacenes (Opcional)</FormLabel>
+                          <FormLabel className="text-sm font-medium">Empresas asociadas</FormLabel>
                           <FormControl>
-                            <div className="border-2 border-gray-300 rounded-md">
-                              <MultiSelect
-                                options={empresas.map(empresa => ({
-                                  id: empresa.id,
-                                  name: empresa.nombreEmpresa
-                                }))}
-                                selected={field.value || []}
-                                onSelectionChange={(selected) => {
-                                  field.onChange(selected);
-                                }}
-                                placeholder="Seleccione almacenes"
-                              />
-                            </div>
+                            <MultiSelect
+                              placeholder="Seleccione empresas"
+                              options={empresas.map(e => ({
+                                id: e.id!,
+                                value: e.nit,
+                                label: e.razon_social, // Asegurar que se usa 'label'
+                                description: `NIT: ${e.nit}`
+                              }))}
+                              selected={field.value || []}
+                              onSelectionChange={field.onChange}
+                              isLoading={empresasLoading}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -824,8 +839,8 @@ const UsuariosPage = () => {
             </DialogDescription>
           </DialogHeader>
           
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleActualizarUsuario)} className="space-y-4">
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit(handleActualizarUsuario)} className="space-y-4">
               
               {/* Reutilizar el mismo formulario pero con diferentes datos */}
               <div className="grid grid-cols-3 gap-6">
@@ -834,7 +849,7 @@ const UsuariosPage = () => {
                   <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Datos Personales</h4>
                   
                   <FormField
-                    control={form.control}
+                    control={editForm.control}
                     name="identificacion"
                     render={({ field }) => (
                       <FormItem>
@@ -852,7 +867,7 @@ const UsuariosPage = () => {
                   />
 
                   <FormField
-                    control={form.control}
+                    control={editForm.control}
                     name="primerNombre"
                     render={({ field }) => (
                       <FormItem>
@@ -870,7 +885,7 @@ const UsuariosPage = () => {
                   />
 
                   <FormField
-                    control={form.control}
+                    control={editForm.control}
                     name="segundoNombre"
                     render={({ field }) => (
                       <FormItem>
@@ -888,7 +903,7 @@ const UsuariosPage = () => {
                   />
 
                   <FormField
-                    control={form.control}
+                    control={editForm.control}
                     name="primerApellido"
                     render={({ field }) => (
                       <FormItem>
@@ -906,7 +921,7 @@ const UsuariosPage = () => {
                   />
 
                   <FormField
-                    control={form.control}
+                    control={editForm.control}
                     name="segundoApellido"
                     render={({ field }) => (
                       <FormItem>
@@ -929,7 +944,7 @@ const UsuariosPage = () => {
                   <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Contacto y Acceso</h4>
                   
                   <FormField
-                    control={form.control}
+                    control={editForm.control}
                     name="telefono"
                     render={({ field }) => (
                       <FormItem>
@@ -947,7 +962,7 @@ const UsuariosPage = () => {
                   />
 
                   <FormField
-                    control={form.control}
+                    control={editForm.control}
                     name="email"
                     render={({ field }) => (
                       <FormItem>
@@ -965,42 +980,38 @@ const UsuariosPage = () => {
                     )}
                   />
 
-                  <FormField
-                    control={form.control}
-                    name="username"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm font-medium">Username *</FormLabel>
-                        <FormControl>
-                          <Input 
-                            className="h-11 border-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-base" 
-                            placeholder="Nombre de usuario" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm font-medium">Nueva Contraseña</FormLabel>
-                        <FormControl>
-                          <Input 
-                            className="h-11 border-2 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-base" 
-                            type="password" 
-                            placeholder="Dejar vacío para mantener actual" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="p-4 border rounded-lg bg-slate-50 mt-6">
+                    <h3 className="text-lg font-semibold mb-4 text-gray-800">Credenciales de Acceso</h3>
+                    <div className="flex flex-col gap-4"> {/* Cambiado a una columna */}
+                      <FormField
+                        control={editForm.control}
+                        name="username"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Usuario</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Nombre de usuario" {...field} autoComplete="off" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={editForm.control}
+                        name="password"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Contraseña (dejar en blanco para no cambiar)</FormLabel>
+                            <FormControl>
+                              <Input type="password" placeholder="Nueva contraseña" {...field} autoComplete="new-password" />
+                            </FormControl>
+                            <PasswordStrength password={field.value} /> {/* Añadido de nuevo */}
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 {/* Columna 3 - Perfiles y almacenes */}
@@ -1008,23 +1019,24 @@ const UsuariosPage = () => {
                   <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">Asignaciones</h4>
                   
                   <FormField
-                    control={form.control}
+                    control={editForm.control}
                     name="perfilIds"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel className="text-sm font-medium">Perfiles Asociados</FormLabel>
                         <FormControl>
                           <MultiSelect
-                            options={perfiles.map((perfil) => ({
+                            options={perfilesActivos.map((perfil) => ({
                               id: perfil.id,
-                              name: perfil.nombre,
+                              value: String(perfil.id),
+                              label: perfil.nombre,
                               description: perfil.descripcion || `Perfil con ID ${perfil.id}`
                             }))}
                             selected={field.value || []}
                             onSelectionChange={field.onChange}
                             placeholder="Seleccionar perfiles..."
                             className="h-auto"
-                            isLoading={perfilesLoading}
+                            isLoading={false} // No need to show loading for active roles
                             emptyText="No hay perfiles disponibles"
                           />
                         </FormControl>
@@ -1034,24 +1046,25 @@ const UsuariosPage = () => {
                   />
 
                   <FormField
-                    control={form.control}
+                    control={editForm.control}
                     name="empresaIds"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-sm font-medium">Almacenes</FormLabel>
+                        <FormLabel className="text-sm font-medium">Empresas asociadas</FormLabel>
                         <FormControl>
                           <MultiSelect
-                            options={empresas.map((empresa) => ({
-                              id: empresa.id,
-                              name: empresa.nombreEmpresa,
-                              description: `ID: ${empresa.id}`
+                            options={empresas.map(e => ({
+                              id: e.id!,
+                              value: e.nit,
+                              label: e.razon_social, // Usar 'name' para el texto
+                              description: `NIT: ${e.nit}`
                             }))}
                             selected={field.value || []}
                             onSelectionChange={field.onChange}
-                            placeholder="Seleccionar almacenes..."
+                            placeholder="Seleccionar empresas..."
                             className="h-auto"
                             isLoading={empresasLoading}
-                            emptyText="No hay almacenes disponibles"
+                            emptyText="No hay empresas disponibles"
                           />
                         </FormControl>
                         <FormMessage />

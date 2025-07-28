@@ -1,14 +1,26 @@
 import { supabase } from './supabaseClient';
 
 export const rolesService = {
-  // Listar roles
+  // Listar roles (incluyendo cantidad de modulos asignados y estado activo)
   async listRoles() {
-    const { data, error } = await supabase.from('roles').select('*');
-    if (error) throw error;
-    return data;
+    const { data, error } = await supabase
+      .from('roles')
+      .select('id, nombre, descripcion, activo, roles_modulos(count)'); // Seleccionar 'activo' y count de roles_modulos
+
+    if (error) {
+      console.error("Error al listar roles:", error);
+      throw error;
+    }
+
+    // Mapear para incluir el count de módulos y asegurar que 'activo' sea booleano
+    return data.map(rol => ({
+      ...rol,
+      modulos_count: rol.roles_modulos ? rol.roles_modulos[0]?.count || 0 : 0, // Extraer el count
+      activo: rol.activo === true // Asegurar que activo sea booleano
+    }));
   },
 
-  // Crear rol
+  // Crear un nuevo rol
   async createRole({ nombre, descripcion }: { nombre: string; descripcion?: string }) {
     const { data, error } = await supabase.from('roles').insert([{ nombre, descripcion }]).select().single();
     if (error) throw error;
@@ -22,11 +34,59 @@ export const rolesService = {
     return data;
   },
 
-  // Eliminar rol
+  // Eliminar (inactivar) un rol
   async deleteRole(id: number) {
-    const { error } = await supabase.from('roles').delete().eq('id', id);
-    if (error) throw error;
-    return true;
+    const { data, error } = await supabase
+      .from('roles')
+      .update({ activo: false, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select();
+
+    if (error) {
+      console.error("Error al inactivar rol:", error);
+      throw error;
+    }
+    return data;
+  },
+
+  // Eliminar definitivamente un rol
+  async deleteRolePermanent(id: number) {
+    const { data, error } = await supabase
+      .from('roles')
+      .delete()
+      .eq('id', id);
+    if (error) {
+      console.error("Error al eliminar permanentemente el rol:", error);
+      throw error;
+    }
+    return data;
+  },
+
+  // Activar un rol inactivo
+  async activateRole(id: number) {
+    const { data, error } = await supabase
+      .from('roles')
+      .update({ activo: true, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select();
+    if (error) {
+      console.error("Error al activar el rol:", error);
+      throw error;
+    }
+    return data;
+  },
+
+  // Listar solo roles activos
+  async listActiveRoles() {
+    const { data, error } = await supabase
+      .from('roles')
+      .select('id, nombre')
+      .eq('activo', true);
+    if (error) {
+      console.error("Error al listar roles activos:", error);
+      throw error;
+    }
+    return data;
   },
 
   // Eliminar métodos de roles_permisos
@@ -35,38 +95,101 @@ export const rolesService = {
   // Asignar permisos a un rol (ya no se usa)
   // async setPermisosToRol(rol_id: number, permiso_ids: number[]) { ... }
 
-  // Listar permisos completos de un rol
-  async listPermisosDetalleByRol(rol_id: number) {
+  // Obtener todas las acciones completas para un rol (ahora desde roles_modulos)
+  async getAccionesCompletasPorRol(rol_id: number) {
     const { data, error } = await supabase
-      .from('roles_acciones')
-      .select('permiso_id, modulo_permisos(id, nombre, descripcion, modulos(nombre))');
-    if (error) throw error;
+      .from('roles_modulos')
+      .select('modulo_id, selected_actions_codes, modulos(id, nombre)') // Seleccionar el id y nombre del modulo
+      .eq('rol_id', rol_id);
+    
+    if (error) {
+      console.error("Error al obtener acciones completas por rol:", error);
+      throw error;
+    }
 
-    return data.map((ra: any) => {
-      // Supabase devuelve el objeto relacionado directamente cuando no hay ambigüedad o array si hay multiples
-      const moduloPermiso = ra.modulo_permisos;
-      const moduloInfo = moduloPermiso?.modulos;
-      
-      return {
-        permiso_id: moduloPermiso?.id || null, // Asegurar un valor por defecto si es null
-        nombre: moduloPermiso?.nombre || '',
-        descripcion: moduloPermiso?.descripcion || '',
-        modulo: moduloInfo?.nombre || ''
-      };
-    }).filter(p => p.permiso_id !== null); // Filtrar entradas sin permiso_id válido
+    // Aplanar los datos para facilitar el procesamiento en el frontend
+    const flattenedActions: any[] = [];
+    for (const entry of data) {
+      const moduloId = entry.modulo_id;
+      const moduloNombre = (Array.isArray(entry.modulos) ? entry.modulos[0] : entry.modulos)?.nombre || '';
+      const selectedActions = entry.selected_actions_codes as string[] || [];
+
+      for (const actionCode of selectedActions) {
+        // Necesitamos el permiso_id real y los detalles del permiso/módulo.
+        // Esto requerirá una búsqueda adicional si queremos mantener la estructura anterior.
+        // Por ahora, devolveremos lo que podamos directamente.
+        flattenedActions.push({
+          modulo_id: moduloId,
+          modulo_nombre: moduloNombre,
+          accion_codigo: actionCode, // Este es el 'code' de modulo_permisos.code
+          // No tenemos el permiso_id o nombre directo de modulo_permisos aquí, se obtendrá en el handleEdit
+        });
+      }
+    }
+    return flattenedActions;
   },
 
-  // Guardar acciones por permiso para un rol
-  async setAccionesToRol(rol_id: number, permisos: { permiso_id: number, acciones: string[] }[]) {
-    // Eliminar acciones actuales
-    await supabase.from('roles_acciones').delete().eq('rol_id', rol_id);
-    // Insertar nuevas acciones
-    const inserts = permisos.flatMap(p => p.acciones.map(accion => ({ rol_id, permiso_id: p.permiso_id, accion_codigo: accion })));
-    if (inserts.length > 0) {
-      const { error } = await supabase.from('roles_acciones').insert(inserts);
-      if (error) throw error;
+  // Obtener detalles de un permiso de módulo específico
+  async getModuloPermisoDetails(permiso_id: number) {
+    const { data, error } = await supabase
+      .from('modulo_permisos')
+      .select('id, nombre, descripcion, code, modulos(nombre)')
+      .eq('id', permiso_id)
+      .single();
+
+    if (error) {
+      console.error("Error al obtener detalles del permiso de módulo:", error);
+      throw error;
     }
-    return true;
+
+    if (!data) {
+      throw new Error("Permiso de módulo no encontrado");
+    }
+
+    const moduloInfo = (Array.isArray(data.modulos) ? data.modulos[0] : data.modulos) as { nombre: string } | null; // Asegurar el tipo
+
+    return {
+      permiso_id: data.id,
+      nombre: data.nombre,
+      descripcion: data.descripcion,
+      code: data.code,
+      modulo: moduloInfo?.nombre || ''
+    };
+  },
+
+  // Guardar acciones por modulo para un rol
+  async setAccionesToRol(rol_id: number, modulosConAcciones: { modulo_id: number; acciones: string[] }[]) {
+    // Primero, eliminar todas las entradas existentes para este rol en roles_modulos
+    const { error: deleteError } = await supabase
+      .from('roles_modulos')
+      .delete()
+      .eq('rol_id', rol_id);
+
+    if (deleteError) {
+      console.error("Error al eliminar acciones de rol existentes:", deleteError);
+      throw deleteError;
+    }
+
+    // Luego, insertar los nuevos registros
+    const inserts = modulosConAcciones.map(mc => ({
+      rol_id: rol_id,
+      modulo_id: mc.modulo_id,
+      selected_actions_codes: mc.acciones // Guardar el array de codes como JSONB
+    }));
+
+    if (inserts.length > 0) {
+      const { data, error } = await supabase
+        .from('roles_modulos')
+        .insert(inserts)
+        .select();
+
+      if (error) {
+        console.error("Error al guardar acciones de rol:", error);
+        throw error;
+      }
+      return data;
+    }
+    return [];
   },
 
   // Consultar acciones por permiso para un rol
@@ -76,11 +199,21 @@ export const rolesService = {
     return data;
   },
 
-  // Listar módulos con sus permisos
+  // Listar módulos con sus permisos y acciones (incluyendo descripción del módulo)
   async listModulosConPermisos() {
     const { data, error } = await supabase
       .from('modulos')
-      .select('id, nombre, descripcion, modulo_permisos(id, nombre, descripcion)');
+      .select(`
+        id,
+        nombre,
+        descripcion,
+        modulo_permisos (
+          id,
+          nombre,
+          descripcion,
+          code
+        )
+      `);
     if (error) throw error;
     return data;
   },
@@ -91,9 +224,12 @@ export const rolesService = {
       .from('modulo_permisos')
       .select('*, modulos(nombre)');
     if (error) throw error;
-    return data.map(p => ({
-      ...p,
-      modulo: p.modulos?.nombre || ''
-    }));
+    return data.map(p => {
+      const moduloObj = (Array.isArray(p.modulos) ? p.modulos[0] : p.modulos) as { nombre: string } | null; // Asegurar el tipo
+      return {
+        ...p,
+        modulo: moduloObj?.nombre || ''
+      };
+    });
   }
 }; 

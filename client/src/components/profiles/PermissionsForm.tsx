@@ -8,6 +8,9 @@ import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { rolesService } from '@/services/rolesService';
 import { MultiSelect, Option } from '@/components/ui/multi-select';
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface PermissionsFormProps {
   selectedPermissions: {
@@ -23,12 +26,13 @@ interface PermissionsFormProps {
 }
 
 interface SystemView {
-  codigo: string;
-  nombre: string;
+  codigo: string; // ID del módulo
+  nombre: string; // Nombre del módulo
   acciones: {
-    codigo: string;
-    nombre: string;
-    description?: string; 
+    id: number; // ID numérico del permiso (desde modulo_permisos.id)
+    codigo: string; // Código programático del permiso (desde modulo_permisos.code)
+    nombre: string; // Nombre amigable del permiso (desde modulo_permisos.nombre)
+    description?: string; // Descripción del permiso
   }[];
 }
 
@@ -68,8 +72,9 @@ export function PermissionsForm({ selectedPermissions, onPermissionsChange }: Pe
     codigo: String(modulo.id),
     nombre: modulo.nombre,
     acciones: modulo.modulo_permisos.map((p: any) => ({
-      codigo: String(p.id),
-      nombre: p.nombre,
+      id: p.id, // Usar el ID numérico del permiso
+      codigo: p.code, // Usar el nuevo campo 'code'
+      nombre: p.nombre, // Usar el campo 'nombre' amigable
       description: p.descripcion
     }))
   }));
@@ -197,6 +202,9 @@ export function PermissionsForm({ selectedPermissions, onPermissionsChange }: Pe
               const view = systemViews.find(v => String(v.codigo) === String(permission.viewId));
               if (!view) return null;
 
+              const allActionCodes = view.acciones.map(a => a.codigo);
+              const areAllSelected = allActionCodes.length > 0 && allActionCodes.every(code => permission.actions.includes(code));
+
               return (
                 <div key={permission.viewId} className="bg-white hover:bg-gray-50">
                   <div className="grid grid-cols-8 gap-2 p-3 items-center">
@@ -209,20 +217,20 @@ export function PermissionsForm({ selectedPermissions, onPermissionsChange }: Pe
                     <div className="col-span-3 text-center">
                       <MultiSelect
                         options={view.acciones.map((a) => ({
-                          id: Number(a.codigo),
-                          value: a.codigo,
-                          label: a.nombre,
+                          id: a.id, // Usar el ID numérico del permiso
+                          value: a.codigo, // Usar el 'code' como valor para la selección interna
+                          label: a.nombre, // Mostrar el nombre amigable
                           name: a.nombre,
                           description: a.description
                         })) as Option[]} 
                         selected={permission.actions.map((actionCode: string) => {
                           const foundAction = view.acciones.find(act => act.codigo === actionCode);
-                          return foundAction ? Number(foundAction.codigo) : -1;
+                          return foundAction ? foundAction.id : -1; // Mapear el 'code' a 'id'
                         }).filter(id => id !== -1)}
                         onSelectionChange={(selectedIds: number[]) => {
                           const actions = selectedIds.map(id => {
-                            const found = view.acciones.find(act => Number(act.codigo) === id);
-                            return found ? found.codigo : undefined;
+                            const found = view.acciones.find(act => act.id === id);
+                            return found ? found.codigo : undefined; // Mapear 'id' de vuelta a 'code'
                           }).filter(Boolean) as string[];
                           const updatedPermissions = selectedPermissions.map(p =>
                             p.viewId === permission.viewId ? { ...p, actions } : p
@@ -231,6 +239,24 @@ export function PermissionsForm({ selectedPermissions, onPermissionsChange }: Pe
                         }}
                         placeholder="Seleccionar acciones..."
                       />
+                      <div className="flex items-center space-x-2 mt-2">
+                        <Checkbox
+                          id={`select-all-${permission.viewId}`}
+                          checked={areAllSelected}
+                          onCheckedChange={(checked) => {
+                            const newPermissions = [...selectedPermissions];
+                            if (checked) {
+                              newPermissions[filteredPermissions.findIndex(p => p.viewId === permission.viewId)] = { ...newPermissions[filteredPermissions.findIndex(p => p.viewId === permission.viewId)], actions: allActionCodes };
+                            } else {
+                              newPermissions[filteredPermissions.findIndex(p => p.viewId === permission.viewId)] = { ...newPermissions[filteredPermissions.findIndex(p => p.viewId === permission.viewId)], actions: [] };
+                            }
+                            onPermissionsChange(newPermissions);
+                          }}
+                        />
+                        <Label htmlFor={`select-all-${permission.viewId}`} className="text-sm font-medium">
+                          Seleccionar todas las acciones
+                        </Label>
+                      </div>
                     </div>
 
                     {/* Remove Button */}
