@@ -9,6 +9,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PlantillasProvider } from "./pages/admin/FormGalleryPage";
+import { QueryInvalidator } from "@/components/QueryInvalidator";
 
 import Index from "./pages/Index";
 import Layout from "./components/Layout";
@@ -91,7 +92,17 @@ import ResetPasswordEmpresa from "./pages/empresa/ResetPasswordEmpresa";
 import ForgotPasswordCandidato from "./pages/candidatos/ForgotPasswordCandidato";
 import ResetPasswordCandidato from "./pages/candidatos/ResetPasswordCandidato";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutos
+      gcTime: 10 * 60 * 1000, // 10 minutos
+      refetchOnWindowFocus: true,
+      refetchOnMount: true,
+      refetchOnReconnect: true,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -101,6 +112,7 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
+            <QueryInvalidator />
           <Routes>
           {/* Login Unificado - Única entrada al sistema */}
           <Route path="/" element={<LoginUnificado />} />

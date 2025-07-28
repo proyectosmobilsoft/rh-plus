@@ -17,7 +17,7 @@ import {
 
 interface BusinessEntityRowProps {
   entity: Company;
-  cityData: Record<string, string>;
+  cityData: Record<number, { nombre: string; ciudades: { id: number; nombre: string }[] }>;
   onEdit: (entity: Company) => void;
   onDelete: (entity: Company) => void;
   entityType: 'empresa' | 'prestador';
@@ -34,10 +34,12 @@ export function BusinessEntityRow({
     if (!cityId) return '';
     // cityData es { [idDepartamento]: { nombre, ciudades: [{id, nombre}] } }
     for (const dep of Object.values(cityData)) {
-      const ciudad = dep.ciudades.find((c: any) => String(c.id) === String(cityId));
-      if (ciudad) return ciudad.nombre;
+      if (dep && dep.ciudades && Array.isArray(dep.ciudades)) {
+        const ciudad = dep.ciudades.find((c: any) => String(c.id) === String(cityId));
+        if (ciudad) return ciudad.nombre;
+      }
     }
-    return cityId;
+    return String(cityId);
   };
 
   return (
@@ -45,7 +47,7 @@ export function BusinessEntityRow({
       <TableCell className="py-1 px-2 whitespace-nowrap">{entity.nit}</TableCell>
       <TableCell className="py-1 px-2 font-medium whitespace-nowrap">{entity.razonSocial}</TableCell>
       <TableCell className="py-1 px-2 whitespace-nowrap">{entity.direccion}</TableCell>
-      <TableCell className="py-1 px-2 whitespace-nowrap">{getCityName(entity.ciudad)}</TableCell>
+      <TableCell className="py-1 px-2 whitespace-nowrap">{getCityName(entity.ciudad || '')}</TableCell>
       <TableCell className="py-1 px-2 whitespace-nowrap">{entity.correoElectronico}</TableCell>
       <TableCell className="py-1 px-2 whitespace-nowrap">{entity.telefono}</TableCell>
       <TableCell className="py-1 px-2 whitespace-nowrap">{entity.representanteLegal}</TableCell>
