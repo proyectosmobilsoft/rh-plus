@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Plus, 
   Search, 
@@ -48,17 +49,15 @@ import { testConnection, testAnalistas } from '@/services/testConnection';
 export default function AnalistasPage() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
-  // Usa el tipo de analistasMapeados para el tipado
-  const [filteredAnalistas, setFilteredAnalistas] = useState<any[]>([]);
   const [filterRegional, setFilterRegional] = useState('todas');
   const [filterNivel, setFilterNivel] = useState('todos');
   const [filterEstado, setFilterEstado] = useState('todos');
-  const [analistas, setAnalistas] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    const fetchAnalistas = async () => {
-      setIsLoading(true);
+  // Usar React Query para cargar analistas
+  const { data: analistas = [], isLoading, error } = useQuery({
+    queryKey: ['analistas'],
+    queryFn: async () => {
       try {
         // Primero probar la conexión
         console.log('🔍 Iniciando test de conexión...');
@@ -77,16 +76,17 @@ export default function AnalistasPage() {
         // Finalmente cargar con el servicio normal
         const data = await analystsService.getAll();
         console.log('Analistas cargados con servicio:', data);
-        setAnalistas(data || []);
+        return data || [];
       } catch (error) {
         console.error('Error cargando analistas:', error);
         toast.error('Error al cargar analistas de Supabase');
-      } finally {
-        setIsLoading(false);
+        throw error;
       }
-    };
-    fetchAnalistas();
-  }, []);
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutos
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+  });
 
   // Mapear los datos recibidos para que coincidan con la estructura esperada
   const analistasMapeados = analistas.map((a: any) => ({
@@ -102,8 +102,8 @@ export default function AnalistasPage() {
     nivelPrioridad: a.nivel_prioridad || 'bajo'
   }));
 
-  // Aplicar filtros
-  useEffect(() => {
+  // Aplicar filtros usando useMemo para mejor rendimiento
+  const filteredAnalistas = React.useMemo(() => {
     let filtered = analistasMapeados;
 
     // Filtro de búsqueda
@@ -123,16 +123,15 @@ export default function AnalistasPage() {
       filtered = filtered.filter(analista => analista.activo === filterEstado);
     }
 
-    setFilteredAnalistas(filtered);
+    return filtered;
   }, [analistasMapeados, searchTerm, filterEstado]);
 
   const handleEliminarAnalista = async (id: number) => {
     try {
       await analystsService.remove(id);
       toast.success('Analista eliminado exitosamente');
-      // Refrescar la lista
-      const data = await analystsService.getAll();
-      setAnalistas(data || []);
+      // Invalidar la query para refrescar los datos
+      queryClient.invalidateQueries({ queryKey: ['analistas'] });
     } catch (error) {
       console.error('Error eliminando analista:', error);
       toast.error('Error al eliminar analista');
