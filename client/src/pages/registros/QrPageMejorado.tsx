@@ -1,13 +1,26 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { QrCode, MessageSquare, Mail, Settings, Download, Send, ArrowRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { useQuery } from '@tanstack/react-query';
+import { plantillasMensajesService, PlantillaMensaje } from '@/services/plantillasMensajesService';
+import { 
+  QrCode, 
+  MessageSquare, 
+  Mail, 
+  Settings, 
+  Send, 
+  Download,
+  CheckCircle,
+  Clock,
+  AlertCircle
+} from 'lucide-react';
 
 interface Candidato {
   id: number;
@@ -100,6 +113,23 @@ Información incluida:
 Atentamente,
 Equipo de Recursos Humanos`);
 
+  // Estados para plantillas
+  const [plantillaWhatsAppSeleccionada, setPlantillaWhatsAppSeleccionada] = useState<string>('sin-plantilla');
+  const [plantillaEmailSeleccionada, setPlantillaEmailSeleccionada] = useState<string>('sin-plantilla');
+
+  // Query para obtener plantillas
+  const { data: plantillasWhatsApp = [] } = useQuery({
+    queryKey: ['plantillas-whatsapp'],
+    queryFn: () => plantillasMensajesService.getByTipo('whatsapp'),
+    staleTime: 5 * 60 * 1000, // 5 minutos
+  });
+
+  const { data: plantillasEmail = [] } = useQuery({
+    queryKey: ['plantillas-email'],
+    queryFn: () => plantillasMensajesService.getByTipo('email'),
+    staleTime: 5 * 60 * 1000, // 5 minutos
+  });
+
   const toggleCandidato = (candidatoId: number) => {
     setSelectedCandidatos(prev => 
       prev.includes(candidatoId)
@@ -168,6 +198,45 @@ Equipo de Recursos Humanos`);
     });
   };
 
+  // Función para cargar plantilla de WhatsApp
+  const cargarPlantillaWhatsApp = (plantillaId: string) => {
+    if (!plantillaId || plantillaId === "sin-plantilla") {
+      setPlantillaWhatsAppSeleccionada("sin-plantilla");
+      return;
+    }
+    
+    const plantilla = plantillasWhatsApp.find(p => p.id.toString() === plantillaId);
+    if (plantilla) {
+      setMensajeWhatsApp(plantilla.mensaje);
+      setPlantillaWhatsAppSeleccionada(plantillaId);
+      toast({
+        title: "Plantilla cargada",
+        description: `Plantilla "${plantilla.nombre}" cargada correctamente`,
+      });
+    }
+  };
+
+  // Función para cargar plantilla de Email
+  const cargarPlantillaEmail = (plantillaId: string) => {
+    if (!plantillaId || plantillaId === "sin-plantilla") {
+      setPlantillaEmailSeleccionada("sin-plantilla");
+      return;
+    }
+    
+    const plantilla = plantillasEmail.find(p => p.id.toString() === plantillaId);
+    if (plantilla) {
+      setMensajeEmail(plantilla.mensaje);
+      if (plantilla.asunto) {
+        setAsuntoEmail(plantilla.asunto);
+      }
+      setPlantillaEmailSeleccionada(plantillaId);
+      toast({
+        title: "Plantilla cargada",
+        description: `Plantilla "${plantilla.nombre}" cargada correctamente`,
+      });
+    }
+  };
+
   const getEstadoBadge = (estado: string) => {
     switch (estado) {
       case 'aprobado':
@@ -182,20 +251,12 @@ Equipo de Recursos Humanos`);
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      {/* Header mejorado con flecha más grande y a la derecha */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <QrCode className="h-8 w-8 text-green-600" />
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Gestión de Códigos QR</h1>
-              <p className="text-gray-600">Generar, configurar y enviar códigos QR a candidatos</p>
-            </div>
-          </div>
-          {/* Flecha más grande y posicionada más a la derecha */}
-          <div className="flex items-center">
-            <ArrowRight className="h-12 w-12 text-green-600 ml-8" />
+    <div className="page-container p-6">
+      <div className="page-header mb-6">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center space-x-2">
+            <QrCode className="h-6 w-6" />
+            <h1 className="text-2xl font-bold">Gestión de Códigos QR</h1>
           </div>
         </div>
       </div>
@@ -221,85 +282,59 @@ Equipo de Recursos Humanos`);
         </TabsList>
 
         <TabsContent value="generar" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Candidatos Aprobados</CardTitle>
-                <CardDescription>
-                  Generar códigos QR para candidatos aprobados
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {candidatos.filter(c => c.estado === 'aprobado').map((candidato) => (
-                    <div key={candidato.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
-                      <div className="flex-1">
-                        <h4 className="font-medium">{candidato.nombre} {candidato.apellido}</h4>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <QrCode className="w-5 h-5 mr-2" />
+                Generar Códigos QR
+              </CardTitle>
+              <CardDescription>
+                Genera códigos QR individuales para candidatos aprobados
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {candidatos.filter(c => c.estado === 'aprobado').map((candidato) => (
+                  <div key={candidato.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center space-x-4">
+                      <div>
+                        <h3 className="font-medium">{candidato.nombre} {candidato.apellido}</h3>
                         <p className="text-sm text-gray-600">{candidato.cedula} • {candidato.empresa}</p>
-                        <p className="text-xs text-gray-500">{candidato.email}</p>
                       </div>
-                      <div className="flex items-center gap-3">
-                        {getEstadoBadge(candidato.estado)}
-                        {candidato.qrGenerado ? (
-                          <Badge className="bg-blue-100 text-blue-800 border-blue-200">QR Generado</Badge>
-                        ) : (
-                          <Button
-                            size="sm"
-                            onClick={() => generateQR(candidato)}
-                            className="bg-green-600 hover:bg-green-700 text-white"
-                          >
-                            <QrCode className="w-4 h-4 mr-1" />
-                            Generar
-                          </Button>
-                        )}
-                      </div>
+                      {candidato.qrGenerado ? (
+                        <Badge className="bg-green-100 text-green-800 border-green-200">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          QR Generado
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary">
+                          <Clock className="w-3 h-3 mr-1" />
+                          Pendiente
+                        </Badge>
+                      )}
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Estadísticas de QR</CardTitle>
-                <CardDescription>
-                  Resumen del estado de códigos QR
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
-                      <div className="text-2xl font-bold text-green-700">
-                        {candidatos.filter(c => c.qrGenerado).length}
-                      </div>
-                      <div className="text-sm text-green-600">QR Generados</div>
-                    </div>
-                    <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-200">
-                      <div className="text-2xl font-bold text-blue-700">
-                        {candidatos.filter(c => c.estado === 'aprobado').length}
-                      </div>
-                      <div className="text-sm text-blue-600">Candidatos Aprobados</div>
-                    </div>
+                    <Button
+                      onClick={() => generateQR(candidato)}
+                      disabled={candidato.qrGenerado}
+                      size="sm"
+                    >
+                      {candidato.qrGenerado ? (
+                        <>
+                          <Download className="w-4 h-4 mr-2" />
+                          Descargar
+                        </>
+                      ) : (
+                        <>
+                          <QrCode className="w-4 h-4 mr-2" />
+                          Generar QR
+                        </>
+                      )}
+                    </Button>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="text-center p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                      <div className="text-2xl font-bold text-yellow-700">
-                        {candidatos.filter(c => c.estado === 'pendiente').length}
-                      </div>
-                      <div className="text-sm text-yellow-600">Pendientes</div>
-                    </div>
-                    <div className="text-center p-4 bg-gray-50 rounded-lg border border-gray-200">
-                      <div className="text-2xl font-bold text-gray-700">
-                        {candidatos.length}
-                      </div>
-                      <div className="text-sm text-gray-600">Total Candidatos</div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="whatsapp" className="space-y-6">
@@ -315,6 +350,24 @@ Equipo de Recursos Humanos`);
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Selector de plantilla */}
+                <div className="space-y-2">
+                  <Label htmlFor="plantilla-whatsapp">Seleccionar Plantilla</Label>
+                  <Select value={plantillaWhatsAppSeleccionada} onValueChange={cargarPlantillaWhatsApp}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Elige una plantilla de mensaje" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sin-plantilla">Sin plantilla (mensaje personalizado)</SelectItem>
+                      {plantillasWhatsApp.map((plantilla) => (
+                        <SelectItem key={plantilla.id} value={plantilla.id.toString()}>
+                          {plantilla.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div>
                   <label className="text-sm font-medium">Mensaje personalizado</label>
                   <Textarea
@@ -385,6 +438,24 @@ Equipo de Recursos Humanos`);
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Selector de plantilla */}
+                <div className="space-y-2">
+                  <Label htmlFor="plantilla-email">Seleccionar Plantilla</Label>
+                  <Select value={plantillaEmailSeleccionada} onValueChange={cargarPlantillaEmail}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Elige una plantilla de email" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sin-plantilla">Sin plantilla (email personalizado)</SelectItem>
+                      {plantillasEmail.map((plantilla) => (
+                        <SelectItem key={plantilla.id} value={plantilla.id.toString()}>
+                          {plantilla.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div>
                   <label className="text-sm font-medium">Asunto del email</label>
                   <Input
@@ -460,78 +531,40 @@ Equipo de Recursos Humanos`);
                 Configuración de QR
               </CardTitle>
               <CardDescription>
-                Configura los parámetros de generación de códigos QR
+                Configura los parámetros de generación y envío de códigos QR
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium">Período de renovación</label>
-                  <Select defaultValue="30-dias">
-                    <SelectTrigger className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="15-dias">15 días</SelectItem>
-                      <SelectItem value="30-dias">30 días</SelectItem>
-                      <SelectItem value="60-dias">60 días</SelectItem>
-                      <SelectItem value="90-dias">90 días</SelectItem>
-                      <SelectItem value="6-meses">6 meses</SelectItem>
-                      <SelectItem value="1-año">1 año</SelectItem>
-                    </SelectContent>
-                  </Select>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Plantillas de WhatsApp</Label>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {plantillasWhatsApp.length} plantillas disponibles
+                    </p>
+                  </div>
+                  <div>
+                    <Label>Plantillas de Email</Label>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {plantillasEmail.length} plantillas disponibles
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <label className="text-sm font-medium">Formato de QR</label>
-                  <Select defaultValue="png">
-                    <SelectTrigger className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="png">PNG</SelectItem>
-                      <SelectItem value="jpg">JPG</SelectItem>
-                      <SelectItem value="svg">SVG</SelectItem>
-                    </SelectContent>
-                  </Select>
+                
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-start space-x-2">
+                    <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-medium text-blue-900">
+                        Información sobre plantillas
+                      </h4>
+                      <p className="text-sm text-blue-800">
+                        Las plantillas permiten personalizar automáticamente los mensajes con las variables disponibles. 
+                        Puedes editar el mensaje después de seleccionar una plantilla.
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium">Tamaño del QR</label>
-                  <Select defaultValue="256">
-                    <SelectTrigger className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="128">128x128 px</SelectItem>
-                      <SelectItem value="256">256x256 px</SelectItem>
-                      <SelectItem value="512">512x512 px</SelectItem>
-                      <SelectItem value="1024">1024x1024 px</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Nivel de corrección</label>
-                  <Select defaultValue="M">
-                    <SelectTrigger className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="L">Bajo (L)</SelectItem>
-                      <SelectItem value="M">Medio (M)</SelectItem>
-                      <SelectItem value="Q">Alto (Q)</SelectItem>
-                      <SelectItem value="H">Muy Alto (H)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="pt-4">
-                <Button className="bg-green-600 hover:bg-green-700 text-white">
-                  <Settings className="w-4 h-4 mr-2" />
-                  Guardar Configuración
-                </Button>
               </div>
             </CardContent>
           </Card>

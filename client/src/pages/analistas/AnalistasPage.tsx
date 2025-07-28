@@ -62,6 +62,7 @@ export default function AnalistasPage() {
         const data = await analystsService.getAll();
         setAnalistas(data || []);
       } catch (error) {
+        console.error('Error cargando analistas:', error);
         toast.error('Error al cargar analistas de Supabase');
       } finally {
         setIsLoading(false);
@@ -80,10 +81,8 @@ export default function AnalistasPage() {
     primer_apellido: a.primer_apellido || '',
     segundo_apellido: a.segundo_apellido || '',
     activo: a.activo !== false ? 'activo' : 'inactivo' as 'activo' | 'inactivo',
-    created_at: a.created_at || '',
-    updated_at: a.updated_at || '',
-    regional: a.regional || '', // Assuming 'regional' is part of the Analyst type or derived
-    nivelPrioridad: a.nivel_prioridad || 'bajo' // Assuming 'nivel_prioridad' is part of the Analyst type or derived
+    regional: a.regional || 'N/A',
+    nivelPrioridad: a.nivel_prioridad || 'bajo'
   }));
 
   // Aplicar filtros
@@ -126,7 +125,7 @@ export default function AnalistasPage() {
   const handleExportarExcel = () => {
     // Función para exportar a Excel - implementación simplificada
     const csvContent = [
-      ['Usuario', 'Email', 'Primer Nombre', 'Segundo Nombre', 'Primer Apellido', 'Segundo Apellido', 'Estado', 'Creado', 'Actualizado'].join(','),
+      ['Usuario', 'Email', 'Primer Nombre', 'Segundo Nombre', 'Primer Apellido', 'Segundo Apellido', 'Estado'].join(','),
       ...filteredAnalistas.map(analista => [
         analista.username,
         analista.email,
@@ -134,9 +133,7 @@ export default function AnalistasPage() {
         analista.segundo_nombre,
         analista.primer_apellido,
         analista.segundo_apellido,
-        analista.activo,
-        analista.created_at,
-        analista.updated_at
+        analista.activo
       ].join(','))
     ].join('\n');
 
@@ -326,8 +323,6 @@ export default function AnalistasPage() {
                   <TableHead>Primer Apellido</TableHead>
                   <TableHead>Segundo Apellido</TableHead>
                   <TableHead>Estado</TableHead>
-                  <TableHead>Creado</TableHead>
-                  <TableHead>Actualizado</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -345,8 +340,6 @@ export default function AnalistasPage() {
                     ) : (
                       <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Inactivo</Badge>
                     )}</TableCell>
-                    <TableCell>{analista.created_at}</TableCell>
-                    <TableCell>{analista.updated_at}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button
