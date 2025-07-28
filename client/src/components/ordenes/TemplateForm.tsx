@@ -14,6 +14,7 @@ import FormBuilder from "@/components/FormBuilder";
 import FormPreview from "@/components/FormPreview";
 import { useMemo } from "react";
 import { v4 as uuidv4 } from 'uuid';
+import { plantillasService } from '@/services/plantillasService';
 
 // Definir los campos disponibles para plantillas de órdenes
 const CAMPOS_DISPONIBLES = [
@@ -106,15 +107,24 @@ export function TemplateForm({ initialData, onSaved }: TemplateFormProps) {
 
   const onSubmit = async (data: any) => {
     try {
-      // Aquí iría la lógica para guardar la plantilla
-      console.log("Datos del formulario:", data);
-      console.log("Configuración de campos:", fieldConfig);
-      
+      // Preparar datos para Supabase
+      const payload = {
+        nombre: data.nombre,
+        descripcion: data.descripcion,
+        es_default: data.esDefault || false,
+        estructura_formulario: fieldConfig,
+        activa: true,
+        // usuario_id: ... // Aquí puedes agregar el usuario si lo tienes en contexto
+      };
+      if (initialData && initialData.id) {
+        await plantillasService.update(initialData.id, payload);
+      } else {
+        await plantillasService.create(payload);
+      }
       toast({
         title: "Plantilla guardada exitosamente",
         description: "La plantilla ha sido creada/actualizada correctamente.",
       });
-      
       if (onSaved) {
         onSaved();
       }
