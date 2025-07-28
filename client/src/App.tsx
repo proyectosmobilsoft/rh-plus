@@ -56,6 +56,7 @@ import DashboardReportes from "./pages/reportes/DashboardReportes";
 
 // Test pages
 import TestCascadingSelects from "./pages/TestCascadingSelects";
+import TestConnection from "./components/TestConnection";
 
 // Candidate portal pages
 import LoginCandidato from "./pages/candidatos/LoginCandidato";
@@ -186,6 +187,8 @@ const App = () => (
             
             {/* Test page for cascading selects */}
             <Route path="/test-cascading" element={<TestCascadingSelects />} />
+            {/* Test page for Supabase connection */}
+            <Route path="/test-connection" element={<TestConnection />} />
           </Route>
           
           {/* Ruta 404 */}

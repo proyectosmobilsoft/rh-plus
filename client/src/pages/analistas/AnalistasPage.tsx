@@ -43,6 +43,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { analystsService, Analyst } from '@/services/analystsService';
+import { testConnection, testAnalistas } from '@/services/testConnection';
 
 export default function AnalistasPage() {
   const navigate = useNavigate();
@@ -59,7 +60,23 @@ export default function AnalistasPage() {
     const fetchAnalistas = async () => {
       setIsLoading(true);
       try {
+        // Primero probar la conexión
+        console.log('🔍 Iniciando test de conexión...');
+        const connectionTest = await testConnection();
+        console.log('Resultado test conexión:', connectionTest);
+        
+        if (!connectionTest.success) {
+          throw new Error('No se pudo conectar a Supabase');
+        }
+        
+        // Luego probar cargar analistas
+        console.log('🔍 Probando carga de analistas...');
+        const analistasTest = await testAnalistas();
+        console.log('Resultado test analistas:', analistasTest);
+        
+        // Finalmente cargar con el servicio normal
         const data = await analystsService.getAll();
+        console.log('Analistas cargados con servicio:', data);
         setAnalistas(data || []);
       } catch (error) {
         console.error('Error cargando analistas:', error);
