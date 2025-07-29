@@ -180,7 +180,7 @@ const AppSidebar = () => {
   return (
     <Sidebar
       className={`border-r h-screen sidebar-transition ${collapsed ? "sidebar-collapsed" : "sidebar-expanded"}`}
-      collapsible="icon"
+      collapsible="offcanvas"
     >
       <div className="p-4 flex justify-center items-center">
         {!collapsed && (
