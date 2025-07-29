@@ -409,13 +409,19 @@ function App() {
               </ProtectedRoute>
             } />
 
+            <Route path="/maestro/ubicaciones" element={
+              <ProtectedRoute>
+                <UbicacionesPage />
+              </ProtectedRoute>
+            } />
+
            
             <Route path="/plantillas" element={
               <ProtectedRoute>
                 <PlantillasPage />
               </ProtectedRoute>
             } />
-            <Route path="/admin/plantillas" element={
+            <Route path="/maestro/plantillas" element={
               <ProtectedRoute>
                 <PlantillasPage />
               </ProtectedRoute>
