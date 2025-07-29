@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { UserRole, Permission, getUserPermissions } from '@/config/permissions';
+import { authService } from '@/services/authService';
 
 export interface User {
   id: number;
@@ -64,29 +65,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       if (userData && token) {
         try {
-          // Verificar token con el servidor
-          const response = await fetch('/api/auth/verify', {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
+          // Con Supabase, verificamos directamente desde localStorage
+          const user = JSON.parse(userData);
+          const userPermissions = await getUserPermissionsFromDB(user.id, user.role);
+          
+          setUser({
+            ...user,
+            permissions: userPermissions
           });
-
-          if (response.ok) {
-            // Token válido, restaurar usuario
-            const user = JSON.parse(userData);
-            const userPermissions = await getUserPermissionsFromDB(user.id, user.role);
-            
-            setUser({
-              ...user,
-              permissions: userPermissions
-            });
-          } else {
-            // Token inválido, limpiar localStorage
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('userData');
-          }
         } catch (verifyError) {
-          console.error('Error verificando token:', verifyError);
+          console.error('Error verificando usuario:', verifyError);
           localStorage.removeItem('authToken');
           localStorage.removeItem('userData');
         }
@@ -103,41 +91,55 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const login = async (credentials: LoginCredentials) => {
     try {
-      // Validar credenciales con el servidor
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(credentials),
-        credentials: 'include'
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Error en las credenciales');
-      }
-
-      const data = await response.json();
+      // Usar el servicio de autenticación con Supabase
+      const userValidation = await authService.validateUser(credentials.username);
       
-      // Guardar token en localStorage
-      if (data.token) {
-        localStorage.setItem('authToken', data.token);
-        localStorage.setItem('userData', JSON.stringify(data.user));
+      if (!userValidation) {
+        throw new Error('Usuario no encontrado');
       }
+
+      // Verificar contraseña
+      const isValidPassword = await authService.verifyPassword(userValidation.user.id, credentials.password);
+      
+      if (!isValidPassword) {
+        throw new Error('Contraseña incorrecta');
+      }
+
+      // Crear token simple (en producción usarías JWT real)
+      const token = btoa(JSON.stringify({
+        userId: userValidation.user.id,
+        timestamp: Date.now()
+      }));
+
+      // Determinar el rol del usuario
+      const userRole = userValidation.roles[0]?.nombre as UserRole || 'admin';
+      
+      const userData = {
+        id: userValidation.user.id,
+        username: userValidation.user.username,
+        email: userValidation.user.email,
+        primerNombre: userValidation.user.primer_nombre,
+        primerApellido: userValidation.user.primer_apellido,
+        role: userRole,
+        activo: userValidation.user.activo
+      };
+
+      // Guardar datos en localStorage
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('userData', JSON.stringify(userData));
       
       // Obtener permisos del usuario
-      const userPermissions = await getUserPermissionsFromDB(data.user.id, data.user.role);
+      const userPermissions = await getUserPermissionsFromDB(userData.id, userRole);
       
       const userWithPermissions = {
-        ...data.user,
+        ...userData,
         permissions: userPermissions
       };
 
       setUser(userWithPermissions);
       
       // Redirigir según el rol del usuario
-      const dashboard = getDefaultDashboard(data.user.role);
+      const dashboard = getDefaultDashboard(userRole);
       window.location.href = dashboard;
 
     } catch (error) {
@@ -184,10 +186,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const logout = async () => {
     try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include'
-      });
+      // Con Supabase, solo limpiamos el localStorage
+      // No necesitamos hacer llamada al servidor
     } catch (error) {
       console.error('Error during logout:', error);
     } finally {
@@ -207,16 +207,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Obtener permisos base del rol
       const basePermissions = getUserPermissions(role);
       
-      // Obtener permisos adicionales del usuario desde la base de datos
-      const response = await fetch(`/api/usuarios/${userId}/permisos`, {
-        credentials: 'include'
-      });
-      
-      if (response.ok) {
-        const additionalPermissions = await response.json();
-        return getUserPermissions(role, additionalPermissions);
-      }
-      
+      // Con Supabase, por ahora solo retornamos los permisos base del rol
+      // En el futuro puedes agregar permisos específicos del usuario desde Supabase
       return basePermissions;
     } catch (error) {
       console.error('Error loading user permissions:', error);

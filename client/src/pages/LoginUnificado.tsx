@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/contexts/AuthContext';
 import { authService, UserValidation } from '@/services/authService';
 import { Eye, EyeOff, LogIn, Building2 } from 'lucide-react';
-import logo from '../../public/logo2.svg';
+import logo from '/logo2.svg';
 
 export default function LoginUnificado() {
   const [username, setUsername] = useState('');

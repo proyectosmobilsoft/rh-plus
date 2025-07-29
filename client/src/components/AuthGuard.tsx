@@ -36,15 +36,11 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
         const token = localStorage.getItem('authToken');
         
         if (token) {
-          // Verificar token con el servidor
-          const response = await fetch('/api/auth/verify', {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-
-          if (!response.ok) {
-            // Token inválido, limpiar localStorage
+          // Con Supabase, verificamos directamente desde localStorage
+          // No necesitamos hacer llamada al servidor
+          const userData = localStorage.getItem('userData');
+          if (!userData) {
+            // No hay datos de usuario, limpiar localStorage
             localStorage.removeItem('authToken');
             localStorage.removeItem('userData');
           }

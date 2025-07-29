@@ -97,8 +97,6 @@ import QrEmailPage from './pages/empresa/QrEmailPage';
 import QrGenerarPage from './pages/empresa/QrGenerarPage';
 import QrWhatsAppPage from './pages/empresa/QrWhatsAppPage';
 
-// Páginas de prueba
-import TestCascadingSelects from './pages/TestCascadingSelects';
 import NotFound from './pages/NotFound';
 
 import './App.css';
@@ -511,12 +509,7 @@ function App() {
               </ProtectedRoute>
             } />
 
-            {/* Rutas de prueba */}
-            <Route path="/test-cascading-selects" element={
-              <ProtectedRoute>
-                <TestCascadingSelects />
-              </ProtectedRoute>
-            } />
+
             </Route>
 
             {/* Ruta 404 */}

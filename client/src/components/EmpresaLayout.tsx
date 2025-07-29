@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import logo from "../../public/logo2.svg";
+import logo from "/logo2.svg";
 
 // Elementos del menú para empresas
 const empresaMenuItems = [

@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ArrowLeft, Key, Loader2, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { authService } from '@/services/authService';
-import logo from '../../../public/logo2.svg';
+import logo from '/logo2.svg';
 
 export default function VerificarCodigoPage() {
   const [codigo, setCodigo] = useState('');
