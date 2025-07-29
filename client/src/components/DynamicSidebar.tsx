@@ -50,13 +50,13 @@ const menuItems = [
   {
     title: "Solicitudes",
     icon: <FileText className="h-5 w-5" />,
-    path: "/ordenes/expedicion",
+    path: "/expedicion-orden",
     subItems: [],
   },
   {
     title: "Certificados",
     icon: <FileText className="h-5 w-5" />,
-    path: "/certificados/expedicion",
+    path: "/expedicion-certificados",
     subItems: [],
   },
   {
