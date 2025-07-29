@@ -84,6 +84,8 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const [empresaData, setEmpresaData] = useState<any>(null);
+  const [showUserOverlay, setShowUserOverlay] = useState(false);
+  const [userData, setUserData] = useState<any>(null);
   
   // Verificar si AuthProvider está disponible
   let authContext;
@@ -113,10 +115,45 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
       
       debugLocalStorage();
       
+      // Cargar datos reales del usuario desde localStorage
+      if (currentUserData) {
+        try {
+          const parsedUserData = JSON.parse(currentUserData);
+          setUserData(parsedUserData);
+          console.log('✅ Datos del usuario cargados desde localStorage:', parsedUserData);
+        } catch (error) {
+          console.error('Error parseando userData:', error);
+        }
+      }
+      
+      // Intentar obtener empresa desde authToken primero
+      if (currentAuthToken) {
+        try {
+          const tokenParts = currentAuthToken.split('.');
+          if (tokenParts.length === 2) {
+            const tokenData = JSON.parse(atob(tokenParts[0]));
+            console.log('🔍 Datos del authToken:', tokenData);
+            
+            if (tokenData.empresaId && tokenData.empresaRazonSocial) {
+              const empresaFromToken = {
+                id: tokenData.empresaId,
+                razon_social: tokenData.empresaRazonSocial
+              };
+              setEmpresaData(empresaFromToken);
+              console.log('✅ Empresa cargada desde authToken:', empresaFromToken);
+              return;
+            }
+          }
+        } catch (error) {
+          console.log('Error parseando authToken:', error);
+        }
+      }
+      
+      // Fallback: obtener empresa desde empresaData
       const empresaSeleccionada = obtenerEmpresaSeleccionada();
       if (empresaSeleccionada) {
         setEmpresaData(empresaSeleccionada);
-        console.log('Empresa cargada desde localStorage:', empresaSeleccionada);
+        console.log('✅ Empresa cargada desde empresaData:', empresaSeleccionada);
       } else {
         console.log('No se encontró empresa seleccionada');
       }
@@ -156,6 +193,19 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
           }
         } catch (error) {
           console.error('Error al procesar cambio en localStorage:', error);
+        }
+      }
+      
+      // Detectar cambios en userData
+      if (e.key === 'userData') {
+        try {
+          const newUserData = e.newValue ? JSON.parse(e.newValue) : null;
+          if (newUserData) {
+            setUserData(newUserData);
+            console.log('✅ Datos del usuario actualizados desde localStorage:', newUserData);
+          }
+        } catch (error) {
+          console.error('Error al procesar cambio en userData:', error);
         }
       }
       
@@ -270,69 +320,153 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
   };
 
   return (
-    <div className="w-full bg-white border-r border-gray-200 flex flex-col h-full shadow-lg sidebar-container">
+    <div className="w-full bg-white border-r border-gray-200 flex flex-col h-full shadow-lg sidebar-container relative">
       {/* Header con información del usuario */}
       <div className="p-4 border-b border-gray-200 bg-gray-50 sidebar-header">
+        
+        
+        {/* Información del usuario */}
         <div className="flex items-center space-x-3">
-          <div className="user-avatar-large bg-blue-600">
+          <button 
+            onClick={() => setShowUserOverlay(!showUserOverlay)}
+            className="user-avatar-large bg-blue-600 hover:bg-blue-700 transition-colors duration-200 cursor-pointer"
+          >
             <User className="text-white" />
-          </div>
+          </button>
+          
+          {/* Información del usuario (siempre visible) */}
           <div className="flex-1 min-w-0">
+            {/* Nombre completo del usuario */}
             <p className="text-sm font-semibold text-gray-900 truncate">
-              {user ? `${user.primerNombre} ${user.primerApellido}` : 'Usuario'}
+              {userData ? `${userData.primerNombre} ${userData.primerApellido}` : 'Usuario'}
             </p>
-            <div className="flex items-center space-x-2 mt-1">
-              <Badge className={`text-xs px-2 py-1 ${getRoleColor(user?.role || 'default')} font-medium`}>
-                {getRoleLabel(user?.role || 'default')}
-              </Badge>
-            </div>
-            {/* Mostrar roles del usuario */}
-            {user?.roles && user.roles.length > 0 && (
+            
+            {/* Perfiles/Roles del usuario */}
+            {userData?.roles && userData.roles.length > 0 && (
               <div className="mt-2">
-                <p className="text-xs text-gray-500 mb-1">Roles:</p>
                 <div className="flex flex-wrap gap-1">
-                  {user.roles.slice(0, 3).map((role: any, index: number) => (
+                  {userData.roles.map((role: any, index: number) => (
                     <Badge key={index} variant="outline" className="text-xs px-1 py-0.5">
                       {role.nombre}
                     </Badge>
                   ))}
-                  {user.roles.length > 3 && (
-                    <Badge variant="outline" className="text-xs px-1 py-0.5">
-                      +{user.roles.length - 3} más
-                    </Badge>
-                  )}
-                </div>
-              </div>
-            )}
-            {/* Mostrar empresas del usuario */}
-            {user?.empresas && user.empresas.length > 0 && (
-              <div className="mt-2">
-                <p className="text-xs text-gray-500 mb-1">Empresas:</p>
-                <div className="flex flex-wrap gap-1">
-                  {user.empresas.slice(0, 2).map((empresa: any, index: number) => (
-                    <Badge key={index} variant="outline" className="text-xs px-1 py-0.5">
-                      {empresa.razon_social}
-                    </Badge>
-                  ))}
-                  {user.empresas.length > 2 && (
-                    <Badge variant="outline" className="text-xs px-1 py-0.5">
-                      +{user.empresas.length - 2} más
-                    </Badge>
-                  )}
                 </div>
               </div>
             )}
           </div>
+          
+          {/* Overlay del usuario */}
+          {showUserOverlay && (
+            <div className="absolute top-0 left-0 bg-white rounded-lg shadow-xl border border-gray-200 p-4 z-20 min-w-[400px] max-w-[500px]">
+              <div className="space-y-4">
+                {/* Header del overlay */}
+                <div className="flex items-center space-x-3 pb-3 border-b border-gray-200">
+                  <div className="user-avatar-large bg-blue-600">
+                    <User className="text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {userData ? `${userData.primerNombre} ${userData.primerApellido}` : 'Usuario'}
+                    </h3>
+                    <p className="text-sm text-gray-500">{userData?.email}</p>
+                    <p className="text-xs text-blue-600 font-medium">{userData?.role}</p>
+                  </div>
+                  <button
+                    onClick={() => setShowUserOverlay(false)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                
+                {/* Información detallada */}
+                <div className="space-y-4">
+                  {/* Perfiles */}
+                  {userData?.roles && userData.roles.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Perfiles asignados:</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {userData.roles.map((role: any, index: number) => (
+                          <Badge key={index} variant="outline" className="text-xs px-2 py-1">
+                            {role.nombre}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Empresas */}
+                  {userData?.empresas && userData.empresas.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Empresas asociadas:</h4>
+                      <div className="space-y-2">
+                        {userData.empresas.map((empresa: any, index: number) => (
+                          <div key={index} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                            <p className="text-sm font-medium text-gray-900">{empresa.razon_social}</p>
+                            <p className="text-xs text-gray-500">ID: {empresa.id}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Información adicional */}
+                  <div className="pt-3 border-t border-gray-200">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-500">Usuario ID:</p>
+                        <p className="font-medium">{userData?.id}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Estado:</p>
+                        <p className="font-medium">{userData?.activo ? 'Activo' : 'Inactivo'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Botón de cerrar sesión */}
+                <div className="pt-3 border-t border-gray-200">
+                  <Button
+                    onClick={() => {
+                      setShowUserOverlay(false);
+                      // Limpiar todo el localStorage
+                      localStorage.removeItem('userData');
+                      localStorage.removeItem('token');
+                      localStorage.removeItem('authToken');
+                      localStorage.removeItem('empresaData');
+                      
+                      // Limpiar empresa seleccionada
+                      limpiarEmpresaSeleccionada();
+                      
+                      console.log('Sesión cerrada desde overlay - todos los datos eliminados');
+                      
+                      // Intentar usar logout del contexto si está disponible
+                      if (logout) {
+                        logout();
+                      }
+                      
+                      // Redirigir al login
+                      window.location.href = '/login';
+                    }}
+                    variant="ghost"
+                    className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 text-sm py-2"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Cerrar Sesión
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Sistema de navegación */}
       <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent sidebar-scroll">
         <div className="p-3">
-          <h2 className="text-sm font-bold text-gray-900 mb-4 px-2 uppercase tracking-wide">
-            {empresaData?.nombre || empresaData?.razonSocial || 'Sistema'}
-          </h2>
-          
           <nav className="space-y-1">
             {menuItems.map((menu, index) => {
               const hasChildren = menu.subItems && menu.subItems.length > 0;
@@ -410,33 +544,7 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
 
       {/* Footer con logout */}
       <div className="p-4 border-t border-gray-200 bg-gray-50 sidebar-footer">
-        <Button
-          onClick={() => {
-            // Limpiar todo el localStorage
-            localStorage.removeItem('userData');
-            localStorage.removeItem('token');
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('empresaData'); // Borrar también empresaData
-            
-            // Limpiar empresa seleccionada
-            limpiarEmpresaSeleccionada();
-            
-            console.log('Sesión cerrada desde sidebar - todos los datos eliminados');
-            
-            // Intentar usar logout del contexto si está disponible
-            if (logout) {
-              logout();
-            }
-            
-            // Redirigir al login
-            window.location.href = '/login';
-          }}
-          variant="ghost"
-          className="w-full justify-start text-gray-700 hover:text-red-700 hover:bg-red-50 text-sm py-2.5 font-medium transition-all duration-200"
-        >
-          <LogOut className="w-4 h-4 mr-3" />
-          Cerrar Sesión
-        </Button>
+        {/* El botón de logout ahora está en el overlay del usuario */}
       </div>
     </div>
   );

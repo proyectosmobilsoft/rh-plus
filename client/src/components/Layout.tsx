@@ -14,20 +14,23 @@ import { Button } from "@/components/ui/button";
 // Componente para el header
 const Header = () => {
   const [empresaData, setEmpresaData] = useState<any>(null);
+  const [userData, setUserData] = useState<any>(null);
   
   // Obtener función de logout del AuthContext
   let logout: (() => Promise<void>) | null = null;
+  let user: any = null;
   try {
     const authContext = useAuth();
     logout = authContext.logout;
+    user = authContext.user;
   } catch (error) {
     console.log("AuthProvider no disponible");
   }
 
-  // Obtener información de la empresa desde localStorage usando las utilidades
+  // Obtener información de la empresa y usuario desde localStorage
   useEffect(() => {
     try {
-      console.log('=== INICIO: Cargar empresa en Header ===');
+      console.log('=== INICIO: Cargar datos en Header ===');
       
       // Verificar estado actual de localStorage
       const currentUserData = localStorage.getItem('userData');
@@ -39,15 +42,45 @@ const Header = () => {
       console.log('- authToken existe:', !!currentAuthToken);
       console.log('- empresaData existe:', !!currentEmpresaData);
       
+      // Intentar obtener empresa desde authToken primero
+      if (currentAuthToken) {
+        try {
+          const tokenParts = currentAuthToken.split('.');
+          if (tokenParts.length === 2) {
+            const tokenData = JSON.parse(atob(tokenParts[0]));
+            console.log('🔍 Datos del authToken en Header:', tokenData);
+            
+            if (tokenData.empresaId && tokenData.empresaRazonSocial) {
+              const empresaFromToken = {
+                id: tokenData.empresaId,
+                razon_social: tokenData.empresaRazonSocial
+              };
+              setEmpresaData(empresaFromToken);
+              console.log('✅ Empresa cargada desde authToken en Header:', empresaFromToken);
+            }
+          }
+        } catch (error) {
+          console.log('Error parseando authToken en Header:', error);
+        }
+      }
+      
+      // Fallback: obtener empresa desde empresaData
       const empresaSeleccionada = obtenerEmpresaSeleccionada();
       if (empresaSeleccionada) {
         setEmpresaData(empresaSeleccionada);
-        console.log('Header: Empresa cargada:', empresaSeleccionada);
+        console.log('✅ Empresa cargada desde empresaData en Header:', empresaSeleccionada);
       }
       
-      console.log('=== FIN: Cargar empresa en Header ===');
+      // Obtener datos del usuario
+      if (currentUserData) {
+        const user = JSON.parse(currentUserData);
+        setUserData(user);
+        console.log('✅ Datos del usuario cargados en Header:', user);
+      }
+      
+      console.log('=== FIN: Cargar datos en Header ===');
     } catch (error) {
-      console.error('Error al obtener datos de la empresa en Header:', error);
+      console.error('Error al obtener datos en Header:', error);
     }
   }, []);
 
@@ -64,40 +97,19 @@ const Header = () => {
   }, []);
 
   return (
-    <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between header-with-large-logo">
-      <div className="flex items-center space-x-4 header-logo-container">
-        <svg 
-          className="logo-svg" 
-          viewBox="0 0 200 60" 
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <text x="10" y="35" fontSize="24" fontWeight="bold" fill="#3b82f6">
-            ZEUS
-          </text>
-          <text x="10" y="50" fontSize="12" fill="#6b7280">
-            PLATFORM
-          </text>
-        </svg>
-        <div className="flex flex-col">
-          <h1 className="text-xl font-semibold text-gray-900">
-            {empresaData?.nombre || empresaData?.razonSocial || ''}
-          </h1>
-        </div>
+    <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+      {/* Nombre de la empresa */}
+      <div className="flex items-center">
+        <h1 className="text-2xl font-bold text-gray-900 bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
+          {empresaData?.razon_social || empresaData?.nombre || 'Sistema'}
+        </h1>
       </div>
       
+      {/* Información del usuario y botón de logout */}
       <div className="flex items-center space-x-4">
-        {logout && (
-          <Button
-            onClick={logout}
-            variant="ghost"
-            size="sm"
-            className="text-gray-600 hover:text-gray-900"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Cerrar Sesión
-          </Button>
-        )}
+        {/* El avatar del usuario ahora está solo en el sidebar */}
       </div>
+      
     </header>
   );
 };
