@@ -175,10 +175,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
         
       // Obtener permisos del usuario
-      const userPermissions = await getUserPermissionsFromDB(data.user.id, data.user.role);
+      const userPermissions = await getUserPermissionsFromDB(userData.id, userRole);
       
       const userWithPermissions = {
-        ...data.user,
+        ...userData,
         permissions: userPermissions
       };
 
@@ -234,10 +234,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const logout = async () => {
     try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include'
-      });
+      // Con Supabase, solo limpiamos el localStorage
+      // No necesitamos hacer llamada al servidor
     } catch (error) {
       console.error('Error during logout:', error);
     } finally {
@@ -260,16 +258,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Obtener permisos base del rol
       const basePermissions = getUserPermissions(role);
       
-      // Obtener permisos adicionales del usuario desde la base de datos
-      const response = await fetch(`/api/usuarios/${userId}/permisos`, {
-        credentials: 'include'
-      });
-      
-      if (response.ok) {
-        const additionalPermissions = await response.json();
-        return getUserPermissions(role, additionalPermissions);
-      }
-      
+      // Con Supabase, por ahora solo retornamos los permisos base del rol
+      // En el futuro puedes agregar permisos específicos del usuario desde Supabase
       return basePermissions;
     } catch (error) {
       console.error('Error loading user permissions:', error);

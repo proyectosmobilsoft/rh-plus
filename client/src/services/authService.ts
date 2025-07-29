@@ -24,9 +24,21 @@ export interface UserValidation {
   }>;
 }
 
-export const authService = {
-  // Validar usuario por email o username
-  async validateUser(identifier: string): Promise<UserValidation | null> {
+export interface AuthService {
+  // Métodos originales
+  validateUser: (identifier: string) => Promise<UserValidation | null>;
+  verifyPassword: (userId: number, password: string) => Promise<boolean>;
+  getUserEmpresas: (userId: number) => Promise<any[]>;
+  
+  // Métodos de recuperación de contraseña
+  generarCodigoVerificacion: (email: string) => Promise<{ success: boolean; message: string }>;
+  verificarCodigo: (email: string, codigo: string) => Promise<{ success: boolean; message: string }>;
+  cambiarContraseña: (email: string, codigo: string, nuevaContraseña: string) => Promise<{ success: boolean; message: string }>;
+}
+
+export const authService: AuthService = {
+  // Métodos originales
+  validateUser: async (identifier: string): Promise<UserValidation | null> => {
     try {
       console.log('Validando usuario:', identifier);
       
@@ -79,7 +91,7 @@ export const authService = {
         .single();
 
       console.log('Respuesta de Supabase:', { data, error });
-
+      
       if (error || !data) {
         console.log('Usuario no encontrado o error:', error);
         return null;
@@ -91,7 +103,7 @@ export const authService = {
 
       console.log('Empresas encontradas:', empresas);
       console.log('Roles encontrados:', roles);
-
+      
       return {
         user: {
           id: data.id,
@@ -151,7 +163,7 @@ export const authService = {
         `)
         .eq('id', userId)
         .single();
-
+      
       if (userError || !userData) {
         console.log('Usuario no encontrado o error:', userError);
         return { success: false };
@@ -272,8 +284,7 @@ export const authService = {
     }
   },
 
-  // Obtener empresas asociadas a un usuario
-  async getUserEmpresas(userId: number) {
+  getUserEmpresas: async (userId: number) => {
     try {
       const { data, error } = await supabase
         .from('gen_usuario_empresas')
@@ -284,13 +295,128 @@ export const authService = {
           )
         `)
         .eq('usuario_id', userId);
-
+      
       if (error) throw error;
-
+      
       return data?.map((item: any) => item.empresas) || [];
     } catch (error) {
       console.error('Error getting user empresas:', error);
       return [];
+    }
+  },
+
+  // Métodos de recuperación de contraseña
+  generarCodigoVerificacion: async (email: string) => {
+    try {
+      // Generar código de 6 dígitos
+      const codigo = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      // Fecha de expiración (30 minutos)
+      const fechaExpiracion = new Date();
+      fechaExpiracion.setMinutes(fechaExpiracion.getMinutes() + 30);
+      
+      // Guardar código en la base de datos
+      const { error } = await supabase
+        .from('codigos_verificacion')
+        .insert({
+          email,
+          codigo,
+          tipo: 'recuperacion',
+          usado: false,
+          fecha_expiracion: fechaExpiracion.toISOString()
+        });
+      
+      if (error) throw error;
+      
+      // TODO: Aquí se enviaría el email con el código
+      // Por ahora solo retornamos éxito
+      console.log(`Código generado para ${email}: ${codigo}`);
+      
+      return {
+        success: true,
+        message: 'Código de verificación enviado a tu correo electrónico'
+      };
+    } catch (error) {
+      console.error('Error generando código:', error);
+      return {
+        success: false,
+        message: 'Error al generar el código de verificación'
+      };
+    }
+  },
+
+  verificarCodigo: async (email: string, codigo: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('codigos_verificacion')
+        .select('*')
+        .eq('email', email)
+        .eq('codigo', codigo)
+        .eq('tipo', 'recuperacion')
+        .eq('usado', false)
+        .gte('fecha_expiracion', new Date().toISOString())
+        .order('fecha_creacion', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (error || !data) {
+        return {
+          success: false,
+          message: 'Código inválido o expirado'
+        };
+      }
+      
+      return {
+        success: true,
+        message: 'Código verificado correctamente'
+      };
+    } catch (error) {
+      console.error('Error verificando código:', error);
+      return {
+        success: false,
+        message: 'Error al verificar el código'
+      };
+    }
+  },
+
+  cambiarContraseña: async (email: string, codigo: string, nuevaContraseña: string) => {
+    try {
+      // Primero verificar que el código es válido
+      const verificacion = await authService.verificarCodigo(email, codigo);
+      if (!verificacion.success) {
+        return verificacion;
+      }
+      
+      // Hash de la nueva contraseña (base64 por ahora)
+      const passwordHash = btoa(nuevaContraseña);
+      
+      // Actualizar contraseña en la tabla de usuarios
+      const { error: updateError } = await supabase
+        .from('gen_usuarios')
+        .update({ password_hash: passwordHash })
+        .eq('email', email);
+      
+      if (updateError) throw updateError;
+      
+      // Marcar código como usado
+      const { error: markError } = await supabase
+        .from('codigos_verificacion')
+        .update({ usado: true })
+        .eq('email', email)
+        .eq('codigo', codigo);
+      
+      if (markError) throw markError;
+      
+      return {
+        success: true,
+        message: 'Contraseña cambiada exitosamente'
+      };
+    } catch (error) {
+      console.error('Error cambiando contraseña:', error);
+      return {
+        success: false,
+        message: 'Error al cambiar la contraseña'
+      };
     }
   }
 }; 

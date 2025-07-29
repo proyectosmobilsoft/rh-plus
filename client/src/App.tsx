@@ -15,8 +15,8 @@ import { QueryInvalidator } from "@/components/QueryInvalidator";
 // Páginas de autenticación
 import LoginUnificado from './pages/LoginUnificado';
 import LoginAdmin from './pages/LoginAdmin';
-import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
-import ResetPasswordPage from './pages/auth/ResetPasswordPage';
+import RecuperarPasswordPage from './pages/auth/RecuperarPasswordPage';
+import VerificarCodigoPage from './pages/auth/VerificarCodigoPage';
 
 // Páginas protegidas
 import Index from './pages/Index';
@@ -96,8 +96,6 @@ import QrEmailPage from './pages/empresa/QrEmailPage';
 import QrGenerarPage from './pages/empresa/QrGenerarPage';
 import QrWhatsAppPage from './pages/empresa/QrWhatsAppPage';
 
-// Páginas de prueba
-import TestCascadingSelects from './pages/TestCascadingSelects';
 import NotFound from './pages/NotFound';
 
 import './App.css';
@@ -125,14 +123,15 @@ function App() {
                 <LoginAdmin />
               </PublicRoute>
             } />
-            <Route path="/forgot-password" element={
+
+            <Route path="/recuperar-password" element={
               <PublicRoute>
-                <ForgotPasswordPage />
+                <RecuperarPasswordPage />
               </PublicRoute>
             } />
-            <Route path="/reset-password" element={
+            <Route path="/verificar-codigo" element={
               <PublicRoute>
-                <ResetPasswordPage />
+                <VerificarCodigoPage />
               </PublicRoute>
             } />
             <Route path="/login-candidato" element={
@@ -408,13 +407,19 @@ function App() {
               </ProtectedRoute>
             } />
 
+            <Route path="/maestro/ubicaciones" element={
+              <ProtectedRoute>
+                <UbicacionesPage />
+              </ProtectedRoute>
+            } />
+
            
             <Route path="/plantillas" element={
               <ProtectedRoute>
                 <PlantillasPage />
               </ProtectedRoute>
             } />
-            <Route path="/admin/plantillas" element={
+            <Route path="/maestro/plantillas" element={
               <ProtectedRoute>
                 <PlantillasPage />
               </ProtectedRoute>
@@ -503,17 +508,12 @@ function App() {
               </ProtectedRoute>
             } />
 
-            {/* Rutas de prueba */}
-            <Route path="/test-cascading-selects" element={
-              <ProtectedRoute>
-                <TestCascadingSelects />
-              </ProtectedRoute>
-            } />
-          </Route>
-          
-          {/* Ruta 404 */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+
+            </Route>
+
+            {/* Ruta 404 */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
         </div>
       </Router>
   );

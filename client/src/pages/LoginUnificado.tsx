@@ -9,7 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { authService, UserValidation } from '@/services/authService';
 import { guardarEmpresaSeleccionadaConConsulta } from '@/utils/empresaUtils';
 import { Eye, EyeOff, LogIn, Building2 } from 'lucide-react';
-import logo from '../../public/logo2.svg';
+import logo from '/logo2.svg';
 
 export default function LoginUnificado() {
   const [username, setUsername] = useState('');
@@ -270,7 +270,7 @@ export default function LoginUnificado() {
   };
 
   const handleForgotPassword = () => {
-    window.location.href = '/forgot-password';
+    window.location.href = '/recuperar-password';
   };
 
   return (
