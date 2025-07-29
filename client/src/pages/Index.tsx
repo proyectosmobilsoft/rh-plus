@@ -92,11 +92,11 @@ const Dashboard = () => {
             >
               Año
             </Button>
-                  </div>
+          </div>
+        </div>
       </div>
-    </div>
 
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Empresas Afiliadas"
           value={isLoading ? "..." : `${stats?.totalEmpresas || 125}`}

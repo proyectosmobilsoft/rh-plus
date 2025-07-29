@@ -273,7 +273,7 @@ const PerfilesPage = () => {
   const [isModulesModalOpen, setIsModulesModalOpen] = useState(false);
   const [viewingModules, setViewingModules] = useState<{ modulo_nombre: string }[] | null>(null);
   const [selectedProfileForModules, setSelectedProfileForModules] = useState<Perfil | null>(null);
-  
+
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -446,10 +446,10 @@ const PerfilesPage = () => {
     try {
       const accionesCompletas = await rolesService.getAccionesCompletasPorRol(perfil.id);
       // console.log("Acciones completas fetched:", accionesCompletas); // Comentado para limpiar consola
-      
+
       // Agrupar acciones por modulo_id y recopilar las acciones de cada modulo
       const modulosConAcciones: Record<number, { nombre: string; acciones: string[] }> = {};
-      
+
       accionesCompletas.forEach(accion => {
         // Acceso directo a modulo_id y modulo_nombre, ya que rolesService los devuelve así
         const moduloId = accion.modulo_id;
@@ -496,7 +496,7 @@ const PerfilesPage = () => {
     // Invalidar cache para actualizar la lista y refrescar
     await queryClient.invalidateQueries({ queryKey: ['/api/perfiles'] });
     await refetch();
-    
+
     // Mostrar notificación de éxito
     toast({
       title: "Perfil Avanzado Creado",
@@ -532,19 +532,22 @@ const PerfilesPage = () => {
   return (
     <div className="p-4 max-w-full mx-auto">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-gray-900">Gestión de Perfiles y Vistas</h1>
+        <h1 className="text-3xl font-extrabold text-cyan-800 flex items-center gap-2 mb-2">
+          <Crown className="w-8 h-8 text-cyan-600" />
+          Gestión de Perfiles y Vistas
+        </h1>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2 bg-cyan-100/60 p-1 rounded-lg">
-          <TabsTrigger 
-            value="perfiles" 
+          <TabsTrigger
+            value="perfiles"
             className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
           >
             Listado de Perfiles
           </TabsTrigger>
-          <TabsTrigger 
-            value="vistas" 
+          <TabsTrigger
+            value="vistas"
             className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
           >
             Registro de Perfil
@@ -562,7 +565,7 @@ const PerfilesPage = () => {
                 <span className="text-lg font-semibold text-gray-700">ROLES</span>
               </div>
               <div className="flex space-x-2">
-                <Button 
+                <Button
                   onClick={() => {
                     setEditingPerfil(null);
                     form.reset({
@@ -582,78 +585,86 @@ const PerfilesPage = () => {
             </div>
 
             {/* Tabla similar a la imagen */}
-            <div className="overflow-x-auto">
-              <div className="flex flex-wrap items-center gap-4 p-3 bg-cyan-50 rounded-lg mb-4 shadow-sm">
-                <div className="flex-1 min-w-[200px]">
-                  <Input
-                    placeholder="Buscar por nombre..."
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    className="w-full"
-                  />
-                </div>
-                <div className="min-w-[180px]">
-                  <Select value={estadoFilter ?? undefined} onValueChange={v => setEstadoFilter(v === 'activo' ? 'activo' : v === 'inactivo' ? 'inactivo' : null)}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Filtrar por estado" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="activo">Activo</SelectItem>
-                      <SelectItem value="inactivo">Inactivo</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="relative">
-                {isLoading && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-white/70 z-20">
-                    <div className="flex flex-col items-center gap-2">
-                      <Loader2 className="animate-spin h-10 w-10 text-cyan-600" />
-                      <span className="text-cyan-700 font-semibold">Cargando perfiles...</span>
-                    </div>
-                  </div>
-                )}
-                <Table className="w-full">
-                  <TableHeader className="bg-cyan-50">
-                                      <TableRow className="text-left text-sm font-medium text-gray-600">
-                    <TableHead className="px-3 py-2 text-teal-600">Acciones</TableHead>
-                      <TableHead className="px-3 py-2">Código</TableHead>
-                      <TableHead className="px-3 py-2">Nombre</TableHead>
-                      <TableHead className="px-3 py-2">Descripción</TableHead>
-                      <TableHead className="px-3 py-2">Cantidad de Módulos</TableHead>
-                      <TableHead className="px-3 py-2">Estado</TableHead>
+            <div className="overflow-x-auto rounded-lg shadow-sm">
+              <Table className="min-w-[800px] w-full text-xs">
+                <TableHeader className="bg-cyan-50">
+                  <TableRow className="text-left font-semibold text-gray-700">
+                    <TableHead className="px-2 py-1 text-teal-600">Acciones</TableHead>
+                    <TableHead className="px-4 py-3">Código</TableHead>
+                    <TableHead className="px-4 py-3">Nombre</TableHead>
+                    <TableHead className="px-4 py-3">Descripción</TableHead>
+                    <TableHead className="px-4 py-3">Cantidad de Módulos</TableHead>
+                    <TableHead className="px-4 py-3">Estado</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {!isLoading && (filteredPerfiles.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="h-24 text-center">
+                        No hay perfiles disponibles.
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {!isLoading && (filteredPerfiles.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="h-24 text-center">
-                          No hay perfiles disponibles.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredPerfiles.map((perfil: Perfil, index: number) => (
-                        <TableRow key={perfil.id} className="hover:bg-gray-50">
-                          <TableCell className="px-4 py-3">
-                        <div className="flex space-x-2">
+                  ) : (
+                    filteredPerfiles.map((perfil: Perfil, index: number) => (
+                      <TableRow key={perfil.id} className="hover:bg-gray-50">
+                        <TableCell className="px-2 py-1">
+                          <div className="flex flex-row gap-1 items-center">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleEdit(perfil)}
+                                    aria-label="Editar perfil"
+                                    className="h-8 w-8"
+                                  >
+                                    <Edit className="h-4 w-4 text-blue-600 hover:text-blue-800 transition-colors" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Editar</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                            {perfil.activo ? (
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                            onClick={() => handleEdit(perfil)}
-                                      aria-label="Editar perfil"
-                                    >
-                                      <Edit className="h-5 w-5 text-blue-600 hover:text-blue-800 transition-colors" />
-                                    </Button>
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          aria-label="Inactivar perfil"
+                                          className="h-8 w-8"
+                                        >
+                                          <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
+                                        </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>¿Inactivar perfil?</AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            Esta acción inactivará el perfil y no podrá ser usado hasta que se reactive. ¿Estás seguro?
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                          <AlertDialogAction onClick={() => handleDelete(perfil.id)}>
+                                            Sí, inactivar
+                                          </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
                                   </TooltipTrigger>
                                   <TooltipContent>
-                                    <p>Editar</p>
+                                    <p>Inactivar</p>
                                   </TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
-                              {perfil.activo ? (
+                            ) : (
+                              <>
                                 <TooltipProvider>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
@@ -662,149 +673,115 @@ const PerfilesPage = () => {
                                           <Button
                                             variant="ghost"
                                             size="icon"
-                                            aria-label="Inactivar perfil"
+                                            aria-label="Eliminar perfil"
+                                            className="h-8 w-8"
                                           >
-                                            <Lock className="h-5 w-5 text-yellow-600 hover:text-yellow-800 transition-colors" />
+                                            <Trash2 className="h-4 w-4 text-rose-600 hover:text-rose-800 transition-colors" />
                                           </Button>
                                         </AlertDialogTrigger>
                                         <AlertDialogContent>
                                           <AlertDialogHeader>
-                                            <AlertDialogTitle>¿Inactivar perfil?</AlertDialogTitle>
+                                            <AlertDialogTitle>¿Eliminar perfil?</AlertDialogTitle>
                                             <AlertDialogDescription>
-                                              Esta acción inactivará el perfil y no podrá ser usado hasta que se reactive. ¿Estás seguro?
+                                              Esta acción eliminará el perfil de forma permanente. ¿Estás seguro?
                                             </AlertDialogDescription>
                                           </AlertDialogHeader>
                                           <AlertDialogFooter>
                                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleDelete(perfil.id)}>
-                                              Sí, inactivar
+                                            <AlertDialogAction onClick={() => deletePerfilPermanentMutation.mutate(perfil.id)}>
+                                              Sí, eliminar
                                             </AlertDialogAction>
                                           </AlertDialogFooter>
                                         </AlertDialogContent>
                                       </AlertDialog>
                                     </TooltipTrigger>
                                     <TooltipContent>
-                                      <p>Inactivar</p>
+                                      <p>Eliminar</p>
                                     </TooltipContent>
                                   </Tooltip>
                                 </TooltipProvider>
-                              ) : (
-                                <>
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <AlertDialog>
-                                          <AlertDialogTrigger asChild>
-                                            <Button
-                                              variant="ghost"
-                                              size="icon"
-                                              aria-label="Eliminar perfil"
-                                            >
-                                              <Trash2 className="h-5 w-5 text-rose-600 hover:text-rose-800 transition-colors" />
-                                            </Button>
-                                          </AlertDialogTrigger>
-                                          <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                              <AlertDialogTitle>¿Eliminar perfil?</AlertDialogTitle>
-                                              <AlertDialogDescription>
-                                                Esta acción eliminará el perfil de forma permanente. ¿Estás seguro?
-                                              </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                              <AlertDialogAction onClick={() => deletePerfilPermanentMutation.mutate(perfil.id)}>
-                                                Sí, eliminar
-                                              </AlertDialogAction>
-                                            </AlertDialogFooter>
-                                          </AlertDialogContent>
-                                        </AlertDialog>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <p>Eliminar</p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <AlertDialog>
-                                          <AlertDialogTrigger asChild>
-                                            <Button
-                                              variant="ghost"
-                                              size="icon"
-                                              aria-label="Activar perfil"
-                                            >
-                                              <CheckCircle className="h-5 w-5 text-green-600 hover:text-green-800 transition-colors" />
-                                            </Button>
-                                          </AlertDialogTrigger>
-                                          <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                              <AlertDialogTitle>¿Activar perfil?</AlertDialogTitle>
-                                              <AlertDialogDescription>
-                                                Esta acción reactivará el perfil y estará disponible para su uso. ¿Estás seguro?
-                                              </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                              <AlertDialogAction onClick={() => activatePerfilMutation.mutate(perfil.id)}>
-                                                Sí, activar
-                                              </AlertDialogAction>
-                                            </AlertDialogFooter>
-                                          </AlertDialogContent>
-                                        </AlertDialog>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <p>Activar</p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                </>
-                              )}
-                        </div>
-                          </TableCell>
-                          <TableCell className="px-4 py-3 text-sm text-gray-900">{String(perfil.id).padStart(3, '0')}</TableCell>
-                          <TableCell className="px-4 py-3 text-sm text-gray-900">{perfil.nombre}</TableCell>
-                          <TableCell className="px-4 py-3 text-sm text-gray-500">{perfil.descripcion || 'N/A'}</TableCell>
-                          <TableCell className="px-4 py-3 text-center font-bold text-cyan-700">
-    <div className="flex items-center justify-center gap-2">
-      <span>{perfil.modulos_count}</span>
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => handleViewModules(perfil)}
-              aria-label="Ver módulos"
-              className="h-6 w-6"
-            >
-              <Eye className="h-4 w-4 text-gray-500 hover:text-gray-700" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Ver Módulos Asignados</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    </div>
-  </TableCell>
-                          <TableCell className="px-4 py-3">
-                            <Badge variant={perfil.activo ? "default" : "secondary"} className={perfil.activo ? "bg-green-100 text-green-700 border-green-200" : "bg-gray-200 text-gray-600 border-gray-300"}>
-                              {perfil.activo ? "Activo" : "Inactivo"}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ))}
-                  </TableBody>
-                </Table>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            aria-label="Activar perfil"
+                                            className="h-8 w-8"
+                                          >
+                                            <CheckCircle className="h-4 w-4 text-green-600 hover:text-green-800 transition-colors" />
+                                          </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>¿Activar perfil?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                              Esta acción reactivará el perfil y estará disponible para su uso. ¿Estás seguro?
+                                            </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => activatePerfilMutation.mutate(perfil.id)}>
+                                              Sí, activar
+                                            </AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Activar</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-sm text-gray-900">{String(perfil.id).padStart(3, '0')}</TableCell>
+                        <TableCell className="px-4 py-3 text-sm text-gray-900">{perfil.nombre}</TableCell>
+                        <TableCell className="px-4 py-3 text-sm text-gray-500">{perfil.descripcion || 'N/A'}</TableCell>
+                        <TableCell className="px-4 py-3 text-center font-bold text-cyan-700">
+                          <div className="flex items-center justify-center gap-2">
+                            <span>{perfil.modulos_count}</span>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleViewModules(perfil)}
+                                    aria-label="Ver módulos"
+                                    className="h-6 w-6"
+                                  >
+                                    <Eye className="h-4 w-4 text-gray-500 hover:text-gray-700" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Ver Módulos Asignados</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-4 py-3">
+                          <Badge variant={perfil.activo ? "default" : "secondary"} className={perfil.activo ? "bg-green-100 text-green-700 border-green-200" : "bg-gray-200 text-gray-600 border-gray-300"}>
+                            {perfil.activo ? "Activo" : "Inactivo"}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           </div>
 
           {/* Modal para crear/editar perfiles */}
           <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
             <DialogTrigger asChild>
-              <Button 
+              <Button
                 onClick={() => {
                   setEditingPerfil(null);
                   form.reset({
@@ -820,116 +797,13 @@ const PerfilesPage = () => {
                 Nuevo Perfil
               </Button>
             </DialogTrigger>
-                <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>
-                      {editingPerfil ? 'Editar Perfil' : 'Registro de Perfiles'}
-                    </DialogTitle>
-                  </DialogHeader>
-                  
-                  <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="codigo"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Código</FormLabel>
-                        <FormControl>
-                          <Input 
-                            {...field} 
-                            value={String(field.value).padStart(2, '0')}
-                            disabled
-                            className="bg-red-50 text-red-600 font-semibold"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="nombre"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nombre *</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Nombre del perfil" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>
+                  {editingPerfil ? 'Editar Perfil' : 'Registro de Perfiles'}
+                </DialogTitle>
+              </DialogHeader>
 
-                {/* Nuevo formulario de permisos */}
-                <PermissionsForm
-                  selectedPermissions={form.watch('permisos') || []}
-                  onPermissionsChange={(permissions) => {
-                    form.setValue('permisos', permissions);
-                  }}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="descripcion"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Descripción</FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          placeholder="Descripción del perfil..."
-                          className="min-h-[100px]"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="flex justify-end space-x-2 pt-4">
-                  <Button 
-                    type="button" 
-                    variant="outline"
-                    onClick={() => {
-                      setIsModalOpen(false);
-                      setEditingPerfil(null);
-                      form.reset();
-                    }}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button 
-                    type="submit"
-                    className="bg-green-500 hover:bg-green-600 text-white border-0 shadow-sm px-6 py-2 rounded text-sm font-medium transition-colors"
-                    disabled={savePerfilMutation.isPending}
-                  >
-                    {savePerfilMutation.isPending ? 
-                        (editingPerfil ? 'Actualizando...' : 'Guardando...') : 
-                        (editingPerfil ? 'Actualizar' : 'Guardar')
-                      }
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-      </div>
-        </TabsContent>
-
-        <TabsContent value="vistas" className="space-y-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-800">
-              {editingPerfil ? 'Editar Perfil' : 'Registro de Nuevo Perfil'}
-            </h2>
-          </div>
-
-          {/* Formulario de perfil en el tab de vistas */}
-          <Card>
-            <CardContent className="p-6">
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   <div className="grid grid-cols-2 gap-4">
@@ -940,8 +814,8 @@ const PerfilesPage = () => {
                         <FormItem>
                           <FormLabel>Código</FormLabel>
                           <FormControl>
-                            <Input 
-                              {...field} 
+                            <Input
+                              {...field}
                               value={String(field.value).padStart(2, '0')}
                               disabled
                               className="bg-red-50 text-red-600 font-semibold"
@@ -951,7 +825,109 @@ const PerfilesPage = () => {
                         </FormItem>
                       )}
                     />
-                    
+
+                    <FormField
+                      control={form.control}
+                      name="nombre"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nombre *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Nombre del perfil" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {/* Nuevo formulario de permisos */}
+                  <PermissionsForm
+                    selectedPermissions={form.watch('permisos') || []}
+                    onPermissionsChange={(permissions) => {
+                      form.setValue('permisos', permissions);
+                    }}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="descripcion"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Descripción</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Descripción del perfil..."
+                            className="min-h-[100px]"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="flex justify-end space-x-2 pt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setIsModalOpen(false);
+                        setEditingPerfil(null);
+                        form.reset();
+                      }}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      type="submit"
+                      className="bg-green-500 hover:bg-green-600 text-white border-0 shadow-sm px-6 py-2 rounded text-sm font-medium transition-colors"
+                      disabled={savePerfilMutation.isPending}
+                    >
+                      {savePerfilMutation.isPending ?
+                        (editingPerfil ? 'Actualizando...' : 'Guardando...') :
+                        (editingPerfil ? 'Actualizar' : 'Guardar')
+                      }
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+        </TabsContent>
+
+        <TabsContent value="vistas" className="space-y-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-800">
+              {editingPerfil ? 'Editar Perfil' : 'Registro de Perfil'}
+            </h2>
+          </div>
+
+          {/* Formulario de perfil en el tab de vistas */}
+          <Card>
+            <CardContent className="p-4">
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="codigo"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Código</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              value={String(field.value).padStart(2, '0')}
+                              disabled
+                              className="bg-red-50 text-red-600 font-semibold"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
                     <FormField
                       control={form.control}
                       name="nombre"
@@ -982,9 +958,9 @@ const PerfilesPage = () => {
                       <FormItem>
                         <FormLabel>Descripción</FormLabel>
                         <FormControl>
-                          <Textarea 
+                          <Textarea
                             placeholder="Descripción del perfil..."
-                            className="min-h-[100px]"
+                            className="min-h-[80px]"
                             {...field}
                           />
                         </FormControl>
@@ -993,9 +969,9 @@ const PerfilesPage = () => {
                     )}
                   />
 
-                  <div className="flex justify-end space-x-2 pt-4">
-                    <Button 
-                      type="button" 
+                  <div className="flex justify-end space-x-2 pt-2">
+                    <Button
+                      type="button"
                       variant="outline"
                       onClick={() => {
                         setActiveTab("perfiles");
@@ -1005,13 +981,13 @@ const PerfilesPage = () => {
                     >
                       Cancelar
                     </Button>
-                    <Button 
+                    <Button
                       type="submit"
                       className="bg-green-500 hover:bg-green-600 text-white border-0 shadow-sm px-6 py-2 rounded text-sm font-medium transition-colors"
                       disabled={savePerfilMutation.isPending}
                     >
-                      {savePerfilMutation.isPending ? 
-                        (editingPerfil ? 'Actualizando...' : 'Guardando...') : 
+                      {savePerfilMutation.isPending ?
+                        (editingPerfil ? 'Actualizando...' : 'Guardando...') :
                         (editingPerfil ? 'Actualizar' : 'Guardar')
                       }
                     </Button>
@@ -1055,7 +1031,7 @@ const PerfilesPage = () => {
           </Card>
         </TabsContent>
       </Tabs>
-      
+
       {/* Componente de Gestión Avanzada de Perfiles */}
       <AdvancedProfileManager
         open={isAdvancedModalOpen}

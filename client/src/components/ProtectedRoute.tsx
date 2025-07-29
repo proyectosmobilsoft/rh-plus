@@ -11,7 +11,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children, 
   fallback 
 }) => {
-  return (
+    return (
     <AuthGuard fallback={fallback}>
       {children}
     </AuthGuard>
@@ -36,7 +36,7 @@ export const PermissionRoute: React.FC<PermissionRouteProps> = ({
         {children}
       </PermissionGuard>
     </AuthGuard>
-  );
+    );
 };
 
 // Componente para verificar permisos específicos
@@ -57,13 +57,13 @@ const PermissionGuard: React.FC<PermissionGuardProps> = ({
     authContext = useAuth();
   } catch (error) {
     // Si AuthProvider no está disponible, permitir acceso
-    return <>{children}</>;
+  return <>{children}</>;
   }
 
   const { hasPermission } = authContext;
 
   if (!hasPermission(permission as any)) {
-    return <>{fallback}</>;
+      return <>{fallback}</>;
   }
 
   return <>{children}</>;

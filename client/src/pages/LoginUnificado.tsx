@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { authService, UserValidation } from '@/services/authService';
+import { guardarEmpresaSeleccionadaConConsulta } from '@/utils/empresaUtils';
 import { Eye, EyeOff, LogIn, Building2 } from 'lucide-react';
 import logo from '../../public/logo2.svg';
 
@@ -61,37 +62,19 @@ export default function LoginUnificado() {
 
   const directSelectEmpresa = async (empresaId: string) => {
     try {
-      // Usar las credenciales ya validadas
-      if (!validatedCredentials) {
-        throw new Error('No hay credenciales validadas');
-      }
-
-      // Crear un token JWT válido usando el servidor
-      const response = await fetch('/api/auth/login-with-empresa', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          username: validatedCredentials.username,
-          password: validatedCredentials.password,
-          empresaId: parseInt(empresaId)
-        })
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Error al seleccionar empresa');
-      }
-
-      const data = await response.json();
+      console.log('Seleccionando empresa con ID:', empresaId);
       
-      // Guardar en localStorage
-      localStorage.setItem('authToken', data.token);
-      localStorage.setItem('userData', JSON.stringify(data.user));
-
-      // Redirigir al dashboard
-      window.location.href = '/dashboard';
+      // Usar la nueva función que consulta la base de datos y guarda TODO
+      const resultado = await guardarEmpresaSeleccionadaConConsulta(parseInt(empresaId));
+      
+      if (resultado) {
+        console.log('Empresa seleccionada y datos de autenticación guardados exitosamente');
+        
+        // Redirigir al dashboard
+        window.location.href = '/dashboard';
+      } else {
+        throw new Error('No se pudo guardar la empresa seleccionada');
+      }
     } catch (error: any) {
       console.error('Error al seleccionar empresa:', error);
       throw error;
@@ -168,12 +151,16 @@ export default function LoginUnificado() {
     try {
       setIsLoading(true);
       setError('');
+      
+      console.log('🔄 Iniciando selección de empresa:', selectedEmpresa);
 
       // Seleccionar la empresa (ahora puede ser asíncrono)
       await selectEmpresa(selectedEmpresa);
+      
+      console.log('✅ Empresa seleccionada exitosamente');
 
     } catch (error: any) {
-      console.error('Error al seleccionar empresa:', error);
+      console.error('❌ Error al seleccionar empresa:', error);
       setError(error.message || 'Error al seleccionar empresa');
     } finally {
       setIsLoading(false);

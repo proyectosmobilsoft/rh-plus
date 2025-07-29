@@ -680,9 +680,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('Login con empresa - Función RPC no disponible, usando fallback:', rpcError);
         
         // Fallback: verificación manual
-        const storedHash = dbUser.password_hash;
-        const inputHash = btoa(password); // Hash simple en base64
-        const isValidPassword = storedHash === inputHash;
+      const storedHash = dbUser.password_hash;
+      const inputHash = btoa(password); // Hash simple en base64
+      const isValidPassword = storedHash === inputHash;
 
         console.log('Login con empresa - Fallback - Comparando hashes:', { 
           storedHash: storedHash?.substring(0, 20) + '...', 
@@ -690,9 +690,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           isValidPassword 
         });
 
-        if (!isValidPassword) {
+      if (!isValidPassword) {
           console.log('Login con empresa - Contraseña incorrecta (fallback)');
-          return res.status(401).json({ message: "Contraseña incorrecta" });
+        return res.status(401).json({ message: "Contraseña incorrecta" });
         }
       }
 

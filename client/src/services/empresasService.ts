@@ -2,44 +2,133 @@
 import { supabase } from './supabaseClient';
 
 export interface Empresa {
-  id?: number;
-  razon_social: string;
+  id: number;
+  nombre: string;
+  razonSocial: string;
   nit: string;
-  tipo_documento?: string;
-  regimen_tributario?: string;
-  direccion?: string;
-  ciudad?: string;
-  telefono?: string;
-  email?: string;
-  representante_legal?: string;
-  actividad_economica?: string;
-  numero_empleados?: number;
-  tipo_empresa?: string;
-  activo?: boolean;
-  created_at?: string;
-  updated_at?: string;
+  direccion: string;
+  telefono: string;
+  email: string;
+  representanteLegal: string;
+  cargoRepresentante: string;
+  estado: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
+/**
+ * Obtiene información completa de una empresa por ID
+ */
+export const obtenerEmpresaPorId = async (empresaId: number): Promise<Empresa | null> => {
+  try {
+    console.log('Consultando empresa con ID:', empresaId);
+    
+    const { data, error } = await supabase
+      .from('empresas')
+      .select('*')
+      .eq('id', empresaId)
+      .single();
+
+    if (error) {
+      console.error('Error al consultar empresa:', error);
+      return null;
+    }
+
+    if (data) {
+      console.log('Empresa encontrada:', data);
+      return data;
+    }
+
+    console.log('No se encontró empresa con ID:', empresaId);
+    return null;
+  } catch (error) {
+    console.error('Error en obtenerEmpresaPorId:', error);
+    return null;
+  }
+};
+
+/**
+ * Obtiene todas las empresas
+ */
+export const obtenerEmpresas = async (): Promise<Empresa[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('empresas')
+      .select('*')
+      .order('nombre');
+
+    if (error) {
+      console.error('Error al obtener empresas:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error en obtenerEmpresas:', error);
+    return [];
+  }
+};
+
+// Exportar el servicio completo para mantener compatibilidad
 export const empresasService = {
   getAll: async (): Promise<Empresa[]> => {
-    const { data, error } = await supabase.from('empresas').select('*');
-    if (error) throw error;
-    return data || [];
+    return await obtenerEmpresas();
   },
-  create: async (empresa: Omit<Empresa, 'id'>): Promise<Empresa | null> => {
-    const { data, error } = await supabase.from('empresas').insert([empresa]).select();
-    if (error) throw error;
-    return data ? data[0] : null;
+  create: async (empresa: Omit<Empresa, 'id' | 'createdAt' | 'updatedAt'>): Promise<Empresa | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('empresas')
+        .insert([empresa])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error al crear empresa:', error);
+        return null;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error en create empresa:', error);
+      return null;
+    }
   },
   update: async (empresa: Empresa): Promise<Empresa | null> => {
-    if (!empresa.id) throw new Error('ID requerido para actualizar empresa');
-    const { data, error } = await supabase.from('empresas').update(empresa).eq('id', empresa.id).select();
-    if (error) throw error;
-    return data ? data[0] : null;
+    try {
+      const { data, error } = await supabase
+        .from('empresas')
+        .update(empresa)
+        .eq('id', empresa.id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error al actualizar empresa:', error);
+        return null;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error en update empresa:', error);
+      return null;
+    }
   },
   delete: async (id: number): Promise<boolean> => {
-    const { error } = await supabase.from('empresas').delete().eq('id', id);
-    if (error) throw error;
-    return true;
+    try {
+      const { error } = await supabase
+        .from('empresas')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error al eliminar empresa:', error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error en delete empresa:', error);
+      return false;
+    }
   }
 };

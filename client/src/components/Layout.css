@@ -2,20 +2,20 @@
 
 /* Transiciones del sidebar */
 .sidebar-transition {
-  transition: width 0.3s ease-in-out;
+  transition: all 0.3s ease-in-out;
 }
 
 .sidebar-collapsed {
-  width: 3.5rem;
+  width: 64px;
 }
 
 .sidebar-expanded {
-  width: 16rem;
+  width: 256px;
 }
 
 /* Botón de toggle del sidebar */
 .sidebar-toggle-button {
-  transition: all 0.2s ease-in-out;
+  transition: transform 0.3s ease;
 }
 
 .sidebar-toggle-button:hover {
@@ -24,7 +24,7 @@
 
 /* Estilos del sidebar */
 .sidebar-item {
-  transition: all 0.2s ease-in-out;
+  transition: all 0.2s ease;
   border-radius: 0.5rem;
   margin-bottom: 0.25rem;
 }
@@ -39,6 +39,7 @@
 }
 
 .sidebar-submenu-item {
+  transition: all 0.2s ease;
   padding-left: 1rem;
   font-size: 0.875rem;
 }
@@ -54,6 +55,7 @@
 
 /* Logo del sidebar */
 .logo-sidebar {
+  transition: all 0.3s ease;
   width: 120px;
   height: 40px;
   background-size: contain;
@@ -68,7 +70,7 @@
 
 /* Flecha del dropdown */
 .dropdown-arrow {
-  transition: transform 0.2s ease-in-out;
+  transition: transform 0.2s ease;
 }
 
 .dropdown-arrow.open {
@@ -78,13 +80,13 @@
 /* Estilos del header */
 .header-title {
   font-weight: 600;
-  color: rgb(31, 41, 55);
+  color: #1f2937;
 }
 
 /* Botón de cerrar sesión */
 .logout-button {
+  transition: all 0.2s ease;
   color: rgb(220, 38, 38);
-  transition: all 0.2s ease-in-out;
 }
 
 .logout-button:hover {
@@ -101,4 +103,330 @@
   .header-title {
     font-size: 1rem;
   }
+} 
+
+/* Scroll personalizado para el sidebar */
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: #d1d5db;
+  border-radius: 2px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: #9ca3af;
+}
+
+.scrollbar-thumb-gray-300::-webkit-scrollbar-thumb {
+  background-color: #d1d5db;
+}
+
+.scrollbar-track-transparent::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Nuevos estilos para mejorar la visibilidad del menú */
+.sidebar-menu-item {
+  position: relative;
+  overflow: hidden;
+}
+
+.sidebar-menu-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background-color: #3b82f6;
+  transform: scaleY(0);
+  transition: transform 0.2s ease;
+}
+
+.sidebar-menu-item:hover::before,
+.sidebar-menu-item.active::before {
+  transform: scaleY(1);
+}
+
+/* Mejoras para el contraste y visibilidad */
+.sidebar-container {
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.sidebar-header {
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.sidebar-footer {
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  border-top: 2px solid #e2e8f0;
+}
+
+/* Animaciones suaves para los elementos del menú */
+.menu-item-animation {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.menu-item-animation:hover {
+  transform: translateX(4px);
+}
+
+/* Estilos para el estado activo más visible */
+.menu-item-active {
+  background: linear-gradient(90deg, #dbeafe 0%, #bfdbfe 100%);
+  border-left: 3px solid #3b82f6;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1);
+}
+
+/* Mejoras para dispositivos móviles */
+@media (max-width: 1024px) {
+  .sidebar-container {
+    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.15);
+  }
+}
+
+/* Estilos para el overlay en móviles */
+.sidebar-overlay {
+  backdrop-filter: blur(2px);
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+/* Mejoras para el scroll */
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 3px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
+}
+
+/* Estilos para mantener el sidebar abierto en navegación */
+.sidebar-persistent {
+  /* Asegurar que el sidebar permanezca visible */
+  z-index: 50;
+}
+
+/* Mejoras para el contenido principal cuando el sidebar está abierto */
+.content-with-sidebar {
+  transition: margin-left 0.3s ease-in-out;
+}
+
+/* Estilos para mejorar la experiencia de navegación */
+.navigation-smooth {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Estilos para el estado de navegación activa */
+.navigation-active {
+  background: linear-gradient(90deg, #dbeafe 0%, #bfdbfe 100%);
+  border-left: 3px solid #3b82f6;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1);
+  font-weight: 600;
+}
+
+/* Mejoras para el responsive cuando el sidebar permanece abierto */
+@media (max-width: 1024px) {
+  .sidebar-persistent-mobile {
+    /* Mantener el sidebar visible en móviles después de la navegación */
+    transform: translateX(0) !important;
+  }
+  
+  .content-with-sidebar-mobile {
+    /* Ajustar el contenido cuando el sidebar está abierto en móviles */
+    margin-left: 0;
+  }
+}
+
+/* Estilos para sidebar siempre visible */
+.sidebar-always-visible {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 256px;
+  z-index: 50;
+  background: white;
+  border-right: 1px solid #e5e7eb;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease-in-out;
+}
+
+/* Contenido principal con sidebar siempre visible */
+.content-with-fixed-sidebar {
+  margin-left: 256px;
+  width: calc(100% - 256px);
+  min-height: 100vh;
+  transition: margin-left 0.3s ease-in-out;
+}
+
+/* Responsive para sidebar siempre visible */
+@media (max-width: 1024px) {
+  .sidebar-always-visible {
+    width: 100%;
+    max-width: 280px;
+  }
+  
+  .content-with-fixed-sidebar {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
+/* Estilos para logos más grandes */
+.logo-large {
+  height: 80px;
+  width: auto;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.logo-svg {
+  height: 100px;
+  width: auto;
+  max-height: 100%;
+  flex-shrink: 0;
+}
+
+.logo-sidebar-large {
+  height: 64px;
+  width: auto;
+}
+
+/* Mejoras para el header con logo grande */
+.header-with-large-logo {
+  padding: 1rem 1.5rem;
+  align-items: center;
+}
+
+.header-logo-container {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Estilos para el avatar de usuario más grande */
+.user-avatar-large {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.user-avatar-large svg {
+  width: 32px;
+  height: 32px;
+}
+
+/* Estilos para el loading */
+.loading-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background-color: #f9fafb;
+}
+
+.loading-spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Estilos para evitar que el sidebar desaparezca */
+.sidebar-persistent {
+  position: fixed !important;
+  left: 0 !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  width: 256px !important;
+  z-index: 50 !important;
+  background: white !important;
+  border-right: 1px solid #e5e7eb !important;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1) !important;
+  transform: translateX(0) !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Estilos para el estado de autenticación */
+.auth-checking {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+/* Mejoras para el responsive cuando el sidebar permanece abierto */
+@media (max-width: 1024px) {
+  .sidebar-persistent-mobile {
+    /* Mantener el sidebar visible en móviles después de la navegación */
+    transform: translateX(0) !important;
+  }
+  
+  .content-with-sidebar-mobile {
+    /* Ajustar el contenido cuando el sidebar está abierto en móviles */
+    margin-left: 0;
+  }
+}
+
+/* Estilos para el estado de error */
+.error-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #ef4444;
+  font-size: 0.875rem;
+}
+
+/* Estilos para el estado de no autenticado */
+.not-authenticated {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #6b7280;
+  font-size: 0.875rem;
 } 

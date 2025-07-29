@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Save, UserPlus } from "lucide-react";
+import { ArrowLeft, Save, UserPlus, User, Lock, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
@@ -148,14 +148,20 @@ const CrearUsuarioPage = () => {
         </div>
 
         {/* Formulario */}
-        <Card>
+        <Card className="mb-6">
           <CardHeader>
-            <CardTitle>Información del Usuario</CardTitle>
+            <CardTitle className="text-2xl font-bold text-cyan-800 flex items-center gap-2">
+              <UserPlus className="w-7 h-7 text-cyan-600" />
+              Registro de Usuario
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-              {/* Información personal */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                <User className="w-5 h-5 text-blue-600" />
+                Datos Personales
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div>
                   <Label htmlFor="identificacion">Identificación *</Label>
                   <Input
@@ -170,7 +176,6 @@ const CrearUsuarioPage = () => {
                     </p>
                   )}
                 </div>
-
                 <div>
                   <Label htmlFor="primerNombre">1er Nombre *</Label>
                   <Input
@@ -185,7 +190,6 @@ const CrearUsuarioPage = () => {
                     </p>
                   )}
                 </div>
-
                 <div>
                   <Label htmlFor="segundoNombre">2do Nombre</Label>
                   <Input
@@ -195,7 +199,6 @@ const CrearUsuarioPage = () => {
                   />
                 </div>
               </div>
-
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="primerApellido">1er Apellido *</Label>
@@ -211,7 +214,6 @@ const CrearUsuarioPage = () => {
                     </p>
                   )}
                 </div>
-
                 <div>
                   <Label htmlFor="segundoApellido">2do Apellido</Label>
                   <Input
@@ -220,7 +222,6 @@ const CrearUsuarioPage = () => {
                     {...register("segundoApellido")}
                   />
                 </div>
-
                 <div>
                   <Label htmlFor="telefono">Teléfono</Label>
                   <Input
@@ -230,9 +231,11 @@ const CrearUsuarioPage = () => {
                   />
                 </div>
               </div>
-
-              {/* Información de contacto y acceso */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                <Lock className="w-5 h-5 text-blue-600" />
+                Credenciales de Acceso
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div>
                   <Label htmlFor="email">Correo Electrónico *</Label>
                   <Input
@@ -282,9 +285,11 @@ const CrearUsuarioPage = () => {
                 )}
                 <PasswordStrengthIndicator password={passwordValue || ""} />
               </div>
-
-              {/* Perfiles asociados - Multiselect moderno */}
-              <div>
+              <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                <Users className="w-5 h-5 text-blue-600" />
+                Perfiles Asociados
+              </h3>
+              <div className="mb-6">
                 <Label>Perfiles Asociados *</Label>
                 <MultiSelect
                   options={perfiles.map(perfil => ({
@@ -303,7 +308,7 @@ const CrearUsuarioPage = () => {
                   isLoading={loadingPerfiles}
                   disabled={loadingPerfiles}
                 />
-                
+
                 {errors.perfilIds && (
                   <p className="text-sm text-red-500 mt-2">
                     {errors.perfilIds.message}
@@ -313,7 +318,6 @@ const CrearUsuarioPage = () => {
                   Selecciona uno o más perfiles para definir los permisos del usuario
                 </p>
               </div>
-
               {/* Botones de acción */}
               <div className="flex gap-4 pt-4">
                 <Button

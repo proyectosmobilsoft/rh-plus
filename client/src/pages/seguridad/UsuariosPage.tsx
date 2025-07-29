@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Plus, Search, Users, Save, RefreshCw, Loader2, Lock, CheckCircle } from "lucide-react";
+import { Edit, Trash2, Plus, Search, Users, Save, RefreshCw, Loader2, Lock, CheckCircle, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Link } from "wouter";
@@ -18,7 +18,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -30,6 +29,7 @@ import { usuariosService, UsuarioData } from "@/services/usuariosService";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useForm } from "react-hook-form";
 
 // Esquema de validación para crear usuario
 const crearUsuarioSchema = z.object({
@@ -258,18 +258,18 @@ const UsuariosPage = () => {
   // Filtrado de usuarios
   const usuariosFiltrados = useMemo(() => {
     return usuarios.filter(usuario => {
-      const matchesSearch = 
+      const matchesSearch =
         usuario.primer_nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
         usuario.primer_apellido.toLowerCase().includes(searchTerm.toLowerCase()) ||
         usuario.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
         usuario.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (usuario.identificacion || "").toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesStatus = 
+
+      const matchesStatus =
         statusFilter === "all" ? true :
-        statusFilter === "active" ? usuario.activo :
-        !usuario.activo;
-      
+          statusFilter === "active" ? usuario.activo :
+            !usuario.activo;
+
       return matchesSearch && matchesStatus;
     });
   }, [usuarios, searchTerm, statusFilter]);
@@ -291,7 +291,7 @@ const UsuariosPage = () => {
     // Filtrar campos que no deben enviarse al backend
     const { confirmPassword, perfilIds, empresaIds, ...userData } = data;
     const password = data.password;
-    
+
     createUserMutation.mutate({
       ...userData,
       password,
@@ -326,19 +326,21 @@ const UsuariosPage = () => {
   return (
     <div className="p-4 max-w-full mx-auto">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-gray-900">Gestión de Usuarios</h1>
+        <h1 className="text-3xl font-extrabold text-cyan-800 flex items-center gap-2 mb-2">
+          <Users className="w-8 h-8 text-cyan-600" />
+          Gestión de Usuarios
+        </h1>
       </div>
-
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2 bg-cyan-100/60 p-1 rounded-lg">
-          <TabsTrigger 
-            value="usuarios" 
+          <TabsTrigger
+            value="usuarios"
             className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
           >
             Listado de Usuarios
           </TabsTrigger>
-          <TabsTrigger 
-            value="registro" 
+          <TabsTrigger
+            value="registro"
             className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
           >
             Registro de Usuario
@@ -356,7 +358,7 @@ const UsuariosPage = () => {
                 <span className="text-lg font-semibold text-gray-700">USUARIOS</span>
               </div>
               <div className="flex space-x-2">
-                <Button 
+                <Button
                   onClick={() => {
                     setEditingUser(null);
                     form.reset();
@@ -394,7 +396,7 @@ const UsuariosPage = () => {
             </div>
 
             {/* Tabla de usuarios */}
-            <div className="relative">
+            <div className="relative overflow-x-auto rounded-lg shadow-sm">
               {isLoading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-white/70 z-20">
                   <div className="flex flex-col items-center gap-2">
@@ -403,32 +405,31 @@ const UsuariosPage = () => {
                   </div>
                 </div>
               )}
-              <Table className="w-full">
+              <Table className="min-w-[900px] w-full text-xs">
                 <TableHeader className="bg-cyan-50">
-                  <TableRow className="text-left text-sm font-medium text-gray-600">
-                    <TableHead className="px-3 py-2 text-teal-600">Acciones</TableHead>
-                    <TableHead className="px-3 py-2">Identificación</TableHead>
-                    <TableHead className="px-3 py-2">Nombre Completo</TableHead>
-                    <TableHead className="px-3 py-2">Email</TableHead>
-                    <TableHead className="px-3 py-2">Username</TableHead>
-                    <TableHead className="px-3 py-2">Teléfono</TableHead>
-                    <TableHead className="px-3 py-2">Perfiles</TableHead>
-                    <TableHead className="px-3 py-2">Empresas asociadas</TableHead>
-                    <TableHead className="px-3 py-2">Estado</TableHead>
+                  <TableRow className="text-left font-semibold text-gray-700">
+                    <TableHead className="px-2 py-1 text-teal-600">Acciones</TableHead>
+                    <TableHead className="px-4 py-3">Identificación</TableHead>
+                    <TableHead className="px-4 py-3">Nombre Completo</TableHead>
+                    <TableHead className="px-4 py-3">Email</TableHead>
+                    <TableHead className="px-4 py-3">Username</TableHead>
+                    <TableHead className="px-4 py-3">Teléfono</TableHead>
+                    <TableHead className="px-4 py-3">Perfiles</TableHead>
+                    <TableHead className="px-4 py-3">Estado</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {!isLoading && (usuariosFiltrados.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="h-24 text-center">
+                      <TableCell colSpan={8} className="h-24 text-center">
                         No hay usuarios disponibles.
                       </TableCell>
                     </TableRow>
                   ) : (
                     usuariosFiltrados.map((usuario) => (
                       <TableRow key={usuario.id} className="hover:bg-gray-50">
-                        <TableCell className="px-3 py-2">
-                          <div className="flex space-x-2">
+                        <TableCell className="px-2 py-1">
+                          <div className="flex flex-row gap-1 items-center">
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -446,7 +447,7 @@ const UsuariosPage = () => {
                                 </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
-                            
+
                             {usuario.activo ? (
                               <TooltipProvider>
                                 <Tooltip>
@@ -603,22 +604,6 @@ const UsuariosPage = () => {
                           </div>
                         </TableCell>
                         <TableCell className="px-3 py-2">
-                          <div className="flex flex-wrap gap-1">
-                            {usuario.gen_usuario_empresas?.map((empresa) => (
-                              <Badge
-                                key={empresa.id}
-                                variant="outline"
-                                className="text-xs bg-blue-50 text-blue-700 border-blue-200"
-                              >
-                                {empresa.empresas?.razon_social || 'Sin nombre'}
-                              </Badge>
-                            )) || []}
-                            {(!usuario.gen_usuario_empresas || usuario.gen_usuario_empresas.length === 0) && (
-                              <span className="text-xs text-gray-400">Sin empresas</span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="px-3 py-2">
                           <Badge
                             variant={usuario.activo ? "default" : "secondary"}
                             className={
@@ -640,107 +625,106 @@ const UsuariosPage = () => {
         </TabsContent>
 
         <TabsContent value="registro" className="space-y-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-800">
-              {editingUser ? 'Editar Usuario' : 'Registro de Nuevo Usuario'}
-            </h2>
-          </div>
-
-          {/* Formulario de usuario en el tab de registro */}
           <Card>
             <CardContent className="p-6">
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(handleCrearUsuario)} className="space-y-6">
-                  {/* Campos personales */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="identificacion"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Identificación *</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Número de identificación" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                  {/* Datos Personales */}
+                  <div className="p-4 border rounded-lg bg-slate-50 mb-4">
+                    <h3 className="text-base font-bold text-gray-700 mb-2 flex items-center gap-2">
+                      <User className="w-5 h-5 text-blue-600" />
+                      Datos Personales
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="identificacion"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Identificación *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Número de identificación" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                    <FormField
-                      control={form.control}
-                      name="primer_nombre"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Primer Nombre *</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Primer nombre" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                      <FormField
+                        control={form.control}
+                        name="primer_nombre"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Primer Nombre *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Primer nombre" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                    <FormField
-                      control={form.control}
-                      name="segundo_nombre"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Segundo Nombre</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Segundo nombre (opcional)" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                      <FormField
+                        control={form.control}
+                        name="segundo_nombre"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Segundo Nombre</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Segundo nombre (opcional)" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                    <FormField
-                      control={form.control}
-                      name="primer_apellido"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Primer Apellido *</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Primer apellido" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                      <FormField
+                        control={form.control}
+                        name="primer_apellido"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Primer Apellido *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Primer apellido" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                    <FormField
-                      control={form.control}
-                      name="segundo_apellido"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Segundo Apellido</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Segundo apellido (opcional)" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                      <FormField
+                        control={form.control}
+                        name="segundo_apellido"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Segundo Apellido</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Segundo apellido (opcional)" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                    <FormField
-                      control={form.control}
-                      name="telefono"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Teléfono</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Número de teléfono" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                      <FormField
+                        control={form.control}
+                        name="telefono"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Teléfono</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Número de teléfono" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                   </div>
 
                   {/* Credenciales de Acceso */}
-                  <div className="p-4 border rounded-lg bg-slate-50 mt-6">
-                    <h3 className="text-lg font-semibold mb-4 text-gray-800 flex items-center gap-2">
+                  <div className="p-4 border rounded-lg bg-slate-50 mb-4">
+                    <h3 className="text-base font-bold text-gray-700 mb-2 flex items-center gap-2">
                       <Lock className="w-5 h-5 text-blue-600" />
                       Credenciales de Acceso
                     </h3>
@@ -752,11 +736,11 @@ const UsuariosPage = () => {
                           <FormItem>
                             <FormLabel>Email *</FormLabel>
                             <FormControl>
-                              <Input 
-                                type="email" 
-                                placeholder="correo@ejemplo.com" 
+                              <Input
+                                type="email"
+                                placeholder="correo@ejemplo.com"
                                 autoComplete="off"
-                                {...field} 
+                                {...field}
                               />
                             </FormControl>
                             <FormMessage />
@@ -771,10 +755,10 @@ const UsuariosPage = () => {
                           <FormItem>
                             <FormLabel>Username *</FormLabel>
                             <FormControl>
-                              <Input 
-                                placeholder="Nombre de usuario" 
+                              <Input
+                                placeholder="Nombre de usuario"
                                 autoComplete="off"
-                                {...field} 
+                                {...field}
                               />
                             </FormControl>
                             <FormMessage />
@@ -782,85 +766,85 @@ const UsuariosPage = () => {
                         )}
                       />
 
-                                          <FormField
-                      control={form.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Contraseña *</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="password" 
-                              placeholder="Contraseña" 
-                              autoComplete="new-password"
-                              {...field} 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                          {field.value && (
-                            <div className="mt-2 space-y-1">
-                              <div className="flex items-center gap-2">
-                                <div className={`w-2 h-2 rounded-full ${field.value.length >= 8 ? 'bg-green-500' : 'bg-gray-300'}`} />
-                                <span className={`text-xs ${field.value.length >= 8 ? 'text-green-600' : 'text-gray-500'}`}>
-                                  Mínimo 8 caracteres
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <div className={`w-2 h-2 rounded-full ${/[a-z]/.test(field.value) ? 'bg-green-500' : 'bg-gray-300'}`} />
-                                <span className={`text-xs ${/[a-z]/.test(field.value) ? 'text-green-600' : 'text-gray-500'}`}>
-                                  Al menos una letra minúscula
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <div className={`w-2 h-2 rounded-full ${/[A-Z]/.test(field.value) ? 'bg-green-500' : 'bg-gray-300'}`} />
-                                <span className={`text-xs ${/[A-Z]/.test(field.value) ? 'text-green-600' : 'text-gray-500'}`}>
-                                  Al menos una letra mayúscula
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <div className={`w-2 h-2 rounded-full ${/\d/.test(field.value) ? 'bg-green-500' : 'bg-gray-300'}`} />
-                                <span className={`text-xs ${/\d/.test(field.value) ? 'text-green-600' : 'text-gray-500'}`}>
-                                  Al menos un número
-                                </span>
-                              </div>
-                            </div>
-                          )}
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="confirmPassword"
-                      render={({ field }) => {
-                        const password = form.watch("password");
-                        const isMatch = field.value === password && field.value !== "";
-                        return (
+                      <FormField
+                        control={form.control}
+                        name="password"
+                        render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Confirmar Contraseña *</FormLabel>
+                            <FormLabel>Contraseña *</FormLabel>
                             <FormControl>
-                              <Input 
-                                type="password" 
-                                placeholder="Confirmar contraseña" 
+                              <Input
+                                type="password"
+                                placeholder="Contraseña"
                                 autoComplete="new-password"
-                                {...field} 
+                                {...field}
                               />
                             </FormControl>
                             <FormMessage />
-                            {field.value && password && (
-                              <div className="mt-2">
+                            {field.value && (
+                              <div className="mt-2 space-y-1">
                                 <div className="flex items-center gap-2">
-                                  <div className={`w-2 h-2 rounded-full ${isMatch ? 'bg-green-500' : 'bg-red-500'}`} />
-                                  <span className={`text-xs ${isMatch ? 'text-green-600' : 'text-red-600'}`}>
-                                    {isMatch ? 'Las contraseñas coinciden' : 'Las contraseñas no coinciden'}
+                                  <div className={`w-2 h-2 rounded-full ${field.value.length >= 8 ? 'bg-green-500' : 'bg-gray-300'}`} />
+                                  <span className={`text-xs ${field.value.length >= 8 ? 'text-green-600' : 'text-gray-500'}`}>
+                                    Mínimo 8 caracteres
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-2 h-2 rounded-full ${/[a-z]/.test(field.value) ? 'bg-green-500' : 'bg-gray-300'}`} />
+                                  <span className={`text-xs ${/[a-z]/.test(field.value) ? 'text-green-600' : 'text-gray-500'}`}>
+                                    Al menos una letra minúscula
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-2 h-2 rounded-full ${/[A-Z]/.test(field.value) ? 'bg-green-500' : 'bg-gray-300'}`} />
+                                  <span className={`text-xs ${/[A-Z]/.test(field.value) ? 'text-green-600' : 'text-gray-500'}`}>
+                                    Al menos una letra mayúscula
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-2 h-2 rounded-full ${/\d/.test(field.value) ? 'bg-green-500' : 'bg-gray-300'}`} />
+                                  <span className={`text-xs ${/\d/.test(field.value) ? 'text-green-600' : 'text-gray-500'}`}>
+                                    Al menos un número
                                   </span>
                                 </div>
                               </div>
                             )}
                           </FormItem>
-                        );
-                      }}
-                    />
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="confirmPassword"
+                        render={({ field }) => {
+                          const password = form.watch("password");
+                          const isMatch = field.value === password && field.value !== "";
+                          return (
+                            <FormItem>
+                              <FormLabel>Confirmar Contraseña *</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="password"
+                                  placeholder="Confirmar contraseña"
+                                  autoComplete="new-password"
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                              {field.value && password && (
+                                <div className="mt-2">
+                                  <div className="flex items-center gap-2">
+                                    <div className={`w-2 h-2 rounded-full ${isMatch ? 'bg-green-500' : 'bg-red-500'}`} />
+                                    <span className={`text-xs ${isMatch ? 'text-green-600' : 'text-red-600'}`}>
+                                      {isMatch ? 'Las contraseñas coinciden' : 'Las contraseñas no coinciden'}
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+                            </FormItem>
+                          );
+                        }}
+                      />
                     </div>
                   </div>
 
@@ -871,61 +855,61 @@ const UsuariosPage = () => {
                       Asignaciones
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                          <FormField
-                      control={form.control}
-                      name="perfilIds"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Perfiles *</FormLabel>
-                          <FormControl>
-                            <MultiSelect
-                              options={perfilesActivos.map(perfil => ({
-                                id: perfil.id,
-                                value: perfil.id.toString(),
-                                label: perfil.nombre
-                              }))}
-                              selected={field.value || []}
-                              onSelectionChange={(selected) => {
-                                field.onChange(selected);
-                              }}
-                              placeholder="Seleccionar perfiles..."
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                      <FormField
+                        control={form.control}
+                        name="perfilIds"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Perfiles *</FormLabel>
+                            <FormControl>
+                              <MultiSelect
+                                options={perfilesActivos.map(perfil => ({
+                                  id: perfil.id,
+                                  value: perfil.id.toString(),
+                                  label: perfil.nombre
+                                }))}
+                                selected={field.value || []}
+                                onSelectionChange={(selected) => {
+                                  field.onChange(selected);
+                                }}
+                                placeholder="Seleccionar perfiles..."
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                    <FormField
-                      control={form.control}
-                      name="empresaIds"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Empresas asociadas</FormLabel>
-                          <FormControl>
-                            <MultiSelect
-                              options={empresas.map(empresa => ({
-                                id: empresa.id!,
-                                value: empresa.id!.toString(),
-                                label: empresa.razon_social
-                              }))}
-                              selected={field.value || []}
-                              onSelectionChange={(selected) => {
-                                field.onChange(selected);
-                              }}
-                              placeholder="Seleccionar empresas..."
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                      <FormField
+                        control={form.control}
+                        name="empresaIds"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Empresas asociadas</FormLabel>
+                            <FormControl>
+                              <MultiSelect
+                                options={empresas.map(empresa => ({
+                                  id: empresa.id!,
+                                  value: empresa.id!.toString(),
+                                  label: empresa.razon_social
+                                }))}
+                                selected={field.value || []}
+                                onSelectionChange={(selected) => {
+                                  field.onChange(selected);
+                                }}
+                                placeholder="Seleccionar empresas..."
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     </div>
                   </div>
 
                   <div className="flex justify-end space-x-2 pt-4">
-                    <Button 
-                      type="button" 
+                    <Button
+                      type="button"
                       variant="outline"
                       onClick={() => {
                         setActiveTab("usuarios");
@@ -935,15 +919,15 @@ const UsuariosPage = () => {
                     >
                       Cancelar
                     </Button>
-                    <Button 
+                    <Button
                       type="submit"
                       className="bg-green-500 hover:bg-green-600 text-white border-0 shadow-sm px-6 py-2 rounded text-sm font-medium transition-colors"
                       disabled={createUserMutation.isPending}
                     >
-                      {createUserMutation.isPending ? 
-                          (editingUser ? 'Actualizando...' : 'Guardando...') : 
-                          (editingUser ? 'Actualizar' : 'Guardar')
-                        }
+                      {createUserMutation.isPending ?
+                        (editingUser ? 'Actualizando...' : 'Guardando...') :
+                        (editingUser ? 'Actualizar' : 'Guardar')
+                      }
                     </Button>
                   </div>
                 </form>
@@ -951,9 +935,9 @@ const UsuariosPage = () => {
             </CardContent>
           </Card>
         </TabsContent>
-      </Tabs>
-    </div>
-  );
+</Tabs>
+</div>
+);
 };
 
 export default UsuariosPage;

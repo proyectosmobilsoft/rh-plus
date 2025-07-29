@@ -8,7 +8,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { SidebarProvider } from "@/components/ui/sidebar";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { QueryInvalidator } from "@/components/QueryInvalidator";
@@ -107,7 +106,7 @@ function App() {
   return (
     <Router>
       <div className="App">
-        <Routes>
+          <Routes>
           {/* Ruta de prueba para verificar providers */}
           <Route path="/test" element={
             <div>
@@ -510,11 +509,11 @@ function App() {
                 <TestCascadingSelects />
               </ProtectedRoute>
             } />
-            </Route>
-
-            {/* Ruta 404 */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          </Route>
+          
+          {/* Ruta 404 */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
         </div>
       </Router>
   );
