@@ -668,16 +668,35 @@ export type Metrica = typeof metricas.$inferSelect;
 // Tabla para tokens de recuperación de contraseña
 export const passwordResetTokens = pgTable("password_reset_tokens", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
-  token: varchar("token", { length: 255 }).notNull().unique(),
-  expiresAt: timestamp("expires_at").notNull(),
-  used: boolean("used").default(false),
-  createdAt: timestamp("created_at").defaultNow(),
+  email: varchar("email", { length: 255 }).notNull(),
+  token: varchar("token", { length: 255 }).notNull(),
+  usado: boolean("usado").default(false),
+  fecha_expiracion: timestamp("fecha_expiracion").notNull(),
+  fecha_creacion: timestamp("fecha_creacion").defaultNow(),
+});
+
+// Tabla para códigos de verificación de recuperación de contraseña
+export const codigosVerificacion = pgTable("codigos_verificacion", {
+  id: serial("id").primaryKey(),
+  email: varchar("email", { length: 255 }).notNull(),
+  codigo: varchar("codigo", { length: 6 }).notNull(),
+  tipo: varchar("tipo", { length: 20 }).notNull().default("recuperacion"), // recuperacion, verificacion, etc.
+  usado: boolean("usado").default(false),
+  fecha_expiracion: timestamp("fecha_expiracion").notNull(),
+  fecha_creacion: timestamp("fecha_creacion").defaultNow(),
 });
 
 export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
 export const insertPasswordResetTokenSchema = createInsertSchema(passwordResetTokens).omit({ id: true });
 export type InsertPasswordResetToken = z.infer<typeof insertPasswordResetTokenSchema>;
+
+// Tipos para códigos de verificación
+export type CodigoVerificacion = typeof codigosVerificacion.$inferSelect;
+export const insertCodigoVerificacionSchema = createInsertSchema(codigosVerificacion).omit({ 
+  id: true, 
+  fecha_creacion: true 
+});
+export type InsertCodigoVerificacion = z.infer<typeof insertCodigoVerificacionSchema>;
 
 // ========== SISTEMA DE PERMISOS DINÁMICOS ==========
 

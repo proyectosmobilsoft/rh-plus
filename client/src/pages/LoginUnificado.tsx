@@ -188,7 +188,7 @@ export default function LoginUnificado() {
   };
 
   const handleForgotPassword = () => {
-    window.location.href = '/forgot-password';
+    window.location.href = '/recuperar-password';
   };
 
   return (

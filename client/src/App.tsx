@@ -16,8 +16,8 @@ import { QueryInvalidator } from "@/components/QueryInvalidator";
 // Páginas de autenticación
 import LoginUnificado from './pages/LoginUnificado';
 import LoginAdmin from './pages/LoginAdmin';
-import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
-import ResetPasswordPage from './pages/auth/ResetPasswordPage';
+import RecuperarPasswordPage from './pages/auth/RecuperarPasswordPage';
+import VerificarCodigoPage from './pages/auth/VerificarCodigoPage';
 
 // Páginas protegidas
 import Index from './pages/Index';
@@ -126,14 +126,15 @@ function App() {
                 <LoginAdmin />
               </PublicRoute>
             } />
-            <Route path="/forgot-password" element={
+
+            <Route path="/recuperar-password" element={
               <PublicRoute>
-                <ForgotPasswordPage />
+                <RecuperarPasswordPage />
               </PublicRoute>
             } />
-            <Route path="/reset-password" element={
+            <Route path="/verificar-codigo" element={
               <PublicRoute>
-                <ResetPasswordPage />
+                <VerificarCodigoPage />
               </PublicRoute>
             } />
             <Route path="/login-candidato" element={
