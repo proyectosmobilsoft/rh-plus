@@ -1,7 +1,7 @@
 
 import { toast } from "sonner";
 
-export const API_URL = "http://localhost:3000/api/v1/";
+export const API_URL = "http://localhost:5001/api/";
 
 // Función auxiliar para manejar errores
 const handleError = (error: unknown) => {

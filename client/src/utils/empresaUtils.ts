@@ -98,44 +98,9 @@ export const guardarEmpresaSeleccionada = (empresa: Empresa): boolean => {
     // Guardar empresaData
     localStorage.setItem('empresaData', JSON.stringify(empresa));
     
-    // TAMBIÉN guardar datos de autenticación para que no se borren
-    const userData = {
-      id: 1,
-      username: 'usuario_validado',
-      email: 'usuario@validado.com',
-      primerNombre: 'Usuario',
-      primerApellido: 'Validado',
-      role: 'admin',
-      permissions: [],
-      activo: true,
-      empresa: { id: empresa.id }
-    };
-    
-    const authToken = btoa(JSON.stringify({
-      userId: 1,
-      username: 'usuario_validado',
-      email: 'usuario@validado.com',
-      role: 'admin',
-      empresaId: empresa.id
-    })) + '.' + Date.now();
-    
-    // Guardar datos de autenticación
-    localStorage.setItem('userData', JSON.stringify(userData));
-    localStorage.setItem('authToken', authToken);
-    
-    // Verificar estado DESPUÉS de guardar
-    const afterUserData = localStorage.getItem('userData');
-    const afterAuthToken = localStorage.getItem('authToken');
-    const afterEmpresaData = localStorage.getItem('empresaData');
-    
-    console.log('📊 Estado DESPUÉS de guardar:');
-    console.log('- userData existe:', !!afterUserData);
-    console.log('- authToken existe:', !!afterAuthToken);
-    console.log('- empresaData existe:', !!afterEmpresaData);
-    
-    console.log('Empresa y datos de autenticación guardados exitosamente');
-    console.log('userData guardado:', userData);
-    console.log('authToken guardado');
+    // NO tocar userData ni authToken existentes - usar los datos reales del usuario autenticado
+    console.log('Empresa guardada exitosamente en empresaData');
+    console.log('Manteniendo datos de autenticación existentes sin modificar');
     
     // Disparar evento para notificar a otros componentes
     window.dispatchEvent(new CustomEvent('empresaSelected', { detail: empresa }));

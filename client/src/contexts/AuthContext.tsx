@@ -11,6 +11,14 @@ export interface User {
   role: UserRole;
   permissions: Permission[];
   activo: boolean;
+  roles?: Array<{
+    id: number;
+    nombre: string;
+  }>;
+  empresas?: Array<{
+    id: number;
+    razon_social: string;
+  }>;
 }
 
 interface AuthContextType {
@@ -69,6 +77,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       if (userData && token) {
         try {
+          console.log('Datos encontrados en localStorage:');
+          console.log('- userData:', JSON.parse(userData));
+          console.log('- token:', token.substring(0, 50) + '...');
+          
           // Verificar si es un token simulado (nuestro formato)
           const tokenParts = token.split('.');
           console.log('Token parts:', tokenParts.length);
@@ -99,6 +111,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
               ...user,
               permissions: userPermissions
             });
+            console.log('✅ Usuario autenticado y restaurado correctamente');
           } else {
             // Token inválido, limpiar localStorage
             console.log('❌ Token inválido, limpiando localStorage');
@@ -117,6 +130,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       } else {
         console.log('No hay datos de autenticación en localStorage');
+        console.log('Esto es normal si el usuario aún no ha hecho login');
       }
       
       console.log('=== FIN: checkSession ===');
@@ -130,44 +144,68 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const login = async (credentials: LoginCredentials) => {
     try {
+      console.log('=== INICIO: Login ===');
+      console.log('Credenciales recibidas:', { username: credentials.username });
+      console.log('🔍 Verificando localStorage ANTES del login:');
+      console.log('- userData existe:', !!localStorage.getItem('userData'));
+      console.log('- authToken existe:', !!localStorage.getItem('authToken'));
+      
       // Validar credenciales con el servidor
-        const response = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(credentials),
-          credentials: 'include'
-        });
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(credentials),
+        credentials: 'include'
+      });
 
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.message || 'Error en las credenciales');
-        }
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Error en las credenciales');
+      }
 
-        const data = await response.json();
+      const data = await response.json();
+      console.log('Respuesta del servidor:', data);
       
       // Guardar token en localStorage
       if (data.token) {
         localStorage.setItem('authToken', data.token);
-        localStorage.setItem('userData', JSON.stringify(data.user));
+        console.log('Token guardado en localStorage');
       }
         
-        // Obtener permisos del usuario
-        const userPermissions = await getUserPermissionsFromDB(data.user.id, data.user.role);
-        
-        const userWithPermissions = {
-          ...data.user,
-          permissions: userPermissions
-        };
+      // Obtener permisos del usuario
+      const userPermissions = await getUserPermissionsFromDB(data.user.id, data.user.role);
+      
+      const userWithPermissions = {
+        ...data.user,
+        permissions: userPermissions
+      };
 
-        setUser(userWithPermissions);
-        
-        // Redirigir según el rol del usuario
-        const dashboard = getDefaultDashboard(data.user.role);
-        window.location.href = dashboard;
+      // Guardar datos completos del usuario en localStorage
+      localStorage.setItem('userData', JSON.stringify(userWithPermissions));
+      console.log('Datos completos del usuario guardados en localStorage:', userWithPermissions);
+
+      // Verificar que se guardaron correctamente
+      const savedUserData = localStorage.getItem('userData');
+      const savedAuthToken = localStorage.getItem('authToken');
+      console.log('🔍 Verificación localStorage DESPUÉS del login:');
+      console.log('- userData existe:', !!savedUserData);
+      console.log('- authToken existe:', !!savedAuthToken);
+      console.log('- userData contenido:', savedUserData);
+      console.log('- authToken contenido:', savedAuthToken?.substring(0, 50) + '...');
+
+      // Actualizar estado del contexto
+      setUser(userWithPermissions);
+      console.log('✅ Estado del contexto actualizado:', userWithPermissions);
+      
+      // Redirigir al dashboard
+      const dashboard = getDefaultDashboard(data.user.role);
+      console.log('🚀 Redirigiendo a:', dashboard);
+      window.location.href = dashboard;
 
     } catch (error) {
+      console.error('❌ Error en login:', error);
       throw error;
     }
   };
@@ -180,15 +218,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const resultado = await guardarEmpresaSeleccionadaConConsulta(parseInt(empresaId));
       
       if (resultado) {
-        console.log('Empresa seleccionada y datos de autenticación guardados exitosamente');
-        
-        // Actualizar el estado del usuario con los datos guardados
-        const userDataString = localStorage.getItem('userData');
-        if (userDataString) {
-          const userData = JSON.parse(userDataString);
-          setUser(userData);
-          console.log('Estado del usuario actualizado:', userData);
-        }
+        console.log('Empresa seleccionada y guardada exitosamente');
         
         // Redirigir al dashboard
         const dashboard = getDefaultDashboard(user?.role || 'admin');

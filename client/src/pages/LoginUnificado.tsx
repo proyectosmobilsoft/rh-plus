@@ -68,7 +68,7 @@ export default function LoginUnificado() {
       const resultado = await guardarEmpresaSeleccionadaConConsulta(parseInt(empresaId));
       
       if (resultado) {
-        console.log('Empresa seleccionada y datos de autenticación guardados exitosamente');
+        console.log('Empresa seleccionada y guardada exitosamente');
         
         // Redirigir al dashboard
         window.location.href = '/dashboard';
@@ -97,6 +97,8 @@ export default function LoginUnificado() {
       setIsLoading(true);
       setError('');
 
+      console.log('🚀 Iniciando login con:', { username, password });
+
       // Validar usuario en la base de datos
       const validation = await authService.validateUser(username);
       
@@ -105,13 +107,33 @@ export default function LoginUnificado() {
         return;
       }
 
-      // Verificar contraseña
-      const isPasswordValid = await authService.verifyPassword(validation.user.id, password);
+      // Verificar contraseña y obtener datos del usuario
+      const passwordResult = await authService.verifyPassword(validation.user.id, password);
       
-      if (!isPasswordValid) {
+      if (!passwordResult.success) {
         setError('Contraseña incorrecta');
         return;
       }
+
+      console.log('✅ Verificación de contraseña exitosa, guardando datos de autenticación...');
+
+      // Guardar datos de autenticación en localStorage (SIN authToken por ahora)
+      const userData = passwordResult.userData;
+      
+      // Guardar solo userData en localStorage
+      localStorage.setItem('userData', JSON.stringify(userData));
+      
+      console.log('✅ Datos de autenticación guardados en localStorage:');
+      console.log('- userData completo:', userData);
+      console.log('- Roles del usuario:', userData.roles);
+      console.log('- Empresas del usuario:', userData.empresas);
+      console.log('⚠️ authToken NO se guarda aquí, se guardará cuando se seleccione empresa');
+
+      // Verificar que se guardaron correctamente
+      const savedUserData = localStorage.getItem('userData');
+      console.log('🔍 Verificación localStorage:');
+      console.log('- userData existe:', !!savedUserData);
+      console.log('- authToken existe:', !!localStorage.getItem('authToken'));
 
       // Si el usuario tiene empresas asociadas
       if (validation.empresas && validation.empresas.length > 0) {
@@ -120,6 +142,27 @@ export default function LoginUnificado() {
         
         // Si tiene solo una empresa, iniciar sesión directamente
         if (validation.empresas.length === 1) {
+          console.log('🏢 Usuario tiene una sola empresa, creando authToken automáticamente');
+          
+          // Crear authToken con información del usuario y la única empresa
+          const authToken = btoa(JSON.stringify({
+            userId: userData.id,
+            username: userData.username,
+            email: userData.email,
+            role: userData.role,
+            roles: userData.roles,
+            empresaId: userData.empresas[0].id,
+            empresaRazonSocial: userData.empresas[0].razon_social,
+            empresas: userData.empresas
+          })) + '.' + Date.now();
+
+          // Guardar authToken en localStorage
+          localStorage.setItem('authToken', authToken);
+          
+          console.log('✅ authToken creado automáticamente para empresa única:');
+          console.log('- authToken:', authToken.substring(0, 50) + '...');
+          console.log('- Empresa:', userData.empresas[0]);
+          
           await login({ username, password, empresaId: validation.empresas[0].id.toString() });
           return;
         }
@@ -133,7 +176,10 @@ export default function LoginUnificado() {
       // Si no tiene empresas, proceder con el login normal
       await login({ username, password });
 
+      console.log('✅ Login exitoso');
+
     } catch (error: any) {
+      console.error('❌ Error en login:', error);
       setError(error.message || 'Error al iniciar sesión');
     } finally {
       setIsLoading(false);
@@ -154,10 +200,59 @@ export default function LoginUnificado() {
       
       console.log('🔄 Iniciando selección de empresa:', selectedEmpresa);
 
+      // Obtener datos del usuario guardados en localStorage
+      const userDataString = localStorage.getItem('userData');
+      if (!userDataString) {
+        setError('No se encontraron datos de usuario');
+        return;
+      }
+
+      const userData = JSON.parse(userDataString);
+      console.log('📊 Datos del usuario obtenidos:', userData);
+
+      // Obtener información de la empresa seleccionada
+      const empresaSeleccionada = userData.empresas?.find((emp: any) => emp.id.toString() === selectedEmpresa);
+      if (!empresaSeleccionada) {
+        setError('Empresa no encontrada');
+        return;
+      }
+
+      console.log('🏢 Empresa seleccionada:', empresaSeleccionada);
+
+      // Crear authToken con información del usuario y empresa seleccionada
+      const authToken = btoa(JSON.stringify({
+        userId: userData.id,
+        username: userData.username,
+        email: userData.email,
+        role: userData.role,
+        roles: userData.roles,
+        empresaId: empresaSeleccionada.id,
+        empresaRazonSocial: empresaSeleccionada.razon_social,
+        empresas: userData.empresas
+      })) + '.' + Date.now();
+
+      // Guardar authToken en localStorage
+      localStorage.setItem('authToken', authToken);
+      
+      console.log('✅ authToken creado y guardado con información del usuario y empresa:');
+      console.log('- authToken:', authToken.substring(0, 50) + '...');
+      console.log('- Información incluida:', {
+        userId: userData.id,
+        username: userData.username,
+        empresaId: empresaSeleccionada.id,
+        empresaRazonSocial: empresaSeleccionada.razon_social
+      });
+
+      // Verificar que se guardó correctamente
+      const savedAuthToken = localStorage.getItem('authToken');
+      console.log('🔍 Verificación final localStorage:');
+      console.log('- userData existe:', !!localStorage.getItem('userData'));
+      console.log('- authToken existe:', !!savedAuthToken);
+
       // Seleccionar la empresa (ahora puede ser asíncrono)
       await selectEmpresa(selectedEmpresa);
       
-      console.log('✅ Empresa seleccionada exitosamente');
+      console.log('✅ Empresa seleccionada y authToken guardado exitosamente');
 
     } catch (error: any) {
       console.error('❌ Error al seleccionar empresa:', error);

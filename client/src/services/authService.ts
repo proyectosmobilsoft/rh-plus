@@ -110,41 +110,126 @@ export const authService = {
     }
   },
 
-  // Verificar contraseña del usuario
-  async verifyPassword(userId: number, password: string): Promise<boolean> {
+  // Verificar contraseña del usuario y retornar datos del usuario si es exitoso
+  async verifyPassword(userId: number, password: string): Promise<{ success: boolean; userData?: any }> {
     try {
       // Usuario de prueba para desarrollo
       if (userId === 1 && password === 'password123') {
         console.log('Verificación de usuario de prueba exitosa');
-        return true;
+        return {
+          success: true,
+          userData: {
+            id: 1,
+            username: 'testuser',
+            email: 'test@example.com',
+            primerNombre: 'Usuario',
+            primerApellido: 'Prueba',
+            role: 'admin',
+            activo: true,
+            roles: [
+              { id: 1, nombre: 'admin' }
+            ],
+            empresas: [
+              { id: 1, razon_social: 'Empresa de Prueba 1' },
+              { id: 2, razon_social: 'Empresa de Prueba 2' }
+            ]
+          }
+        };
       }
 
-      // Obtener el hash de la contraseña del usuario
+      // Obtener los datos completos del usuario con roles y empresas
       const { data: userData, error: userError } = await supabase
         .from('gen_usuarios')
-        .select('password_hash')
+        .select(`
+          id,
+          username,
+          email,
+          primer_nombre,
+          primer_apellido,
+          password_hash,
+          activo
+        `)
         .eq('id', userId)
         .single();
 
       if (userError || !userData) {
         console.log('Usuario no encontrado o error:', userError);
-        return false;
+        return { success: false };
       }
 
-      // Intentar usar la función RPC check_password (más simple)
+      // Obtener roles del usuario desde gen_usuario_roles
+      const { data: userRoles, error: rolesError } = await supabase
+        .from('gen_usuario_roles')
+        .select(`
+          gen_roles (
+            id,
+            nombre
+          )
+        `)
+        .eq('usuario_id', userId);
+
+      if (rolesError) {
+        console.log('Error obteniendo roles del usuario:', rolesError);
+      }
+
+      // Obtener empresas del usuario desde gen_usuario_empresas
+      const { data: userEmpresas, error: empresasError } = await supabase
+        .from('gen_usuario_empresas')
+        .select(`
+          empresas (
+            id,
+            razon_social
+          )
+        `)
+        .eq('usuario_id', userId);
+
+      if (empresasError) {
+        console.log('Error obteniendo empresas del usuario:', empresasError);
+      }
+
+      // Extraer roles y empresas de la respuesta
+      const roles = userRoles?.map((ur: any) => ur.gen_roles).filter(Boolean) || [];
+      const empresas = userEmpresas?.map((ue: any) => ue.empresas).filter(Boolean) || [];
+
+      console.log('📊 Datos obtenidos del usuario:');
+      console.log('- Usuario:', userData);
+      console.log('- Roles:', roles);
+      console.log('- Empresas:', empresas);
+
+      // Intentar usar la función RPC check_password
       try {
         const { data: verifyData, error: verifyError } = await supabase.rpc('check_password', {
           password_to_check: password,
           stored_hash: userData.password_hash
         });
 
-        if (!verifyError && verifyData !== null) {
-          console.log('Verificación de contraseña con check_password:', { 
+        if (!verifyError && verifyData === true) {
+          console.log('✅ Verificación de contraseña con check_password exitosa:', { 
             userId, 
             isMatch: verifyData,
             hasStoredHash: !!userData.password_hash
           });
-          return verifyData;
+          
+          // Retornar datos completos del usuario para guardar en localStorage
+          return {
+            success: true,
+            userData: {
+              id: userData.id,
+              username: userData.username,
+              email: userData.email,
+              primerNombre: userData.primer_nombre,
+              primerApellido: userData.primer_apellido,
+              role: roles.length > 0 ? roles[0].nombre : 'admin', // Usar el primer rol o admin por defecto
+              activo: userData.activo,
+              roles: roles,
+              empresas: empresas,
+              // Información adicional del usuario
+              password_hash: userData.password_hash // Solo para debug, no usar en producción
+            }
+          };
+        } else {
+          console.log('❌ Verificación de contraseña fallida:', { verifyData, verifyError });
+          return { success: false };
         }
       } catch (rpcError) {
         console.log('Función check_password no disponible, usando fallback base64:', rpcError);
@@ -159,10 +244,31 @@ export const authService = {
         isMatch 
       });
       
-      return isMatch;
+      if (isMatch) {
+        console.log('✅ Verificación de contraseña exitosa (fallback)');
+        
+        return {
+          success: true,
+          userData: {
+            id: userData.id,
+            username: userData.username,
+            email: userData.email,
+            primerNombre: userData.primer_nombre,
+            primerApellido: userData.primer_apellido,
+            role: roles.length > 0 ? roles[0].nombre : 'admin',
+            activo: userData.activo,
+            roles: roles,
+            empresas: empresas,
+            // Información adicional del usuario
+            password_hash: userData.password_hash // Solo para debug
+          }
+        };
+      }
+      
+      return { success: false };
     } catch (error) {
       console.error('Error verifying password:', error);
-      return false;
+      return { success: false };
     }
   },
 

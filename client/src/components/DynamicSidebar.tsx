@@ -96,23 +96,6 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
   const { user, logout } = authContext || {};
   const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set());
 
-  // Verificar si hay datos de usuario en localStorage como fallback
-  const [localUserData, setLocalUserData] = useState<any>(null);
-  
-  useEffect(() => {
-    try {
-      const userData = localStorage.getItem('userData');
-      if (userData) {
-        setLocalUserData(JSON.parse(userData));
-      }
-    } catch (error) {
-      console.error('Error al obtener datos del usuario:', error);
-    }
-  }, []);
-
-  // Usar datos del contexto o localStorage como fallback
-  const currentUser = user || localUserData;
-
   // Obtener información de la empresa desde localStorage
   useEffect(() => {
     try {
@@ -296,13 +279,49 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-gray-900 truncate">
-              {currentUser ? `${currentUser.primerNombre} ${currentUser.primerApellido}` : 'Usuario'}
+              {user ? `${user.primerNombre} ${user.primerApellido}` : 'Usuario'}
             </p>
             <div className="flex items-center space-x-2 mt-1">
-              <Badge className={`text-xs px-2 py-1 ${getRoleColor(currentUser?.role || 'default')} font-medium`}>
-                {getRoleLabel(currentUser?.role || 'default')}
+              <Badge className={`text-xs px-2 py-1 ${getRoleColor(user?.role || 'default')} font-medium`}>
+                {getRoleLabel(user?.role || 'default')}
               </Badge>
             </div>
+            {/* Mostrar roles del usuario */}
+            {user?.roles && user.roles.length > 0 && (
+              <div className="mt-2">
+                <p className="text-xs text-gray-500 mb-1">Roles:</p>
+                <div className="flex flex-wrap gap-1">
+                  {user.roles.slice(0, 3).map((role: any, index: number) => (
+                    <Badge key={index} variant="outline" className="text-xs px-1 py-0.5">
+                      {role.nombre}
+                    </Badge>
+                  ))}
+                  {user.roles.length > 3 && (
+                    <Badge variant="outline" className="text-xs px-1 py-0.5">
+                      +{user.roles.length - 3} más
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            )}
+            {/* Mostrar empresas del usuario */}
+            {user?.empresas && user.empresas.length > 0 && (
+              <div className="mt-2">
+                <p className="text-xs text-gray-500 mb-1">Empresas:</p>
+                <div className="flex flex-wrap gap-1">
+                  {user.empresas.slice(0, 2).map((empresa: any, index: number) => (
+                    <Badge key={index} variant="outline" className="text-xs px-1 py-0.5">
+                      {empresa.razon_social}
+                    </Badge>
+                  ))}
+                  {user.empresas.length > 2 && (
+                    <Badge variant="outline" className="text-xs px-1 py-0.5">
+                      +{user.empresas.length - 2} más
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
