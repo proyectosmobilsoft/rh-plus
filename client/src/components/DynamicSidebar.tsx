@@ -84,7 +84,7 @@ const menuItems = [
     subItems: [],
   },
      {
-     title: "Configuración Talento Humano",
+     title: "Configuración",
      icon: <Globe className="h-5 w-5" />,
      path: "/configuraciones/globales",
      subItems: [],

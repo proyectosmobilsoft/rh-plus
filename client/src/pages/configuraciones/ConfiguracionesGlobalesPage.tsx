@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Building2, 
   MapPin, 
@@ -41,6 +42,19 @@ interface ConfigEmpresa {
   updated_at: string;
 }
 
+interface Departamento {
+  id: number;
+  nombre: string;
+  codigo_dane: string;
+}
+
+interface Ciudad {
+  id: number;
+  nombre: string;
+  codigo_dane: string;
+  departamento_id: number;
+}
+
 export default function ConfiguracionesGlobalesPage() {
   const [configEmpresa, setConfigEmpresa] = useState<ConfigEmpresa | null>(null);
   const [loading, setLoading] = useState(true);
@@ -48,10 +62,60 @@ export default function ConfiguracionesGlobalesPage() {
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<ConfigEmpresa>>({});
+  const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
+  const [ciudades, setCiudades] = useState<Ciudad[]>([]);
+  const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState<string>('');
 
   useEffect(() => {
     cargarConfiguracionEmpresa();
+    cargarDepartamentos();
   }, []);
+
+  useEffect(() => {
+    if (departamentoSeleccionado) {
+      cargarCiudades(parseInt(departamentoSeleccionado));
+    } else {
+      setCiudades([]);
+    }
+  }, [departamentoSeleccionado]);
+
+  const cargarDepartamentos = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('departamentos')
+        .select('*')
+        .eq('pais_id', 1) // Solo departamentos de Colombia
+        .order('nombre');
+
+      if (error) {
+        console.error('Error al cargar departamentos:', error);
+        return;
+      }
+
+      setDepartamentos(data || []);
+    } catch (err) {
+      console.error('Error al cargar departamentos:', err);
+    }
+  };
+
+  const cargarCiudades = async (departamentoId: number) => {
+    try {
+      const { data, error } = await supabase
+        .from('ciudades')
+        .select('*')
+        .eq('departamento_id', departamentoId)
+        .order('nombre');
+
+      if (error) {
+        console.error('Error al cargar ciudades:', error);
+        return;
+      }
+
+      setCiudades(data || []);
+    } catch (err) {
+      console.error('Error al cargar ciudades:', err);
+    }
+  };
 
   const cargarConfiguracionEmpresa = async () => {
     try {
@@ -78,6 +142,14 @@ export default function ConfiguracionesGlobalesPage() {
 
       setConfigEmpresa(data);
       setFormData(data);
+      
+      // Si hay departamento guardado, cargar las ciudades correspondientes
+      if (data.departamento) {
+        const dept = departamentos.find(d => d.nombre === data.departamento);
+        if (dept) {
+          setDepartamentoSeleccionado(dept.id.toString());
+        }
+      }
     } catch (err) {
       console.error('Error al cargar configuración de empresa:', err);
       setError('Error al cargar la información de Talento Humano');
@@ -90,6 +162,26 @@ export default function ConfiguracionesGlobalesPage() {
     setFormData(prev => ({
       ...prev,
       [field]: value
+    }));
+  };
+
+  const handleDepartamentoChange = (value: string) => {
+    setDepartamentoSeleccionado(value);
+    setFormData(prev => ({
+      ...prev,
+      departamento: '',
+      ciudad: ''
+    }));
+  };
+
+  const handleCiudadChange = (value: string) => {
+    const ciudad = ciudades.find(c => c.id.toString() === value);
+    const departamento = departamentos.find(d => d.id.toString() === departamentoSeleccionado);
+    
+    setFormData(prev => ({
+      ...prev,
+      ciudad: ciudad?.nombre || '',
+      departamento: departamento?.nombre || ''
     }));
   };
 
@@ -216,7 +308,7 @@ export default function ConfiguracionesGlobalesPage() {
               <Users className="h-6 w-6" />
             </div>
             <div>
-              <h3 className="font-semibold text-lg">Configuración de Talento Humano</h3>
+              <h3 className="font-semibold text-lg">Configuración</h3>
               <p className="text-blue-100 text-sm">Aquí configuras los datos de tu empresa de servicios de RRHH que presta servicios a otras empresas</p>
             </div>
           </div>
@@ -231,7 +323,7 @@ export default function ConfiguracionesGlobalesPage() {
                 <Globe className="h-10 w-10 text-white" />
               </div>
               <div>
-                <h1 className="text-4xl font-bold mb-2">Configuración de Talento Humano</h1>
+                <h1 className="text-4xl font-bold mb-2">Configuración</h1>
                 <p className="text-green-100 text-lg">Configura los datos de tu empresa de servicios de RRHH</p>
               </div>
             </div>
@@ -275,7 +367,7 @@ export default function ConfiguracionesGlobalesPage() {
               <div>
                 <CardTitle className="flex items-center space-x-2">
                   <Settings className="h-6 w-6" />
-                  <span>Información de Talento Humano</span>
+                  <span>Información de Configuración</span>
                 </CardTitle>
                 <CardDescription className="text-green-100">
                   {editing ? 'Edita la información de tu empresa de servicios de RRHH' : 'Datos de tu empresa de servicios de RRHH'}
@@ -323,7 +415,7 @@ export default function ConfiguracionesGlobalesPage() {
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                   <Building2 className="h-5 w-5 mr-2 text-blue-600" />
-                  Información Básica de Talento Humano
+                  Información Básica
                 </h3>
                 
                 <div className="space-y-3">
@@ -385,7 +477,7 @@ export default function ConfiguracionesGlobalesPage() {
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                   <Phone className="h-5 w-5 mr-2 text-purple-600" />
-                  Información de Contacto de Talento Humano
+                  Información de Contacto
                 </h3>
                 
                 <div className="space-y-3">
@@ -432,29 +524,47 @@ export default function ConfiguracionesGlobalesPage() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <Label htmlFor="ciudad" className="text-sm font-medium text-gray-700">
-                        Ciudad
-                      </Label>
-                      <Input
-                        id="ciudad"
-                        value={formData.ciudad || ''}
-                        onChange={(e) => handleInputChange('ciudad', e.target.value)}
-                        disabled={!editing}
-                        className="mt-1"
-                      />
-                    </div>
-
-                    <div>
                       <Label htmlFor="departamento" className="text-sm font-medium text-gray-700">
                         Departamento
                       </Label>
-                      <Input
-                        id="departamento"
-                        value={formData.departamento || ''}
-                        onChange={(e) => handleInputChange('departamento', e.target.value)}
+                      <Select
+                        value={departamentoSeleccionado}
+                        onValueChange={handleDepartamentoChange}
                         disabled={!editing}
-                        className="mt-1"
-                      />
+                      >
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="Selecciona un departamento" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {departamentos.map((departamento) => (
+                            <SelectItem key={departamento.id} value={departamento.id.toString()}>
+                              {departamento.nombre}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="ciudad" className="text-sm font-medium text-gray-700">
+                        Ciudad
+                      </Label>
+                      <Select
+                        value={ciudades.find(c => c.nombre === formData.ciudad)?.id.toString() || ''}
+                        onValueChange={handleCiudadChange}
+                        disabled={!editing || !departamentoSeleccionado}
+                      >
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder={departamentoSeleccionado ? "Selecciona una ciudad" : "Primero selecciona departamento"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ciudades.map((ciudad) => (
+                            <SelectItem key={ciudad.id} value={ciudad.id.toString()}>
+                              {ciudad.nombre}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                 </div>
