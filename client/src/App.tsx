@@ -96,6 +96,7 @@ import QrEmailPage from './pages/empresa/QrEmailPage';
 import QrGenerarPage from './pages/empresa/QrGenerarPage';
 import QrWhatsAppPage from './pages/empresa/QrWhatsAppPage';
 import AcercaEmpresaPage from './pages/empresa/AcercaEmpresaPage';
+import ConfiguracionesGlobalesPage from './pages/configuraciones/ConfiguracionesGlobalesPage';
 
 import NotFound from './pages/NotFound';
 
@@ -366,6 +367,11 @@ function App() {
             <Route path="/empresa/acerca" element={
               <ProtectedRoute>
                 <AcercaEmpresaPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/configuraciones/globales" element={
+              <ProtectedRoute>
+                <ConfiguracionesGlobalesPage />
               </ProtectedRoute>
             } />
 
