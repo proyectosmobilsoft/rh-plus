@@ -20,6 +20,7 @@ import {
   ChevronDown,
   ChevronRight,
   LogOut,
+  Info,
 } from 'lucide-react';
 
 const menuItems = [
@@ -73,6 +74,12 @@ const menuItems = [
       { title: "Plantillas", path: "/maestro/plantillas", icon: <Layers className="h-4 w-4" /> },
       { title: "Ubicaciones", path: "/maestro/ubicaciones", icon: <MapPin className="h-4 w-4" /> },
     ],
+  },
+  {
+    title: "Acerca de la Empresa",
+    icon: <Info className="h-5 w-5" />,
+    path: "/empresa/acerca",
+    subItems: [],
   },
 ];
 

@@ -8,11 +8,13 @@ import { obtenerEmpresaSeleccionada } from "@/utils/empresaUtils";
 import {
   Menu,
   LogOut,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 // Componente para el header
-const Header = () => {
+const Header = ({ sidebarOpen, toggleSidebar }: { sidebarOpen: boolean; toggleSidebar: () => void }) => {
   const [empresaData, setEmpresaData] = useState<any>(null);
   const [userData, setUserData] = useState<any>(null);
   
@@ -98,8 +100,30 @@ const Header = () => {
 
   return (
     <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-      {/* Nombre de la empresa */}
-      <div className="flex items-center">
+      {/* Botón de toggle del sidebar y nombre de la empresa */}
+      <div className="flex items-center space-x-4">
+        {/* Botón elegante para ocultar/mostrar sidebar */}
+        <Button
+          onClick={toggleSidebar}
+          variant="ghost"
+          size="sm"
+          className="p-2 rounded-full hover:bg-gray-100 transition-all duration-300 group sidebar-button sidebar-toggle-hover"
+        >
+          <div className="relative">
+            <ChevronLeft 
+              className={`w-5 h-5 text-gray-600 transition-all duration-300 ${
+                sidebarOpen ? 'rotate-0 opacity-100' : 'rotate-180 opacity-0'
+              }`}
+            />
+            <ChevronRight 
+              className={`w-5 h-5 text-gray-600 absolute inset-0 transition-all duration-300 ${
+                sidebarOpen ? 'rotate-180 opacity-0' : 'rotate-0 opacity-100'
+              }`}
+            />
+          </div>
+        </Button>
+        
+        {/* Nombre de la empresa */}
         <h1 className="text-2xl font-bold text-gray-900 bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
           {empresaData?.razon_social || empresaData?.nombre || 'Sistema'}
         </h1>
@@ -129,31 +153,29 @@ const Layout = () => {
 
   return (
     <div className="flex h-screen bg-gray-50 relative">
-      {/* Sidebar - Siempre visible */}
-      <div className="sidebar-always-visible">
-        <DynamicSidebar onNavigate={handleNavigation} />
+      {/* Sidebar con animación */}
+      <div 
+        className={`sidebar-animation ${
+          sidebarOpen ? 'w-64' : 'w-0'
+        } overflow-hidden`}
+      >
+        <div className={`w-64 sidebar-animation ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+          <DynamicSidebar onNavigate={handleNavigation} />
+        </div>
       </div>
 
       {/* Contenido principal */}
-      <div className="content-with-fixed-sidebar flex flex-col overflow-hidden">
+      <div className={`flex flex-col overflow-hidden sidebar-animation ${
+        sidebarOpen ? 'flex-1' : 'w-full'
+      }`}>
         {/* Header */}
-        <Header />
+        <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
         
         {/* Contenido */}
         <main className="flex-1 overflow-y-auto p-4">
           <Outlet />
         </main>
       </div>
-
-      {/* Botón para mostrar/ocultar sidebar solo en móviles */}
-      <Button
-        onClick={toggleSidebar}
-        variant="ghost"
-        size="sm"
-        className="fixed top-4 left-4 z-50 lg:hidden bg-white shadow-md"
-      >
-        <Menu className="w-5 h-5" />
-      </Button>
     </div>
   );
 };

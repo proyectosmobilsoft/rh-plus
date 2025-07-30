@@ -95,6 +95,7 @@ import QrConfiguracionPage from './pages/empresa/QrConfiguracionPage';
 import QrEmailPage from './pages/empresa/QrEmailPage';
 import QrGenerarPage from './pages/empresa/QrGenerarPage';
 import QrWhatsAppPage from './pages/empresa/QrWhatsAppPage';
+import AcercaEmpresaPage from './pages/empresa/AcercaEmpresaPage';
 
 import NotFound from './pages/NotFound';
 
@@ -360,6 +361,11 @@ function App() {
             <Route path="/detalle-candidato-empresa/:id" element={
               <ProtectedRoute>
                 <DetalleCandidatoEmpresa />
+              </ProtectedRoute>
+            } />
+            <Route path="/empresa/acerca" element={
+              <ProtectedRoute>
+                <AcercaEmpresaPage />
               </ProtectedRoute>
             } />
 

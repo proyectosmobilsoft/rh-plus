@@ -103,6 +103,30 @@
   .header-title {
     font-size: 1rem;
   }
+}
+
+/* Animaciones del sidebar */
+.sidebar-animation {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-button {
+  transition: all 0.2s ease-in-out;
+}
+
+.sidebar-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Efecto de hover para el botón de toggle */
+.sidebar-toggle-hover {
+  transition: all 0.2s ease-in-out;
+}
+
+.sidebar-toggle-hover:hover {
+  background-color: rgba(59, 130, 246, 0.1);
+  color: rgb(59, 130, 246);
 } 
 
 /* Scroll personalizado para el sidebar */
