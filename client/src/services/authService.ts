@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { emailService } from './emailService';
 
 export interface LoginCredentials {
   username: string;
@@ -27,24 +28,34 @@ export interface UserValidation {
 export interface AuthService {
   // Métodos originales
   validateUser: (identifier: string) => Promise<UserValidation | null>;
-  verifyPassword: (userId: number, password: string) => Promise<boolean>;
+  verifyPassword: (userId: number, password: string) => Promise<{ success: boolean; userData?: any }>;
   getUserEmpresas: (userId: number) => Promise<any[]>;
   
   // Métodos de recuperación de contraseña
   generarCodigoVerificacion: (email: string) => Promise<{ success: boolean; message: string }>;
   verificarCodigo: (email: string, codigo: string) => Promise<{ success: boolean; message: string }>;
   cambiarContraseña: (email: string, codigo: string, nuevaContraseña: string) => Promise<{ success: boolean; message: string }>;
+  
+  // Método para configurar email
+  configurarEmail: (gmail: string, password: string, appPassword?: string) => void;
 }
+
+// Configuración de email (puedes cambiar estos valores)
+const EMAIL_CONFIG = {
+  gmail: 'proyectosmobilsoft@gmail.com', // Cambia por tu Gmail
+  password: 'Axul2025$', // Cambia por tu contraseña
+  appPassword: 'sewi slmy fcls hvaa' // Opcional: contraseña de aplicación si tienes 2FA
+};
+
+// Configurar el servicio de email
+emailService.setConfig(EMAIL_CONFIG);
 
 export const authService: AuthService = {
   // Métodos originales
   validateUser: async (identifier: string): Promise<UserValidation | null> => {
     try {
-      console.log('Validando usuario:', identifier);
-      
       // Usuario de prueba para desarrollo
       if (identifier === 'testuser' || identifier === 'test@example.com') {
-        console.log('Usando usuario de prueba');
         return {
           user: {
             id: 1,
@@ -90,10 +101,7 @@ export const authService: AuthService = {
         .eq('activo', true)
         .single();
 
-      console.log('Respuesta de Supabase:', { data, error });
-      
       if (error || !data) {
-        console.log('Usuario no encontrado o error:', error);
         return null;
       }
 
@@ -101,9 +109,6 @@ export const authService: AuthService = {
       const empresas = data.gen_usuario_empresas?.map((ue: any) => ue.empresas) || [];
       const roles = data.gen_usuario_roles?.map((ur: any) => ur.gen_roles) || [];
 
-      console.log('Empresas encontradas:', empresas);
-      console.log('Roles encontrados:', roles);
-      
       return {
         user: {
           id: data.id,
@@ -117,39 +122,13 @@ export const authService: AuthService = {
         roles
       };
     } catch (error) {
-      console.error('Error validating user:', error);
       return null;
     }
   },
 
-  // Verificar contraseña del usuario y retornar datos del usuario si es exitoso
   async verifyPassword(userId: number, password: string): Promise<{ success: boolean; userData?: any }> {
     try {
-      // Usuario de prueba para desarrollo
-      if (userId === 1 && password === 'password123') {
-        console.log('Verificación de usuario de prueba exitosa');
-        return {
-          success: true,
-          userData: {
-            id: 1,
-            username: 'testuser',
-            email: 'test@example.com',
-            primerNombre: 'Usuario',
-            primerApellido: 'Prueba',
-            role: 'admin',
-            activo: true,
-            roles: [
-              { id: 1, nombre: 'admin' }
-            ],
-            empresas: [
-              { id: 1, razon_social: 'Empresa de Prueba 1' },
-              { id: 2, razon_social: 'Empresa de Prueba 2' }
-            ]
-          }
-        };
-      }
-
-      // Obtener los datos completos del usuario con roles y empresas
+      // Obtener datos del usuario incluyendo hash de contraseña
       const { data: userData, error: userError } = await supabase
         .from('gen_usuarios')
         .select(`
@@ -159,54 +138,31 @@ export const authService: AuthService = {
           primer_nombre,
           primer_apellido,
           password_hash,
-          activo
+          activo,
+          gen_usuario_empresas (
+            empresas (
+              id,
+              razon_social
+            )
+          ),
+          gen_usuario_roles (
+            gen_roles (
+              id,
+              nombre
+            )
+          )
         `)
         .eq('id', userId)
+        .eq('activo', true)
         .single();
-      
+
       if (userError || !userData) {
-        console.log('Usuario no encontrado o error:', userError);
         return { success: false };
       }
 
-      // Obtener roles del usuario desde gen_usuario_roles
-      const { data: userRoles, error: rolesError } = await supabase
-        .from('gen_usuario_roles')
-        .select(`
-          gen_roles (
-            id,
-            nombre
-          )
-        `)
-        .eq('usuario_id', userId);
-
-      if (rolesError) {
-        console.log('Error obteniendo roles del usuario:', rolesError);
-      }
-
-      // Obtener empresas del usuario desde gen_usuario_empresas
-      const { data: userEmpresas, error: empresasError } = await supabase
-        .from('gen_usuario_empresas')
-        .select(`
-          empresas (
-            id,
-            razon_social
-          )
-        `)
-        .eq('usuario_id', userId);
-
-      if (empresasError) {
-        console.log('Error obteniendo empresas del usuario:', empresasError);
-      }
-
       // Extraer roles y empresas de la respuesta
-      const roles = userRoles?.map((ur: any) => ur.gen_roles).filter(Boolean) || [];
-      const empresas = userEmpresas?.map((ue: any) => ue.empresas).filter(Boolean) || [];
-
-      console.log('📊 Datos obtenidos del usuario:');
-      console.log('- Usuario:', userData);
-      console.log('- Roles:', roles);
-      console.log('- Empresas:', empresas);
+      const roles = userData.gen_usuario_roles?.map((ur: any) => ur.gen_roles).filter(Boolean) || [];
+      const empresas = userData.gen_usuario_empresas?.map((ue: any) => ue.empresas).filter(Boolean) || [];
 
       // Intentar usar la función RPC check_password
       try {
@@ -216,12 +172,6 @@ export const authService: AuthService = {
         });
 
         if (!verifyError && verifyData === true) {
-          console.log('✅ Verificación de contraseña con check_password exitosa:', { 
-            userId, 
-            isMatch: verifyData,
-            hasStoredHash: !!userData.password_hash
-          });
-          
           // Retornar datos completos del usuario para guardar en localStorage
           return {
             success: true,
@@ -240,25 +190,17 @@ export const authService: AuthService = {
             }
           };
         } else {
-          console.log('❌ Verificación de contraseña fallida:', { verifyData, verifyError });
           return { success: false };
         }
       } catch (rpcError) {
-        console.log('Función check_password no disponible, usando fallback base64:', rpcError);
+        // Función check_password no disponible, usando fallback base64
       }
 
       // Fallback final: comparar con hash simple (base64)
       const simpleHash = btoa(password);
       const isMatch = simpleHash === userData.password_hash;
-      console.log('Verificación de contraseña con fallback base64:', { 
-        userId, 
-        hasStoredHash: !!userData.password_hash,
-        isMatch 
-      });
       
       if (isMatch) {
-        console.log('✅ Verificación de contraseña exitosa (fallback)');
-        
         return {
           success: true,
           userData: {
@@ -279,7 +221,6 @@ export const authService: AuthService = {
       
       return { success: false };
     } catch (error) {
-      console.error('Error verifying password:', error);
       return { success: false };
     }
   },
@@ -300,14 +241,27 @@ export const authService: AuthService = {
       
       return data?.map((item: any) => item.empresas) || [];
     } catch (error) {
-      console.error('Error getting user empresas:', error);
       return [];
     }
+  },
+
+  // Método para configurar email
+  configurarEmail: (gmail: string, password: string, appPassword?: string) => {
+    emailService.setConfig({ gmail, password, appPassword });
   },
 
   // Métodos de recuperación de contraseña
   generarCodigoVerificacion: async (email: string) => {
     try {
+      // Verificar que el usuario existe
+      const userValidation = await authService.validateUser(email);
+      if (!userValidation) {
+        return {
+          success: false,
+          message: 'No se encontró una cuenta con este correo electrónico'
+        };
+      }
+
       // Generar código de 6 dígitos
       const codigo = Math.floor(100000 + Math.random() * 900000).toString();
       
@@ -328,16 +282,22 @@ export const authService: AuthService = {
       
       if (error) throw error;
       
-      // TODO: Aquí se enviaría el email con el código
-      // Por ahora solo retornamos éxito
-      console.log(`Código generado para ${email}: ${codigo}`);
+      // Enviar email con el código
+      const nombre = `${userValidation.user.primer_nombre} ${userValidation.user.primer_apellido}`;
+      const emailResult = await emailService.sendVerificationCode(email, codigo, nombre);
       
-      return {
-        success: true,
-        message: 'Código de verificación enviado a tu correo electrónico'
-      };
+             if (emailResult.success) {
+         return {
+          success: true,
+          message: 'Código de verificación enviado a tu correo electrónico'
+        };
+             } else {
+         return {
+          success: false,
+          message: 'Error al enviar el código. Por favor, intenta nuevamente.'
+        };
+      }
     } catch (error) {
-      console.error('Error generando código:', error);
       return {
         success: false,
         message: 'Error al generar el código de verificación'
@@ -371,7 +331,6 @@ export const authService: AuthService = {
         message: 'Código verificado correctamente'
       };
     } catch (error) {
-      console.error('Error verificando código:', error);
       return {
         success: false,
         message: 'Error al verificar el código'
@@ -407,12 +366,18 @@ export const authService: AuthService = {
       
       if (markError) throw markError;
       
+      // Enviar notificación de cambio de contraseña
+      const userValidation = await authService.validateUser(email);
+      if (userValidation) {
+        const nombre = `${userValidation.user.primer_nombre} ${userValidation.user.primer_apellido}`;
+        await emailService.sendPasswordChangedNotification(email, nombre);
+      }
+      
       return {
         success: true,
         message: 'Contraseña cambiada exitosamente'
       };
     } catch (error) {
-      console.error('Error cambiando contraseña:', error);
       return {
         success: false,
         message: 'Error al cambiar la contraseña'
