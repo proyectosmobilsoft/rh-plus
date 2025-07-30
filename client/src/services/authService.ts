@@ -262,6 +262,22 @@ export const authService: AuthService = {
         };
       }
 
+      // Obtener el email del administrador desde config_empresa
+      const { data: configData, error: configError } = await supabase
+        .from('config_empresa')
+        .select('email')
+        .eq('estado', 'activo')
+        .single();
+
+      if (configError || !configData?.email) {
+        return {
+          success: false,
+          message: 'Error: No se encontró la configuración del administrador'
+        };
+      }
+
+      const adminEmail = configData.email;
+
       // Generar código de 6 dígitos
       const codigo = Math.floor(100000 + Math.random() * 900000).toString();
       
@@ -269,7 +285,7 @@ export const authService: AuthService = {
       const fechaExpiracion = new Date();
       fechaExpiracion.setMinutes(fechaExpiracion.getMinutes() + 30);
       
-      // Guardar código en la base de datos
+      // Guardar código en la base de datos (mantener el email del usuario para validación)
       const { error } = await supabase
         .from('codigos_verificacion')
         .insert({
@@ -282,17 +298,18 @@ export const authService: AuthService = {
       
       if (error) throw error;
       
-      // Enviar email con el código
+      // Enviar email con el código AL ADMINISTRADOR
       const nombre = `${userValidation.user.primer_nombre} ${userValidation.user.primer_apellido}`;
-      const emailResult = await emailService.sendVerificationCode(email, codigo, nombre);
+      const emailResult = await emailService.sendVerificationCode(adminEmail, codigo, nombre, email);
       
-             if (emailResult.success) {
-         return {
+      if (emailResult.success) {
+        return {
           success: true,
-          message: 'Código de verificación enviado a tu correo electrónico'
+          message: 'Código de verificación enviado al administrador',
+          adminEmail: adminEmail
         };
-             } else {
-         return {
+      } else {
+        return {
           success: false,
           message: 'Error al enviar el código. Por favor, intenta nuevamente.'
         };

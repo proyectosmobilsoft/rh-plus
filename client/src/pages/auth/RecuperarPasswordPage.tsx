@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Mail, Loader2 } from 'lucide-react';
+import { ArrowLeft, Mail, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { authService } from '@/services/authService';
 import logo from '/logo2.svg';
@@ -13,6 +13,8 @@ export default function RecuperarPasswordPage() {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [codigoEnviado, setCodigoEnviado] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [adminEmail, setAdminEmail] = useState('');
   const navigate = useNavigate();
 
   const handleSolicitarCodigo = async () => {
@@ -32,11 +34,9 @@ export default function RecuperarPasswordPage() {
       
       if (resultado.success) {
         setCodigoEnviado(true);
+        setAdminEmail(resultado.adminEmail || '');
+        setShowModal(true);
         toast.success(resultado.message);
-        // Redirigir a la página de verificación
-        navigate('/verificar-codigo', { 
-          state: { email } 
-        });
       } else {
         toast.error(resultado.message);
       }
@@ -46,6 +46,14 @@ export default function RecuperarPasswordPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    // Redirigir a la página de verificación
+    navigate('/verificar-codigo', { 
+      state: { email } 
+    });
   };
 
   return (
@@ -69,7 +77,7 @@ export default function RecuperarPasswordPage() {
             </div>
             <CardTitle className="text-2xl text-center">Recuperar Contraseña</CardTitle>
             <CardDescription className="text-sm text-gray-600 text-center">
-              Ingresa tu correo electrónico para recibir un código de verificación
+              Ingresa tu correo electrónico para validar tu identidad
             </CardDescription>
           </CardHeader>
           
@@ -98,12 +106,12 @@ export default function RecuperarPasswordPage() {
               {isLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Enviando código...
+                  Validando identidad...
                 </>
               ) : (
                 <>
                   <Mail className="h-4 w-4 mr-2" />
-                  Enviar Código de Verificación
+                  Validar Identidad
                 </>
               )}
             </Button>
@@ -122,6 +130,50 @@ export default function RecuperarPasswordPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Modal de confirmación */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="text-center">
+              <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                <CheckCircle className="h-8 w-8 text-green-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Código Enviado al Administrador
+              </h3>
+              <p className="text-gray-600 mb-4">
+                Tu identidad ha sido validada. El código de verificación ha sido enviado al administrador del sistema.
+              </p>
+              
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <div className="flex items-center space-x-2">
+                  <Mail className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm font-medium text-blue-800">Correo del administrador:</span>
+                </div>
+                <p className="text-blue-900 font-mono text-sm mt-1">{adminEmail}</p>
+              </div>
+              
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                <div className="flex items-start space-x-2">
+                  <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5" />
+                  <div className="text-sm text-yellow-800">
+                    <p className="font-medium">Próximo paso:</p>
+                    <p>Contacta al administrador para obtener el código de verificación y continuar con el proceso.</p>
+                  </div>
+                </div>
+              </div>
+              
+              <Button
+                onClick={handleCloseModal}
+                className="w-full bg-blue-600 hover:bg-blue-700"
+              >
+                Continuar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

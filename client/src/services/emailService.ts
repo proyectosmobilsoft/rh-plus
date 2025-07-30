@@ -22,7 +22,7 @@ class EmailService {
   }
 
   // Generar plantilla HTML para el código de verificación
-  private generateVerificationEmailHTML(codigo: string, nombre?: string): string {
+  private generateVerificationEmailHTML(codigo: string, nombre?: string, userEmail?: string): string {
     return `
       <!DOCTYPE html>
       <html lang="es">
@@ -79,6 +79,14 @@ class EmailService {
             margin: 20px 0;
             color: #92400e;
           }
+          .info-box {
+            background-color: #dbeafe;
+            border: 1px solid #3b82f6;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #1e40af;
+          }
           .footer {
             text-align: center;
             margin-top: 30px;
@@ -105,9 +113,18 @@ class EmailService {
             <h1>Código de Verificación</h1>
           </div>
           
-          <p>Hola${nombre ? ` ${nombre}` : ''},</p>
+          <p>Hola Administrador,</p>
           
-          <p>Has solicitado recuperar tu contraseña. Para continuar, utiliza el siguiente código de verificación:</p>
+          ${userEmail ? `
+          <div class="info-box">
+            <strong>📧 Solicitud de Recuperación de Contraseña</strong><br>
+            <strong>Usuario:</strong> ${nombre || 'Usuario del sistema'}<br>
+            <strong>Email:</strong> ${userEmail}<br>
+            <strong>Fecha:</strong> ${new Date().toLocaleString('es-ES')}
+          </div>
+          ` : ''}
+          
+          <p>Se ha solicitado un código de verificación para recuperar la contraseña. Utiliza el siguiente código:</p>
           
           <div class="code-container">
             <div class="code">${codigo}</div>
@@ -118,14 +135,14 @@ class EmailService {
             <ul>
               <li>Este código expira en 30 minutos</li>
               <li>No compartas este código con nadie</li>
-              <li>Si no solicitaste este código, ignora este correo</li>
+              <li>Verifica la identidad del usuario antes de proporcionar el código</li>
             </ul>
           </div>
           
-          <p>Si tienes problemas, contacta al soporte técnico.</p>
+          <p>Si tienes alguna pregunta, no dudes en contactarnos.</p>
           
           <div class="footer">
-            <p>Este es un correo automático, no respondas a este mensaje.</p>
+            <p>Este es un correo automático del sistema RH Compensamos</p>
             <p>© 2024 RH Compensamos. Todos los derechos reservados.</p>
           </div>
         </div>
@@ -174,8 +191,8 @@ class EmailService {
   }
 
   // Enviar código de verificación
-  async sendVerificationCode(email: string, codigo: string, nombre?: string): Promise<{ success: boolean; message: string }> {
-    const html = this.generateVerificationEmailHTML(codigo, nombre);
+  async sendVerificationCode(email: string, codigo: string, nombre?: string, userEmail?: string): Promise<{ success: boolean; message: string }> {
+    const html = this.generateVerificationEmailHTML(codigo, nombre, userEmail);
     
     return this.sendEmail({
       to: email,
