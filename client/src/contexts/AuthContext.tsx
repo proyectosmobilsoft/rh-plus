@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { UserRole, Permission, getUserPermissions } from '@/config/permissions';
 import { guardarEmpresaSeleccionadaConConsulta } from '@/utils/empresaUtils';
+import { authService } from '@/services/authService';
 
 export interface User {
   id: number;
@@ -81,11 +82,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
           console.log('- userData:', JSON.parse(userData));
           console.log('- token:', token.substring(0, 50) + '...');
           
-          // Verificar si es un token simulado (nuestro formato)
-          const tokenParts = token.split('.');
-          console.log('Token parts:', tokenParts.length);
+          // Verificar si es un token simulado (nuestro formato base64)
+          console.log('Token length:', token.length);
+          console.log('Token starts with eyJ:', token.startsWith('eyJ'));
           
-          if (tokenParts.length === 2) {
+          // Nuestro token simulado es base64 que empieza con 'eyJ' (JSON codificado)
+          if (token.startsWith('eyJ') && token.length > 50) {
             // Es un token simulado, no verificar con el servidor
             console.log('✅ Token simulado detectado, saltando verificación del servidor');
             const user = JSON.parse(userData);
@@ -122,7 +124,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         } catch (verifyError) {
           console.error('Error verificando token:', verifyError);
           // Solo limpiar si no es un token simulado
-          if (!token.includes('.')) {
+          if (!token.startsWith('eyJ') || token.length <= 50) {
             localStorage.removeItem('authToken');
             localStorage.removeItem('userData');
             localStorage.removeItem('empresaData');
@@ -150,36 +152,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.log('- userData existe:', !!localStorage.getItem('userData'));
       console.log('- authToken existe:', !!localStorage.getItem('authToken'));
       
-      // Validar credenciales con el servidor
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(credentials),
-        credentials: 'include'
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Error en las credenciales');
-      }
-
-      const data = await response.json();
-      console.log('Respuesta del servidor:', data);
+      // Usar el nuevo servicio de autenticación con Supabase
+      const authResponse = await authService.login(credentials);
+      console.log('Respuesta del servicio de autenticación:', authResponse);
       
       // Guardar token en localStorage
-      if (data.token) {
-        localStorage.setItem('authToken', data.token);
-        console.log('Token guardado en localStorage');
-      }
+      localStorage.setItem('authToken', authResponse.token);
+      console.log('Token guardado en localStorage');
         
       // Obtener permisos del usuario
-      const userPermissions = await getUserPermissionsFromDB(userData.id, userRole);
+      const userPermissions = await getUserPermissionsFromDB(authResponse.user.id, authResponse.user.role as UserRole);
       
       const userWithPermissions = {
-        ...userData,
-        permissions: userPermissions
+        id: authResponse.user.id,
+        username: authResponse.user.username,
+        email: authResponse.user.email,
+        primerNombre: authResponse.user.primer_nombre,
+        primerApellido: authResponse.user.primer_apellido,
+        role: authResponse.user.role as UserRole,
+        permissions: userPermissions,
+        activo: authResponse.user.activo
       };
 
       // Guardar datos completos del usuario en localStorage
@@ -200,7 +192,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.log('✅ Estado del contexto actualizado:', userWithPermissions);
       
       // Redirigir al dashboard
-      const dashboard = getDefaultDashboard(data.user.role);
+      const dashboard = getDefaultDashboard(authResponse.user.role as UserRole);
       console.log('🚀 Redirigiendo a:', dashboard);
       window.location.href = dashboard;
 
@@ -234,15 +226,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const logout = async () => {
     try {
-      // Con Supabase, solo limpiamos el localStorage
-      // No necesitamos hacer llamada al servidor
+      // Usar el servicio de autenticación para logout
+      await authService.logout();
     } catch (error) {
       console.error('Error during logout:', error);
     } finally {
-      // Limpiar estado local y localStorage
+      // Limpiar estado local
       setUser(null);
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('userData');
       localStorage.removeItem('empresaData'); // Borrar también empresaData
       
       console.log('Sesión cerrada - todos los datos eliminados del localStorage');
@@ -278,7 +268,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const getDefaultDashboard = (role: UserRole): string => {
-    switch (role) {
+    // Normalizar el rol a minúsculas para comparación
+    const normalizedRole = role.toLowerCase();
+    
+    switch (normalizedRole) {
       case "admin":
         return "/dashboard";
       case "analista":
@@ -286,7 +279,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       case "cliente":
         return "/empresa/dashboard";
       case "candidato":
-        return "/candidato/perfil";
+        return "/perfil-candidato";
       default:
         return "/dashboard";
     }

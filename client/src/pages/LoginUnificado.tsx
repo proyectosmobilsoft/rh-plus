@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
-import { authService, UserValidation } from '@/services/authService';
+import { authService } from '@/services/authService';
 import { guardarEmpresaSeleccionadaConConsulta } from '@/utils/empresaUtils';
 import { Eye, EyeOff, LogIn, Building2 } from 'lucide-react';
 import logo from '/logo2.svg';
@@ -17,7 +17,7 @@ export default function LoginUnificado() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [userValidation, setUserValidation] = useState<UserValidation | null>(null);
+  const [userValidation, setUserValidation] = useState<any>(null);
   const [selectedEmpresa, setSelectedEmpresa] = useState<string>('');
   const [step, setStep] = useState<'credentials' | 'empresa'>('credentials');
   const [validatedCredentials, setValidatedCredentials] = useState<{username: string, password: string} | null>(null);
@@ -99,81 +99,7 @@ export default function LoginUnificado() {
 
       console.log('🚀 Iniciando login con:', { username, password });
 
-      // Validar usuario en la base de datos
-      const validation = await authService.validateUser(username);
-      
-      if (!validation) {
-        setError('Usuario no encontrado o inactivo');
-        return;
-      }
-
-      // Verificar contraseña y obtener datos del usuario
-      const passwordResult = await authService.verifyPassword(validation.user.id, password);
-      
-      if (!passwordResult.success) {
-        setError('Contraseña incorrecta');
-        return;
-      }
-
-      console.log('✅ Verificación de contraseña exitosa, guardando datos de autenticación...');
-
-      // Guardar datos de autenticación en localStorage (SIN authToken por ahora)
-      const userData = passwordResult.userData;
-      
-      // Guardar solo userData en localStorage
-      localStorage.setItem('userData', JSON.stringify(userData));
-      
-      console.log('✅ Datos de autenticación guardados en localStorage:');
-      console.log('- userData completo:', userData);
-      console.log('- Roles del usuario:', userData.roles);
-      console.log('- Empresas del usuario:', userData.empresas);
-      console.log('⚠️ authToken NO se guarda aquí, se guardará cuando se seleccione empresa');
-
-      // Verificar que se guardaron correctamente
-      const savedUserData = localStorage.getItem('userData');
-      console.log('🔍 Verificación localStorage:');
-      console.log('- userData existe:', !!savedUserData);
-      console.log('- authToken existe:', !!localStorage.getItem('authToken'));
-
-      // Si el usuario tiene empresas asociadas
-      if (validation.empresas && validation.empresas.length > 0) {
-        // Guardar credenciales validadas
-        setValidatedCredentials({ username, password });
-        
-        // Si tiene solo una empresa, iniciar sesión directamente
-        if (validation.empresas.length === 1) {
-          console.log('🏢 Usuario tiene una sola empresa, creando authToken automáticamente');
-          
-          // Crear authToken con información del usuario y la única empresa
-          const authToken = btoa(JSON.stringify({
-            userId: userData.id,
-            username: userData.username,
-            email: userData.email,
-            role: userData.role,
-            roles: userData.roles,
-            empresaId: userData.empresas[0].id,
-            empresaRazonSocial: userData.empresas[0].razon_social,
-            empresas: userData.empresas
-          })) + '.' + Date.now();
-
-          // Guardar authToken en localStorage
-          localStorage.setItem('authToken', authToken);
-          
-          console.log('✅ authToken creado automáticamente para empresa única:');
-          console.log('- authToken:', authToken.substring(0, 50) + '...');
-          console.log('- Empresa:', userData.empresas[0]);
-          
-          await login({ username, password, empresaId: validation.empresas[0].id.toString() });
-          return;
-        }
-        
-        // Si tiene múltiples empresas, mostrar selector
-        setUserValidation(validation);
-        setStep('empresa');
-        return;
-      }
-
-      // Si no tiene empresas, proceder con el login normal
+      // Usar el nuevo servicio de autenticación directamente
       await login({ username, password });
 
       console.log('✅ Login exitoso');
@@ -400,7 +326,7 @@ export default function LoginUnificado() {
                       <SelectValue placeholder="Selecciona una empresa" />
                     </SelectTrigger>
                     <SelectContent>
-                      {userValidation?.empresas.map((empresa) => (
+                      {userValidation?.empresas.map((empresa: any) => (
                         <SelectItem key={empresa.id} value={empresa.id.toString()}>
                           {empresa.razon_social}
                         </SelectItem>

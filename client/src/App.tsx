@@ -34,6 +34,7 @@ import EditarUsuarioPage from './pages/seguridad/EditarUsuarioPage';
 import PerfilesPage from './pages/seguridad/PerfilesPage';
 import GestionPermisosPage from './pages/seguridad/GestionPermisosPage';
 import MenuPage from './pages/seguridad/MenuPage';
+import CrearCandidatoAdmin from './pages/admin/CrearCandidatoAdmin';
 // Páginas para cada sección
 import ExpedicionOrdenPage from "./pages/ordenes/ExpedicionOrdenPage";
 import AgendaMedicaPage from "./pages/clinica/AgendaMedicaPage";
@@ -173,6 +174,18 @@ function App() {
               </PublicRoute>
             } />
 
+            {/* Rutas de candidatos (sin layout) */}
+            <Route path="/perfil-candidato" element={
+              <ProtectedRoute>
+                <PerfilCandidato />
+              </ProtectedRoute>
+            } />
+            <Route path="/cambiar-password" element={
+              <ProtectedRoute>
+                <CambiarPassword />
+              </ProtectedRoute>
+            } />
+
             {/* Layout con menú para rutas protegidas */}
             <Route element={<Layout />}>
               <Route path="/" element={
@@ -245,6 +258,13 @@ function App() {
             <Route path="/registros/qr-mejorado" element={
               <ProtectedRoute>
                 <QrPageMejorado />
+              </ProtectedRoute>
+            } />
+
+            {/* Rutas de admin */}
+            <Route path="/admin/crear-candidato" element={
+              <ProtectedRoute>
+                <CrearCandidatoAdmin />
               </ProtectedRoute>
             } />
 
@@ -322,17 +342,7 @@ function App() {
               </ProtectedRoute>
             } />
 
-            {/* Rutas de candidatos */}
-            <Route path="/perfil-candidato" element={
-              <ProtectedRoute>
-                <PerfilCandidato />
-              </ProtectedRoute>
-            } />
-            <Route path="/cambiar-password" element={
-              <ProtectedRoute>
-                <CambiarPassword />
-              </ProtectedRoute>
-            } />
+
 
             {/* Rutas de empresa */}
             <Route path="/dashboard-empresa" element={

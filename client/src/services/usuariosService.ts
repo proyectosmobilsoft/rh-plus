@@ -39,67 +39,33 @@ export const usuariosService = {
   async createUsuario(usuarioData: UsuarioData, password: string, rolesIds: number[], empresaIds: number[]) {
     console.log("usuariosService: createUsuario llamado con:", { usuarioData, rolesIds, empresaIds });
     
-    // 1. Generar hash de la contraseña
-    const { data: hashData, error: hashError } = await supabase.rpc('hash_password', {
-      password_input: password
-    });
+    // Usar hash simple directamente (la función RPC no existe)
+    const simpleHash = btoa(password); // Base64 encoding
+    const userDataWithHash = {
+      ...usuarioData,
+      password_hash: simpleHash
+    };
     
-    if (hashError) {
-      // Si no existe la función RPC, usar un hash simple
-      const simpleHash = btoa(password); // Base64 encoding como fallback
-      const userDataWithHash = {
-        ...usuarioData,
-        password_hash: simpleHash
-      };
-      
-      const { data: newUser, error: userError } = await supabase
-        .from('gen_usuarios')
-        .insert(userDataWithHash)
-        .select()
-        .single();
-      if (userError) throw userError;
+    const { data: newUser, error: userError } = await supabase
+      .from('gen_usuarios')
+      .insert(userDataWithHash)
+      .select()
+      .single();
+    if (userError) throw userError;
 
-      // 2. Asignar roles
-      if (rolesIds.length > 0) {
-        const rolesToInsert = rolesIds.map(rol_id => ({ usuario_id: newUser.id, rol_id }));
-        await supabase.from('gen_usuario_roles').insert(rolesToInsert);
-      }
-
-      // 3. Asignar empresas
-      if (empresaIds.length > 0) {
-        const empresasToInsert = empresaIds.map(empresa_id => ({ usuario_id: newUser.id, empresa_id }));
-        await supabase.from('gen_usuario_empresas').insert(empresasToInsert);
-      }
-
-      return newUser;
-    } else {
-      // Usar el hash generado por la función RPC
-      const userDataWithHash = {
-        ...usuarioData,
-        password_hash: hashData
-      };
-      
-      const { data: newUser, error: userError } = await supabase
-        .from('gen_usuarios')
-        .insert(userDataWithHash)
-        .select()
-        .single();
-      if (userError) throw userError;
-
-      // 2. Asignar roles
-      if (rolesIds.length > 0) {
-        const rolesToInsert = rolesIds.map(rol_id => ({ usuario_id: newUser.id, rol_id }));
-        await supabase.from('gen_usuario_roles').insert(rolesToInsert);
-      }
-
-      // 3. Asignar empresas
-      if (empresaIds.length > 0) {
-        const empresasToInsert = empresaIds.map(empresa_id => ({ usuario_id: newUser.id, empresa_id }));
-        await supabase.from('gen_usuario_empresas').insert(empresasToInsert);
-      }
-
-      return newUser;
+    // 2. Asignar roles
+    if (rolesIds.length > 0) {
+      const rolesToInsert = rolesIds.map(rol_id => ({ usuario_id: newUser.id, rol_id }));
+      await supabase.from('gen_usuario_roles').insert(rolesToInsert);
     }
+
+    // 3. Asignar empresas
+    if (empresaIds.length > 0) {
+      const empresasToInsert = empresaIds.map(empresa_id => ({ usuario_id: newUser.id, empresa_id }));
+      await supabase.from('gen_usuario_empresas').insert(empresasToInsert);
+    }
+
+    return newUser;
   },
 
   // Actualizar un usuario y sus relaciones

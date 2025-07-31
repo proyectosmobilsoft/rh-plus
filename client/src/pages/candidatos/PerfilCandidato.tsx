@@ -4,6 +4,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/services/supabaseClient';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
   User, 
   Mail, 
@@ -110,6 +112,7 @@ interface Educacion {
 }
 
 export default function PerfilCandidato() {
+  const { user, logout } = useAuth();
   const [candidato, setCandidato] = useState<Candidato | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -170,18 +173,64 @@ export default function PerfilCandidato() {
 
   const loadProfile = async () => {
     try {
-      const response = await fetch('/api/candidato/profile');
-      if (response.ok) {
-        const data = await response.json();
-        setCandidato(data);
-        form.reset(data);
-      } else {
+      if (!user) {
+        toast.error('No hay usuario autenticado');
+        navigate('/login');
+        return;
+      }
+
+      // Buscar el candidato en la base de datos usando el email del usuario
+      const { data: candidatoData, error } = await supabase
+        .from('candidatos')
+        .select('*')
+        .eq('email', user.email)
+        .single();
+
+      if (error) {
+        console.error('Error cargando perfil:', error);
         toast.error('Error al cargar el perfil');
-        navigate('/candidato/login');
+        return;
+      }
+
+      if (candidatoData) {
+        // Transformar los datos para que coincidan con la interfaz Candidato
+        const candidatoTransformado = {
+          id: candidatoData.id,
+          email: candidatoData.email,
+          nombres: candidatoData.primer_nombre,
+          apellidos: candidatoData.primer_apellido,
+          tipoDocumento: candidatoData.tipo_documento,
+          numeroDocumento: candidatoData.numero_documento,
+          fechaNacimiento: candidatoData.fecha_nacimiento,
+          edad: candidatoData.edad || null,
+          sexo: candidatoData.genero,
+          estadoCivil: candidatoData.estado_civil,
+          telefono: candidatoData.telefono || '',
+          direccion: candidatoData.direccion || '',
+          ciudad: candidatoData.ciudad_id ? 'Ciudad' : '', // Placeholder
+          cargoAspirado: candidatoData.cargo_aspirado || '',
+          eps: candidatoData.eps || '',
+          arl: candidatoData.arl || '',
+          grupoSanguineo: candidatoData.grupo_sanguineo || '',
+          nivelEducativo: candidatoData.nivel_educativo || '',
+          contactoEmergenciaNombre: candidatoData.contacto_emergencia_nombre || '',
+          contactoEmergenciaTelefono: candidatoData.contacto_emergencia_telefono || '',
+          contactoEmergenciaRelacion: candidatoData.contacto_emergencia_relacion || '',
+          hojaDeVida: candidatoData.hoja_de_vida || '',
+          fotografia: candidatoData.fotografia || '',
+          completado: candidatoData.completado || false,
+          estado: candidatoData.estado || 'activo',
+          fechaRegistro: candidatoData.created_at
+        };
+
+        setCandidato(candidatoTransformado);
+        form.reset(candidatoTransformado);
+      } else {
+        toast.error('No se encontró el perfil del candidato');
       }
     } catch (error) {
+      console.error('Error cargando perfil:', error);
       toast.error('Error de conexión');
-      navigate('/candidato/login');
     } finally {
       setIsLoading(false);
     }
@@ -190,23 +239,81 @@ export default function PerfilCandidato() {
   const onSubmit = async (data: PerfilForm) => {
     setIsSaving(true);
     try {
-      const response = await fetch('/api/candidato/profile', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ ...data, completado: true }),
-      });
+      if (!user) {
+        toast.error('No hay usuario autenticado');
+        return;
+      }
 
-      const result = await response.json();
+      // Actualizar el candidato en Supabase
+      const { data: updatedCandidato, error } = await supabase
+        .from('candidatos')
+        .update({
+          primer_nombre: data.nombres,
+          primer_apellido: data.apellidos,
+          fecha_nacimiento: data.fechaNacimiento,
+          edad: data.edad,
+          sexo: data.sexo,
+          estado_civil: data.estadoCivil,
+          telefono: data.telefono,
+          direccion: data.direccion,
+          ciudad: data.ciudad,
+          cargo_aspirado: data.cargoAspirado,
+          eps: data.eps,
+          arl: data.arl,
+          grupo_sanguineo: data.grupoSanguineo,
+          nivel_educativo: data.nivelEducativo,
+          contacto_emergencia_nombre: data.contactoEmergenciaNombre,
+          contacto_emergencia_telefono: data.contactoEmergenciaTelefono,
+          contacto_emergencia_relacion: data.contactoEmergenciaRelacion,
+          completado: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('email', user.email)
+        .select()
+        .single();
 
-      if (response.ok) {
+      if (error) {
+        console.error('Error actualizando perfil:', error);
+        toast.error('Error al actualizar el perfil');
+        return;
+      }
+
+      if (updatedCandidato) {
+        // Transformar los datos actualizados
+        const candidatoTransformado = {
+          id: updatedCandidato.id,
+          email: updatedCandidato.email,
+          nombres: updatedCandidato.primer_nombre,
+          apellidos: updatedCandidato.primer_apellido,
+          tipoDocumento: updatedCandidato.tipo_documento,
+          numeroDocumento: updatedCandidato.numero_documento,
+          fechaNacimiento: updatedCandidato.fecha_nacimiento,
+          edad: updatedCandidato.edad,
+          sexo: updatedCandidato.sexo,
+          estadoCivil: updatedCandidato.estado_civil,
+          telefono: updatedCandidato.telefono,
+          direccion: updatedCandidato.direccion,
+          ciudad: updatedCandidato.ciudad,
+          cargoAspirado: updatedCandidato.cargo_aspirado,
+          eps: updatedCandidato.eps,
+          arl: updatedCandidato.arl,
+          grupoSanguineo: updatedCandidato.grupo_sanguineo,
+          nivelEducativo: updatedCandidato.nivel_educativo,
+          contactoEmergenciaNombre: updatedCandidato.contacto_emergencia_nombre,
+          contactoEmergenciaTelefono: updatedCandidato.contacto_emergencia_telefono,
+          contactoEmergenciaRelacion: updatedCandidato.contacto_emergencia_relacion,
+          hojaDeVida: updatedCandidato.hoja_de_vida,
+          fotografia: updatedCandidato.fotografia,
+          completado: updatedCandidato.completado || false,
+          estado: updatedCandidato.estado || 'activo',
+          fechaRegistro: updatedCandidato.created_at
+        };
+
+        setCandidato(candidatoTransformado);
         toast.success('Perfil actualizado exitosamente');
-        setCandidato(result.candidato);
-      } else {
-        toast.error(result.message || 'Error al actualizar el perfil');
       }
     } catch (error) {
+      console.error('Error actualizando perfil:', error);
       toast.error('Error de conexión');
     } finally {
       setIsSaving(false);
@@ -215,15 +322,16 @@ export default function PerfilCandidato() {
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/candidato/logout', { method: 'POST' });
-      navigate('/candidato/login');
+      await logout();
+      navigate('/login');
     } catch (error) {
-      navigate('/candidato/login');
+      console.error('Error en logout:', error);
+      navigate('/login');
     }
   };
 
   const handleCambiarPassword = () => {
-    navigate('/candidato/cambiar-password');
+    navigate('/cambiar-password');
   };
 
   const handleFileUpload = async (file: File, type: 'hojaDeVida' | 'fotografia') => {
