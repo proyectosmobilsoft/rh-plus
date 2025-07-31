@@ -4,13 +4,17 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import { useNavigate, Link } from 'react-router-dom';
-import { Eye, EyeOff, Mail, Lock, User, Phone, IdCard, Building2 } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Phone, IdCard, Building2, FileText, Upload } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { TipoCandidatoSelector } from '@/components/candidatos/TipoCandidatoSelector';
 
 const registroSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -21,6 +25,7 @@ const registroSchema = z.object({
   tipoDocumento: z.string().min(1, 'Seleccione el tipo de documento'),
   numeroDocumento: z.string().min(6, 'Número de documento requerido'),
   telefono: z.string().min(10, 'Teléfono debe tener al menos 10 dígitos'),
+  tipoCandidatoId: z.number().min(1, 'Debe seleccionar un tipo de candidato'),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Las contraseñas no coinciden",
   path: ["confirmPassword"],
@@ -32,6 +37,12 @@ export default function RegistroCandidato() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedTipoId, setSelectedTipoId] = useState<number | null>(null);
+  const [documentosCargados, setDocumentosCargados] = useState<Record<number, { 
+    archivo?: File; 
+    fechaVigencia?: string; 
+    observaciones?: string 
+  }>>({});
   const navigate = useNavigate();
 
   const form = useForm<RegistroForm>({
@@ -45,20 +56,55 @@ export default function RegistroCandidato() {
       tipoDocumento: '',
       numeroDocumento: '',
       telefono: '',
+      tipoCandidatoId: 0,
     },
   });
+
+  const handleTipoChange = (tipoId: number | null) => {
+    setSelectedTipoId(tipoId);
+    form.setValue('tipoCandidatoId', tipoId || 0);
+  };
+
+  const handleDocumentoChange = (documentoId: number, data: { 
+    archivo?: File; 
+    fechaVigencia?: string; 
+    observaciones?: string 
+  }) => {
+    setDocumentosCargados(prev => ({
+      ...prev,
+      [documentoId]: data
+    }));
+  };
 
   const onSubmit = async (data: RegistroForm) => {
     setIsLoading(true);
     try {
       const { confirmPassword, ...registroData } = data;
       
+      // Crear FormData para enviar archivos
+      const formData = new FormData();
+      
+      // Agregar datos básicos del candidato
+      Object.entries(registroData).forEach(([key, value]) => {
+        formData.append(key, value.toString());
+      });
+
+      // Agregar documentos
+      Object.entries(documentosCargados).forEach(([documentoId, documentoData]) => {
+        if (documentoData.archivo) {
+          formData.append(`documentos[${documentoId}][archivo]`, documentoData.archivo);
+          if (documentoData.fechaVigencia) {
+            formData.append(`documentos[${documentoId}][fechaVigencia]`, documentoData.fechaVigencia);
+          }
+          if (documentoData.observaciones) {
+            formData.append(`documentos[${documentoId}][observaciones]`, documentoData.observaciones);
+          }
+        }
+      });
+
       const response = await fetch('/api/candidato/register', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(registroData),
+        body: formData,
       });
 
       const result = await response.json();
@@ -76,9 +122,11 @@ export default function RegistroCandidato() {
     }
   };
 
+  const documentosCargadosCount = Object.values(documentosCargados).filter(doc => doc.archivo).length;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl">
+      <div className="w-full max-w-4xl">
         <div className="text-center mb-8">
           <div className="mx-auto w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mb-4">
             <User className="w-8 h-8 text-white" />
@@ -89,240 +137,290 @@ export default function RegistroCandidato() {
 
         <Card className="shadow-lg">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl text-center">Información Básica</CardTitle>
+            <CardTitle className="text-2xl text-center">Información del Candidato</CardTitle>
             <CardDescription className="text-center">
-              Complete los datos requeridos para crear su cuenta
+              Complete los datos requeridos y cargue los documentos necesarios
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                
-                {/* Información Personal */}
-                <div className="grid md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="nombres"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nombres *</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="Juan Carlos" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+            <Tabs defaultValue="datos" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="datos">Datos Personales</TabsTrigger>
+                <TabsTrigger value="tipo">Tipo y Documentos</TabsTrigger>
+                <TabsTrigger value="resumen">Resumen</TabsTrigger>
+              </TabsList>
 
-                  <FormField
-                    control={form.control}
-                    name="apellidos"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Apellidos *</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="Pérez González" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+              <TabsContent value="datos" className="space-y-6">
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="nombres"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Nombres *</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                                <Input {...field} placeholder="Juan Carlos" className="pl-10" />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="apellidos"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Apellidos *</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="Pérez García" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="tipoDocumento"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Tipo de Documento *</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Seleccione tipo de documento" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="CC">Cédula de Ciudadanía</SelectItem>
+                                <SelectItem value="CE">Cédula de Extranjería</SelectItem>
+                                <SelectItem value="TI">Tarjeta de Identidad</SelectItem>
+                                <SelectItem value="PP">Pasaporte</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="numeroDocumento"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Número de Documento *</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <IdCard className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                                <Input {...field} placeholder="12345678" className="pl-10" />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Email *</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                                <Input {...field} type="email" placeholder="juan@ejemplo.com" className="pl-10" />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="telefono"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Teléfono *</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                                <Input {...field} placeholder="3001234567" className="pl-10" />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="password"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Contraseña *</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                                <Input
+                                  {...field}
+                                  type={showPassword ? "text" : "password"}
+                                  placeholder="Mínimo 6 caracteres"
+                                  className="pl-10 pr-10"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                                  onClick={() => setShowPassword(!showPassword)}
+                                >
+                                  {showPassword ? (
+                                    <EyeOff className="h-4 w-4" />
+                                  ) : (
+                                    <Eye className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="confirmPassword"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Confirmar Contraseña *</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                                <Input
+                                  {...field}
+                                  type={showConfirmPassword ? "text" : "password"}
+                                  placeholder="Repita la contraseña"
+                                  className="pl-10 pr-10"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                >
+                                  {showConfirmPassword ? (
+                                    <EyeOff className="h-4 w-4" />
+                                  ) : (
+                                    <Eye className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="flex justify-between">
+                      <Button type="button" variant="outline" onClick={() => navigate('/candidato/login')}>
+                        Ya tengo cuenta
+                      </Button>
+                      <Button type="submit" disabled={isLoading}>
+                        {isLoading ? 'Registrando...' : 'Siguiente'}
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </TabsContent>
+
+              <TabsContent value="tipo" className="space-y-6">
+                <TipoCandidatoSelector
+                  selectedTipoId={selectedTipoId}
+                  onTipoChange={handleTipoChange}
+                  documentosCargados={documentosCargados}
+                  onDocumentoChange={handleDocumentoChange}
+                />
+
+                <div className="flex justify-between">
+                  <Button type="button" variant="outline" onClick={() => navigate('/candidato/login')}>
+                    Cancelar
+                  </Button>
+                  <Button 
+                    type="button" 
+                    onClick={() => form.handleSubmit(onSubmit)()}
+                    disabled={isLoading || !selectedTipoId}
+                  >
+                    {isLoading ? 'Registrando...' : 'Completar Registro'}
+                  </Button>
                 </div>
+              </TabsContent>
 
-                {/* Documento */}
-                <div className="grid md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="tipoDocumento"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tipo de Documento *</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Seleccionar" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="CC">Cédula de Ciudadanía</SelectItem>
-                            <SelectItem value="CE">Cédula de Extranjería</SelectItem>
-                            <SelectItem value="TI">Tarjeta de Identidad</SelectItem>
-                            <SelectItem value="PP">Pasaporte</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
+              <TabsContent value="resumen" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Resumen del Registro</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <h4 className="font-medium mb-2">Datos Personales</h4>
+                        <div className="space-y-1 text-sm">
+                          <p><strong>Nombres:</strong> {form.watch('nombres') || 'No especificado'}</p>
+                          <p><strong>Apellidos:</strong> {form.watch('apellidos') || 'No especificado'}</p>
+                          <p><strong>Email:</strong> {form.watch('email') || 'No especificado'}</p>
+                          <p><strong>Teléfono:</strong> {form.watch('telefono') || 'No especificado'}</p>
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="font-medium mb-2">Documentos</h4>
+                        <div className="space-y-1 text-sm">
+                          <p><strong>Tipo de candidato:</strong> {selectedTipoId ? 'Seleccionado' : 'No seleccionado'}</p>
+                          <p><strong>Documentos cargados:</strong> {documentosCargadosCount}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {documentosCargadosCount > 0 && (
+                      <Alert>
+                        <FileText className="h-4 w-4" />
+                        <AlertDescription>
+                          Se han cargado {documentosCargadosCount} documento(s) requerido(s).
+                        </AlertDescription>
+                      </Alert>
                     )}
-                  />
 
-                  <FormField
-                    control={form.control}
-                    name="numeroDocumento"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Número de Documento *</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <IdCard className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                            <Input
-                              {...field}
-                              placeholder="1234567890"
-                              className="pl-10"
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                {/* Contacto */}
-                <div className="grid md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email *</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                            <Input
-                              {...field}
-                              type="email"
-                              placeholder="tu@email.com"
-                              className="pl-10"
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="telefono"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Teléfono *</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                            <Input
-                              {...field}
-                              placeholder="3101234567"
-                              className="pl-10"
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                {/* Contraseñas */}
-                <div className="grid md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Contraseña *</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                            <Input
-                              {...field}
-                              type={showPassword ? 'text' : 'password'}
-                              placeholder="Mínimo 6 caracteres"
-                              className="pl-10 pr-10"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setShowPassword(!showPassword)}
-                              className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-                            >
-                              {showPassword ? (
-                                <EyeOff className="h-4 w-4" />
-                              ) : (
-                                <Eye className="h-4 w-4" />
-                              )}
-                            </button>
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="confirmPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Confirmar Contraseña *</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                            <Input
-                              {...field}
-                              type={showConfirmPassword ? 'text' : 'password'}
-                              placeholder="Repetir contraseña"
-                              className="pl-10 pr-10"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                              className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-                            >
-                              {showConfirmPassword ? (
-                                <EyeOff className="h-4 w-4" />
-                              ) : (
-                                <Eye className="h-4 w-4" />
-                              )}
-                            </button>
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={isLoading}
-                >
-                  {isLoading ? 'Registrando...' : 'Crear Cuenta'}
-                </Button>
-              </form>
-            </Form>
-
-            <div className="mt-6 text-center">
-              <p className="text-sm text-gray-600">
-                ¿Ya tienes cuenta?{' '}
-                <Link
-                  to="/candidato/login"
-                  className="text-blue-600 hover:text-blue-800 font-medium"
-                >
-                  Iniciar sesión
-                </Link>
-              </p>
-            </div>
-
-            <div className="mt-4 text-center">
-              <Link
-                to="/"
-                className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
-              >
-                <Building2 className="w-4 h-4 mr-1" />
-                Acceso Administrador
-              </Link>
-            </div>
+                    <div className="flex justify-between">
+                      <Button type="button" variant="outline" onClick={() => navigate('/candidato/login')}>
+                        Cancelar
+                      </Button>
+                      <Button 
+                        type="button" 
+                        onClick={() => form.handleSubmit(onSubmit)()}
+                        disabled={isLoading || !selectedTipoId}
+                      >
+                        {isLoading ? 'Registrando...' : 'Completar Registro'}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
       </div>

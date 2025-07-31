@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { toast } from 'sonner';
 import { Plus, Edit, Trash2, Settings } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -16,6 +14,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 
+import { useTiposCandidatos } from '@/hooks/useTiposCandidatos';
+import { useTiposDocumentos } from '@/hooks/useTiposDocumentos';
+import { useTiposCandidatosDocumentos } from '@/hooks/useTiposCandidatosDocumentos';
+import { TipoCandidato, TipoDocumento, TipoCandidatoForm, DocumentoTipoForm } from '@/types/maestro';
+
 const tipoCandidatoSchema = z.object({
   nombre: z.string().min(2, 'Nombre requerido'),
   descripcion: z.string().optional(),
@@ -27,35 +30,35 @@ const documentoTipoSchema = z.object({
   requerido: z.boolean().default(false),
 });
 
-type TipoCandidatoForm = z.infer<typeof tipoCandidatoSchema>;
-type DocumentoTipoForm = z.infer<typeof documentoTipoSchema>;
-
 export default function TiposCandidatosPage() {
   const [showTipoDialog, setShowTipoDialog] = useState(false);
   const [showDocumentoDialog, setShowDocumentoDialog] = useState(false);
-  const [editingTipo, setEditingTipo] = useState<any>(null);
-  const [editingDocumento, setEditingDocumento] = useState<any>(null);
-  const [selectedTipo, setSelectedTipo] = useState<any>(null);
+  const [editingTipo, setEditingTipo] = useState<TipoCandidato | null>(null);
+  const [editingDocumento, setEditingDocumento] = useState<TipoDocumento | null>(null);
+  const [selectedTipo, setSelectedTipo] = useState<TipoCandidato | null>(null);
   const [showDocumentosConfig, setShowDocumentosConfig] = useState(false);
 
-  const queryClient = useQueryClient();
+  // Hooks
+  const { 
+    tiposCandidatos, 
+    isLoading: loadingTipos, 
+    createTipoCandidato, 
+    isCreating 
+  } = useTiposCandidatos();
 
-  // Queries
-  const { data: tiposCandidatos = [], isLoading: loadingTipos } = useQuery({
-    queryKey: ['/api/maestro/tipos-candidatos'],
-    queryFn: () => fetch('/api/maestro/tipos-candidatos').then(res => res.json()),
-  });
+  const { 
+    tiposDocumentos, 
+    isLoading: loadingDocumentos, 
+    createTipoDocumento, 
+    isCreating: isCreatingDocumento 
+  } = useTiposDocumentos();
 
-  const { data: documentosTipo = [], isLoading: loadingDocumentos } = useQuery({
-    queryKey: ['/api/maestro/documentos-tipo'],
-    queryFn: () => fetch('/api/maestro/documentos-tipo').then(res => res.json()),
-  });
-
-  const { data: documentosRequeridos = [], isLoading: loadingRequeridos } = useQuery({
-    queryKey: ['/api/maestro/tipos-candidatos-documentos', selectedTipo?.id],
-    queryFn: () => selectedTipo ? fetch(`/api/maestro/tipos-candidatos-documentos/${selectedTipo.id}`).then(res => res.json()) : [],
-    enabled: !!selectedTipo,
-  });
+  const { 
+    documentosRequeridos, 
+    isLoading: loadingRequeridos, 
+    updateDocumentosForTipoCandidato, 
+    isUpdatingDocumentos 
+  } = useTiposCandidatosDocumentos(selectedTipo?.id);
 
   // Forms
   const tipoForm = useForm<TipoCandidatoForm>({
@@ -68,69 +71,26 @@ export default function TiposCandidatosPage() {
     defaultValues: { nombre: '', descripcion: '', requerido: false },
   });
 
-  // Mutations
-  const createTipoMutation = useMutation({
-    mutationFn: (data: TipoCandidatoForm) => 
-      fetch('/api/maestro/tipos-candidatos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      }).then(res => res.json()),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/maestro/tipos-candidatos'] });
-      setShowTipoDialog(false);
-      tipoForm.reset();
-      toast.success('Tipo de candidato creado exitosamente');
-    },
-    onError: () => toast.error('Error al crear tipo de candidato'),
-  });
-
-  const createDocumentoMutation = useMutation({
-    mutationFn: (data: DocumentoTipoForm) => 
-      fetch('/api/maestro/documentos-tipo', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      }).then(res => res.json()),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/maestro/documentos-tipo'] });
-      setShowDocumentoDialog(false);
-      documentoForm.reset();
-      toast.success('Tipo de documento creado exitosamente');
-    },
-    onError: () => toast.error('Error al crear tipo de documento'),
-  });
-
-  const updateDocumentosRequeridos = useMutation({
-    mutationFn: ({ tipoId, documentos }: { tipoId: number, documentos: any[] }) =>
-      fetch(`/api/maestro/tipos-candidatos-documentos/${tipoId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ documentos }),
-      }).then(res => res.json()),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/maestro/tipos-candidatos-documentos'] });
-      toast.success('Configuración actualizada exitosamente');
-    },
-    onError: () => toast.error('Error al actualizar configuración'),
-  });
-
   const handleTipoSubmit = (data: TipoCandidatoForm) => {
-    createTipoMutation.mutate(data);
+    createTipoCandidato(data);
+    setShowTipoDialog(false);
+    tipoForm.reset();
   };
 
   const handleDocumentoSubmit = (data: DocumentoTipoForm) => {
-    createDocumentoMutation.mutate(data);
+    createTipoDocumento(data);
+    setShowDocumentoDialog(false);
+    documentoForm.reset();
   };
 
-  const handleConfigureTipo = (tipo: any) => {
+  const handleConfigureTipo = (tipo: TipoCandidato) => {
     setSelectedTipo(tipo);
     setShowDocumentosConfig(true);
   };
 
   const handleToggleDocumento = (documentoId: number, obligatorio: boolean) => {
     const updatedDocumentos = [...documentosRequeridos];
-    const index = updatedDocumentos.findIndex(d => d.documentoTipoId === documentoId);
+    const index = updatedDocumentos.findIndex(d => d.tipo_documento_id === documentoId);
     
     if (index >= 0) {
       if (obligatorio) {
@@ -140,16 +100,20 @@ export default function TiposCandidatosPage() {
       }
     } else if (obligatorio) {
       updatedDocumentos.push({
-        tipoCandidatoId: selectedTipo.id,
-        documentoTipoId: documentoId,
+        tipo_candidato_id: selectedTipo!.id,
+        tipo_documento_id: documentoId,
         obligatorio: true,
         orden: updatedDocumentos.length,
-      });
+      } as any); // Usar any temporalmente para evitar conflictos de tipos
     }
 
-    updateDocumentosRequeridos.mutate({
-      tipoId: selectedTipo.id,
-      documentos: updatedDocumentos,
+    updateDocumentosForTipoCandidato({
+      tipoCandidatoId: selectedTipo!.id,
+      documentos: updatedDocumentos.map(doc => ({
+        tipo_documento_id: doc.tipo_documento_id,
+        obligatorio: doc.obligatorio,
+        orden: doc.orden
+      })),
     });
   };
 
@@ -217,8 +181,8 @@ export default function TiposCandidatosPage() {
                       )}
                     />
                     <DialogFooter>
-                      <Button type="submit" disabled={createTipoMutation.isPending}>
-                        {createTipoMutation.isPending ? 'Creando...' : 'Crear Tipo'}
+                      <Button type="submit" disabled={isCreating}>
+                        {isCreating ? 'Creando...' : 'Crear Tipo'}
                       </Button>
                     </DialogFooter>
                   </form>
@@ -231,7 +195,7 @@ export default function TiposCandidatosPage() {
               <div className="text-center py-4">Cargando...</div>
             ) : (
               <div className="space-y-2">
-                {tiposCandidatos.map((tipo: any) => (
+                {tiposCandidatos.map((tipo: TipoCandidato) => (
                   <div key={tipo.id} className="flex items-center justify-between p-3 border rounded-lg">
                     <div>
                       <h4 className="font-medium">{tipo.nombre}</h4>
@@ -332,8 +296,8 @@ export default function TiposCandidatosPage() {
                       )}
                     />
                     <DialogFooter>
-                      <Button type="submit" disabled={createDocumentoMutation.isPending}>
-                        {createDocumentoMutation.isPending ? 'Creando...' : 'Crear Documento'}
+                      <Button type="submit" disabled={isCreatingDocumento}>
+                        {isCreatingDocumento ? 'Creando...' : 'Crear Documento'}
                       </Button>
                     </DialogFooter>
                   </form>
@@ -346,7 +310,7 @@ export default function TiposCandidatosPage() {
               <div className="text-center py-4">Cargando...</div>
             ) : (
               <div className="space-y-2">
-                {documentosTipo.map((documento: any) => (
+                {tiposDocumentos.map((documento: TipoDocumento) => (
                   <div key={documento.id} className="flex items-center justify-between p-3 border rounded-lg">
                     <div>
                       <h4 className="font-medium">{documento.nombre}</h4>
@@ -392,9 +356,9 @@ export default function TiposCandidatosPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {documentosTipo.map((documento: any) => {
+                  {tiposDocumentos.map((documento: TipoDocumento) => {
                     const isRequerido = documentosRequeridos.some(
-                      (dr: any) => dr.documentoTipoId === documento.id
+                      (dr: any) => dr.tipo_documento_id === documento.id
                     );
                     return (
                       <TableRow key={documento.id}>
@@ -406,6 +370,7 @@ export default function TiposCandidatosPage() {
                             onCheckedChange={(checked) => 
                               handleToggleDocumento(documento.id, checked)
                             }
+                            disabled={isUpdatingDocumentos}
                           />
                         </TableCell>
                       </TableRow>
