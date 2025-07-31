@@ -1,242 +1,397 @@
 
 import { useState, useEffect } from 'react';
-import { FileText, Plus, Filter } from "lucide-react";
+import { FileText, Plus, Filter, Users, Building, DollarSign, CheckCircle, Clock, AlertCircle } from "lucide-react";
 import { toast } from 'sonner';
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogDescription } from "@/components/ui/dialog";
-import { Orden, ordenesService } from '@/services/ordenesService';
+import { Solicitud, solicitudesService } from '@/services/solicitudesService';
 import OrdenForm from '@/components/ordenes/OrdenForm';
-import OrdenesList from '@/components/ordenes/OrdenesList';
-import OrdenPDF from '@/components/ordenes/OrdenPDF';
-import OrdenesStatistics from '@/components/ordenes/OrdenesStatistics';
+import SolicitudesList from '@/components/solicitudes/SolicitudesList';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 
 const ExpedicionOrdenPage = () => {
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [isPDFOpen, setIsPDFOpen] = useState(false);
-  const [selectedOrden, setSelectedOrden] = useState<Orden | undefined>(undefined);
-  const [ordenParaPDF, setOrdenParaPDF] = useState<Orden | undefined>(undefined);
-  const [ordenes, setOrdenes] = useState<Orden[]>([]);
+  const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [estadoFilter, setEstadoFilter] = useState<string | null>(null);
+  const [estadoFilter, setEstadoFilter] = useState<string | undefined>(undefined);
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedSolicitud, setSelectedSolicitud] = useState<Solicitud | undefined>(undefined);
 
-  // Fetch orders when component mounts or filter changes
+  // Fetch solicitudes when component mounts or filter changes
   useEffect(() => {
-    fetchOrdenes(estadoFilter);
+    fetchSolicitudes();
   }, [estadoFilter]);
 
-  const fetchOrdenes = async (estado: string | null = null) => {
+  const fetchSolicitudes = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await ordenesService.getAll(estado);
-      setOrdenes(data);
+      let data;
+      if (estadoFilter) {
+        data = await solicitudesService.getByStatus(estadoFilter);
+      } else {
+        data = await solicitudesService.getAll();
+      }
+      setSolicitudes(data);
     } catch (error) {
-      console.error("Error fetching orders:", error);
-      setError('Error al cargar las órdenes');
-      toast.error('Error al cargar las órdenes');
+      console.error("Error fetching solicitudes:", error);
+      setError('Error al cargar las solicitudes');
+      toast.error('Error al cargar las solicitudes');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleCreate = () => {
-    setSelectedOrden(undefined);
-    setIsFormOpen(true);
+    setSelectedSolicitud(undefined);
+    setActiveTab("registro");
   };
 
-  const handleEdit = async (orden: Orden) => {
-    try {
-      if (orden.id) {
-        setIsLoading(true);
-        // Fetch full order details with associated services
-        const fullOrder = await ordenesService.getById(orden.id);
-        setIsLoading(false);
-        
-        if (fullOrder) {
-          console.log("Full order details:", fullOrder);
-          setSelectedOrden(fullOrder);
-          setIsFormOpen(true);
-        } else {
-          toast.error('Error al cargar los detalles de la orden');
-        }
-      }
-    } catch (error) {
-      setIsLoading(false);
-      console.error("Error fetching order details:", error);
-      toast.error('Error al cargar los detalles de la orden');
-    }
+  const handleEdit = async (solicitud: Solicitud) => {
+    setSelectedSolicitud(solicitud);
+    setActiveTab("registro");
   };
 
   const handleDelete = async (id: number) => {
     try {
-      await ordenesService.delete(id);
-      toast.success('Orden anulada correctamente');
-      fetchOrdenes(estadoFilter); // Refresh the list with current filter
+      await solicitudesService.delete(id);
+      toast.success('Solicitud eliminada correctamente');
+      fetchSolicitudes(); // Refresh the list
     } catch (error) {
-      toast.error('Error al anular la orden');
+      toast.error('Error al eliminar la solicitud');
       console.error(error);
     }
   };
 
   const handleApprove = async (id: number) => {
     try {
-      await ordenesService.approve(id);
-      toast.success('Orden aprobada correctamente');
-      fetchOrdenes(estadoFilter); // Refresh the list with current filter
+      await solicitudesService.update(id, { estado: 'APROBADA' });
+      toast.success('Solicitud aprobada correctamente');
+      fetchSolicitudes(); // Refresh the list
     } catch (error) {
-      toast.error('Error al aprobar la orden');
+      toast.error('Error al aprobar la solicitud');
       console.error(error);
     }
   };
 
-  const handleView = async (orden: Orden) => {
-    try {
-      setIsLoading(true);
-      // If the order has an ID, fetch the complete data for PDF
-      if (orden.id) {
-        const fullOrder = await ordenesService.getById(orden.id);
-        setIsLoading(false);
-        
-        if (fullOrder) {
-          setOrdenParaPDF(fullOrder);
-          setIsPDFOpen(true);
-        } else {
-          toast.error('Error al cargar los detalles para el PDF');
-        }
-      } else {
-        setOrdenParaPDF(orden);
-        setIsPDFOpen(true);
-      }
-    } catch (error) {
-      setIsLoading(false);
-      console.error("Error preparing PDF view:", error);
-      toast.error('Error al preparar la vista del PDF');
-    }
+  const handleView = async (solicitud: Solicitud) => {
+    // Implementar vista de detalles si es necesario
+    toast.info('Vista de detalles no implementada aún');
   };
 
-  const handleFormSubmit = async (data: Orden) => {
+  const handleFormSubmit = async (data: any) => {
     try {
-      // Generate a unique order number if creating new order
-      if (!data.id) {
-        data.numeroOrden = `ORD-${Date.now()}`;
-      }
-      
-      if (data.id) {
-        // Update existing orden
-        await ordenesService.update(data);
-        toast.success('Orden actualizada correctamente');
+      if (selectedSolicitud) {
+        // Update existing solicitud
+        await solicitudesService.update(selectedSolicitud.id!, data);
+        toast.success('Solicitud actualizada correctamente');
       } else {
-        // Create new orden
-        await ordenesService.create(data);
-        toast.success('Orden creada correctamente');
+        // Create new solicitud
+        await solicitudesService.create(data);
+        toast.success('Solicitud creada correctamente');
       }
-      setIsFormOpen(false);
-      fetchOrdenes(estadoFilter); // Refresh the list with current filter
+      setActiveTab("listado");
+      fetchSolicitudes(); // Refresh the list
     } catch (error) {
-      toast.error('Error al guardar la orden');
       console.error(error);
+      toast.error('Error al guardar la solicitud');
     }
   };
 
   const handleFormCancel = () => {
-    setIsFormOpen(false);
+    setActiveTab("listado");
+    setSelectedSolicitud(undefined);
+  };
+
+  // Filtrado de solicitudes
+  const solicitudesFiltradas = solicitudes.filter(solicitud => {
+    const matchesSearch =
+      (solicitud.nombres?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (solicitud.apellidos?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (solicitud.cargo?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (solicitud.empresaUsuaria?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (solicitud.numeroDocumento?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+
+    return matchesSearch;
+  });
+
+  // Estadísticas del dashboard
+  const estadisticas = {
+    total: solicitudes.length,
+    pendientes: solicitudes.filter(s => s.estado === "PENDIENTE").length,
+    aprobadas: solicitudes.filter(s => s.estado === "APROBADA").length,
+    rechazadas: solicitudes.filter(s => s.estado === "RECHAZADA").length,
+    altaPrioridad: solicitudes.filter(s => s.prioridad === "alta").length,
+    porcentajeAprobacion: solicitudes.length > 0 ? Math.round((solicitudes.filter(s => s.estado === "APROBADA").length / solicitudes.length) * 100) : 0
   };
 
   return (
-    <div className="page-container">
-      <div className="page-header">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <FileText className="h-6 w-6 text-primary" />
-            <h1 className="text-2xl font-bold">Expedición de Órdenes</h1>
-          </div>
-          <Button onClick={handleCreate} className="flex items-center gap-1 bg-primary hover:bg-primary/90">
-            <Plus className="h-4 w-4" />
-            <span>Nueva Orden</span>
-          </Button>
-        </div>
+    <div className="p-4 max-w-full mx-auto">
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-3xl font-extrabold text-cyan-800 flex items-center gap-2 mb-2">
+          <FileText className="w-8 h-8 text-cyan-600" />
+          Gestión de Solicitudes
+        </h1>
       </div>
+      
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-3 bg-cyan-100/60 p-1 rounded-lg">
+          <TabsTrigger
+            value="dashboard"
+            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+          >
+            Dashboard
+          </TabsTrigger>
+          <TabsTrigger
+            value="listado"
+            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+          >
+            Listado de Solicitudes
+          </TabsTrigger>
+          <TabsTrigger
+            value="registro"
+            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+          >
+            Registro de Solicitud
+          </TabsTrigger>
+        </TabsList>
 
-      <div className="space-y-4">
-        {/* Statistics Dashboard */}
-        <OrdenesStatistics ordenes={ordenes} />
-        
-        <div className="dashboard-card bg-white">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-medium text-primary-foreground">Listado</h2>
-            <div className="flex items-center space-x-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <Select 
-                value={estadoFilter || 'all'} 
-                onValueChange={(value) => setEstadoFilter(value === 'all' ? null : value)}
-              >
-                <SelectTrigger className="w-[180px] h-9">
-                  <SelectValue placeholder="Filtrar por estado" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="PENDIENTE">Pendiente</SelectItem>
-                  <SelectItem value="APROBADA">Aprobada</SelectItem>
-                  <SelectItem value="ANULADA">Anulada</SelectItem>
-                </SelectContent>
-              </Select>
+        <TabsContent value="dashboard" className="mt-6">
+          {/* Dashboard con estadísticas */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm opacity-90">Total Solicitudes</p>
+                    <p className="text-2xl font-bold">{estadisticas.total}</p>
+                  </div>
+                  <FileText className="w-8 h-8 opacity-80" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm opacity-90">Pendientes</p>
+                    <p className="text-2xl font-bold">{estadisticas.pendientes}</p>
+                  </div>
+                  <Clock className="w-8 h-8 opacity-80" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm opacity-90">Aprobadas</p>
+                    <p className="text-2xl font-bold">{estadisticas.aprobadas}</p>
+                    <p className="text-xs opacity-80">{estadisticas.porcentajeAprobacion}% del total</p>
+                  </div>
+                  <CheckCircle className="w-8 h-8 opacity-80" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-r from-red-500 to-red-600 text-white">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm opacity-90">Alta Prioridad</p>
+                    <p className="text-2xl font-bold">{estadisticas.altaPrioridad}</p>
+                  </div>
+                  <AlertCircle className="w-8 h-8 opacity-80" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Gráficos adicionales o información resumida */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="w-5 h-5 text-blue-600" />
+                  Estado de Solicitudes
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium">Pendientes</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-32 bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-yellow-500 h-2 rounded-full" 
+                          style={{ width: `${estadisticas.total > 0 ? (estadisticas.pendientes / estadisticas.total) * 100 : 0}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-sm text-gray-600">{estadisticas.pendientes}</span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium">Aprobadas</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-32 bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-green-500 h-2 rounded-full" 
+                          style={{ width: `${estadisticas.total > 0 ? (estadisticas.aprobadas / estadisticas.total) * 100 : 0}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-sm text-gray-600">{estadisticas.aprobadas}</span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium">Rechazadas</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-32 bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-red-500 h-2 rounded-full" 
+                          style={{ width: `${estadisticas.total > 0 ? (estadisticas.rechazadas / estadisticas.total) * 100 : 0}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-sm text-gray-600">{estadisticas.rechazadas}</span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building className="w-5 h-5 text-green-600" />
+                  Empresas Principales
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                                     {Object.entries(
+                     solicitudes.reduce((acc, solicitud) => {
+                       const empresa = solicitud.empresaUsuaria || 'Sin empresa';
+                       acc[empresa] = (acc[empresa] || 0) + 1;
+                       return acc;
+                     }, {} as Record<string, number>)
+                   )
+                     .sort(([,a], [,b]) => b - a)
+                     .slice(0, 5)
+                     .map(([empresa, count]) => (
+                      <div key={empresa} className="flex justify-between items-center">
+                        <span className="text-sm">{empresa}</span>
+                        <Badge variant="outline">{count}</Badge>
+                      </div>
+                    ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="listado" className="mt-6">
+          {/* Header similar a usuarios */}
+          <div className="bg-white rounded-lg border">
+            <div className="flex items-center justify-between p-4 border-b">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-orange-100 rounded flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-orange-600" />
+                </div>
+                <span className="text-lg font-semibold text-gray-700">SOLICITUDES</span>
+              </div>
+              <div className="flex space-x-2">
+                <Button
+                  onClick={handleCreate}
+                  className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
+                  size="sm"
+                >
+                  Adicionar Solicitud
+                </Button>
+              </div>
+            </div>
+
+            {/* Filtros y búsqueda */}
+            <div className="flex flex-wrap items-center gap-4 p-3 bg-cyan-50 rounded-lg mb-4 shadow-sm">
+              <div className="flex-1 min-w-[200px]">
+                <Input
+                  placeholder="Buscar por nombre, cargo, empresa..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <Select 
+                  value={estadoFilter || 'all'} 
+                  onValueChange={(value) => setEstadoFilter(value === 'all' ? undefined : value)}
+                >
+                  <SelectTrigger className="w-[180px] h-9">
+                    <SelectValue placeholder="Filtrar por estado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="PENDIENTE">Pendiente</SelectItem>
+                    <SelectItem value="APROBADA">Aprobada</SelectItem>
+                    <SelectItem value="RECHAZADA">Rechazada</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Tabla de solicitudes */}
+            <div className="relative overflow-x-auto rounded-lg shadow-sm">
+              {isLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-white/70 z-20">
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="animate-spin h-10 w-10 text-cyan-600">Cargando...</div>
+                    <span className="text-cyan-700 font-semibold">Cargando solicitudes...</span>
+                  </div>
+                </div>
+              )}
+              {error ? (
+                <div className="text-center py-6 text-destructive">
+                  Error al cargar las solicitudes. Por favor intente nuevamente.
+                </div>
+              ) : (
+                                 <SolicitudesList
+                   solicitudes={solicitudesFiltradas}
+                   onEdit={handleEdit}
+                   onDelete={handleDelete}
+                   onView={handleView}
+                   onApprove={handleApprove}
+                   isLoading={isLoading}
+                 />
+              )}
             </div>
           </div>
-          
-          {isLoading ? (
-            <div className="text-center py-6">Cargando órdenes...</div>
-          ) : error ? (
-            <div className="text-center py-6 text-destructive">
-              Error al cargar las órdenes. Por favor intente nuevamente.
-            </div>
-          ) : (
-            <OrdenesList
-              ordenes={ordenes}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              onView={handleView}
-              onApprove={handleApprove}
-            />
-          )}
-        </div>
-      </div>
+        </TabsContent>
 
-      {/* Order Form Dialog */}
-      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto bg-white">
-          <DialogHeader className="pb-2">
-            <DialogTitle className="text-primary">
-              {selectedOrden ? 'Editar' : 'Nueva'} Orden
-            </DialogTitle>
-            <DialogDescription>
-              Complete el formulario para {selectedOrden ? 'actualizar' : 'crear'} la orden de servicio.
-            </DialogDescription>
-          </DialogHeader>
-          <OrdenForm
-            orden={selectedOrden}
-            onSubmit={handleFormSubmit}
-            onCancel={handleFormCancel}
-          />
-        </DialogContent>
-      </Dialog>
-
-      {/* PDF Preview Dialog */}
-      <Dialog open={isPDFOpen} onOpenChange={setIsPDFOpen}>
-        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
-          <DialogHeader className="pb-2">
-            <DialogTitle className="text-primary">
-              Vista Previa de Orden #{ordenParaPDF?.id}
-            </DialogTitle>
-            <DialogDescription>
-              Vista previa antes de imprimir o descargar.
-            </DialogDescription>
-          </DialogHeader>
-          {ordenParaPDF && <OrdenPDF orden={ordenParaPDF} />}
-        </DialogContent>
-      </Dialog>
+        <TabsContent value="registro" className="mt-6">
+          <Card>
+            <CardHeader>
+                             <CardTitle className="flex items-center gap-2">
+                 <FileText className="w-5 h-5 text-blue-600" />
+                 {selectedSolicitud ? 'Editar' : 'Nueva'} Solicitud
+               </CardTitle>
+             </CardHeader>
+             <CardContent>
+               <OrdenForm
+                 orden={selectedSolicitud}
+                 onSubmit={handleFormSubmit}
+                 onCancel={handleFormCancel}
+               />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
