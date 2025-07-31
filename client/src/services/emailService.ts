@@ -6,12 +6,57 @@ interface EmailConfig {
   appPassword?: string; // Para Gmail con 2FA
 }
 
-interface EmailData {
+// Servicio para envío de correos
+export interface EmailData {
   to: string;
   subject: string;
   html: string;
   text?: string;
+  from: string;
 }
+
+export const sendEmail = async (emailData: EmailData): Promise<{ success: boolean; error?: string }> => {
+  try {
+    // Por ahora usamos un servicio de email gratuito como EmailJS o similar
+    // En producción deberías usar SendGrid, Mailgun, o similar
+    
+    // Simulación de envío para pruebas
+    console.log('📧 Simulando envío de correo:', {
+      to: emailData.to,
+      subject: emailData.subject,
+      from: emailData.from
+    });
+    
+    // Aquí puedes integrar con un servicio real de email
+    // Ejemplo con EmailJS:
+    /*
+    const response = await emailjs.send(
+      'YOUR_SERVICE_ID',
+      'YOUR_TEMPLATE_ID',
+      {
+        to_email: emailData.to,
+        to_name: emailData.to.split('@')[0],
+        subject: emailData.subject,
+        message: emailData.html,
+        from_email: emailData.from
+      },
+      'YOUR_USER_ID'
+    );
+    */
+    
+    // Simular delay de envío
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    return { success: true };
+    
+  } catch (error) {
+    console.error('Error enviando email:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Error desconocido' 
+    };
+  }
+};
 
 class EmailService {
   private config: EmailConfig | null = null;
@@ -198,7 +243,8 @@ class EmailService {
       to: email,
       subject: 'Código de Verificación - RH Compensamos',
       html: html,
-      text: `Tu código de verificación es: ${codigo}. Este código expira en 30 minutos.`
+      text: `Tu código de verificación es: ${codigo}. Este código expira en 30 minutos.`,
+      from: 'noreply@rhcompensamos.com'
     });
   }
 
@@ -296,7 +342,8 @@ class EmailService {
       to: email,
       subject: 'Contraseña Cambiada - RH Compensamos',
       html: html,
-      text: 'Tu contraseña ha sido cambiada exitosamente. Si no realizaste este cambio, contacta al soporte inmediatamente.'
+      text: 'Tu contraseña ha sido cambiada exitosamente. Si no realizaste este cambio, contacta al soporte inmediatamente.',
+      from: 'noreply@rhcompensamos.com'
     });
   }
 }

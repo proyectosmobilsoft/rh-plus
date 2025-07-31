@@ -52,16 +52,18 @@ export const obtenerEmpresaPorId = async (empresaId: number): Promise<Empresa | 
  */
 export const obtenerEmpresas = async (): Promise<Empresa[]> => {
   try {
+    console.log('Consultando tabla empresas...');
     const { data, error } = await supabase
       .from('empresas')
       .select('*')
-      .order('nombre');
+      .order('razon_social');
 
     if (error) {
       console.error('Error al obtener empresas:', error);
       return [];
     }
 
+    console.log('Empresas encontradas en BD:', data);
     return data || [];
   } catch (error) {
     console.error('Error en obtenerEmpresas:', error);

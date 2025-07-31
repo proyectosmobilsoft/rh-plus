@@ -29,6 +29,7 @@ import { emailTemplatesService } from '@/services/emailTemplatesService';
 import { initDatabase } from '@/services/initDatabase';
 import { checkTables } from '@/services/checkTables';
 import { toast } from 'sonner';
+import { emailService } from '@/services/emailService';
 
 interface EmailTemplate {
   id: number;
@@ -97,10 +98,12 @@ export default function EmailMasivoPage() {
   const [campaigns, setCampaigns] = useState<EmailCampaign[]>([]);
   const [gmailCampaigns, setGmailCampaigns] = useState<GmailCampaign[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingDestinatarios, setLoadingDestinatarios] = useState(false);
+  const [enviandoCorreos, setEnviandoCorreos] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | GmailTemplate | null>(null);
   const [previewMode, setPreviewMode] = useState(false);
   const [showHtmlPreview, setShowHtmlPreview] = useState(false);
-  const [selectedDestinatarios, setSelectedDestinatarios] = useState<string>('candidatos');
+  const [selectedDestinatarios, setSelectedDestinatarios] = useState<'candidatos' | 'empleadores' | 'ambos'>('candidatos');
   const [recipients, setRecipients] = useState<EmailRecipient[]>([]);
   const [selectedRecipients, setSelectedRecipients] = useState<number[]>([]);
   const [selectionType, setSelectionType] = useState<'todos' | 'especificos'>('todos');
@@ -202,17 +205,75 @@ export default function EmailMasivoPage() {
 
   const cargarDestinatarios = async () => {
     try {
-      const { data, error } = await supabase
-        .from('email_recipients')
-        .select('*')
-        .eq('activo', true)
-        .order('nombre');
+      setLoadingDestinatarios(true);
+      console.log('🔄 Cargando destinatarios desde la base de datos...');
+      
+      let destinatariosCargados: any[] = [];
 
-      if (error) throw error;
-      setRecipients(data || []);
+      // Cargar candidatos si es necesario
+      if (selectedDestinatarios === 'candidatos' || selectedDestinatarios === 'ambos') {
+        console.log('📋 Cargando candidatos...');
+        const { data: candidatosData, error: candidatosError } = await supabase
+          .from('candidatos')
+          .select('*')
+          .order('primer_nombre');
+
+        if (candidatosError) {
+          console.error('❌ Error cargando candidatos:', candidatosError);
+        } else {
+          console.log('✅ Candidatos cargados:', candidatosData?.length || 0);
+          
+          const candidatosTransformados = candidatosData?.map((candidato: any) => ({
+            id: candidato.id,
+            email: candidato.email,
+            nombre: `${candidato.primer_nombre} ${candidato.primer_apellido}`,
+            empresa: candidato.empresa_id ? `Empresa ID: ${candidato.empresa_id}` : null,
+            tipo: 'candidato',
+            activo: true,
+            created_at: candidato.created_at,
+            updated_at: candidato.updated_at
+          })) || [];
+
+          destinatariosCargados.push(...candidatosTransformados);
+        }
+      }
+
+      // Cargar empleadores si es necesario
+      if (selectedDestinatarios === 'empleadores' || selectedDestinatarios === 'ambos') {
+        console.log('🏢 Cargando empleadores...');
+        const { data: empresasData, error: empresasError } = await supabase
+          .from('empresas')
+          .select('*')
+          .order('razon_social');
+
+        if (empresasError) {
+          console.error('❌ Error cargando empleadores:', empresasError);
+        } else {
+          console.log('✅ Empleadores cargados:', empresasData?.length || 0);
+          
+          const empleadoresTransformados = empresasData?.map((empresa: any) => ({
+            id: empresa.id,
+            email: empresa.email,
+            nombre: empresa.razon_social,
+            empresa: empresa.nombre,
+            tipo: 'empleador',
+            activo: true,
+            created_at: empresa.created_at,
+            updated_at: empresa.updated_at
+          })) || [];
+
+          destinatariosCargados.push(...empleadoresTransformados);
+        }
+      }
+
+      console.log('🎯 Total de destinatarios cargados:', destinatariosCargados.length);
+      setRecipients(destinatariosCargados);
+      
     } catch (error) {
-      console.error('Error cargando destinatarios:', error);
+      console.error('❌ Error cargando destinatarios:', error);
       toast.error('Error al cargar los destinatarios');
+    } finally {
+      setLoadingDestinatarios(false);
     }
   };
 
@@ -238,16 +299,37 @@ export default function EmailMasivoPage() {
   };
 
   const getFilteredRecipients = () => {
-    return recipients.filter(r => {
-      if (selectedDestinatarios === 'candidatos') return r.tipo === 'candidato';
-      if (selectedDestinatarios === 'empleadores') return r.tipo === 'empleador';
+    console.log('🔍 Filtrando destinatarios...');
+    console.log('Tipo seleccionado:', selectedDestinatarios);
+    console.log('Total de destinatarios:', recipients.length);
+    
+    const filtered = recipients.filter(r => {
+      if (selectedDestinatarios === 'candidatos') {
+        const isCandidato = r.tipo === 'candidato';
+        console.log(`Candidato ${r.nombre}: ${isCandidato}`);
+        return isCandidato;
+      }
+      if (selectedDestinatarios === 'empleadores') {
+        const isEmpleador = r.tipo === 'empleador';
+        console.log(`Empleador ${r.nombre}: ${isEmpleador}`);
+        return isEmpleador;
+      }
+      console.log(`Ambos - ${r.nombre}: ${r.tipo}`);
       return true; // ambos
     });
+    
+    console.log('🎯 Destinatarios filtrados:', filtered.length);
+    return filtered;
   };
 
   // Limpiar selección cuando cambie el tipo de destinatarios
   useEffect(() => {
     setSelectedRecipients([]);
+  }, [selectedDestinatarios]);
+
+  // Recargar destinatarios cuando cambie el tipo de destinatarios
+  useEffect(() => {
+    cargarDestinatarios();
   }, [selectedDestinatarios]);
 
   // Funciones para drag and drop
@@ -365,6 +447,42 @@ export default function EmailMasivoPage() {
       console.error('Mensaje de error:', error instanceof Error ? error.message : 'Error desconocido');
       console.error('Stack trace:', error instanceof Error ? error.stack : 'No disponible');
       toast.error(`Error al guardar la plantilla: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+    }
+  };
+
+  // Función para eliminar campaña regular
+  const handleDeleteCampaign = async (campaignId: number) => {
+    try {
+      const { error } = await supabase
+        .from('email_campaigns')
+        .delete()
+        .eq('id', campaignId);
+
+      if (error) throw error;
+      
+      toast.success('Campaña eliminada correctamente');
+      await cargarCampaigns();
+    } catch (error) {
+      console.error('Error deleting campaign:', error);
+      toast.error('Error al eliminar la campaña');
+    }
+  };
+
+  // Función para eliminar campaña de Gmail
+  const handleDeleteGmailCampaign = async (campaignId: number) => {
+    try {
+      const { error } = await supabase
+        .from('gmail_campaigns')
+        .delete()
+        .eq('id', campaignId);
+
+      if (error) throw error;
+      
+      toast.success('Campaña de Gmail eliminada correctamente');
+      await cargarGmailCampaigns();
+    } catch (error) {
+      console.error('Error deleting Gmail campaign:', error);
+      toast.error('Error al eliminar la campaña de Gmail');
     }
   };
 
@@ -547,6 +665,127 @@ export default function EmailMasivoPage() {
       </body>
       </html>
     `;
+  };
+
+  // Función para enviar correos
+  const enviarCorreos = async (destinatarios: any[], asunto: string, contenido: string, campaignId: number, campaignType: 'email' | 'gmail') => {
+    try {
+      setEnviandoCorreos(true);
+      console.log('📧 Iniciando envío de correos...');
+      console.log('📊 Total de destinatarios:', destinatarios.length);
+      
+      let enviadosExitosos = 0;
+      let errores = 0;
+      
+      for (const destinatario of destinatarios) {
+        try {
+          // Procesar variables en el contenido
+          const contenidoPersonalizado = procesarVariables(contenido, {
+            nombre: destinatario.nombre,
+            email: destinatario.email,
+            empresa: destinatario.empresa || 'N/A',
+            fecha: new Date().toLocaleDateString('es-ES'),
+            contraseña: '******' // Placeholder
+          });
+          
+          const asuntoPersonalizado = procesarVariables(asunto, {
+            nombre: destinatario.nombre,
+            email: destinatario.email,
+            empresa: destinatario.empresa || 'N/A',
+            fecha: new Date().toLocaleDateString('es-ES'),
+            contraseña: '******'
+          });
+          
+          console.log(`📤 Enviando correo a: ${destinatario.email}`);
+          
+          // Envío real usando el servicio de email existente
+          const emailData = {
+            to: destinatario.email,
+            subject: asuntoPersonalizado,
+            html: contenidoPersonalizado,
+            from: 'noreply@rhcompensamos.com'
+          };
+          
+          // Usar el servicio de email que ya funciona
+          const result = await emailService.sendEmail(emailData);
+          
+          if (!result.success) {
+            throw new Error(result.message || 'Error desconocido en el envío');
+          }
+          
+          // Registrar el envío en la base de datos
+          const { error: logError } = await supabase
+            .from('email_logs')
+            .insert({
+              campaign_id: campaignId,
+              campaign_type: campaignType,
+              destinatario_id: destinatario.id,
+              destinatario_email: destinatario.email,
+              destinatario_nombre: destinatario.nombre,
+              asunto: asuntoPersonalizado,
+              contenido: contenidoPersonalizado,
+              estado: 'enviado',
+              enviado_at: new Date().toISOString()
+            });
+          
+          if (logError) {
+            console.error('❌ Error registrando envío:', logError);
+          }
+          
+          enviadosExitosos++;
+          console.log(`✅ Correo enviado exitosamente a: ${destinatario.email}`);
+          
+        } catch (error) {
+          console.error(`❌ Error enviando correo a ${destinatario.email}:`, error);
+          errores++;
+          
+          // Registrar el error
+          await supabase
+            .from('email_logs')
+            .insert({
+              campaign_id: campaignId,
+              campaign_type: campaignType,
+              destinatario_id: destinatario.id,
+              destinatario_email: destinatario.email,
+              destinatario_nombre: destinatario.nombre,
+              asunto: asunto,
+              contenido: contenido,
+              estado: 'error',
+              error_message: error instanceof Error ? error.message : 'Error desconocido',
+              enviado_at: new Date().toISOString()
+            });
+        }
+      }
+      
+      // Actualizar el contador de enviados en la campaña
+      const { error: updateError } = await supabase
+        .from(campaignType === 'gmail' ? 'gmail_campaigns' : 'email_campaigns')
+        .update({ 
+          enviados_count: enviadosExitosos,
+          estado: 'enviada'
+        })
+        .eq('id', campaignId);
+      
+      if (updateError) {
+        console.error('❌ Error actualizando campaña:', updateError);
+      }
+      
+      console.log(`📊 Resumen de envío:`);
+      console.log(`✅ Enviados exitosamente: ${enviadosExitosos}`);
+      console.log(`❌ Errores: ${errores}`);
+      
+      toast.success(`Campaña enviada: ${enviadosExitosos} correos enviados exitosamente`);
+      
+      if (errores > 0) {
+        toast.error(`${errores} correos fallaron al enviar`);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error general en envío de correos:', error);
+      toast.error('Error al enviar los correos');
+    } finally {
+      setEnviandoCorreos(false);
+    }
   };
 
   if (loading) {
@@ -737,7 +976,7 @@ export default function EmailMasivoPage() {
                      </Label>
                      <Select
                        value={selectedDestinatarios}
-                       onValueChange={setSelectedDestinatarios}
+                       onValueChange={(value) => setSelectedDestinatarios(value as 'candidatos' | 'empleadores' | 'ambos')}
                      >
                        <SelectTrigger className="w-full">
                          <SelectValue placeholder="Selecciona destinatarios" />
@@ -810,26 +1049,38 @@ export default function EmailMasivoPage() {
                          <Label className="text-sm font-medium text-gray-700">
                            Destinatarios Específicos
                          </Label>
-                         <div className="flex flex-wrap gap-2">
-                           <Button
-                             variant="outline"
-                             size="sm"
-                             onClick={handleSelectAllRecipients}
-                           >
-                             Seleccionar Todos
-                           </Button>
-                           <Button
-                             variant="outline"
-                             size="sm"
-                             onClick={handleDeselectAllRecipients}
-                           >
-                             Deseleccionar
-                           </Button>
+                         <div className="flex items-center space-x-2">
+                           {selectedRecipients.length > 0 && (
+                             <Badge variant="secondary" className="text-xs">
+                               {selectedRecipients.length} seleccionado{selectedRecipients.length !== 1 ? 's' : ''}
+                             </Badge>
+                           )}
+                           <div className="flex flex-wrap gap-2">
+                             <Button
+                               variant="outline"
+                               size="sm"
+                               onClick={handleSelectAllRecipients}
+                             >
+                               Seleccionar Todos
+                             </Button>
+                             <Button
+                               variant="outline"
+                               size="sm"
+                               onClick={handleDeselectAllRecipients}
+                             >
+                               Deseleccionar
+                             </Button>
+                           </div>
                          </div>
                        </div>
                        
                        <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-2">
-                         {getFilteredRecipients().length === 0 ? (
+                         {loadingDestinatarios ? (
+                           <div className="flex items-center justify-center py-8">
+                             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                             <span className="ml-2 text-sm text-gray-600">Cargando destinatarios...</span>
+                           </div>
+                         ) : getFilteredRecipients().length === 0 ? (
                            <p className="text-sm text-gray-500 text-center py-4">
                              No hay destinatarios disponibles para este tipo
                            </p>
@@ -1174,137 +1425,190 @@ export default function EmailMasivoPage() {
                        Verificar Tablas
                      </Button>
                      <Button 
-                       className="bg-slate-800 hover:bg-slate-900 text-white"
                        onClick={async () => {
-                          if (!selectedTemplate) {
-                            toast.error('Selecciona una plantilla primero');
-                            return;
-                          }
-                          
-                          if (!campaignData.nombre || !campaignData.asunto || !campaignData.contenido) {
-                            toast.error('Completa todos los campos');
-                            return;
-                          }
-                          
-                          try {
-                            // Convertir texto simple a HTML
-                            const contenidoHtml = textToHtml(campaignData.contenido);
-                            
-                            // Determinar si es una plantilla de Gmail
-                            const isGmailTemplate = 'tipo_destinatario' in selectedTemplate;
-                            
-                            if (isGmailTemplate) {
-                              // Crear campaña de Gmail
-                              const { data: newCampaignData, error: campaignError } = await supabase
-                                .from('gmail_campaigns')
-                                .insert({
-                                  nombre: campaignData.nombre,
-                                  template_id: selectedTemplate.id,
-                                  asunto_personalizado: campaignData.asunto,
-                                  contenido_personalizado: contenidoHtml,
-                                  tipo_destinatario: selectedDestinatarios,
-                                  estado: 'borrador',
-                                  destinatarios_count: selectionType === 'todos' ? getFilteredRecipients().length : selectedRecipients.length,
-                                  enviados_count: 0
-                                })
-                                .select()
-                                .single();
-                              
-                              if (campaignError) throw campaignError;
-                              
-                              // Guardar selección de destinatarios
-                              if (newCampaignData) {
-                                const { error: selectionError } = await supabase
-                                  .from('campaign_recipient_selection')
-                                  .insert({
-                                    campaign_id: newCampaignData.id,
-                                    campaign_type: 'gmail',
-                                    selection_type: selectionType,
-                                    destinatarios_ids: selectionType === 'especificos' ? selectedRecipients : []
-                                  });
-                                
-                                if (selectionError) throw selectionError;
-                              }
-                              
-                              toast.success('Campaña de Gmail creada exitosamente');
-                              setCampaignData({
-                                nombre: '',
-                                asunto: '',
-                                contenido: '',
-                                destinatarios: []
-                              });
-                              setSelectedTemplate(null);
-                              setSelectedRecipients([]);
-                              setSelectionType('todos');
-                              cargarGmailCampaigns();
-                            } else {
-                              // Determinar el template_id basado en el tipo de plantilla
-                              let templateId = selectedTemplate.id;
-                              if (selectedTemplate.id === 0 || selectedTemplate.id === -1) {
-                                templateId = null;
-                              }
-                              
-                              // Crear campaña regular
-                              const { data: newCampaignData2, error: campaignError } = await supabase
-                                .from('email_campaigns')
-                                .insert({
-                                  nombre: campaignData.nombre,
-                                  template_id: templateId,
-                                  asunto_personalizado: campaignData.asunto,
-                                  contenido_personalizado: contenidoHtml,
-                                  estado: 'borrador',
-                                  destinatarios_count: selectionType === 'todos' ? getFilteredRecipients().length : selectedRecipients.length,
-                                  enviados_count: 0
-                                })
-                                .select()
-                                .single();
-                              
-                              if (campaignError) throw campaignError;
-                              
-                              // Guardar selección de destinatarios
-                              if (newCampaignData2) {
-                                const { error: selectionError } = await supabase
-                                  .from('campaign_recipient_selection')
-                                  .insert({
-                                    campaign_id: newCampaignData2.id,
-                                    campaign_type: 'email',
-                                    selection_type: selectionType,
-                                    destinatarios_ids: selectionType === 'especificos' ? selectedRecipients : []
-                                  });
-                                
-                                if (selectionError) throw selectionError;
-                              }
-                              
-                              toast.success('Campaña creada exitosamente');
-                              setCampaignData({
-                                nombre: '',
-                                asunto: '',
-                                contenido: '',
-                                destinatarios: []
-                              });
-                              setSelectedTemplate(null);
-                              setSelectedRecipients([]);
-                              setSelectionType('todos');
-                              cargarCampaigns();
-                            }
-                            
-                            toast.success('Campaña creada exitosamente');
-                            setCampaignData({
-                              nombre: '',
-                              asunto: '',
-                              contenido: '',
-                              destinatarios: []
-                            });
-                            setSelectedTemplate(null);
-                            cargarCampaigns();
-                          } catch (error) {
-                            console.error('Error creando campaña:', error);
-                            toast.error('Error al crear la campaña');
-                          }
-                        }}
+                         if (!campaignData.nombre.trim()) {
+                           toast.error('Ingresa un nombre para la campaña');
+                           return;
+                         }
+                         
+                         if (!campaignData.asunto.trim()) {
+                           toast.error('Ingresa un asunto para la campaña');
+                           return;
+                         }
+                         
+                         if (!campaignData.contenido.trim()) {
+                           toast.error('Ingresa contenido para la campaña');
+                           return;
+                         }
+                         
+                         if (selectionType === 'especificos' && selectedRecipients.length === 0) {
+                           toast.error('Selecciona al menos un destinatario');
+                           return;
+                         }
+                         
+                         try {
+                           const contenidoHtml = textToHtml(campaignData.contenido);
+                           
+                           // Validar que se haya seleccionado una plantilla
+                           if (!selectedTemplate) {
+                             toast.error('Selecciona una plantilla primero');
+                             return;
+                           }
+                           
+                           // Determinar si es una plantilla de Gmail
+                           const isGmailTemplate = 'tipo_destinatario' in selectedTemplate;
+                           
+                           if (isGmailTemplate) {
+                             // Crear campaña de Gmail
+                             const { data: newCampaignData, error: campaignError } = await supabase
+                               .from('gmail_campaigns')
+                               .insert({
+                                 nombre: campaignData.nombre,
+                                 template_id: selectedTemplate.id,
+                                 asunto_personalizado: campaignData.asunto,
+                                 contenido_personalizado: contenidoHtml,
+                                 tipo_destinatario: selectedDestinatarios,
+                                 estado: 'borrador',
+                                 destinatarios_count: selectionType === 'todos' ? getFilteredRecipients().length : selectedRecipients.length,
+                                 enviados_count: 0
+                               })
+                               .select()
+                               .single();
+                             
+                             if (campaignError) throw campaignError;
+                             
+                             // Guardar selección de destinatarios
+                             if (newCampaignData) {
+                               const { error: selectionError } = await supabase
+                                 .from('campaign_recipient_selection')
+                                 .insert({
+                                   campaign_id: newCampaignData.id,
+                                   campaign_type: 'gmail',
+                                   selection_type: selectionType,
+                                   destinatarios_ids: selectionType === 'especificos' ? selectedRecipients : []
+                                 });
+                               
+                               if (selectionError) throw selectionError;
+                             }
+                             
+                             // Enviar correos automáticamente
+                             const destinatariosAEnviar = selectionType === 'todos' 
+                               ? getFilteredRecipients() 
+                               : recipients.filter(r => selectedRecipients.includes(r.id));
+                             
+                             console.log('🚀 Iniciando envío automático de correos...');
+                             await enviarCorreos(
+                               destinatariosAEnviar,
+                               campaignData.asunto,
+                               contenidoHtml,
+                               newCampaignData.id,
+                               'gmail'
+                             );
+                             
+                             toast.success('Campaña de Gmail creada y enviada exitosamente');
+                             setCampaignData({
+                               nombre: '',
+                               asunto: '',
+                               contenido: '',
+                               destinatarios: []
+                             });
+                             setSelectedTemplate(null);
+                             setSelectedRecipients([]);
+                             setSelectionType('todos');
+                             cargarGmailCampaigns();
+                           } else {
+                             // Determinar el template_id basado en el tipo de plantilla
+                             let templateId: number | null = selectedTemplate?.id || null;
+                             if (selectedTemplate?.id === 0 || selectedTemplate?.id === -1) {
+                               templateId = null;
+                             }
+                             
+                             // Crear campaña regular
+                             const { data: newCampaignData2, error: campaignError } = await supabase
+                               .from('email_campaigns')
+                               .insert({
+                                 nombre: campaignData.nombre,
+                                 template_id: templateId,
+                                 asunto_personalizado: campaignData.asunto,
+                                 contenido_personalizado: contenidoHtml,
+                                 estado: 'borrador',
+                                 destinatarios_count: selectionType === 'todos' ? getFilteredRecipients().length : selectedRecipients.length,
+                                 enviados_count: 0
+                               })
+                               .select()
+                               .single();
+                             
+                             if (campaignError) throw campaignError;
+                             
+                             // Guardar selección de destinatarios
+                             if (newCampaignData2) {
+                               const { error: selectionError } = await supabase
+                                 .from('campaign_recipient_selection')
+                                 .insert({
+                                   campaign_id: newCampaignData2.id,
+                                   campaign_type: 'email',
+                                   selection_type: selectionType,
+                                   destinatarios_ids: selectionType === 'especificos' ? selectedRecipients : []
+                                 });
+                               
+                               if (selectionError) throw selectionError;
+                             }
+                             
+                             // Enviar correos automáticamente
+                             const destinatariosAEnviar = selectionType === 'todos' 
+                               ? getFilteredRecipients() 
+                               : recipients.filter(r => selectedRecipients.includes(r.id));
+                             
+                             console.log('🚀 Iniciando envío automático de correos...');
+                             await enviarCorreos(
+                               destinatariosAEnviar,
+                               campaignData.asunto,
+                               contenidoHtml,
+                               newCampaignData2.id,
+                               'email'
+                             );
+                             
+                             toast.success('Campaña creada y enviada exitosamente');
+                             setCampaignData({
+                               nombre: '',
+                               asunto: '',
+                               contenido: '',
+                               destinatarios: []
+                             });
+                             setSelectedTemplate(null);
+                             setSelectedRecipients([]);
+                             setSelectionType('todos');
+                             cargarCampaigns();
+                           }
+                           
+                           toast.success('Campaña creada exitosamente');
+                           setCampaignData({
+                             nombre: '',
+                             asunto: '',
+                             contenido: '',
+                             destinatarios: []
+                           });
+                           setSelectedTemplate(null);
+                           cargarCampaigns();
+                         } catch (error) {
+                           console.error('Error creando campaña:', error);
+                           toast.error('Error al crear la campaña');
+                         }
+                       }}
+                       disabled={enviandoCorreos}
+                       className="w-full"
                      >
-                       <Send className="h-4 w-4 mr-2" />
-                       Crear Campaña
+                       {enviandoCorreos ? (
+                         <>
+                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                           Enviando Correos...
+                         </>
+                       ) : (
+                         <>
+                           <Send className="h-4 w-4 mr-2" />
+                           Crear Campaña
+                         </>
+                       )}
                      </Button>
                   </div>
                 </div>
@@ -1366,7 +1670,11 @@ export default function EmailMasivoPage() {
                            <Button variant="ghost" size="sm">
                              <Edit3 className="h-4 w-4" />
                            </Button>
-                           <Button variant="ghost" size="sm">
+                           <Button 
+                             variant="ghost" 
+                             size="sm"
+                             onClick={() => handleDeleteGmailCampaign(campaign.id)}
+                           >
                              <Trash2 className="h-4 w-4" />
                            </Button>
                          </div>
@@ -1410,7 +1718,11 @@ export default function EmailMasivoPage() {
                            <Button variant="ghost" size="sm">
                              <Edit3 className="h-4 w-4" />
                            </Button>
-                           <Button variant="ghost" size="sm">
+                           <Button 
+                             variant="ghost" 
+                             size="sm"
+                             onClick={() => handleDeleteCampaign(campaign.id)}
+                           >
                              <Trash2 className="h-4 w-4" />
                            </Button>
                          </div>

@@ -89,3 +89,40 @@ INSERT INTO email_recipients (email, nombre, empresa, tipo) VALUES
 ('empleador1@ejemplo.com', 'Carlos López', 'Empresa C', 'empleador'),
 ('empleador2@ejemplo.com', 'Ana Martínez', 'Empresa D', 'empleador')
 ON CONFLICT (email) DO NOTHING; 
+
+-- Tabla para registrar logs de envío de correos
+CREATE TABLE IF NOT EXISTS email_logs (
+  id SERIAL PRIMARY KEY,
+  campaign_id INTEGER NOT NULL,
+  campaign_type VARCHAR(10) NOT NULL CHECK (campaign_type IN ('email', 'gmail')),
+  destinatario_id INTEGER,
+  destinatario_email VARCHAR(255) NOT NULL,
+  destinatario_nombre VARCHAR(255) NOT NULL,
+  asunto TEXT NOT NULL,
+  contenido TEXT NOT NULL,
+  estado VARCHAR(20) NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente', 'enviado', 'error', 'cancelado')),
+  error_message TEXT,
+  enviado_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Índices para mejorar el rendimiento
+CREATE INDEX IF NOT EXISTS idx_email_logs_campaign_id ON email_logs(campaign_id);
+CREATE INDEX IF NOT EXISTS idx_email_logs_campaign_type ON email_logs(campaign_type);
+CREATE INDEX IF NOT EXISTS idx_email_logs_estado ON email_logs(estado);
+CREATE INDEX IF NOT EXISTS idx_email_logs_enviado_at ON email_logs(enviado_at);
+
+-- Trigger para actualizar updated_at
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_email_logs_updated_at 
+    BEFORE UPDATE ON email_logs 
+    FOR EACH ROW 
+    EXECUTE FUNCTION update_updated_at_column(); 

@@ -33,6 +33,8 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { empresasService } from '@/services/empresasService';
+import { supabase } from '@/services/supabaseClient';
 
 interface Candidato {
   id: number;
@@ -229,7 +231,12 @@ const CandidatosPage = () => {
     refetch();
   }, []);
 
-  const { data: empresasReales = [] } = useCompanies('empresa');
+  const { data: empresasReales = [], isLoading: isLoadingEmpresas, error: errorEmpresas } = useCompanies('empresa');
+
+  // Debug: Verificar si las empresas se están cargando
+  console.log('Empresas cargadas:', empresasReales);
+  console.log('Estado de carga de empresas:', isLoadingEmpresas);
+  console.log('Error de empresas:', errorEmpresas);
 
   // Lookup helpers para empresa y ciudad
   const getEmpresaNombre = (empresa_id: number) => {
@@ -435,6 +442,18 @@ const CandidatosPage = () => {
                   </>
                 )}
               </Button>
+              {/* Botón para agregar candidatos */}
+              <Button 
+                onClick={() => {
+                  resetForm();
+                  setEditingId(null);
+                  setDialogOpen(true);
+                }}
+                className="bg-green-600 hover:bg-green-700 whitespace-nowrap"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Agregar Candidato
+              </Button>
             </div>
           </div>
           
@@ -534,18 +553,152 @@ const CandidatosPage = () => {
                   <Select
                     value={formData.empresa_id?.toString() || ''}
                     onValueChange={(value) => setFormData({ ...formData, empresa_id: parseInt(value) })}
+                    disabled={isLoadingEmpresas}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar empresa" />
+                      <SelectValue placeholder={isLoadingEmpresas ? "Cargando empresas..." : "Seleccionar empresa"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {empresasReales.map((empresa) => (
-                        <SelectItem key={empresa.id} value={empresa.id.toString()}>
-                          {empresa.razonSocial}
+                      {isLoadingEmpresas ? (
+                        <SelectItem value="loading" disabled>
+                          Cargando empresas...
                         </SelectItem>
-                      ))}
+                      ) : errorEmpresas ? (
+                        <SelectItem value="error" disabled>
+                          Error al cargar empresas
+                        </SelectItem>
+                      ) : empresasReales.length === 0 ? (
+                        <SelectItem value="no-empresas" disabled>
+                          No hay empresas disponibles
+                        </SelectItem>
+                      ) : (
+                        empresasReales.map((empresa) => (
+                          <SelectItem key={empresa.id} value={empresa.id.toString()}>
+                            {empresa.razonSocial}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
+                  {errorEmpresas && (
+                    <p className="text-sm text-red-500 mt-1">
+                      Error al cargar empresas: {errorEmpresas}
+                    </p>
+                  )}
+                  {empresasReales.length === 0 && !isLoadingEmpresas && !errorEmpresas && (
+                    <div className="mt-2">
+                      <p className="text-sm text-red-500 mb-2">
+                        No se pudieron cargar las empresas. Verifica la conexión.
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={async () => {
+                            try {
+                              // Crear una empresa de prueba con la estructura correcta
+                              const empresaPrueba = {
+                                nombre: 'Empresa de Prueba',
+                                razonSocial: 'Empresa de Prueba S.A.S.',
+                                nit: '900123456-7',
+                                direccion: 'Calle 123 #45-67',
+                                telefono: '3001234567',
+                                email: 'contacto@empresaprueba.com',
+                                representanteLegal: 'Juan Pérez',
+                                cargoRepresentante: 'Gerente General',
+                                estado: 'activo'
+                              };
+                              
+                              const nuevaEmpresa = await empresasService.create(empresaPrueba);
+                              if (nuevaEmpresa) {
+                                toast({
+                                  title: "Éxito",
+                                  description: "Empresa de prueba creada correctamente",
+                                });
+                                // Recargar las empresas
+                                window.location.reload();
+                              } else {
+                                toast({
+                                  title: "Error",
+                                  description: "No se pudo crear la empresa de prueba",
+                                  variant: "destructive",
+                                });
+                              }
+                            } catch (error) {
+                              console.error('Error completo:', error);
+                              toast({
+                                title: "Error",
+                                description: "No se pudo crear la empresa de prueba",
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                        >
+                          Crear Empresa de Prueba
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={async () => {
+                            try {
+                              // Verificar directamente las empresas en la BD
+                              console.log('🔍 Verificando conexión con Supabase...');
+                              
+                              // Primero verificar la estructura de la tabla
+                              const { data: structureData, error: structureError } = await supabase
+                                .from('empresas')
+                                .select('*')
+                                .limit(1);
+                              
+                              if (structureError) {
+                                console.error('❌ Error al verificar estructura:', structureError);
+                                toast({
+                                  title: "Error",
+                                  description: `Error de estructura: ${structureError.message}`,
+                                  variant: "destructive",
+                                });
+                                return;
+                              }
+                              
+                              if (structureData && structureData.length > 0) {
+                                console.log('📋 Estructura de la primera empresa:', structureData[0]);
+                                console.log('🔑 Columnas disponibles:', Object.keys(structureData[0]));
+                              }
+                              
+                              const { data, error } = await supabase
+                                .from('empresas')
+                                .select('*');
+                              
+                              if (error) {
+                                console.error('❌ Error al consultar empresas:', error);
+                                toast({
+                                  title: "Error",
+                                  description: `Error al consultar: ${error.message}`,
+                                  variant: "destructive",
+                                });
+                              } else {
+                                console.log('✅ Empresas en BD:', data);
+                                console.log('📊 Total de empresas:', data?.length || 0);
+                                
+                                if (data && data.length > 0) {
+                                  console.log('📋 Primera empresa:', data[0]);
+                                }
+                                
+                                toast({
+                                  title: "Info",
+                                  description: `Encontradas ${data?.length || 0} empresas en la BD`,
+                                });
+                              }
+                            } catch (error) {
+                              console.error('❌ Error al verificar empresas:', error);
+                            }
+                          }}
+                        >
+                          Verificar BD
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 
                 <div>
@@ -558,11 +711,17 @@ const CandidatosPage = () => {
                       <SelectValue placeholder="Seleccionar departamento" />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.entries(cityData).map(([depId, dep]: [string, any]) => (
-                        <SelectItem key={depId} value={depId}>
-                          {dep.nombre}
+                      {Object.keys(cityData).length === 0 ? (
+                        <SelectItem value="no-departamentos" disabled>
+                          No hay departamentos disponibles
                         </SelectItem>
-                      ))}
+                      ) : (
+                        Object.entries(cityData).map(([depId, dep]: [string, any]) => (
+                          <SelectItem key={depId} value={depId}>
+                            {dep.nombre}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -578,11 +737,21 @@ const CandidatosPage = () => {
                       <SelectValue placeholder="Seleccionar ciudad" />
                     </SelectTrigger>
                     <SelectContent>
-                      {selectedDepartamento && (cityData as Record<string, any>)[selectedDepartamento]?.ciudades?.map((ciudad: any) => (
-                        <SelectItem key={ciudad.id} value={ciudad.id.toString()}>
-                          {ciudad.nombre}
+                      {!selectedDepartamento ? (
+                        <SelectItem value="seleccione-departamento" disabled>
+                          Seleccione un departamento primero
                         </SelectItem>
-                      ))}
+                      ) : !(cityData as Record<string, any>)[selectedDepartamento]?.ciudades?.length ? (
+                        <SelectItem value="no-ciudades" disabled>
+                          No hay ciudades disponibles para este departamento
+                        </SelectItem>
+                      ) : (
+                        (cityData as Record<string, any>)[selectedDepartamento]?.ciudades?.map((ciudad: any) => (
+                          <SelectItem key={ciudad.id} value={ciudad.id.toString()}>
+                            {ciudad.nombre}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
