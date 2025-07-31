@@ -6,35 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Globe, MapPin, Building2, Loader2 } from "lucide-react";
-
-interface Pais {
-  id: number;
-  nombre: string;
-  codigo_iso?: string;
-  created_at?: string;
-  updated_at?: string;
-}
-
-interface Departamento {
-  id: number;
-  nombre: string;
-  codigo_dane?: string;
-  pais_id: number;
-  created_at?: string;
-  updated_at?: string;
-  paises?: Pais;
-}
-
-interface Ciudad {
-  id: number;
-  nombre: string;
-  codigo_dane?: string;
-  departamento_id: number;
-  created_at?: string;
-  updated_at?: string;
-  departamentos?: Departamento;
-}
+import { Plus, Globe, MapPin, Building2, Loader2, Edit, Trash2 } from "lucide-react";
+import { ubicacionesService, Pais, Departamento, Ciudad } from "@/services/ubicacionesService";
+import { setupUbicaciones } from "@/services/setupUbicaciones";
 
 export default function UbicacionesPage() {
   const { toast } = useToast();
@@ -56,32 +30,35 @@ export default function UbicacionesPage() {
   const [codigoDaneCiudad, setCodigoDaneCiudad] = useState('');
   const [ciudadPaisSeleccionado, setCiudadPaisSeleccionado] = useState<string>('');
 
+  // Estados para edición
+  const [editandoPais, setEditandoPais] = useState<number | null>(null);
+  const [editandoDepartamento, setEditandoDepartamento] = useState<number | null>(null);
+  const [editandoCiudad, setEditandoCiudad] = useState<number | null>(null);
+
   // Cargar datos al montar el componente
   useEffect(() => {
     const cargarDatos = async () => {
       try {
         setLoading(true);
         
-        // Cargar países
-        const responsePaises = await fetch('/api/paises');
-        if (responsePaises.ok) {
-          const paisesData = await responsePaises.json();
-          setPaises(paisesData);
+        // Configurar tablas si no existen
+        console.log('🔧 Configurando tablas de ubicaciones...');
+        const setupResult = await setupUbicaciones();
+        if (!setupResult.success) {
+          console.warn('⚠️ Advertencia: No se pudo configurar las tablas completamente');
         }
+        
+        // Cargar países
+        const paisesData = await ubicacionesService.getPaises();
+        setPaises(paisesData);
 
         // Cargar departamentos
-        const responseDepartamentos = await fetch('/api/departamentos');
-        if (responseDepartamentos.ok) {
-          const departamentosData = await responseDepartamentos.json();
-          setDepartamentos(departamentosData);
-        }
+        const departamentosData = await ubicacionesService.getDepartamentos();
+        setDepartamentos(departamentosData);
 
         // Cargar ciudades
-        const responseCiudades = await fetch('/api/ciudades');
-        if (responseCiudades.ok) {
-          const ciudadesData = await responseCiudades.json();
-          setCiudades(ciudadesData);
-        }
+        const ciudadesData = await ubicacionesService.getCiudades();
+        setCiudades(ciudadesData);
       } catch (error) {
         console.error('Error cargando datos:', error);
         toast({
@@ -114,19 +91,12 @@ export default function UbicacionesPage() {
     }
 
     try {
-      const response = await fetch('/api/paises', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          nombre: nuevoPais.trim(),
-          codigo_iso: codigoIsoPais.trim() || null
-        }),
+      const nuevoPaisData = await ubicacionesService.createPais({
+        nombre: nuevoPais.trim(),
+        codigo_iso: codigoIsoPais.trim() || null
       });
-
-      if (response.ok) {
-        const nuevoPaisData = await response.json();
+      
+      if (nuevoPaisData) {
         setPaises(prev => [...prev, nuevoPaisData]);
         setNuevoPais('');
         setCodigoIsoPais('');
@@ -134,13 +104,59 @@ export default function UbicacionesPage() {
           title: "Éxito",
           description: "País agregado correctamente",
         });
-      } else {
-        throw new Error('Error al agregar país');
       }
     } catch (error) {
+      console.error('Error al agregar país:', error);
       toast({
         title: "Error",
         description: "No se pudo agregar el país",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Función para editar país
+  const editarPais = async (id: number, nombre: string, codigoIso?: string) => {
+    try {
+      const paisActualizado = await ubicacionesService.updatePais(id, {
+        nombre: nombre.trim(),
+        codigo_iso: codigoIso?.trim() || null
+      });
+      
+      if (paisActualizado) {
+        setPaises(prev => prev.map(p => p.id === id ? paisActualizado : p));
+        setEditandoPais(null);
+        toast({
+          title: "Éxito",
+          description: "País actualizado correctamente",
+        });
+      }
+    } catch (error) {
+      console.error('Error al editar país:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo editar el país",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Función para eliminar país
+  const eliminarPais = async (id: number) => {
+    if (!confirm('¿Está seguro de que desea eliminar este país?')) return;
+    
+    try {
+      await ubicacionesService.deletePais(id);
+      setPaises(prev => prev.filter(p => p.id !== id));
+      toast({
+        title: "Éxito",
+        description: "País eliminado correctamente",
+      });
+    } catch (error) {
+      console.error('Error al eliminar país:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar el país",
         variant: "destructive",
       });
     }
@@ -158,20 +174,13 @@ export default function UbicacionesPage() {
     }
 
     try {
-      const response = await fetch('/api/departamentos', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          nombre: nuevoDepartamento.trim(),
-          pais_id: parseInt(paisSeleccionado),
-          codigo_dane: codigoDaneDepartamento.trim() || null
-        }),
+      const nuevoDepartamentoData = await ubicacionesService.createDepartamento({
+        nombre: nuevoDepartamento.trim(),
+        pais_id: parseInt(paisSeleccionado),
+        codigo_dane: codigoDaneDepartamento.trim() || null
       });
-
-      if (response.ok) {
-        const nuevoDepartamentoData = await response.json();
+      
+      if (nuevoDepartamentoData) {
         setDepartamentos(prev => [...prev, nuevoDepartamentoData]);
         setNuevoDepartamento('');
         setCodigoDaneDepartamento('');
@@ -180,13 +189,59 @@ export default function UbicacionesPage() {
           title: "Éxito",
           description: "Departamento agregado correctamente",
         });
-      } else {
-        throw new Error('Error al agregar departamento');
       }
     } catch (error) {
+      console.error('Error al agregar departamento:', error);
       toast({
         title: "Error",
         description: "No se pudo agregar el departamento",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Función para editar departamento
+  const editarDepartamento = async (id: number, nombre: string, codigoDane?: string) => {
+    try {
+      const departamentoActualizado = await ubicacionesService.updateDepartamento(id, {
+        nombre: nombre.trim(),
+        codigo_dane: codigoDane?.trim() || null
+      });
+      
+      if (departamentoActualizado) {
+        setDepartamentos(prev => prev.map(d => d.id === id ? departamentoActualizado : d));
+        setEditandoDepartamento(null);
+        toast({
+          title: "Éxito",
+          description: "Departamento actualizado correctamente",
+        });
+      }
+    } catch (error) {
+      console.error('Error al editar departamento:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo editar el departamento",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Función para eliminar departamento
+  const eliminarDepartamento = async (id: number) => {
+    if (!confirm('¿Está seguro de que desea eliminar este departamento?')) return;
+    
+    try {
+      await ubicacionesService.deleteDepartamento(id);
+      setDepartamentos(prev => prev.filter(d => d.id !== id));
+      toast({
+        title: "Éxito",
+        description: "Departamento eliminado correctamente",
+      });
+    } catch (error) {
+      console.error('Error al eliminar departamento:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar el departamento",
         variant: "destructive",
       });
     }
@@ -204,20 +259,13 @@ export default function UbicacionesPage() {
     }
 
     try {
-      const response = await fetch('/api/ciudades', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          nombre: nuevoCiudad.trim(),
-          departamento_id: parseInt(departamentoSeleccionado),
-          codigo_dane: codigoDaneCiudad.trim() || null
-        }),
+      const nuevaCiudadData = await ubicacionesService.createCiudad({
+        nombre: nuevoCiudad.trim(),
+        departamento_id: parseInt(departamentoSeleccionado),
+        codigo_dane: codigoDaneCiudad.trim() || null
       });
-
-      if (response.ok) {
-        const nuevaCiudadData = await response.json();
+      
+      if (nuevaCiudadData) {
         setCiudades(prev => [...prev, nuevaCiudadData]);
         setNuevoCiudad('');
         setCodigoDaneCiudad('');
@@ -227,10 +275,9 @@ export default function UbicacionesPage() {
           title: "Éxito",
           description: "Ciudad agregada correctamente",
         });
-      } else {
-        throw new Error('Error al agregar ciudad');
       }
     } catch (error) {
+      console.error('Error al agregar ciudad:', error);
       toast({
         title: "Error",
         description: "No se pudo agregar la ciudad",
@@ -239,37 +286,52 @@ export default function UbicacionesPage() {
     }
   };
 
-  // Cargar datos al montar el componente
-  React.useEffect(() => {
-    const cargarDatos = async () => {
-      try {
-        // Cargar países
-        const paisesResponse = await fetch('/api/paises');
-        if (paisesResponse.ok) {
-          const paisesData = await paisesResponse.json();
-          setPaises(paisesData);
-        }
-
-        // Cargar departamentos
-        const departamentosResponse = await fetch('/api/departamentos');
-        if (departamentosResponse.ok) {
-          const departamentosData = await departamentosResponse.json();
-          setDepartamentos(departamentosData);
-        }
-
-        // Cargar ciudades
-        const ciudadesResponse = await fetch('/api/ciudades');
-        if (ciudadesResponse.ok) {
-          const ciudadesData = await ciudadesResponse.json();
-          setCiudades(ciudadesData);
-        }
-      } catch (error) {
-        console.error('Error cargando datos:', error);
+  // Función para editar ciudad
+  const editarCiudad = async (id: number, nombre: string, codigoDane?: string) => {
+    try {
+      const ciudadActualizada = await ubicacionesService.updateCiudad(id, {
+        nombre: nombre.trim(),
+        codigo_dane: codigoDane?.trim() || null
+      });
+      
+      if (ciudadActualizada) {
+        setCiudades(prev => prev.map(c => c.id === id ? ciudadActualizada : c));
+        setEditandoCiudad(null);
+        toast({
+          title: "Éxito",
+          description: "Ciudad actualizada correctamente",
+        });
       }
-    };
+    } catch (error) {
+      console.error('Error al editar ciudad:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo editar la ciudad",
+        variant: "destructive",
+      });
+    }
+  };
 
-    cargarDatos();
-  }, []);
+  // Función para eliminar ciudad
+  const eliminarCiudad = async (id: number) => {
+    if (!confirm('¿Está seguro de que desea eliminar esta ciudad?')) return;
+    
+    try {
+      await ubicacionesService.deleteCiudad(id);
+      setCiudades(prev => prev.filter(c => c.id !== id));
+      toast({
+        title: "Éxito",
+        description: "Ciudad eliminada correctamente",
+      });
+    } catch (error) {
+      console.error('Error al eliminar ciudad:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar la ciudad",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -365,15 +427,76 @@ export default function UbicacionesPage() {
               <div className="space-y-2">
                 {paises.map((pais) => (
                   <div key={pais.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <span className="font-medium">{pais.nombre}</span>
-                      {pais.codigo_iso && (
-                        <span className="text-sm text-muted-foreground ml-2">
-                          ({pais.codigo_iso})
-                        </span>
+                    <div className="flex-1">
+                      {editandoPais === pais.id ? (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={pais.nombre}
+                            onChange={(e) => {
+                              const nuevosPaises = paises.map(p => 
+                                p.id === pais.id ? { ...p, nombre: e.target.value } : p
+                              );
+                              setPaises(nuevosPaises);
+                            }}
+                            className="w-32"
+                          />
+                          <Input
+                            value={pais.codigo_iso || ''}
+                            onChange={(e) => {
+                              const nuevosPaises = paises.map(p => 
+                                p.id === pais.id ? { ...p, codigo_iso: e.target.value } : p
+                              );
+                              setPaises(nuevosPaises);
+                            }}
+                            placeholder="ISO"
+                            className="w-20"
+                          />
+                          <Button
+                            size="sm"
+                            onClick={() => editarPais(pais.id, pais.nombre, pais.codigo_iso)}
+                          >
+                            Guardar
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setEditandoPais(null)}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      ) : (
+                        <div>
+                          <span className="font-medium">{pais.nombre}</span>
+                          {pais.codigo_iso && (
+                            <span className="text-sm text-muted-foreground ml-2">
+                              ({pais.codigo_iso})
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
-                    <span className="text-sm text-muted-foreground">ID: {pais.id}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">ID: {pais.id}</span>
+                      {editandoPais !== pais.id && (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setEditandoPais(pais.id)}
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => eliminarPais(pais.id)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 ))}
                 {paises.length === 0 && (
@@ -464,18 +587,79 @@ export default function UbicacionesPage() {
                   const pais = paises.find(p => p.id === departamento.pais_id);
                   return (
                     <div key={departamento.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div>
-                        <span className="font-medium">{departamento.nombre}</span>
-                        {departamento.codigo_dane && (
-                          <span className="text-sm text-muted-foreground ml-2">
-                            DANE: {departamento.codigo_dane}
-                          </span>
+                      <div className="flex-1">
+                        {editandoDepartamento === departamento.id ? (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={departamento.nombre}
+                              onChange={(e) => {
+                                const nuevosDepartamentos = departamentos.map(d => 
+                                  d.id === departamento.id ? { ...d, nombre: e.target.value } : d
+                                );
+                                setDepartamentos(nuevosDepartamentos);
+                              }}
+                              className="w-32"
+                            />
+                            <Input
+                              value={departamento.codigo_dane || ''}
+                              onChange={(e) => {
+                                const nuevosDepartamentos = departamentos.map(d => 
+                                  d.id === departamento.id ? { ...d, codigo_dane: e.target.value } : d
+                                );
+                                setDepartamentos(nuevosDepartamentos);
+                              }}
+                              placeholder="DANE"
+                              className="w-20"
+                            />
+                            <Button
+                              size="sm"
+                              onClick={() => editarDepartamento(departamento.id, departamento.nombre, departamento.codigo_dane)}
+                            >
+                              Guardar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setEditandoDepartamento(null)}
+                            >
+                              Cancelar
+                            </Button>
+                          </div>
+                        ) : (
+                          <div>
+                            <span className="font-medium">{departamento.nombre}</span>
+                            {departamento.codigo_dane && (
+                              <span className="text-sm text-muted-foreground ml-2">
+                                DANE: {departamento.codigo_dane}
+                              </span>
+                            )}
+                            <span className="text-sm text-muted-foreground ml-2">
+                              País: {pais?.nombre || 'N/A'}
+                            </span>
+                          </div>
                         )}
-                        <span className="text-sm text-muted-foreground ml-2">
-                          País: {pais?.nombre || 'N/A'}
-                        </span>
                       </div>
-                      <span className="text-sm text-muted-foreground">ID: {departamento.id}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">ID: {departamento.id}</span>
+                        {editandoDepartamento !== departamento.id && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setEditandoDepartamento(departamento.id)}
+                            >
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => eliminarDepartamento(departamento.id)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -586,18 +770,79 @@ export default function UbicacionesPage() {
                   const departamento = departamentos.find(d => d.id === ciudad.departamento_id);
                   return (
                     <div key={ciudad.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div>
-                        <span className="font-medium">{ciudad.nombre}</span>
-                        {ciudad.codigo_dane && (
-                          <span className="text-sm text-muted-foreground ml-2">
-                            DANE: {ciudad.codigo_dane}
-                          </span>
+                      <div className="flex-1">
+                        {editandoCiudad === ciudad.id ? (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={ciudad.nombre}
+                              onChange={(e) => {
+                                const nuevasCiudades = ciudades.map(c => 
+                                  c.id === ciudad.id ? { ...c, nombre: e.target.value } : c
+                                );
+                                setCiudades(nuevasCiudades);
+                              }}
+                              className="w-32"
+                            />
+                            <Input
+                              value={ciudad.codigo_dane || ''}
+                              onChange={(e) => {
+                                const nuevasCiudades = ciudades.map(c => 
+                                  c.id === ciudad.id ? { ...c, codigo_dane: e.target.value } : c
+                                );
+                                setCiudades(nuevasCiudades);
+                              }}
+                              placeholder="DANE"
+                              className="w-20"
+                            />
+                            <Button
+                              size="sm"
+                              onClick={() => editarCiudad(ciudad.id, ciudad.nombre, ciudad.codigo_dane)}
+                            >
+                              Guardar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setEditandoCiudad(null)}
+                            >
+                              Cancelar
+                            </Button>
+                          </div>
+                        ) : (
+                          <div>
+                            <span className="font-medium">{ciudad.nombre}</span>
+                            {ciudad.codigo_dane && (
+                              <span className="text-sm text-muted-foreground ml-2">
+                                DANE: {ciudad.codigo_dane}
+                              </span>
+                            )}
+                            <span className="text-sm text-muted-foreground ml-2">
+                              {departamento?.nombre}, {departamento?.paises?.nombre}
+                            </span>
+                          </div>
                         )}
-                        <span className="text-sm text-muted-foreground ml-2">
-                          {ciudad.departamentos?.nombre}, {ciudad.departamentos?.paises?.nombre}
-                        </span>
                       </div>
-                      <span className="text-sm text-muted-foreground">ID: {ciudad.id}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">ID: {ciudad.id}</span>
+                        {editandoCiudad !== ciudad.id && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setEditandoCiudad(ciudad.id)}
+                            >
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => eliminarCiudad(ciudad.id)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   );
                 })}

@@ -95,6 +95,9 @@ import QrConfiguracionPage from './pages/empresa/QrConfiguracionPage';
 import QrEmailPage from './pages/empresa/QrEmailPage';
 import QrGenerarPage from './pages/empresa/QrGenerarPage';
 import QrWhatsAppPage from './pages/empresa/QrWhatsAppPage';
+import AcercaEmpresaPage from './pages/empresa/AcercaEmpresaPage';
+import ConfiguracionesGlobalesPage from './pages/configuraciones/ConfiguracionesGlobalesPage';
+import EmailMasivoPage from './pages/maestro/EmailMasivoPage';
 
 import NotFound from './pages/NotFound';
 
@@ -360,6 +363,23 @@ function App() {
             <Route path="/detalle-candidato-empresa/:id" element={
               <ProtectedRoute>
                 <DetalleCandidatoEmpresa />
+              </ProtectedRoute>
+            } />
+            <Route path="/empresa/acerca" element={
+              <ProtectedRoute>
+                <AcercaEmpresaPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/configuraciones/globales" element={
+              <ProtectedRoute>
+                <ConfiguracionesGlobalesPage />
+              </ProtectedRoute>
+            } />
+
+            {/* Rutas de maestro */}
+            <Route path="/maestro/correos-masivos" element={
+              <ProtectedRoute>
+                <EmailMasivoPage />
               </ProtectedRoute>
             } />
 

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { guardarEmpresaSeleccionada, obtenerEmpresaSeleccionada, limpiarEmpresaSeleccionada, debugLocalStorage } from '@/utils/empresaUtils';
+import { createPortal } from 'react-dom';
 import {
   Activity,
   Users,
@@ -20,6 +21,9 @@ import {
   ChevronDown,
   ChevronRight,
   LogOut,
+  Info,
+  Globe,
+  Mail,
 } from 'lucide-react';
 
 const menuItems = [
@@ -72,8 +76,21 @@ const menuItems = [
       { title: "Tipos", path: "/maestro/tipos-candidatos", icon: <FileText className="h-4 w-4" /> },
       { title: "Plantillas", path: "/maestro/plantillas", icon: <Layers className="h-4 w-4" /> },
       { title: "Ubicaciones", path: "/maestro/ubicaciones", icon: <MapPin className="h-4 w-4" /> },
+      { title: "Correos Masivos", path: "/maestro/correos-masivos", icon: <Mail className="h-4 w-4" /> },
     ],
   },
+  {
+    title: "Acerca de la Empresa",
+    icon: <Info className="h-5 w-5" />,
+    path: "/empresa/acerca",
+    subItems: [],
+  },
+     {
+     title: "Configuración",
+     icon: <Globe className="h-5 w-5" />,
+     path: "/configuraciones/globales",
+     subItems: [],
+   },
 ];
 
 interface DynamicSidebarProps {
@@ -356,110 +373,120 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
           </div>
           
           {/* Overlay del usuario */}
-          {showUserOverlay && (
-            <div className="absolute top-0 left-0 bg-white rounded-lg shadow-xl border border-gray-200 p-4 z-20 min-w-[400px] max-w-[500px]">
-              <div className="space-y-4">
-                {/* Header del overlay */}
-                <div className="flex items-center space-x-3 pb-3 border-b border-gray-200">
-                  <div className="user-avatar-large bg-blue-600">
-                    <User className="text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      {userData ? `${userData.primerNombre} ${userData.primerApellido}` : 'Usuario'}
-                    </h3>
-                    <p className="text-sm text-gray-500">{userData?.email}</p>
-                    <p className="text-xs text-blue-600 font-medium">{userData?.role}</p>
-                  </div>
-                  <button
-                    onClick={() => setShowUserOverlay(false)}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-                
-                {/* Información detallada */}
+          {showUserOverlay && createPortal(
+            <div className="fixed inset-0 z-[9999] flex items-start justify-start">
+              {/* Backdrop */}
+              <div 
+                className="absolute inset-0 bg-black bg-opacity-25"
+                onClick={() => setShowUserOverlay(false)}
+              ></div>
+              
+              {/* Modal */}
+              <div className="relative mt-16 ml-4 bg-white rounded-lg shadow-2xl border border-gray-200 p-4 min-w-[400px] max-w-[500px] max-h-[80vh] overflow-y-auto">
                 <div className="space-y-4">
-                  {/* Perfiles */}
-                  {userData?.roles && userData.roles.length > 0 && (
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">Perfiles asignados:</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {userData.roles.map((role: any, index: number) => (
-                          <Badge key={index} variant="outline" className="text-xs px-2 py-1">
-                            {role.nombre}
-                          </Badge>
-                        ))}
-                      </div>
+                  {/* Header del overlay */}
+                  <div className="flex items-center space-x-3 pb-3 border-b border-gray-200">
+                    <div className="user-avatar-large bg-blue-600">
+                      <User className="text-white" />
                     </div>
-                  )}
-                  
-                  {/* Empresas */}
-                  {userData?.empresas && userData.empresas.length > 0 && (
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">Empresas asociadas:</h4>
-                      <div className="space-y-2">
-                        {userData.empresas.map((empresa: any, index: number) => (
-                          <div key={index} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                            <p className="text-sm font-medium text-gray-900">{empresa.razon_social}</p>
-                            <p className="text-xs text-gray-500">ID: {empresa.id}</p>
-                          </div>
-                        ))}
-                      </div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {userData ? `${userData.primerNombre} ${userData.primerApellido}` : 'Usuario'}
+                      </h3>
+                      <p className="text-sm text-gray-500">{userData?.email}</p>
+                      <p className="text-xs text-blue-600 font-medium">{userData?.role}</p>
                     </div>
-                  )}
+                    <button
+                      onClick={() => setShowUserOverlay(false)}
+                      className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-100"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
                   
-                  {/* Información adicional */}
-                  <div className="pt-3 border-t border-gray-200">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
+                  {/* Información detallada */}
+                  <div className="space-y-4">
+                    {/* Perfiles */}
+                    {userData?.roles && userData.roles.length > 0 && (
                       <div>
-                        <p className="text-gray-500">Usuario ID:</p>
-                        <p className="font-medium">{userData?.id}</p>
+                        <h4 className="text-sm font-medium text-gray-700 mb-2">Perfiles asignados:</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {userData.roles.map((role: any, index: number) => (
+                            <Badge key={index} variant="outline" className="text-xs px-2 py-1">
+                              {role.nombre}
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
+                    )}
+                    
+                    {/* Empresas */}
+                    {userData?.empresas && userData.empresas.length > 0 && (
                       <div>
-                        <p className="text-gray-500">Estado:</p>
-                        <p className="font-medium">{userData?.activo ? 'Activo' : 'Inactivo'}</p>
+                        <h4 className="text-sm font-medium text-gray-700 mb-2">Empresas asociadas:</h4>
+                        <div className="space-y-2">
+                          {userData.empresas.map((empresa: any, index: number) => (
+                            <div key={index} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                              <p className="text-sm font-medium text-gray-900">{empresa.razon_social}</p>
+                              <p className="text-xs text-gray-500">ID: {empresa.id}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Información adicional */}
+                    <div className="pt-3 border-t border-gray-200">
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-gray-500">Usuario ID:</p>
+                          <p className="font-medium">{userData?.id}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Estado:</p>
+                          <p className="font-medium">{userData?.activo ? 'Activo' : 'Inactivo'}</p>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-                
-                {/* Botón de cerrar sesión */}
-                <div className="pt-3 border-t border-gray-200">
-                  <Button
-                    onClick={() => {
-                      setShowUserOverlay(false);
-                      // Limpiar todo el localStorage
-                      localStorage.removeItem('userData');
-                      localStorage.removeItem('token');
-                      localStorage.removeItem('authToken');
-                      localStorage.removeItem('empresaData');
-                      
-                      // Limpiar empresa seleccionada
-                      limpiarEmpresaSeleccionada();
-                      
-                      console.log('Sesión cerrada desde overlay - todos los datos eliminados');
-                      
-                      // Intentar usar logout del contexto si está disponible
-                      if (logout) {
-                        logout();
-                      }
-                      
-                      // Redirigir al login
-                      window.location.href = '/login';
-                    }}
-                    variant="ghost"
-                    className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 text-sm py-2"
-                  >
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Cerrar Sesión
-                  </Button>
+                  
+                  {/* Botón de cerrar sesión */}
+                  <div className="pt-3 border-t border-gray-200">
+                    <Button
+                      onClick={() => {
+                        setShowUserOverlay(false);
+                        // Limpiar todo el localStorage
+                        localStorage.removeItem('userData');
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('authToken');
+                        localStorage.removeItem('empresaData');
+                        
+                        // Limpiar empresa seleccionada
+                        limpiarEmpresaSeleccionada();
+                        
+                        console.log('Sesión cerrada desde overlay - todos los datos eliminados');
+                        
+                        // Intentar usar logout del contexto si está disponible
+                        if (logout) {
+                          logout();
+                        }
+                        
+                        // Redirigir al login
+                        window.location.href = '/login';
+                      }}
+                      variant="ghost"
+                      className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 text-sm py-2"
+                    >
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Cerrar Sesión
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
+            </div>,
+            document.body
           )}
         </div>
       </div>
