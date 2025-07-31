@@ -21,7 +21,9 @@ import {
   CheckCircle,
   AlertCircle,
   Settings,
-  Users
+  Users,
+  Briefcase,
+  Shield
 } from 'lucide-react';
 import { supabase } from '@/services/supabaseClient';
 import { toast } from 'sonner';
@@ -84,7 +86,7 @@ export default function ConfiguracionesGlobalesPage() {
       const { data, error } = await supabase
         .from('departamentos')
         .select('*')
-        .eq('pais_id', 1) // Solo departamentos de Colombia
+        .eq('pais_id', 1)
         .order('nombre');
 
       if (error) {
@@ -122,7 +124,6 @@ export default function ConfiguracionesGlobalesPage() {
       setLoading(true);
       setError(null);
 
-      // Cargar la configuración de la empresa principal (Talento Humano)
       const { data, error: dbError } = await supabase
         .from('config_empresa')
         .select('*')
@@ -143,7 +144,6 @@ export default function ConfiguracionesGlobalesPage() {
       setConfigEmpresa(data);
       setFormData(data);
       
-      // Si hay departamento guardado, cargar las ciudades correspondientes
       if (data.departamento) {
         const dept = departamentos.find(d => d.nombre === data.departamento);
         if (dept) {
@@ -213,7 +213,6 @@ export default function ConfiguracionesGlobalesPage() {
         return;
       }
 
-      // Recargar datos actualizados
       await cargarConfiguracionEmpresa();
       setEditing(false);
       toast.success('Configuraciones guardadas exitosamente');
@@ -242,14 +241,10 @@ export default function ConfiguracionesGlobalesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="relative">
-            <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600 mx-auto"></div>
-            <div className="absolute inset-0 rounded-full h-16 w-16 border-4 border-transparent border-t-purple-600 animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
-          </div>
-          <p className="mt-6 text-gray-600 font-medium">Cargando configuraciones...</p>
-          <div className="mt-2 text-sm text-gray-500">Preparando datos de Talento Humano</div>
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600 font-medium">Cargando configuraciones...</p>
         </div>
       </div>
     );
@@ -257,13 +252,13 @@ export default function ConfiguracionesGlobalesPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-pink-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md shadow-2xl border-0 bg-white/80 backdrop-blur-sm">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md shadow-lg border-0">
           <CardHeader className="text-center">
-            <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-              <AlertCircle className="h-8 w-8 text-red-600" />
+            <div className="mx-auto w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
+              <AlertCircle className="h-6 w-6 text-red-600" />
             </div>
-            <CardTitle className="text-red-600 text-xl">Error</CardTitle>
+            <CardTitle className="text-red-600">Error</CardTitle>
           </CardHeader>
           <CardContent className="text-center">
             <p className="text-gray-600">{error}</p>
@@ -282,16 +277,16 @@ export default function ConfiguracionesGlobalesPage() {
 
   if (!configEmpresa) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-white to-orange-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md shadow-2xl border-0 bg-white/80 backdrop-blur-sm">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md shadow-lg border-0">
           <CardHeader className="text-center">
-            <div className="mx-auto w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mb-4">
-              <Building2 className="h-8 w-8 text-yellow-600" />
+            <div className="mx-auto w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mb-4">
+              <Building2 className="h-6 w-6 text-yellow-600" />
             </div>
             <CardTitle>No hay configuración disponible</CardTitle>
           </CardHeader>
           <CardContent className="text-center">
-            <p className="text-gray-600">No se encontró la configuración de Talento Humano. Por favor, contacta al administrador del sistema.</p>
+            <p className="text-gray-600">No se encontró la configuración de Talento Humano.</p>
           </CardContent>
         </Card>
       </div>
@@ -299,78 +294,81 @@ export default function ConfiguracionesGlobalesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <div className="container mx-auto p-6 space-y-8">
-        {/* Banner informativo */}
-        <div className="mb-6 p-4 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl text-white shadow-lg">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-white/20 rounded-lg">
-              <Users className="h-6 w-6" />
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-full mx-auto p-8 space-y-8">
+        {/* Header Minimalista */}
+        <div className="text-center space-y-4">
+          <div className="flex items-center justify-center space-x-3 mb-6">
+            <div className="p-3 bg-blue-100 rounded-xl">
+              <Settings className="h-8 w-8 text-blue-600" />
             </div>
             <div>
-              <h3 className="font-semibold text-lg">Configuración</h3>
-              <p className="text-blue-100 text-sm">Aquí configuras los datos de tu empresa de servicios de RRHH que presta servicios a otras empresas</p>
+              <h1 className="text-3xl font-bold text-gray-900">Configuración Global</h1>
+              <p className="text-gray-600">Gestión de datos empresariales</p>
             </div>
           </div>
-        </div>
-
-        {/* Header con gradiente */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 p-8 text-white shadow-2xl">
-          <div className="absolute inset-0 bg-black/10"></div>
-          <div className="relative z-10">
-            <div className="flex items-center space-x-4 mb-6">
-              <div className="p-4 bg-white/20 rounded-2xl backdrop-blur-sm">
-                <Globe className="h-10 w-10 text-white" />
-              </div>
+          
+          {/* Información de la Empresa */}
+          <div className="bg-white rounded-2xl shadow-sm border border-black p-8">
+            <div className="flex items-center justify-between mb-6">
               <div>
-                <h1 className="text-4xl font-bold mb-2">Configuración</h1>
-                <p className="text-green-100 text-lg">Configura los datos de tu empresa de servicios de RRHH</p>
+                <h2 className="text-2xl font-semibold text-gray-900">{configEmpresa.razon_social}</h2>
+                <p className="text-gray-600">Empresa de Servicios de RRHH</p>
+              </div>
+              <div className="flex space-x-2">
+                <Badge className="bg-blue-100 text-blue-700 border-0">
+                  <Shield className="w-3 h-3 mr-1" />
+                  Activa
+                </Badge>
+                <Badge className="bg-green-100 text-green-700 border-0">
+                  <Briefcase className="w-3 h-3 mr-1" />
+                  Talento Humano
+                </Badge>
               </div>
             </div>
             
-            {/* Información principal de la empresa */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6">
-                <h2 className="text-2xl font-bold mb-4">{configEmpresa.razon_social}</h2>
-                <div className="flex flex-wrap gap-3 mb-4">
-                  <Badge className="bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0 shadow-lg">
-                    <CheckCircle className="w-3 h-3 mr-1" />
-                    Empresa de Servicios RRHH
-                  </Badge>
-                  <Badge className="bg-gradient-to-r from-orange-500 to-red-600 text-white border-0 shadow-lg">
-                    <Users className="w-3 h-3 mr-1" />
-                    Talento Humano
-                  </Badge>
-                </div>
-                <div className="flex items-center text-green-100">
-                  <FileText className="w-4 h-4 mr-2" />
-                  <span className="font-mono">#{configEmpresa.id}</span>
-                </div>
-              </div>
-              
-              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6">
-                <div className="flex items-center mb-4">
-                  <MapPin className="w-5 h-5 mr-2" />
-                  <span className="font-semibold">Ubicación</span>
-                </div>
-                <div className="text-lg font-bold">{configEmpresa.ciudad}</div>
-                <p className="text-green-100 text-sm">{configEmpresa.departamento}</p>
-              </div>
-            </div>
+                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+               <div className="flex items-center space-x-3 p-3 border border-black rounded-lg" style={{ borderWidth: '0.5px' }}>
+                 <div className="p-2 bg-gray-100 rounded-lg">
+                   <MapPin className="h-4 w-4 text-gray-600" />
+                 </div>
+                 <div>
+                   <p className="text-sm text-gray-500">Ubicación</p>
+                   <p className="font-medium text-gray-900">{configEmpresa.ciudad}, {configEmpresa.departamento}</p>
+                 </div>
+               </div>
+               
+               <div className="flex items-center space-x-3 p-3 border border-black rounded-lg" style={{ borderWidth: '0.5px' }}>
+                 <div className="p-2 bg-gray-100 rounded-lg">
+                   <Phone className="h-4 w-4 text-gray-600" />
+                 </div>
+                 <div>
+                   <p className="text-sm text-gray-500">Teléfono</p>
+                   <p className="font-medium text-gray-900">{configEmpresa.telefono}</p>
+                 </div>
+               </div>
+               
+               <div className="flex items-center space-x-3 p-3 border border-black rounded-lg" style={{ borderWidth: '0.5px' }}>
+                 <div className="p-2 bg-gray-100 rounded-lg">
+                   <Mail className="h-4 w-4 text-gray-600" />
+                 </div>
+                 <div>
+                   <p className="text-sm text-gray-500">Email</p>
+                   <p className="font-medium text-gray-900">{configEmpresa.email}</p>
+                 </div>
+               </div>
+             </div>
           </div>
         </div>
 
-        {/* Formulario de configuración */}
-        <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
-          <CardHeader className="bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-t-lg">
+        {/* Formulario de Configuración */}
+        <Card className="shadow-sm border border-black bg-white">
+          <CardHeader className="border-b border-gray-100">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="flex items-center space-x-2">
-                  <Settings className="h-6 w-6" />
-                  <span>Información de Configuración</span>
-                </CardTitle>
-                <CardDescription className="text-green-100">
-                  {editing ? 'Edita la información de tu empresa de servicios de RRHH' : 'Datos de tu empresa de servicios de RRHH'}
+                <CardTitle className="text-xl font-semibold text-gray-900">Información de Configuración</CardTitle>
+                <CardDescription className="text-gray-600">
+                  {editing ? 'Edita la información de tu empresa' : 'Datos de configuración empresarial'}
                 </CardDescription>
               </div>
               <div className="flex space-x-2">
@@ -379,10 +377,10 @@ export default function ConfiguracionesGlobalesPage() {
                     <Button
                       onClick={handleSave}
                       disabled={saving}
-                      className="bg-white text-blue-600 hover:bg-blue-50"
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
                     >
                       {saving ? (
-                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
                       ) : (
                         <Save className="h-4 w-4 mr-2" />
                       )}
@@ -391,7 +389,7 @@ export default function ConfiguracionesGlobalesPage() {
                     <Button
                       onClick={handleCancel}
                       variant="outline"
-                      className="border-white text-white hover:bg-white/20"
+                      className="border-gray-300 text-gray-700 hover:bg-gray-50"
                     >
                       <X className="h-4 w-4 mr-2" />
                       Cancelar
@@ -400,7 +398,7 @@ export default function ConfiguracionesGlobalesPage() {
                 ) : (
                   <Button
                     onClick={() => setEditing(true)}
-                    className="bg-white text-blue-600 hover:bg-blue-50"
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
                   >
                     <Edit3 className="h-4 w-4 mr-2" />
                     Editar
@@ -409,16 +407,16 @@ export default function ConfiguracionesGlobalesPage() {
               </div>
             </div>
           </CardHeader>
-          <CardContent className="p-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <CardContent className="p-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Información Básica */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                  <Building2 className="h-5 w-5 mr-2 text-blue-600" />
-                  Información Básica
-                </h3>
+              <div className="space-y-6">
+                <div className="flex items-center space-x-2 mb-6">
+                  <Building2 className="h-5 w-5 text-blue-600" />
+                  <h3 className="text-lg font-semibold text-gray-900">Información Básica</h3>
+                </div>
                 
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <div>
                     <Label htmlFor="razon_social" className="text-sm font-medium text-gray-700">
                       Razón Social
@@ -428,7 +426,7 @@ export default function ConfiguracionesGlobalesPage() {
                       value={formData.razon_social || ''}
                       onChange={(e) => handleInputChange('razon_social', e.target.value)}
                       disabled={!editing}
-                      className="mt-1"
+                      className="mt-2 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                     />
                   </div>
 
@@ -441,7 +439,7 @@ export default function ConfiguracionesGlobalesPage() {
                       value={formData.nit || ''}
                       onChange={(e) => handleInputChange('nit', e.target.value)}
                       disabled={!editing}
-                      className="mt-1"
+                      className="mt-2 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                     />
                   </div>
 
@@ -454,7 +452,7 @@ export default function ConfiguracionesGlobalesPage() {
                       value={formData.representante_legal || ''}
                       onChange={(e) => handleInputChange('representante_legal', e.target.value)}
                       disabled={!editing}
-                      className="mt-1"
+                      className="mt-2 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                     />
                   </div>
 
@@ -467,20 +465,20 @@ export default function ConfiguracionesGlobalesPage() {
                       value={formData.cargo_representante || ''}
                       onChange={(e) => handleInputChange('cargo_representante', e.target.value)}
                       disabled={!editing}
-                      className="mt-1"
+                      className="mt-2 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Información de Contacto */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                  <Phone className="h-5 w-5 mr-2 text-purple-600" />
-                  Información de Contacto
-                </h3>
+              <div className="space-y-6">
+                <div className="flex items-center space-x-2 mb-6">
+                  <Phone className="h-5 w-5 text-blue-600" />
+                  <h3 className="text-lg font-semibold text-gray-900">Información de Contacto</h3>
+                </div>
                 
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <div>
                     <Label htmlFor="telefono" className="text-sm font-medium text-gray-700">
                       Teléfono
@@ -490,7 +488,7 @@ export default function ConfiguracionesGlobalesPage() {
                       value={formData.telefono || ''}
                       onChange={(e) => handleInputChange('telefono', e.target.value)}
                       disabled={!editing}
-                      className="mt-1"
+                      className="mt-2 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                     />
                   </div>
 
@@ -504,7 +502,7 @@ export default function ConfiguracionesGlobalesPage() {
                       value={formData.email || ''}
                       onChange={(e) => handleInputChange('email', e.target.value)}
                       disabled={!editing}
-                      className="mt-1"
+                      className="mt-2 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                     />
                   </div>
 
@@ -517,12 +515,12 @@ export default function ConfiguracionesGlobalesPage() {
                       value={formData.direccion || ''}
                       onChange={(e) => handleInputChange('direccion', e.target.value)}
                       disabled={!editing}
-                      className="mt-1"
+                      className="mt-2 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                       rows={3}
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="departamento" className="text-sm font-medium text-gray-700">
                         Departamento
@@ -532,7 +530,7 @@ export default function ConfiguracionesGlobalesPage() {
                         onValueChange={handleDepartamentoChange}
                         disabled={!editing}
                       >
-                        <SelectTrigger className="mt-1">
+                        <SelectTrigger className="mt-2 border-gray-200 focus:border-blue-500 focus:ring-blue-500">
                           <SelectValue placeholder="Selecciona un departamento" />
                         </SelectTrigger>
                         <SelectContent>
@@ -554,7 +552,7 @@ export default function ConfiguracionesGlobalesPage() {
                         onValueChange={handleCiudadChange}
                         disabled={!editing || !departamentoSeleccionado}
                       >
-                        <SelectTrigger className="mt-1">
+                        <SelectTrigger className="mt-2 border-gray-200 focus:border-blue-500 focus:ring-blue-500">
                           <SelectValue placeholder={departamentoSeleccionado ? "Selecciona una ciudad" : "Primero selecciona departamento"} />
                         </SelectTrigger>
                         <SelectContent>
@@ -571,17 +569,17 @@ export default function ConfiguracionesGlobalesPage() {
               </div>
             </div>
 
-            <Separator className="my-6" />
+            <Separator className="my-8" />
 
             {/* Información del Sistema */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                <FileText className="h-5 w-5 mr-2 text-purple-600" />
-                Información del Sistema
-              </h3>
+            <div className="space-y-6">
+              <div className="flex items-center space-x-2 mb-6">
+                <FileText className="h-5 w-5 text-blue-600" />
+                <h3 className="text-lg font-semibold text-gray-900">Información del Sistema</h3>
+              </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-gray-50 rounded-xl p-6">
                   <div className="flex items-center space-x-3">
                     <div className="p-2 bg-green-100 rounded-lg">
                       <FileText className="h-4 w-4 text-green-600" />
@@ -593,7 +591,7 @@ export default function ConfiguracionesGlobalesPage() {
                   </div>
                 </div>
 
-                <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4">
+                <div className="bg-gray-50 rounded-xl p-6">
                   <div className="flex items-center space-x-3">
                     <div className="p-2 bg-blue-100 rounded-lg">
                       <FileText className="h-4 w-4 text-blue-600" />
@@ -605,7 +603,7 @@ export default function ConfiguracionesGlobalesPage() {
                   </div>
                 </div>
 
-                <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4">
+                <div className="bg-gray-50 rounded-xl p-6">
                   <div className="flex items-center space-x-3">
                     <div className="p-2 bg-purple-100 rounded-lg">
                       <FileText className="h-4 w-4 text-purple-600" />
