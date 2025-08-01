@@ -1,404 +1,129 @@
 import { supabase } from './supabaseClient';
-import { emailService } from './emailService';
 
 export interface LoginCredentials {
   username: string;
   password: string;
+  empresaId?: string;
 }
 
-export interface UserValidation {
+export interface AuthResponse {
   user: {
     id: number;
     username: string;
     email: string;
     primer_nombre: string;
     primer_apellido: string;
+    role: string;
     activo: boolean;
   };
-  empresas: Array<{
-    id: number;
-    razon_social: string;
-  }>;
-  roles: Array<{
-    id: number;
-    nombre: string;
-  }>;
+  token: string;
 }
 
-export interface AuthService {
-  // Métodos originales
-  validateUser: (identifier: string) => Promise<UserValidation | null>;
-  verifyPassword: (userId: number, password: string) => Promise<{ success: boolean; userData?: any }>;
-  getUserEmpresas: (userId: number) => Promise<any[]>;
-  
-  // Métodos de recuperación de contraseña
-  generarCodigoVerificacion: (email: string) => Promise<{ success: boolean; message: string }>;
-  verificarCodigo: (email: string, codigo: string) => Promise<{ success: boolean; message: string }>;
-  cambiarContraseña: (email: string, codigo: string, nuevaContraseña: string) => Promise<{ success: boolean; message: string }>;
-  
-  // Método para configurar email
-  configurarEmail: (gmail: string, password: string, appPassword?: string) => void;
-}
-
-// Configuración de email (puedes cambiar estos valores)
-const EMAIL_CONFIG = {
-  gmail: 'proyectosmobilsoft@gmail.com', // Cambia por tu Gmail
-  password: 'Axul2025$', // Cambia por tu contraseña
-  appPassword: 'sewi slmy fcls hvaa' // Opcional: contraseña de aplicación si tienes 2FA
-};
-
-// Configurar el servicio de email
-emailService.setConfig(EMAIL_CONFIG);
-
-export const authService: AuthService = {
-  // Métodos originales
-  validateUser: async (identifier: string): Promise<UserValidation | null> => {
+export const authService = {
+  async login(credentials: LoginCredentials): Promise<AuthResponse> {
     try {
-      // Usuario de prueba para desarrollo
-      if (identifier === 'testuser' || identifier === 'test@example.com') {
-        return {
-          user: {
-            id: 1,
-            username: 'testuser',
-            email: 'test@example.com',
-            primer_nombre: 'Usuario',
-            primer_apellido: 'Prueba',
-            activo: true,
-          },
-          empresas: [
-            { id: 1, razon_social: 'Empresa de Prueba 1' },
-            { id: 2, razon_social: 'Empresa de Prueba 2' }
-          ],
-          roles: [
-            { id: 1, nombre: 'admin' }
-          ]
-        };
-      }
+      console.log('🔐 Iniciando login con Supabase...');
       
-      const { data, error } = await supabase
-        .from('gen_usuarios')
-        .select(`
-          id,
-          username,
-          email,
-          primer_nombre,
-          primer_apellido,
-          activo,
-          gen_usuario_empresas (
-            empresas (
-              id,
-              razon_social
-            )
-          ),
-          gen_usuario_roles (
-            gen_roles (
-              id,
-              nombre
-            )
-          )
-        `)
-        .or(`email.eq.${identifier},username.eq.${identifier}`)
-        .eq('activo', true)
-        .single();
-
-      if (error || !data) {
-        return null;
-      }
-
-      // Extraer empresas y roles de la respuesta anidada
-      const empresas = data.gen_usuario_empresas?.map((ue: any) => ue.empresas) || [];
-      const roles = data.gen_usuario_roles?.map((ur: any) => ur.gen_roles) || [];
-
-      return {
-        user: {
-          id: data.id,
-          username: data.username,
-          email: data.email,
-          primer_nombre: data.primer_nombre,
-          primer_apellido: data.primer_apellido,
-          activo: data.activo,
-        },
-        empresas,
-        roles
-      };
-    } catch (error) {
-      return null;
-    }
-  },
-
-  async verifyPassword(userId: number, password: string): Promise<{ success: boolean; userData?: any }> {
-    try {
-      // Obtener datos del usuario incluyendo hash de contraseña
+      // Buscar el usuario en gen_usuarios por username o email
       const { data: userData, error: userError } = await supabase
         .from('gen_usuarios')
-        .select(`
-          id,
-          username,
-          email,
-          primer_nombre,
-          primer_apellido,
-          password_hash,
-          activo,
-          gen_usuario_empresas (
-            empresas (
-              id,
-              razon_social
-            )
-          ),
-          gen_usuario_roles (
-            gen_roles (
-              id,
-              nombre
-            )
-          )
-        `)
-        .eq('id', userId)
+        .select('*')
+        .or(`username.eq.${credentials.username},email.eq.${credentials.username}`)
         .eq('activo', true)
         .single();
 
       if (userError || !userData) {
-        return { success: false };
+        throw new Error('Usuario no encontrado o inactivo');
       }
 
-      // Extraer roles y empresas de la respuesta
-      const roles = userData.gen_usuario_roles?.map((ur: any) => ur.gen_roles).filter(Boolean) || [];
-      const empresas = userData.gen_usuario_empresas?.map((ue: any) => ue.empresas).filter(Boolean) || [];
+      console.log('👤 Usuario encontrado:', userData);
 
-      // Intentar usar la función RPC check_password
-      try {
-        const { data: verifyData, error: verifyError } = await supabase.rpc('check_password', {
-          password_to_check: password,
-          stored_hash: userData.password_hash
-        });
-
-        if (!verifyError && verifyData === true) {
-          // Retornar datos completos del usuario para guardar en localStorage
-          return {
-            success: true,
-            userData: {
-              id: userData.id,
-              username: userData.username,
-              email: userData.email,
-              primerNombre: userData.primer_nombre,
-              primerApellido: userData.primer_apellido,
-              role: roles.length > 0 ? roles[0].nombre : 'admin', // Usar el primer rol o admin por defecto
-              activo: userData.activo,
-              roles: roles,
-              empresas: empresas,
-              // Información adicional del usuario
-              password_hash: userData.password_hash // Solo para debug, no usar en producción
-            }
-          };
-        } else {
-          return { success: false };
-        }
-      } catch (rpcError) {
-        // Función check_password no disponible, usando fallback base64
-      }
-
-      // Fallback final: comparar con hash simple (base64)
-      const simpleHash = btoa(password);
-      const isMatch = simpleHash === userData.password_hash;
+      // Verificar la contraseña (usando el hash simple que implementamos)
+      const expectedHash = btoa(credentials.password); // Base64 encoding
       
-      if (isMatch) {
-        return {
-          success: true,
-          userData: {
-            id: userData.id,
-            username: userData.username,
-            email: userData.email,
-            primerNombre: userData.primer_nombre,
-            primerApellido: userData.primer_apellido,
-            role: roles.length > 0 ? roles[0].nombre : 'admin',
-            activo: userData.activo,
-            roles: roles,
-            empresas: empresas,
-            // Información adicional del usuario
-            password_hash: userData.password_hash // Solo para debug
-          }
-        };
+      if (userData.password_hash !== expectedHash) {
+        throw new Error('Contraseña incorrecta');
       }
-      
-      return { success: false };
-    } catch (error) {
-      return { success: false };
-    }
-  },
 
-  getUserEmpresas: async (userId: number) => {
-    try {
-      const { data, error } = await supabase
-        .from('gen_usuario_empresas')
+      console.log('✅ Contraseña verificada correctamente');
+
+      // Obtener el rol del usuario
+      const { data: userRoles, error: rolesError } = await supabase
+        .from('gen_usuario_roles')
         .select(`
-          empresas (
+          gen_roles (
             id,
-            razon_social
+            nombre
           )
         `)
-        .eq('usuario_id', userId);
-      
-      if (error) throw error;
-      
-      return data?.map((item: any) => item.empresas) || [];
+        .eq('usuario_id', userData.id);
+
+      if (rolesError) {
+        console.error('Error obteniendo roles:', rolesError);
+      }
+
+      const userRole = (userRoles?.[0]?.gen_roles as any)?.nombre || 'candidato';
+
+      // Generar un token simple (en producción usarías JWT)
+      const token = btoa(JSON.stringify({
+        userId: userData.id,
+        username: userData.username,
+        role: userRole,
+        timestamp: Date.now()
+      }));
+
+      const response: AuthResponse = {
+        user: {
+          id: userData.id,
+          username: userData.username,
+          email: userData.email,
+          primer_nombre: userData.primer_nombre,
+          primer_apellido: userData.primer_apellido,
+          role: userRole,
+          activo: userData.activo
+        },
+        token
+      };
+
+      console.log('🎉 Login exitoso:', response);
+      return response;
+
     } catch (error) {
-      return [];
+      console.error('❌ Error en login:', error);
+      throw error;
     }
   },
 
-  // Método para configurar email
-  configurarEmail: (gmail: string, password: string, appPassword?: string) => {
-    emailService.setConfig({ gmail, password, appPassword });
+  async logout(): Promise<void> {
+    // Con Supabase, solo limpiamos el localStorage
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('userData');
+    console.log('👋 Logout completado');
   },
 
-  // Métodos de recuperación de contraseña
-  generarCodigoVerificacion: async (email: string) => {
-    try {
-      // Verificar que el usuario existe
-      const userValidation = await authService.validateUser(email);
-      if (!userValidation) {
-        return {
-          success: false,
-          message: 'No se encontró una cuenta con este correo electrónico'
-        };
-      }
-
-      // Obtener el email del administrador desde config_empresa
-      const { data: configData, error: configError } = await supabase
-        .from('config_empresa')
-        .select('email')
-        .eq('estado', 'activo')
-        .single();
-
-      if (configError || !configData?.email) {
-        return {
-          success: false,
-          message: 'Error: No se encontró la configuración del administrador'
-        };
-      }
-
-      const adminEmail = configData.email;
-
-      // Generar código de 6 dígitos
-      const codigo = Math.floor(100000 + Math.random() * 900000).toString();
-      
-      // Fecha de expiración (30 minutos)
-      const fechaExpiracion = new Date();
-      fechaExpiracion.setMinutes(fechaExpiracion.getMinutes() + 30);
-      
-      // Guardar código en la base de datos (mantener el email del usuario para validación)
-      const { error } = await supabase
-        .from('codigos_verificacion')
-        .insert({
-          email,
-          codigo,
-          tipo: 'recuperacion',
-          usado: false,
-          fecha_expiracion: fechaExpiracion.toISOString()
-        });
-      
-      if (error) throw error;
-      
-      // Enviar email con el código AL ADMINISTRADOR
-      const nombre = `${userValidation.user.primer_nombre} ${userValidation.user.primer_apellido}`;
-      const emailResult = await emailService.sendVerificationCode(adminEmail, codigo, nombre, email);
-      
-      if (emailResult.success) {
-        return {
-          success: true,
-          message: 'Código de verificación enviado al administrador',
-          adminEmail: adminEmail
-        };
-      } else {
-        return {
-          success: false,
-          message: 'Error al enviar el código. Por favor, intenta nuevamente.'
-        };
-      }
-    } catch (error) {
-      return {
-        success: false,
-        message: 'Error al generar el código de verificación'
-      };
+  async getCurrentUser(): Promise<any> {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      return null;
     }
-  },
 
-  verificarCodigo: async (email: string, codigo: string) => {
     try {
-      const { data, error } = await supabase
-        .from('codigos_verificacion')
-        .select('*')
-        .eq('email', email)
-        .eq('codigo', codigo)
-        .eq('tipo', 'recuperacion')
-        .eq('usado', false)
-        .gte('fecha_expiracion', new Date().toISOString())
-        .order('fecha_creacion', { ascending: false })
-        .limit(1)
-        .single();
-      
-      if (error || !data) {
-        return {
-          success: false,
-          message: 'Código inválido o expirado'
-        };
-      }
-      
-      return {
-        success: true,
-        message: 'Código verificado correctamente'
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: 'Error al verificar el código'
-      };
-    }
-  },
-
-  cambiarContraseña: async (email: string, codigo: string, nuevaContraseña: string) => {
-    try {
-      // Primero verificar que el código es válido
-      const verificacion = await authService.verificarCodigo(email, codigo);
-      if (!verificacion.success) {
-        return verificacion;
-      }
-      
-      // Hash de la nueva contraseña (base64 por ahora)
-      const passwordHash = btoa(nuevaContraseña);
-      
-      // Actualizar contraseña en la tabla de usuarios
-      const { error: updateError } = await supabase
+      const tokenData = JSON.parse(atob(token));
+      const { data: userData, error } = await supabase
         .from('gen_usuarios')
-        .update({ password_hash: passwordHash })
-        .eq('email', email);
-      
-      if (updateError) throw updateError;
-      
-      // Marcar código como usado
-      const { error: markError } = await supabase
-        .from('codigos_verificacion')
-        .update({ usado: true })
-        .eq('email', email)
-        .eq('codigo', codigo);
-      
-      if (markError) throw markError;
-      
-      // Enviar notificación de cambio de contraseña
-      const userValidation = await authService.validateUser(email);
-      if (userValidation) {
-        const nombre = `${userValidation.user.primer_nombre} ${userValidation.user.primer_apellido}`;
-        await emailService.sendPasswordChangedNotification(email, nombre);
+        .select('*')
+        .eq('id', tokenData.userId)
+        .eq('activo', true)
+        .single();
+
+      if (error || !userData) {
+        return null;
       }
-      
-      return {
-        success: true,
-        message: 'Contraseña cambiada exitosamente'
-      };
+
+      return userData;
     } catch (error) {
-      return {
-        success: false,
-        message: 'Error al cambiar la contraseña'
-      };
+      console.error('Error obteniendo usuario actual:', error);
+      return null;
     }
   }
 }; 

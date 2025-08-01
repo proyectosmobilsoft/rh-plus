@@ -75,9 +75,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
           console.log('- userData:', JSON.parse(userData));
           console.log('- token:', token.substring(0, 50) + '...');
           
-          // Verificar si es un token simulado (nuestro formato)
-          const tokenParts = token.split('.');
-          console.log('Token parts:', tokenParts.length);
+          // Verificar si es un token simulado (nuestro formato base64)
+          console.log('Token length:', token.length);
+          console.log('Token starts with eyJ:', token.startsWith('eyJ'));
           
           if (tokenParts.length === 3 && tokenParts[0] === 'simulated') {
             // Es un token simulado, no verificar con el servidor
@@ -169,8 +169,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const userPermissions = await getUserPermissionsFromDB(userData.id, userData.role);
       
       const userWithPermissions = {
-        ...userData,
-        permissions: userPermissions
+        id: authResponse.user.id,
+        username: authResponse.user.username,
+        email: authResponse.user.email,
+        primerNombre: authResponse.user.primer_nombre,
+        primerApellido: authResponse.user.primer_apellido,
+        role: authResponse.user.role as UserRole,
+        permissions: userPermissions,
+        activo: authResponse.user.activo
       };
 
       // Guardar datos completos del usuario en localStorage
@@ -243,15 +249,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const logout = async () => {
     try {
-      // Con Supabase, solo limpiamos el localStorage
-      // No necesitamos hacer llamada al servidor
+      // Usar el servicio de autenticación para logout
+      await authService.logout();
     } catch (error) {
       console.error('Error during logout:', error);
     } finally {
-      // Limpiar estado local y localStorage
+      // Limpiar estado local
       setUser(null);
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('userData');
       localStorage.removeItem('empresaData'); // Borrar también empresaData
       
       console.log('Sesión cerrada - todos los datos eliminados del localStorage');
@@ -287,7 +291,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const getDefaultDashboard = (role: UserRole): string => {
-    switch (role) {
+    // Normalizar el rol a minúsculas para comparación
+    const normalizedRole = role.toLowerCase();
+    
+    switch (normalizedRole) {
       case "admin":
         return "/dashboard";
       case "analista":
@@ -295,7 +302,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       case "cliente":
         return "/empresa/dashboard";
       case "candidato":
-        return "/candidato/perfil";
+        return "/perfil-candidato";
       default:
         return "/dashboard";
     }
