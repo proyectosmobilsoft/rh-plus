@@ -22,7 +22,10 @@ import {
   Settings,
   Key,
   ChevronDown,
-  Building
+  Building,
+  FileText,
+  Download,
+  Trash2
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -119,6 +122,10 @@ export default function PerfilCandidato() {
   const [activeTab, setActiveTab] = useState("personal");
   const [experienciaLaboral, setExperienciaLaboral] = useState<ExperienciaLaboral[]>([]);
   const [educacion, setEducacion] = useState<Educacion[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<{[key: string]: string}>({});
+  const [existingDocuments, setExistingDocuments] = useState<any[]>([]);
+  const [tiposDocumentos, setTiposDocumentos] = useState<any[]>([]);
+  const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
   const [empresasDisponibles] = useState([
     { id: 1, nombre: "TechCorp Solutions", requiredDocs: ["hojaDeVida", "diploma", "certificaciones"] },
     { id: 2, nombre: "Innovación Digital SA", requiredDocs: ["hojaDeVida", "fotografia", "referencias"] },
@@ -133,23 +140,228 @@ export default function PerfilCandidato() {
 
   useEffect(() => {
     loadProfile();
+    loadTiposDocumentos();
   }, []);
+
+  // Efecto para actualizar el progreso cuando cambien los valores del formulario
+  useEffect(() => {
+    if (candidato) {
+      const subscription = form.watch((value) => {
+        // Actualizar el candidato con los nuevos valores del formulario
+        setCandidato(prev => prev ? { ...prev, ...value } : prev);
+      });
+      
+      return () => subscription.unsubscribe();
+    }
+  }, [form, candidato]);
+
+  // Cargar tipos de documentos
+  const loadTiposDocumentos = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('tipos_documentos')
+        .select('*')
+        .eq('activo', true)
+        .order('nombre');
+      
+      if (error) throw error;
+      setTiposDocumentos(data || []);
+    } catch (error) {
+      console.error('Error cargando tipos de documentos:', error);
+    }
+  };
+
+  // Cargar documentos existentes del candidato
+  const loadDocumentosCandidato = async (candidatoId: number) => {
+    try {
+      setIsLoadingDocuments(true);
+      const { data, error } = await supabase
+        .from('candidatos_documentos')
+        .select(`
+          *,
+          tipos_documentos (
+            id,
+            nombre,
+            descripcion,
+            requerido
+          )
+        `)
+        .eq('candidato_id', candidatoId)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setExistingDocuments(data || []);
+      
+      // Actualizar uploadedFiles con los documentos existentes
+      const files: {[key: string]: string} = {};
+      data?.forEach((doc: any) => {
+        files[doc.tipos_documentos.nombre] = doc.nombre_archivo;
+      });
+      setUploadedFiles(files);
+    } catch (error) {
+      console.error('Error cargando documentos:', error);
+    } finally {
+      setIsLoadingDocuments(false);
+    }
+  };
+
+  // Función para manejar la subida de archivos por empresa
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, tipoDocumentoId: number, nombreDocumento: string, empresaId: number) => {
+    e.preventDefault();
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.type !== 'application/pdf') {
+        toast.error("Solo se permiten archivos PDF");
+        return;
+      }
+
+      if (file.size > 5 * 1024 * 1024) { // 5MB
+        toast.error("El archivo no puede superar 5MB");
+        return;
+      }
+
+      try {
+        setIsLoadingDocuments(true);
+        
+        // Convertir archivo a base64
+        const reader = new FileReader();
+        reader.onload = async () => {
+          const base64 = reader.result as string;
+          const base64Data = base64.split(',')[1]; // Remover el prefijo data:application/pdf;base64,
+          
+          if (!candidato?.id) {
+            toast.error("No se puede subir documentos sin un perfil válido");
+            return;
+          }
+
+          // Guardar documento en la base de datos con empresa_id
+          const { data, error } = await supabase
+            .from('candidatos_documentos')
+            .upsert({
+              candidato_id: candidato.id,
+              tipo_documento_id: tipoDocumentoId,
+              empresa_id: empresaId,
+              nombre_archivo: file.name,
+              url_archivo: base64Data,
+              fecha_carga: new Date().toISOString()
+            })
+            .select();
+
+          if (error) throw error;
+
+          toast.success(`${file.name} ha sido subido correctamente.`);
+
+          // Actualizar la lista de documentos
+          await loadDocumentosCandidato(candidato.id);
+        };
+        
+        reader.readAsDataURL(file);
+      } catch (error) {
+        console.error('Error subiendo archivo:', error);
+        toast.error("Error al subir el archivo");
+      } finally {
+        setIsLoadingDocuments(false);
+      }
+    }
+  };
+
+  // Función para eliminar documento
+  const handleDeleteDocument = async (documentoId: number) => {
+    try {
+      const { error } = await supabase
+        .from('candidatos_documentos')
+        .delete()
+        .eq('id', documentoId);
+
+      if (error) throw error;
+
+              toast.success("El documento ha sido eliminado correctamente.");
+
+      // Recargar documentos
+      if (candidato?.id) {
+        await loadDocumentosCandidato(candidato.id);
+      }
+    } catch (error) {
+      console.error('Error eliminando documento:', error);
+              toast.error("Error al eliminar el documento");
+    }
+  };
+
+  // Función para descargar documento
+  const handleDownloadDocument = (documento: any) => {
+    try {
+      const base64 = `data:application/pdf;base64,${documento.url_archivo}`;
+      const link = document.createElement('a');
+      link.href = base64;
+      link.download = documento.nombre_archivo;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Error descargando documento:', error);
+              toast.error("Error al descargar el documento");
+    }
+  };
 
   // Función para calcular el progreso del perfil
   const calcularProgresoPerfil = () => {
     if (!candidato) return 0;
     
-    const camposRequeridos = [
-      'nombres', 'apellidos', 'fechaNacimiento', 'telefono', 'direccion', 
-      'ciudad', 'cargoAspirado', 'eps', 'arl', 'nivelEducativo'
+    // Todos los campos del formulario con sus pesos
+    const camposConPeso = [
+      { campo: 'nombres', peso: 8, requerido: true },
+      { campo: 'apellidos', peso: 8, requerido: true },
+      { campo: 'fechaNacimiento', peso: 6, requerido: false },
+      { campo: 'edad', peso: 4, requerido: false },
+      { campo: 'sexo', peso: 4, requerido: false },
+      { campo: 'estadoCivil', peso: 4, requerido: false },
+      { campo: 'telefono', peso: 8, requerido: true },
+      { campo: 'direccion', peso: 6, requerido: false },
+      { campo: 'ciudad', peso: 6, requerido: false },
+      { campo: 'cargoAspirado', peso: 8, requerido: false },
+      { campo: 'eps', peso: 6, requerido: false },
+      { campo: 'arl', peso: 6, requerido: false },
+      { campo: 'grupoSanguineo', peso: 4, requerido: false },
+      { campo: 'nivelEducativo', peso: 6, requerido: false },
+      { campo: 'contactoEmergenciaNombre', peso: 4, requerido: false },
+      { campo: 'contactoEmergenciaTelefono', peso: 4, requerido: false },
+      { campo: 'contactoEmergenciaRelacion', peso: 4, requerido: false },
+      { campo: 'hojaDeVida', peso: 8, requerido: false },
+      { campo: 'fotografia', peso: 6, requerido: false }
     ];
     
-    const camposCompletos = camposRequeridos.filter(campo => {
+    let puntajeTotal = 0;
+    let puntajeCompletado = 0;
+    
+    camposConPeso.forEach(({ campo, peso, requerido }) => {
+      puntajeTotal += peso;
       const valor = candidato[campo as keyof Candidato];
-      return valor && valor.toString().trim() !== '';
+      
+      if (valor && valor.toString().trim() !== '') {
+        puntajeCompletado += peso;
+      } else if (requerido) {
+        // Los campos requeridos vacíos no suman puntos
+        puntajeTotal -= peso;
+      }
     });
     
-    return Math.round((camposCompletos.length / camposRequeridos.length) * 100);
+    return puntajeTotal > 0 ? Math.round((puntajeCompletado / puntajeTotal) * 100) : 0;
+  };
+
+  // Función para obtener el color del progreso
+  const getColorProgreso = (progreso: number) => {
+    if (progreso < 30) return 'bg-red-500';
+    if (progreso < 60) return 'bg-yellow-500';
+    if (progreso < 90) return 'bg-blue-500';
+    return 'bg-green-500';
+  };
+
+  // Función para obtener el texto del progreso
+  const getTextoProgreso = (progreso: number) => {
+    if (progreso < 30) return 'Incompleto';
+    if (progreso < 60) return 'En progreso';
+    if (progreso < 90) return 'Casi completo';
+    return 'Completo';
   };
 
   // Función para calcular la edad automáticamente
@@ -179,6 +391,9 @@ export default function PerfilCandidato() {
         return;
       }
 
+      // Verificar si el usuario es un candidato o un administrador
+      console.log('Usuario autenticado:', user);
+
       // Buscar el candidato en la base de datos usando el email del usuario
       const { data: candidatoData, error } = await supabase
         .from('candidatos')
@@ -188,6 +403,46 @@ export default function PerfilCandidato() {
 
       if (error) {
         console.error('Error cargando perfil:', error);
+        
+        // Si no se encuentra el candidato, crear un perfil vacío para administradores
+        if (error.code === 'PGRST116') {
+          console.log('No se encontró candidato, creando perfil vacío para administrador');
+          
+          // Crear un perfil vacío para administradores
+          const perfilVacio = {
+            id: 0,
+            email: user.email,
+            nombres: user.primerNombre || '',
+            apellidos: user.primerApellido || '',
+            tipoDocumento: '',
+            numeroDocumento: '',
+            fechaNacimiento: '',
+            edad: undefined,
+            sexo: '',
+            estadoCivil: '',
+            telefono: '',
+            direccion: '',
+            ciudad: '',
+            cargoAspirado: '',
+            eps: '',
+            arl: '',
+            grupoSanguineo: '',
+            nivelEducativo: '',
+            contactoEmergenciaNombre: '',
+            contactoEmergenciaTelefono: '',
+            contactoEmergenciaRelacion: '',
+            hojaDeVida: '',
+            fotografia: '',
+            completado: false,
+            estado: 'activo',
+            fechaRegistro: new Date().toISOString()
+          };
+
+          setCandidato(perfilVacio);
+          form.reset(perfilVacio);
+          return;
+        }
+        
         toast.error('Error al cargar el perfil');
         return;
       }
@@ -225,6 +480,9 @@ export default function PerfilCandidato() {
 
         setCandidato(candidatoTransformado);
         form.reset(candidatoTransformado);
+        
+        // Cargar documentos del candidato
+        await loadDocumentosCandidato(candidatoData.id);
       } else {
         toast.error('No se encontró el perfil del candidato');
       }
@@ -366,13 +624,25 @@ export default function PerfilCandidato() {
             <p className="text-gray-600">Administra tu información personal y profesional</p>
           </div>
           <div className="flex items-center space-x-4">
-            {/* Indicador de progreso */}
-            <div className="flex items-center space-x-2">
-              <span className="text-sm font-medium text-gray-700">Progreso:</span>
-              <div className="w-24">
-                <Progress value={calcularProgresoPerfil()} className="h-2" />
+            {/* Indicador de progreso mejorado */}
+            <div className="flex items-center space-x-3 bg-gray-50 p-3 rounded-lg">
+              <div className="flex flex-col items-center">
+                <span className="text-xs font-medium text-gray-600">Progreso del Perfil</span>
+                <div className="flex items-center space-x-2">
+                  <div className="w-20">
+                    <Progress 
+                      value={calcularProgresoPerfil()} 
+                      className={`h-2 ${getColorProgreso(calcularProgresoPerfil())}`} 
+                    />
+                  </div>
+                  <span className={`text-sm font-bold ${getColorProgreso(calcularProgresoPerfil()).replace('bg-', 'text-')}`}>
+                    {calcularProgresoPerfil()}%
+                  </span>
+                </div>
+                <span className="text-xs text-gray-500 mt-1">
+                  {getTextoProgreso(calcularProgresoPerfil())}
+                </span>
               </div>
-              <span className="text-sm font-bold text-green-600">{calcularProgresoPerfil()}%</span>
             </div>
             
             {/* Menú de usuario */}
@@ -702,111 +972,188 @@ export default function PerfilCandidato() {
                         </p>
                       </div>
                       
-                      <Accordion type="single" collapsible className="w-full space-y-2">
-                        {empresasDisponibles.map((empresa) => (
-                          <AccordionItem key={empresa.id} value={`empresa-${empresa.id}`} className="border border-gray-200 rounded-lg">
-                            <AccordionTrigger className="hover:no-underline px-4 py-3 hover:bg-gray-50 rounded-t-lg">
-                              <div className="flex items-center justify-between w-full">
-                                <div className="flex items-center space-x-3">
-                                  <Building className="w-5 h-5 text-blue-600" />
-                                  <span className="font-medium text-sm">{empresa.nombre}</span>
-                                </div>
-                                <Badge variant="outline" className="text-xs">
-                                  {empresa.requiredDocs.length} docs
-                                </Badge>
-                              </div>
-                            </AccordionTrigger>
-                            <AccordionContent className="px-4 pb-4">
-                              <div className="pt-2">
-                                <p className="text-xs text-gray-600 mb-3">
-                                  Documentos requeridos para esta empresa:
-                                </p>
-                                
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                  {empresa.requiredDocs.map((docType, index) => {
-                                    const docConfig = {
-                                      hojaDeVida: { 
-                                        name: 'Hoja de Vida', 
-                                        icon: <Upload className="w-4 h-4" />, 
-                                        description: 'CV en formato PDF (máx. 5MB)',
-                                        required: true
-                                      },
-                                      diploma: { 
-                                        name: 'Diploma', 
-                                        icon: <GraduationCap className="w-4 h-4" />, 
-                                        description: 'Título profesional (PDF)',
-                                        required: true
-                                      },
-                                      certificaciones: { 
-                                        name: 'Certificaciones', 
-                                        icon: <Upload className="w-4 h-4" />, 
-                                        description: 'Certificados adicionales (PDF)',
-                                        required: false
-                                      },
-                                      fotografia: { 
-                                        name: 'Fotografía', 
-                                        icon: <User className="w-4 h-4" />, 
-                                        description: 'Foto profesional (JPG/PNG, máx. 2MB)',
-                                        required: false
-                                      },
-                                      referencias: { 
-                                        name: 'Referencias', 
-                                        icon: <Mail className="w-4 h-4" />, 
-                                        description: 'Cartas de recomendación (PDF)',
-                                        required: false
-                                      },
-                                      portafolio: { 
-                                        name: 'Portafolio', 
-                                        icon: <Briefcase className="w-4 h-4" />, 
-                                        description: 'Muestra de trabajos (PDF/ZIP)',
-                                        required: false
-                                      }
-                                    };
+                      {isLoadingDocuments ? (
+                        <div className="flex justify-center py-8">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                        </div>
+                      ) : (
+                        <Accordion type="single" collapsible className="w-full space-y-2">
+                          {empresasDisponibles.map((empresa) => {
+                            // Filtrar documentos existentes para esta empresa
+                            const documentosEmpresa = existingDocuments.filter(
+                              (doc) => doc.empresa_id === empresa.id
+                            );
+                            
+                            return (
+                              <AccordionItem key={empresa.id} value={`empresa-${empresa.id}`} className="border border-gray-200 rounded-lg">
+                                <AccordionTrigger className="hover:no-underline px-4 py-3 hover:bg-gray-50 rounded-t-lg">
+                                  <div className="flex items-center justify-between w-full">
+                                    <div className="flex items-center space-x-3">
+                                      <Building className="w-5 h-5 text-blue-600" />
+                                      <span className="font-medium text-sm">{empresa.nombre}</span>
+                                    </div>
+                                    <Badge variant="outline" className="text-xs">
+                                      {documentosEmpresa.length} docs
+                                    </Badge>
+                                  </div>
+                                </AccordionTrigger>
+                                <AccordionContent className="px-4 pb-4">
+                                  <div className="pt-2">
+                                    <p className="text-xs text-gray-600 mb-3">
+                                      Documentos requeridos para esta empresa:
+                                    </p>
                                     
-                                    const config = docConfig[docType as keyof typeof docConfig];
+                                    {/* Documentos existentes de esta empresa */}
+                                    {documentosEmpresa.length > 0 && (
+                                      <div className="mb-4">
+                                        <h5 className="text-xs font-medium text-gray-700 mb-2">Documentos subidos:</h5>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3">
+                                          {documentosEmpresa.map((documento) => (
+                                            <Card key={documento.id} className="border border-green-200 bg-green-50">
+                                              <CardHeader className="pb-2 pt-2">
+                                                <CardTitle className="flex items-center text-xs">
+                                                  <FileText className="w-3 h-3 text-green-600" />
+                                                  <span className="ml-1 flex-1 text-xs">{documento.tipos_documentos.nombre}</span>
+                                                </CardTitle>
+                                                <CardDescription className="text-xs text-gray-600">
+                                                  {documento.nombre_archivo}
+                                                </CardDescription>
+                                              </CardHeader>
+                                              <CardContent className="pt-0 pb-2">
+                                                <div className="flex space-x-1">
+                                                  <Button 
+                                                    variant="outline" 
+                                                    size="sm"
+                                                    className="text-xs h-6"
+                                                    onClick={() => handleDownloadDocument(documento)}
+                                                  >
+                                                    <Download className="w-3 h-3 mr-1" />
+                                                    Ver
+                                                  </Button>
+                                                  <Button 
+                                                    variant="destructive" 
+                                                    size="sm"
+                                                    className="text-xs h-6"
+                                                    onClick={() => handleDeleteDocument(documento.id)}
+                                                  >
+                                                    <Trash2 className="w-3 h-3 mr-1" />
+                                                    Eliminar
+                                                  </Button>
+                                                </div>
+                                              </CardContent>
+                                            </Card>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
                                     
-                                    return (
-                                      <Card key={index} className="border border-gray-200 bg-gray-50">
-                                        <CardHeader className="pb-2 pt-3">
-                                          <CardTitle className="flex items-center text-xs">
-                                            {config.icon}
-                                            <span className="ml-2 flex-1">
-                                              {config.name}
-                                              {config.required && <span className="text-red-500 ml-1">*</span>}
-                                            </span>
-                                          </CardTitle>
-                                          <CardDescription className="text-xs text-gray-600">
-                                            {config.description}
-                                          </CardDescription>
-                                        </CardHeader>
-                                        <CardContent className="pt-0 pb-3">
-                                          <div className="border-2 border-dashed border-gray-300 rounded-lg p-3 text-center hover:border-blue-400 transition-colors">
-                                            <Upload className="w-5 h-5 mx-auto text-gray-400 mb-1" />
-                                            <p className="text-xs text-gray-600 mb-2">
-                                              Arrastra aquí o
-                                            </p>
-                                            <Button 
-                                              variant="outline" 
-                                              size="sm"
-                                              className="text-xs h-7"
-                                              onClick={() => {
-                                                // Simular subida de archivo
-                                                toast.success(`${config.name} subido para ${empresa.nombre}`);
-                                              }}
-                                            >
-                                              Seleccionar
-                                            </Button>
-                                          </div>
-                                        </CardContent>
-                                      </Card>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            </AccordionContent>
-                          </AccordionItem>
-                        ))}
-                      </Accordion>
+                                    {/* Formulario para subir documentos para esta empresa */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                      {empresa.requiredDocs.map((docType, index) => {
+                                        const docConfig = {
+                                          hojaDeVida: { 
+                                            name: 'Hoja de Vida', 
+                                            icon: <Upload className="w-4 h-4" />, 
+                                            description: 'CV en formato PDF (máx. 5MB)',
+                                            required: true,
+                                            tipoId: 1 // ID del tipo de documento en la BD
+                                          },
+                                          diploma: { 
+                                            name: 'Diploma', 
+                                            icon: <GraduationCap className="w-4 h-4" />, 
+                                            description: 'Título profesional (PDF)',
+                                            required: true,
+                                            tipoId: 4
+                                          },
+                                          certificaciones: { 
+                                            name: 'Certificaciones', 
+                                            icon: <Upload className="w-4 h-4" />, 
+                                            description: 'Certificados adicionales (PDF)',
+                                            required: false,
+                                            tipoId: 5
+                                          },
+                                          fotografia: { 
+                                            name: 'Fotografía', 
+                                            icon: <User className="w-4 h-4" />, 
+                                            description: 'Foto profesional (JPG/PNG, máx. 2MB)',
+                                            required: false,
+                                            tipoId: 6
+                                          },
+                                          referencias: { 
+                                            name: 'Referencias', 
+                                            icon: <Mail className="w-4 h-4" />, 
+                                            description: 'Cartas de recomendación (PDF)',
+                                            required: false,
+                                            tipoId: 6
+                                          },
+                                          portafolio: { 
+                                            name: 'Portafolio', 
+                                            icon: <Briefcase className="w-4 h-4" />, 
+                                            description: 'Muestra de trabajos (PDF/ZIP)',
+                                            required: false,
+                                            tipoId: 7
+                                          }
+                                        };
+                                        
+                                        const config = docConfig[docType as keyof typeof docConfig];
+                                        const isUploaded = documentosEmpresa.some(
+                                          (doc) => doc.tipo_documento_id === config.tipoId
+                                        );
+                                        
+                                        return (
+                                          <Card key={index} className={`border ${isUploaded ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+                                            <CardHeader className="pb-2 pt-3">
+                                              <CardTitle className="flex items-center text-xs">
+                                                {config.icon}
+                                                <span className="ml-2 flex-1">
+                                                  {config.name}
+                                                  {config.required && <span className="text-red-500 ml-1">*</span>}
+                                                </span>
+                                                {isUploaded && (
+                                                  <Badge variant="secondary" className="text-xs">Subido</Badge>
+                                                )}
+                                              </CardTitle>
+                                              <CardDescription className="text-xs text-gray-600">
+                                                {config.description}
+                                              </CardDescription>
+                                            </CardHeader>
+                                            <CardContent className="pt-0 pb-3">
+                                              <div className="border-2 border-dashed border-gray-300 rounded-lg p-3 text-center hover:border-blue-400 transition-colors">
+                                                <Upload className="w-5 h-5 mx-auto text-gray-400 mb-1" />
+                                                <p className="text-xs text-gray-600 mb-2">
+                                                  Solo archivos PDF (máx. 5MB)
+                                                </p>
+                                                <input
+                                                  type="file"
+                                                  accept=".pdf"
+                                                  className="hidden"
+                                                  id={`file-${empresa.id}-${config.tipoId}`}
+                                                  onChange={(e) => handleFileChange(e, config.tipoId, config.name, empresa.id)}
+                                                  disabled={isUploaded}
+                                                />
+                                                <label htmlFor={`file-${empresa.id}-${config.tipoId}`}>
+                                                  <Button 
+                                                    variant="outline" 
+                                                    size="sm"
+                                                    className="text-xs h-7 cursor-pointer"
+                                                    disabled={isUploaded}
+                                                  >
+                                                    {isUploaded ? 'Ya subido' : 'Seleccionar'}
+                                                  </Button>
+                                                </label>
+                                              </div>
+                                            </CardContent>
+                                          </Card>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                </AccordionContent>
+                              </AccordionItem>
+                            );
+                          })}
+                        </Accordion>
+                      )}
                     </div>
                   </TabsContent>
                 </Tabs>

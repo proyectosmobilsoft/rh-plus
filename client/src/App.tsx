@@ -196,6 +196,38 @@ function App() {
                 <CambiarPassword />
               </ProtectedRoute>
             } />
+            
+            {/* Rutas adicionales de candidatos (sin sidebar) */}
+            <Route path="/candidatos-perfil" element={
+              <ProtectedRoute>
+                <PerfilCandidato />
+              </ProtectedRoute>
+            } />
+            <Route path="/candidatos-registro" element={
+              <PublicRoute>
+                <RegistroCandidato />
+              </PublicRoute>
+            } />
+            <Route path="/candidatos-login" element={
+              <PublicRoute>
+                <LoginCandidato />
+              </PublicRoute>
+            } />
+            <Route path="/candidatos-forgot-password" element={
+              <PublicRoute>
+                <ForgotPasswordCandidato />
+              </PublicRoute>
+            } />
+            <Route path="/candidatos-reset-password" element={
+              <PublicRoute>
+                <ResetPasswordCandidato />
+              </PublicRoute>
+            } />
+            <Route path="/candidatos-cambiar-password" element={
+              <ProtectedRoute>
+                <CambiarPassword />
+              </ProtectedRoute>
+            } />
 
             {/* Layout con menú para rutas protegidas */}
             <Route element={<Layout />}>
