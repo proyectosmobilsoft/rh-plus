@@ -45,14 +45,8 @@ interface Candidato {
   identificacion: string;
   tipoDocumento: string;
   nombre: string;
-  segundoNombre?: string;
   apellido: string;
-  segundoApellido?: string;
-  telefono: string;
   correo: string;
-  empresa: string;
-  ciudad: string;
-  direccion: string;
 }
 
 const CandidatosPage = () => {
@@ -67,16 +61,12 @@ const CandidatosPage = () => {
   const [ciudadFilter, setCiudadFilter] = useState<string>("todas");
   const [statusFilter, setStatusFilter] = useState<string>("activos");
   
-  const [formData, setFormData] = useState<Partial<Candidato> & { empresa_id?: number, ciudad_id?: number }>({
+  const [formData, setFormData] = useState<Partial<Candidato>>({
     identificacion: '',
-    tipoDocumento: '',
+    tipoDocumento: 'CC',
     nombre: '',
     apellido: '',
-    telefono: '',
-    correo: '',
-    empresa_id: undefined,
-    ciudad_id: undefined,
-    direccion: ''
+    correo: ''
   });
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -276,47 +266,41 @@ const CandidatosPage = () => {
   const resetForm = () => {
     setFormData({
       identificacion: '',
-      tipoDocumento: '',
+      tipoDocumento: 'CC',
       nombre: '',
       apellido: '',
-      telefono: '',
-      correo: '',
-      empresa_id: undefined,
-      ciudad_id: undefined,
-      direccion: ''
+      correo: ''
     });
     setEditingId(null);
   };
 
   // Función para manejar envío del formulario
   const handleSubmit = () => {
-    if (formData.identificacion && formData.nombre && formData.apellido && formData.correo && formData.empresa_id) {
+    if (formData.identificacion && formData.nombre && formData.apellido && formData.correo) {
       const candidatoPayload = {
-        tipo_documento: formData.tipoDocumento,
+        tipo_documento: formData.tipoDocumento || 'CC',
         numero_documento: formData.identificacion,
         primer_nombre: formData.nombre,
         primer_apellido: formData.apellido,
-        telefono: formData.telefono,
         email: formData.correo,
-        direccion: formData.direccion,
-        ciudad_id: formData.ciudad_id,
-        empresa_id: formData.empresa_id,
+        activo: true, // Por defecto activo
       };
+      
       if (editingId) {
         // Actualizar candidato existente en Supabase
         candidatosService.update(editingId, candidatoPayload)
           .then(() => {
             refetch();
-            setDialogOpen(false);
+            setActiveTab("candidatos");
             resetForm();
             toast({
-              title: "Éxito",
+              title: "✅ Éxito",
               description: "Candidato actualizado correctamente",
             });
           })
           .catch((error) => {
             toast({
-              title: "Error",
+              title: "❌ Error",
               description: error.message,
               variant: "destructive",
             });
@@ -327,8 +311,8 @@ const CandidatosPage = () => {
       }
     } else {
       toast({
-        title: "Error",
-        description: "Por favor complete los campos obligatorios",
+        title: "❌ Error",
+        description: "Por favor complete todos los campos obligatorios",
         variant: "destructive",
       });
     }
@@ -348,18 +332,13 @@ const CandidatosPage = () => {
   const handleEdit = (candidato: any) => {
     setFormData({
       identificacion: candidato.numero_documento || '',
-      tipoDocumento: candidato.tipo_documento || '',
+      tipoDocumento: candidato.tipo_documento || 'CC',
       nombre: candidato.primer_nombre || '',
       apellido: candidato.primer_apellido || '',
-      telefono: candidato.telefono || '',
-      correo: candidato.email || '',
-      empresa_id: candidato.empresa_id || undefined,
-      ciudad_id: candidato.ciudad_id || undefined,
-      direccion: candidato.direccion || ''
+      correo: candidato.email || ''
     });
-    setSelectedDepartamento(getDepartamentoIdByCiudadId(candidato.ciudad_id));
     setEditingId(candidato.id);
-    setDialogOpen(true);
+    setActiveTab("registro");
   };
 
   const getCiudadNombre = (ciudad_id: number) => {
@@ -769,200 +748,103 @@ const CandidatosPage = () => {
           </div>
 
           {/* Formulario de candidato en el tab de registro */}
-          <Card>
-            <CardContent className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Identificación *</label>
-                  <Input
-                    value={formData.identificacion || ''}
-                    onChange={(e) => setFormData({ ...formData, identificacion: e.target.value })}
-                    placeholder="Número de identificación"
-                  />
+          <div className="max-w-2xl mx-auto">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2 text-cyan-800">
+                  <User className="h-5 w-5" />
+                  <span>Información del Candidato</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Tipo de Documento *</label>
+                      <Select
+                        value={formData.tipoDocumento || 'CC'}
+                        onValueChange={(value) => setFormData({ ...formData, tipoDocumento: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccionar tipo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="CC">Cédula de Ciudadanía</SelectItem>
+                          <SelectItem value="CE">Cédula de Extranjería</SelectItem>
+                          <SelectItem value="TI">Tarjeta de Identidad</SelectItem>
+                          <SelectItem value="PP">Pasaporte</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Número de Documento *</label>
+                      <Input
+                        value={formData.identificacion || ''}
+                        onChange={(e) => setFormData({ ...formData, identificacion: e.target.value })}
+                        placeholder="12345678"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Nombres *</label>
+                      <Input
+                        value={formData.nombre || ''}
+                        onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                        placeholder="Ana María"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Apellidos *</label>
+                      <Input
+                        value={formData.apellido || ''}
+                        onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
+                        placeholder="García López"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Correo Electrónico *</label>
+                    <Input
+                      type="email"
+                      value={formData.correo || ''}
+                      onChange={(e) => setFormData({ ...formData, correo: e.target.value })}
+                      placeholder="ana.garcia@ejemplo.com"
+                    />
+                  </div>
+
+                  <div className="bg-cyan-50 p-4 rounded-lg border border-cyan-200">
+                    <h3 className="font-medium text-cyan-800 mb-2">Información importante:</h3>
+                    <ul className="text-sm text-cyan-700 space-y-1">
+                      <li>• El usuario para iniciar sesión será el correo electrónico ingresado</li>
+                      <li>• La contraseña inicial será el número de documento</li>
+                      <li>• El candidato deberá cambiar la contraseña en su primer inicio de sesión</li>
+                    </ul>
+                  </div>
+
+                  <div className="flex justify-end space-x-4">
+                    <Button 
+                      variant="outline" 
+                      onClick={handleSaved}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button 
+                      onClick={handleSubmit} 
+                      className="bg-cyan-600 hover:bg-cyan-700" 
+                      disabled={createCandidatoMutation.isPending}
+                    >
+                      {createCandidatoMutation.isPending ? 'Creando candidato...' : 'Crear Candidato'}
+                    </Button>
+                  </div>
                 </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-1">Tipo de Documento *</label>
-                  <Select
-                    value={formData.tipoDocumento || ''}
-                    onValueChange={(value) => setFormData({ ...formData, tipoDocumento: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar tipo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="CC">Cédula de Ciudadanía</SelectItem>
-                      <SelectItem value="CE">Cédula de Extranjería</SelectItem>
-                      <SelectItem value="TI">Tarjeta de Identidad</SelectItem>
-                      <SelectItem value="PP">Pasaporte</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-1">Primer Nombre *</label>
-                  <Input
-                    value={formData.nombre || ''}
-                    onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                    placeholder="Primer nombre"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-1">Segundo Nombre</label>
-                  <Input
-                    value={formData.segundoNombre || ''}
-                    onChange={(e) => setFormData({ ...formData, segundoNombre: e.target.value })}
-                    placeholder="Segundo nombre (opcional)"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-1">Primer Apellido *</label>
-                  <Input
-                    value={formData.apellido || ''}
-                    onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
-                    placeholder="Primer apellido"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-1">Segundo Apellido</label>
-                  <Input
-                    value={formData.segundoApellido || ''}
-                    onChange={(e) => setFormData({ ...formData, segundoApellido: e.target.value })}
-                    placeholder="Segundo apellido (opcional)"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-1">Teléfono</label>
-                  <Input
-                    value={formData.telefono || ''}
-                    onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-                    placeholder="Número de teléfono"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-1">Correo Electrónico *</label>
-                  <Input
-                    type="email"
-                    value={formData.correo || ''}
-                    onChange={(e) => setFormData({ ...formData, correo: e.target.value })}
-                    placeholder="correo@ejemplo.com"
-                  />
-                </div>
-                
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-1">Empresa *</label>
-                  <Select
-                    value={formData.empresa_id?.toString() || ''}
-                    onValueChange={(value) => setFormData({ ...formData, empresa_id: parseInt(value) })}
-                    disabled={isLoadingEmpresas}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={isLoadingEmpresas ? "Cargando empresas..." : "Seleccionar empresa"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {isLoadingEmpresas ? (
-                        <SelectItem value="loading" disabled>
-                          Cargando empresas...
-                        </SelectItem>
-                      ) : errorEmpresas ? (
-                        <SelectItem value="error" disabled>
-                          Error al cargar empresas
-                        </SelectItem>
-                      ) : empresasReales.length === 0 ? (
-                        <SelectItem value="no-empresas" disabled>
-                          No hay empresas disponibles
-                        </SelectItem>
-                      ) : (
-                        empresasReales.map((empresa) => (
-                          <SelectItem key={empresa.id} value={empresa.id.toString()}>
-                            {empresa.razonSocial}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-1">Departamento</label>
-                  <Select
-                    value={selectedDepartamento}
-                    onValueChange={setSelectedDepartamento}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar departamento" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.keys(cityData).length === 0 ? (
-                        <SelectItem value="no-departamentos" disabled>
-                          No hay departamentos disponibles
-                        </SelectItem>
-                      ) : (
-                        Object.entries(cityData).map(([depId, dep]: [string, any]) => (
-                          <SelectItem key={depId} value={depId}>
-                            {dep.nombre}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-1">Ciudad</label>
-                  <Select
-                    value={formData.ciudad_id?.toString() || ''}
-                    onValueChange={(value) => setFormData({ ...formData, ciudad_id: parseInt(value) })}
-                    disabled={!selectedDepartamento}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar ciudad" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {!selectedDepartamento ? (
-                        <SelectItem value="seleccione-departamento" disabled>
-                          Seleccione un departamento primero
-                        </SelectItem>
-                      ) : !(cityData as Record<string, any>)[selectedDepartamento]?.ciudades?.length ? (
-                        <SelectItem value="no-ciudades" disabled>
-                          No hay ciudades disponibles para este departamento
-                        </SelectItem>
-                      ) : (
-                        (cityData as Record<string, any>)[selectedDepartamento]?.ciudades?.map((ciudad: any) => (
-                          <SelectItem key={ciudad.id} value={ciudad.id.toString()}>
-                            {ciudad.nombre}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-1">Dirección</label>
-                  <Input
-                    value={formData.direccion || ''}
-                    onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
-                    placeholder="Dirección completa"
-                  />
-                </div>
-              </div>
-              
-              <div className="flex justify-end gap-2 mt-6">
-                <Button variant="outline" onClick={handleSaved}>
-                  Cancelar
-                </Button>
-                <Button onClick={handleSubmit} disabled={createCandidatoMutation.isPending}>
-                  {createCandidatoMutation.isPending ? 'Guardando...' : 'Guardar'}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
 
