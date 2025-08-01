@@ -126,11 +126,9 @@ export default function PerfilCandidato() {
   const [existingDocuments, setExistingDocuments] = useState<any[]>([]);
   const [tiposDocumentos, setTiposDocumentos] = useState<any[]>([]);
   const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
-  const [empresasDisponibles] = useState([
-    { id: 1, nombre: "TechCorp Solutions", requiredDocs: ["hojaDeVida", "diploma", "certificaciones"] },
-    { id: 2, nombre: "Innovación Digital SA", requiredDocs: ["hojaDeVida", "fotografia", "referencias"] },
-    { id: 3, nombre: "Consultora Estratégica", requiredDocs: ["hojaDeVida", "portafolio", "certificaciones"] }
-  ]);
+  const [tipoCandidato, setTipoCandidato] = useState<any>(null);
+  const [documentosRequeridos, setDocumentosRequeridos] = useState<any[]>([]);
+  const [isLoadingTipoCandidato, setIsLoadingTipoCandidato] = useState(false);
   const navigate = useNavigate();
 
   const form = useForm<PerfilForm>({
@@ -168,6 +166,46 @@ export default function PerfilCandidato() {
       setTiposDocumentos(data || []);
     } catch (error) {
       console.error('Error cargando tipos de documentos:', error);
+    }
+  };
+
+  // Cargar tipo de candidato y sus documentos requeridos
+  const loadTipoCandidato = async (tipoCandidatoId: number) => {
+    try {
+      setIsLoadingTipoCandidato(true);
+      
+      // Cargar información del tipo de candidato
+      const { data: tipoData, error: tipoError } = await supabase
+        .from('tipos_candidatos')
+        .select('*')
+        .eq('id', tipoCandidatoId)
+        .single();
+      
+      if (tipoError) throw tipoError;
+      setTipoCandidato(tipoData);
+
+      // Cargar documentos requeridos para este tipo de candidato
+      const { data: documentosData, error: documentosError } = await supabase
+        .from('tipos_candidatos_documentos')
+        .select(`
+          *,
+          tipos_documentos (
+            id,
+            nombre,
+            descripcion,
+            requerido,
+            activo
+          )
+        `)
+        .eq('tipo_candidato_id', tipoCandidatoId)
+        .order('orden');
+      
+      if (documentosError) throw documentosError;
+      setDocumentosRequeridos(documentosData || []);
+    } catch (error) {
+      console.error('Error cargando tipo de candidato:', error);
+    } finally {
+      setIsLoadingTipoCandidato(false);
     }
   };
 
@@ -480,6 +518,11 @@ export default function PerfilCandidato() {
 
         setCandidato(candidatoTransformado);
         form.reset(candidatoTransformado);
+        
+        // Cargar tipo de candidato y sus documentos requeridos
+        if (candidatoData.tipo_candidato_id) {
+          await loadTipoCandidato(candidatoData.tipo_candidato_id);
+        }
         
         // Cargar documentos del candidato
         await loadDocumentosCandidato(candidatoData.id);
@@ -966,193 +1009,137 @@ export default function PerfilCandidato() {
                   <TabsContent value="archivos" className="space-y-4">
                     <div className="space-y-4">
                       <div className="text-center mb-4">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-1">Documentos por Empresa</h3>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-1">Documentos del Candidato</h3>
                         <p className="text-sm text-gray-600">
-                          Selecciona la empresa para la cual deseas subir documentos específicos
+                          {tipoCandidato ? `Documentos requeridos para: ${tipoCandidato.nombre}` : 'Cargando tipo de candidato...'}
                         </p>
                       </div>
                       
-                      {isLoadingDocuments ? (
+                      {isLoadingTipoCandidato || isLoadingDocuments ? (
                         <div className="flex justify-center py-8">
                           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                         </div>
+                      ) : !tipoCandidato ? (
+                        <div className="text-center py-8">
+                          <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                          <p className="text-gray-600">No se ha configurado un tipo de candidato para este perfil.</p>
+                        </div>
                       ) : (
-                        <Accordion type="single" collapsible className="w-full space-y-2">
-                          {empresasDisponibles.map((empresa) => {
-                            // Filtrar documentos existentes para esta empresa
-                            const documentosEmpresa = existingDocuments.filter(
-                              (doc) => doc.empresa_id === empresa.id
-                            );
-                            
-                            return (
-                              <AccordionItem key={empresa.id} value={`empresa-${empresa.id}`} className="border border-gray-200 rounded-lg">
-                                <AccordionTrigger className="hover:no-underline px-4 py-3 hover:bg-gray-50 rounded-t-lg">
-                                  <div className="flex items-center justify-between w-full">
-                                    <div className="flex items-center space-x-3">
-                                      <Building className="w-5 h-5 text-blue-600" />
-                                      <span className="font-medium text-sm">{empresa.nombre}</span>
-                                    </div>
-                                    <Badge variant="outline" className="text-xs">
-                                      {documentosEmpresa.length} docs
-                                    </Badge>
-                                  </div>
-                                </AccordionTrigger>
-                                <AccordionContent className="px-4 pb-4">
-                                  <div className="pt-2">
-                                    <p className="text-xs text-gray-600 mb-3">
-                                      Documentos requeridos para esta empresa:
-                                    </p>
-                                    
-                                    {/* Documentos existentes de esta empresa */}
-                                    {documentosEmpresa.length > 0 && (
-                                      <div className="mb-4">
-                                        <h5 className="text-xs font-medium text-gray-700 mb-2">Documentos subidos:</h5>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3">
-                                          {documentosEmpresa.map((documento) => (
-                                            <Card key={documento.id} className="border border-green-200 bg-green-50">
-                                              <CardHeader className="pb-2 pt-2">
-                                                <CardTitle className="flex items-center text-xs">
-                                                  <FileText className="w-3 h-3 text-green-600" />
-                                                  <span className="ml-1 flex-1 text-xs">{documento.tipos_documentos.nombre}</span>
-                                                </CardTitle>
-                                                <CardDescription className="text-xs text-gray-600">
-                                                  {documento.nombre_archivo}
-                                                </CardDescription>
-                                              </CardHeader>
-                                              <CardContent className="pt-0 pb-2">
-                                                <div className="flex space-x-1">
-                                                  <Button 
-                                                    variant="outline" 
-                                                    size="sm"
-                                                    className="text-xs h-6"
-                                                    onClick={() => handleDownloadDocument(documento)}
-                                                  >
-                                                    <Download className="w-3 h-3 mr-1" />
-                                                    Ver
-                                                  </Button>
-                                                  <Button 
-                                                    variant="destructive" 
-                                                    size="sm"
-                                                    className="text-xs h-6"
-                                                    onClick={() => handleDeleteDocument(documento.id)}
-                                                  >
-                                                    <Trash2 className="w-3 h-3 mr-1" />
-                                                    Eliminar
-                                                  </Button>
-                                                </div>
-                                              </CardContent>
-                                            </Card>
-                                          ))}
-                                        </div>
+                        <div className="space-y-4">
+                          {/* Documentos existentes */}
+                          {existingDocuments.length > 0 && (
+                            <div className="space-y-3">
+                              <h4 className="text-sm font-medium text-gray-700">Documentos subidos:</h4>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {existingDocuments.map((documento) => (
+                                  <Card key={documento.id} className="border border-green-200 bg-green-50">
+                                    <CardHeader className="pb-2 pt-3">
+                                      <CardTitle className="flex items-center text-xs">
+                                        <FileText className="w-4 h-4 text-green-600" />
+                                        <span className="ml-2 flex-1">{documento.tipos_documentos.nombre}</span>
+                                        {documento.tipos_documentos.requerido && (
+                                          <Badge variant="secondary" className="text-xs">Requerido</Badge>
+                                        )}
+                                      </CardTitle>
+                                      <CardDescription className="text-xs text-gray-600">
+                                        {documento.nombre_archivo}
+                                      </CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="pt-0 pb-3">
+                                      <div className="flex space-x-2">
+                                        <Button 
+                                          variant="outline" 
+                                          size="sm"
+                                          className="text-xs h-7"
+                                          onClick={() => handleDownloadDocument(documento)}
+                                        >
+                                          <Download className="w-3 h-3 mr-1" />
+                                          Descargar
+                                        </Button>
+                                        <Button 
+                                          variant="destructive" 
+                                          size="sm"
+                                          className="text-xs h-7"
+                                          onClick={() => handleDeleteDocument(documento.id)}
+                                        >
+                                          <Trash2 className="w-3 h-3 mr-1" />
+                                          Eliminar
+                                        </Button>
                                       </div>
-                                    )}
-                                    
-                                    {/* Formulario para subir documentos para esta empresa */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                      {empresa.requiredDocs.map((docType, index) => {
-                                        const docConfig = {
-                                          hojaDeVida: { 
-                                            name: 'Hoja de Vida', 
-                                            icon: <Upload className="w-4 h-4" />, 
-                                            description: 'CV en formato PDF (máx. 5MB)',
-                                            required: true,
-                                            tipoId: 1 // ID del tipo de documento en la BD
-                                          },
-                                          diploma: { 
-                                            name: 'Diploma', 
-                                            icon: <GraduationCap className="w-4 h-4" />, 
-                                            description: 'Título profesional (PDF)',
-                                            required: true,
-                                            tipoId: 4
-                                          },
-                                          certificaciones: { 
-                                            name: 'Certificaciones', 
-                                            icon: <Upload className="w-4 h-4" />, 
-                                            description: 'Certificados adicionales (PDF)',
-                                            required: false,
-                                            tipoId: 5
-                                          },
-                                          fotografia: { 
-                                            name: 'Fotografía', 
-                                            icon: <User className="w-4 h-4" />, 
-                                            description: 'Foto profesional (JPG/PNG, máx. 2MB)',
-                                            required: false,
-                                            tipoId: 6
-                                          },
-                                          referencias: { 
-                                            name: 'Referencias', 
-                                            icon: <Mail className="w-4 h-4" />, 
-                                            description: 'Cartas de recomendación (PDF)',
-                                            required: false,
-                                            tipoId: 6
-                                          },
-                                          portafolio: { 
-                                            name: 'Portafolio', 
-                                            icon: <Briefcase className="w-4 h-4" />, 
-                                            description: 'Muestra de trabajos (PDF/ZIP)',
-                                            required: false,
-                                            tipoId: 7
-                                          }
-                                        };
-                                        
-                                        const config = docConfig[docType as keyof typeof docConfig];
-                                        const isUploaded = documentosEmpresa.some(
-                                          (doc) => doc.tipo_documento_id === config.tipoId
-                                        );
-                                        
-                                        return (
-                                          <Card key={index} className={`border ${isUploaded ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
-                                            <CardHeader className="pb-2 pt-3">
-                                              <CardTitle className="flex items-center text-xs">
-                                                {config.icon}
-                                                <span className="ml-2 flex-1">
-                                                  {config.name}
-                                                  {config.required && <span className="text-red-500 ml-1">*</span>}
-                                                </span>
-                                                {isUploaded && (
-                                                  <Badge variant="secondary" className="text-xs">Subido</Badge>
-                                                )}
-                                              </CardTitle>
-                                              <CardDescription className="text-xs text-gray-600">
-                                                {config.description}
-                                              </CardDescription>
-                                            </CardHeader>
-                                            <CardContent className="pt-0 pb-3">
-                                              <div className="border-2 border-dashed border-gray-300 rounded-lg p-3 text-center hover:border-blue-400 transition-colors">
-                                                <Upload className="w-5 h-5 mx-auto text-gray-400 mb-1" />
-                                                <p className="text-xs text-gray-600 mb-2">
-                                                  Solo archivos PDF (máx. 5MB)
-                                                </p>
-                                                <input
-                                                  type="file"
-                                                  accept=".pdf"
-                                                  className="hidden"
-                                                  id={`file-${empresa.id}-${config.tipoId}`}
-                                                  onChange={(e) => handleFileChange(e, config.tipoId, config.name, empresa.id)}
-                                                  disabled={isUploaded}
-                                                />
-                                                <label htmlFor={`file-${empresa.id}-${config.tipoId}`}>
-                                                  <Button 
-                                                    variant="outline" 
-                                                    size="sm"
-                                                    className="text-xs h-7 cursor-pointer"
-                                                    disabled={isUploaded}
-                                                  >
-                                                    {isUploaded ? 'Ya subido' : 'Seleccionar'}
-                                                  </Button>
-                                                </label>
-                                              </div>
-                                            </CardContent>
-                                          </Card>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-                                </AccordionContent>
-                              </AccordionItem>
-                            );
-                          })}
-                        </Accordion>
+                                    </CardContent>
+                                  </Card>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Formulario para subir nuevos documentos */}
+                          {documentosRequeridos.length > 0 && (
+                            <div className="space-y-3">
+                              <h4 className="text-sm font-medium text-gray-700">Documentos requeridos para {tipoCandidato.nombre}:</h4>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {documentosRequeridos.map((documentoRequerido) => {
+                                  const isUploaded = existingDocuments.some(
+                                    (doc) => doc.tipo_documento_id === documentoRequerido.tipo_documento_id
+                                  );
+                                  
+                                  return (
+                                    <Card key={documentoRequerido.id} className={`border ${isUploaded ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+                                      <CardHeader className="pb-2 pt-3">
+                                        <CardTitle className="flex items-center text-xs">
+                                          <Upload className="w-4 h-4" />
+                                          <span className="ml-2 flex-1">
+                                            {documentoRequerido.tipos_documentos.nombre}
+                                            {documentoRequerido.obligatorio && <span className="text-red-500 ml-1">*</span>}
+                                          </span>
+                                          {isUploaded && (
+                                            <Badge variant="secondary" className="text-xs">Subido</Badge>
+                                          )}
+                                        </CardTitle>
+                                        <CardDescription className="text-xs text-gray-600">
+                                          {documentoRequerido.tipos_documentos.descripcion}
+                                        </CardDescription>
+                                      </CardHeader>
+                                      <CardContent className="pt-0 pb-3">
+                                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-3 text-center hover:border-blue-400 transition-colors">
+                                          <Upload className="w-5 h-5 mx-auto text-gray-400 mb-1" />
+                                          <p className="text-xs text-gray-600 mb-2">
+                                            Solo archivos PDF (máx. 5MB)
+                                          </p>
+                                          <input
+                                            type="file"
+                                            accept=".pdf"
+                                            className="hidden"
+                                            id={`file-${documentoRequerido.tipo_documento_id}`}
+                                            onChange={(e) => handleFileChange(e, documentoRequerido.tipo_documento_id, documentoRequerido.tipos_documentos.nombre, 0)}
+                                            disabled={isUploaded}
+                                          />
+                                          <label htmlFor={`file-${documentoRequerido.tipo_documento_id}`}>
+                                            <Button 
+                                              variant="outline" 
+                                              size="sm"
+                                              className="text-xs h-7 cursor-pointer"
+                                              disabled={isUploaded}
+                                            >
+                                              {isUploaded ? 'Ya subido' : 'Seleccionar'}
+                                            </Button>
+                                          </label>
+                                        </div>
+                                      </CardContent>
+                                    </Card>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {documentosRequeridos.length === 0 && (
+                            <div className="text-center py-8">
+                              <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-4" />
+                              <p className="text-gray-600">No hay documentos requeridos para este tipo de candidato.</p>
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                   </TabsContent>
