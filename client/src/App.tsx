@@ -11,12 +11,15 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { QueryInvalidator } from "@/components/QueryInvalidator";
+import { LoadingOverlay } from "@/components/ui/loading-overlay";
+import { useLoading } from "@/contexts/LoadingContext";
 
 // Páginas de autenticación
 import LoginUnificado from './pages/LoginUnificado';
 import LoginAdmin from './pages/LoginAdmin';
 import RecuperarPasswordPage from './pages/auth/RecuperarPasswordPage';
 import VerificarCodigoPage from './pages/auth/VerificarCodigoPage';
+import SelectEmpresa from './pages/SelectEmpresa';
 
 // Páginas protegidas
 import Index from './pages/Index';
@@ -104,10 +107,13 @@ import NotFound from './pages/NotFound';
 import './App.css';
 
 function App() {
+  const { isLoading } = useLoading();
+
   return (
     <Router>
       <div className="App">
-          <Routes>
+        <LoadingOverlay isLoading={isLoading} />
+        <Routes>
           {/* Ruta de prueba para verificar providers */}
           <Route path="/test" element={
             <div>
@@ -171,6 +177,11 @@ function App() {
               <PublicRoute>
                 <ResetPasswordEmpresa />
               </PublicRoute>
+            } />
+            <Route path="/select-empresa" element={
+              <ProtectedRoute>
+                <SelectEmpresa />
+              </ProtectedRoute>
             } />
 
             {/* Layout con menú para rutas protegidas */}

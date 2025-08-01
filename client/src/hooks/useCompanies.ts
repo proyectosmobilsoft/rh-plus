@@ -51,14 +51,29 @@ export function useCompanies(entityType: 'empresa' | 'prestador') {
 
   const empresasMapeadas = empresas.map((e: any) => ({
     id: e.id,
-    razonSocial: e.razon_social || e.razonSocial || '',
-    direccion: e.direccion || '',
-    ciudad: e.ciudad || '',
-    correoElectronico: e.email || '',
-    telefono: e.telefono || '',
-    representanteLegal: e.representante_legal || e.representanteLegal || '',
+    razonSocial: e.razon_social || e.razonSocial || e.nombre || '',
+    direccion: e.direccion || e.address || '',
+    ciudad: e.ciudad || e.city || '',
+    email: e.email || e.correoElectronico || '',
+    telefono: e.telefono || e.phone || '',
+    representanteLegal: e.representante_legal || e.representanteLegal || e.contactPerson || '',
     nit: e.nit || '',
-    active: e.activo !== false
+    active: e.activo !== false && e.active !== false,
+    // Campos nuevos de la BD
+    actividad_economica_id: e.actividad_economica_id,
+    regimen_tributario_id: e.regimen_tributario_id,
+    numero_empleados: e.numero_empleados,
+    tipo_empresa: e.tipo_empresa,
+    tipo_documento: e.tipo_documento,
+    documento_contrato: e.documento_contrato,
+    documento_camara_comercio: e.documento_camara_comercio,
+    documento_rut: e.documento_rut,
+    // Campos de la BD con nombres originales
+    razon_social: e.razon_social,
+    representante_legal: e.representante_legal,
+    created_at: e.created_at,
+    updated_at: e.updated_at,
+    activo: e.activo
   }));
 
   console.log('🎯 Empresas mapeadas para la tabla:', empresasMapeadas);

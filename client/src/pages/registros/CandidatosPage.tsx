@@ -24,16 +24,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { User, Search, Plus, Edit, Trash2, FileText, Download, Eye } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { User, Search, Plus, Edit, Trash2, FileText, Download, Eye, Filter, Lock, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { candidatosService, type DocumentoCandidato } from '@/services/candidatosService';
 import { useCompanies } from '@/hooks/useCompanies';
 import { useCityData } from '@/hooks/useCityData';
 import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { empresasService } from '@/services/empresasService';
+import { useLoading } from '@/contexts/LoadingContext';
 import { supabase } from '@/services/supabaseClient';
 
 interface Candidato {
@@ -53,9 +57,16 @@ interface Candidato {
 
 const CandidatosPage = () => {
   const { toast } = useToast();
+  const { startLoading, stopLoading } = useLoading();
   const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState("candidatos");
+  
+  // Estados para filtros
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedEmpresa, setSelectedEmpresa] = useState('todas');
+  const [empresaFilter, setEmpresaFilter] = useState<string>("todas");
+  const [ciudadFilter, setCiudadFilter] = useState<string>("todas");
+  const [statusFilter, setStatusFilter] = useState<string>("activos");
+  
   const [formData, setFormData] = useState<Partial<Candidato> & { empresa_id?: number, ciudad_id?: number }>({
     identificacion: '',
     tipoDocumento: '',
@@ -77,7 +88,6 @@ const CandidatosPage = () => {
   const [documentosCandidato, setDocumentosCandidato] = useState<DocumentoCandidato[]>([]);
   const [modalDocumentosOpen, setModalDocumentosOpen] = useState(false);
   const [buscandoCandidato, setBuscandoCandidato] = useState(false);
-  const [tipoBusqueda, setTipoBusqueda] = useState<'general' | 'documentos'>('general');
   const [modalConfirmacionOpen, setModalConfirmacionOpen] = useState(false);
   const [candidatoAEliminar, setCandidatoAEliminar] = useState<any>(null);
 
@@ -251,8 +261,15 @@ const CandidatosPage = () => {
       candidato.primer_apellido?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       candidato.numero_documento?.includes(searchTerm) ||
       candidato.email?.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesEmpresa = selectedEmpresa === 'todas' || getEmpresaNombre(candidato.empresa_id) === selectedEmpresa;
-    return matchesSearch && matchesEmpresa;
+    
+    const matchesEmpresa = empresaFilter === 'todas' || getEmpresaNombre(candidato.empresa_id) === empresaFilter;
+    
+    const matchesCiudad = ciudadFilter === 'todas' || getCiudadNombre(candidato.ciudad_id) === ciudadFilter;
+    
+    const matchesStatus = statusFilter === 'todos' ? true :
+      statusFilter === 'activos' ? candidato.activo : !candidato.activo;
+    
+    return matchesSearch && matchesEmpresa && matchesCiudad && matchesStatus;
   });
 
   // Función para limpiar el formulario
@@ -353,9 +370,90 @@ const CandidatosPage = () => {
     return '';
   };
 
+  // Obtener ciudades únicas para el filtro
+  const uniqueCities = [...new Set(candidatos.map((c: any) => getCiudadNombre(c.ciudad_id)).filter(Boolean))].sort();
+
+  // Obtener empresas únicas para el filtro
+  const uniqueEmpresas = [...new Set(candidatos.map((c: any) => getEmpresaNombre(c.empresa_id)).filter(Boolean))].sort();
+
+  const handleNewCandidato = () => {
+    resetForm();
+    setEditingId(null);
+    setActiveTab("registro");
+  };
+
+  const handleSaved = () => {
+    setActiveTab("candidatos");
+    setDialogOpen(false);
+    resetForm();
+    refetch();
+  };
+
+  const handleActivate = async (candidato: any) => {
+    if (!candidato.id) return;
+
+    try {
+      startLoading();
+      const success = await candidatosService.activate(candidato.id);
+      if (success) {
+        toast({
+          title: "✅ Éxito",
+          description: "Candidato activado correctamente",
+          variant: "default"
+        });
+        await refetch(); // Recargar datos
+      } else {
+        toast({
+          title: "❌ Error",
+          description: "No se pudo activar el candidato",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "❌ Error",
+        description: "Error al activar el candidato",
+        variant: "destructive"
+      });
+    } finally {
+      stopLoading();
+    }
+  };
+
+  const handleDeactivate = async (candidato: any) => {
+    if (!candidato.id) return;
+
+    try {
+      startLoading();
+      const success = await candidatosService.deactivate(candidato.id);
+      if (success) {
+        toast({
+          title: "✅ Éxito",
+          description: "Candidato inactivado correctamente",
+          variant: "default"
+        });
+        await refetch(); // Recargar datos
+      } else {
+        toast({
+          title: "❌ Error",
+          description: "No se pudo inactivar el candidato",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "❌ Error",
+        description: "Error al inactivar el candidato",
+        variant: "destructive"
+      });
+    } finally {
+      stopLoading();
+    }
+  };
+
   if (isLoading) {
     return (
-      <div className="p-6 max-w-7xl mx-auto">
+      <div className="p-4 max-w-full mx-auto">
         <div className="animate-pulse">
           <div className="h-8 bg-gray-200 rounded mb-4"></div>
           <div className="h-64 bg-gray-200 rounded"></div>
@@ -365,106 +463,314 @@ const CandidatosPage = () => {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="mb-6">
-        <div className="flex items-center gap-3 mb-4">
-          <User className="h-8 w-8 text-green-600" />
-          <h1 className="text-3xl font-bold text-gray-900">Candidatos</h1>
-        </div>
-        
-        <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-          <div className="flex flex-col sm:flex-row gap-3 flex-1">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder={
-                  tipoBusqueda === 'general' 
-                    ? "Buscar candidatos por nombre, cédula o email..." 
-                    : "Ingresa el número de cédula para buscar documentos..."
-                }
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    if (tipoBusqueda === 'documentos') {
-                      buscarCandidatoPorCedula();
-                    }
-                  }
-                }}
-              />
-            </div>
-            
-            <Select value={selectedEmpresa} onValueChange={setSelectedEmpresa}>
-              <SelectTrigger className="w-full sm:w-48">
-                <SelectValue placeholder="Filtrar por empresa" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todas">Todas las empresas</SelectItem>
-                {empresasReales.map((empresa) => (
-                  <SelectItem key={empresa.id} value={empresa.razonSocial}>
-                    {empresa.razonSocial}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+    <div className="p-4 max-w-full mx-auto">
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-3xl font-extrabold text-cyan-800 flex items-center gap-2 mb-2">
+          <User className="w-8 h-8 text-cyan-600" />
+          Gestión de Candidatos
+        </h1>
+      </div>
 
-            {/* Botones de búsqueda */}
-            <div className="flex gap-2">
-              <Button 
-                onClick={() => setTipoBusqueda('general')}
-                variant={tipoBusqueda === 'general' ? 'default' : 'outline'}
-                className="whitespace-nowrap"
-              >
-                <Search className="h-4 w-4 mr-2" />
-                Buscar
-              </Button>
-              <Button 
-                onClick={() => {
-                  setTipoBusqueda('documentos');
-                  if (searchTerm.trim()) {
-                    buscarCandidatoPorCedula();
-                  }
-                }}
-                disabled={buscandoCandidato || !searchTerm.trim()}
-                variant={tipoBusqueda === 'documentos' ? 'default' : 'outline'}
-                className="whitespace-nowrap"
-              >
-                {buscandoCandidato ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Buscando...
-                  </>
-                ) : (
-                  <>
-                    <FileText className="h-4 w-4 mr-2" />
-                    Ver Docs
-                  </>
-                )}
-              </Button>
-              {/* Botón para agregar candidatos */}
-              <Button 
-                onClick={() => {
-                  resetForm();
-                  setEditingId(null);
-                  setDialogOpen(true);
-                }}
-                className="bg-green-600 hover:bg-green-700 whitespace-nowrap"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Agregar Candidato
-              </Button>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2 bg-cyan-100/60 p-1 rounded-lg">
+          <TabsTrigger
+            value="candidatos"
+            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+          >
+            Listado de Candidatos
+          </TabsTrigger>
+          <TabsTrigger
+            value="registro"
+            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+          >
+            Registro de Candidato
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="candidatos" className="mt-6">
+          {/* Header similar al diseño de empresas */}
+          <div className="bg-white rounded-lg border">
+            <div className="flex items-center justify-between p-4 border-b">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-orange-100 rounded flex items-center justify-center">
+                  <User className="w-5 h-5 text-orange-600" />
+                </div>
+                <span className="text-lg font-semibold text-gray-700">CANDIDATOS</span>
+              </div>
+              <div className="flex space-x-2">
+                <Button
+                  onClick={handleNewCandidato}
+                  className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
+                  size="sm"
+                >
+                  Adicionar Registro
+                </Button>
+              </div>
+            </div>
+
+            {/* Filtros */}
+            <div className="p-4 border-b bg-gray-50">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    placeholder="Buscar por nombre, cédula o email..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+
+                <Select value={empresaFilter} onValueChange={setEmpresaFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filtrar por empresa" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todas">Todas las empresas</SelectItem>
+                    {uniqueEmpresas.map(empresa => (
+                      <SelectItem key={empresa} value={empresa}>{empresa}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={ciudadFilter} onValueChange={setCiudadFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filtrar por ciudad" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todas">Todas las ciudades</SelectItem>
+                    {Object.values(cityData).flatMap((dep: any) => 
+                      dep.ciudades.map((ciudad: any) => (
+                        <SelectItem key={ciudad.id} value={ciudad.nombre}>
+                          {ciudad.nombre}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filtrar por estado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos los estados</SelectItem>
+                    <SelectItem value="activos">Solo activos</SelectItem>
+                    <SelectItem value="inactivos">Solo inactivos</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setEmpresaFilter("todas");
+                    setCiudadFilter("todas");
+                    setStatusFilter("activos");
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <Filter className="w-4 h-4" />
+                  Limpiar filtros
+                </Button>
+              </div>
+            </div>
+
+            {/* Tabla de candidatos */}
+            <div className="overflow-x-auto rounded-lg shadow-sm">
+              <Table className="min-w-[800px] w-full text-xs">
+                <TableHeader className="bg-cyan-50">
+                  <TableRow className="text-left font-semibold text-gray-700">
+                    <TableHead className="px-2 py-1 text-teal-600">Acciones</TableHead>
+                    <TableHead className="px-4 py-3">Cédula</TableHead>
+                    <TableHead className="px-4 py-3">Nombre Completo</TableHead>
+                    <TableHead className="px-4 py-3">Teléfono</TableHead>
+                    <TableHead className="px-4 py-3">Email</TableHead>
+                    <TableHead className="px-4 py-3">Empresa</TableHead>
+                    <TableHead className="px-4 py-3">Ciudad</TableHead>
+                    <TableHead className="px-4 py-3">Estado</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="h-24 text-center">
+                        Cargando candidatos...
+                      </TableCell>
+                    </TableRow>
+                  ) : filteredCandidatos.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="h-24 text-center">
+                        No hay candidatos disponibles.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredCandidatos.map((candidato: any) => (
+                      <TableRow key={candidato.id} className="hover:bg-gray-50">
+                        <TableCell className="px-2 py-1">
+                          <div className="flex flex-row gap-1 items-center">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleEdit(candidato)}
+                                    aria-label="Editar candidato"
+                                    className="h-8 w-8"
+                                  >
+                                    <Edit className="h-4 w-4 text-blue-600 hover:text-blue-800 transition-colors" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Editar</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                            {candidato.activo ? (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          aria-label="Inactivar candidato"
+                                          className="h-8 w-8"
+                                        >
+                                          <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
+                                        </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>¿Inactivar candidato?</AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            Esta acción inactivará el candidato y no podrá ser usado hasta que se reactive. ¿Estás seguro?
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                          <AlertDialogAction onClick={() => handleDeactivate(candidato)}>
+                                            Sí, inactivar
+                                          </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Inactivar</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            ) : (
+                              <>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            aria-label="Eliminar candidato"
+                                            className="h-8 w-8"
+                                          >
+                                            <Trash2 className="h-4 w-4 text-rose-600 hover:text-rose-800 transition-colors" />
+                                          </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>¿Eliminar candidato?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                              Esta acción eliminará el candidato de forma permanente. ¿Estás seguro?
+                                            </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => confirmarEliminacion(candidato)}>
+                                              Sí, eliminar
+                                            </AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Eliminar</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            aria-label="Activar candidato"
+                                            className="h-8 w-8"
+                                          >
+                                            <CheckCircle className="h-4 w-4 text-green-600 hover:text-green-800 transition-colors" />
+                                          </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>¿Activar candidato?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                              Esta acción reactivará el candidato y estará disponible para su uso. ¿Estás seguro?
+                                            </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleActivate(candidato)}>
+                                              Sí, activar
+                                            </AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Activar</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-sm text-gray-900 font-medium">{candidato.numero_documento}</TableCell>
+                        <TableCell className="px-4 py-3 text-sm text-gray-900">
+                          {`${candidato.primer_nombre} ${candidato.segundo_nombre || ''} ${candidato.primer_apellido} ${candidato.segundo_apellido || ''}`.trim()}
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-sm text-gray-500">{candidato.telefono || 'No registrado'}</TableCell>
+                        <TableCell className="px-4 py-3 text-sm text-gray-500">{candidato.email}</TableCell>
+                        <TableCell className="px-4 py-3 text-sm text-gray-500">{getEmpresaNombre(candidato.empresa_id)}</TableCell>
+                        <TableCell className="px-4 py-3 text-sm text-gray-500">{getCiudadNombre(candidato.ciudad_id)}</TableCell>
+                        <TableCell className="px-4 py-3">
+                          <Badge variant={candidato.activo ? "default" : "secondary"} className={candidato.activo ? "bg-green-100 text-green-700 border-green-200" : "bg-gray-200 text-gray-600 border-gray-300"}>
+                            {candidato.activo ? "Activo" : "Inactivo"}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
             </div>
           </div>
-          
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingId ? 'Editar Candidato' : 'Nuevo Candidato'}
-                </DialogTitle>
-              </DialogHeader>
-              
+        </TabsContent>
+
+        <TabsContent value="registro" className="space-y-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-800">
+              {editingId ? 'Editar Candidato' : 'Registro de Nuevo Candidato'}
+            </h2>
+          </div>
+
+          {/* Formulario de candidato en el tab de registro */}
+          <Card>
+            <CardContent className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">Identificación *</label>
@@ -580,125 +886,6 @@ const CandidatosPage = () => {
                       )}
                     </SelectContent>
                   </Select>
-                  {errorEmpresas && (
-                    <p className="text-sm text-red-500 mt-1">
-                      Error al cargar empresas: {errorEmpresas}
-                    </p>
-                  )}
-                  {empresasReales.length === 0 && !isLoadingEmpresas && !errorEmpresas && (
-                    <div className="mt-2">
-                      <p className="text-sm text-red-500 mb-2">
-                        No se pudieron cargar las empresas. Verifica la conexión.
-                      </p>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={async () => {
-                            try {
-                              // Crear una empresa de prueba con la estructura correcta
-                              const empresaPrueba = {
-                                nombre: 'Empresa de Prueba',
-                                razonSocial: 'Empresa de Prueba S.A.S.',
-                                nit: '900123456-7',
-                                direccion: 'Calle 123 #45-67',
-                                telefono: '3001234567',
-                                email: 'contacto@empresaprueba.com',
-                                representanteLegal: 'Juan Pérez',
-                                cargoRepresentante: 'Gerente General',
-                                estado: 'activo'
-                              };
-                              
-                              const nuevaEmpresa = await empresasService.create(empresaPrueba);
-                              if (nuevaEmpresa) {
-                                toast({
-                                  title: "Éxito",
-                                  description: "Empresa de prueba creada correctamente",
-                                });
-                                // Recargar las empresas
-                                window.location.reload();
-                              } else {
-                                toast({
-                                  title: "Error",
-                                  description: "No se pudo crear la empresa de prueba",
-                                  variant: "destructive",
-                                });
-                              }
-                            } catch (error) {
-                              console.error('Error completo:', error);
-                              toast({
-                                title: "Error",
-                                description: "No se pudo crear la empresa de prueba",
-                                variant: "destructive",
-                              });
-                            }
-                          }}
-                        >
-                          Crear Empresa de Prueba
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={async () => {
-                            try {
-                              // Verificar directamente las empresas en la BD
-                              console.log('🔍 Verificando conexión con Supabase...');
-                              
-                              // Primero verificar la estructura de la tabla
-                              const { data: structureData, error: structureError } = await supabase
-                                .from('empresas')
-                                .select('*')
-                                .limit(1);
-                              
-                              if (structureError) {
-                                console.error('❌ Error al verificar estructura:', structureError);
-                                toast({
-                                  title: "Error",
-                                  description: `Error de estructura: ${structureError.message}`,
-                                  variant: "destructive",
-                                });
-                                return;
-                              }
-                              
-                              if (structureData && structureData.length > 0) {
-                                console.log('📋 Estructura de la primera empresa:', structureData[0]);
-                                console.log('🔑 Columnas disponibles:', Object.keys(structureData[0]));
-                              }
-                              
-                              const { data, error } = await supabase
-                                .from('empresas')
-                                .select('*');
-                              
-                              if (error) {
-                                console.error('❌ Error al consultar empresas:', error);
-                                toast({
-                                  title: "Error",
-                                  description: `Error al consultar: ${error.message}`,
-                                  variant: "destructive",
-                                });
-                              } else {
-                                console.log('✅ Empresas en BD:', data);
-                                console.log('📊 Total de empresas:', data?.length || 0);
-                                
-                                if (data && data.length > 0) {
-                                  console.log('📋 Primera empresa:', data[0]);
-                                }
-                                
-                                toast({
-                                  title: "Info",
-                                  description: `Encontradas ${data?.length || 0} empresas en la BD`,
-                                });
-                              }
-                            } catch (error) {
-                              console.error('❌ Error al verificar empresas:', error);
-                            }
-                          }}
-                        >
-                          Verificar BD
-                        </Button>
-                      </div>
-                    </div>
-                  )}
                 </div>
                 
                 <div>
@@ -767,94 +954,17 @@ const CandidatosPage = () => {
               </div>
               
               <div className="flex justify-end gap-2 mt-6">
-                <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                <Button variant="outline" onClick={handleSaved}>
                   Cancelar
                 </Button>
                 <Button onClick={handleSubmit} disabled={createCandidatoMutation.isPending}>
                   {createCandidatoMutation.isPending ? 'Guardando...' : 'Guardar'}
                 </Button>
               </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-6">
-          <h2 className="text-xl font-semibold mb-4">
-            Lista de Candidatos ({filteredCandidatos.length})
-          </h2>
-          
-          {filteredCandidatos.length === 0 ? (
-            <div className="text-center py-8">
-              <User className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">No hay datos disponibles en este momento</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Identificación</TableHead>
-                    <TableHead>Nombre</TableHead>
-                    <TableHead>Apellido</TableHead>
-                    <TableHead>Teléfono</TableHead>
-                    <TableHead>Correo</TableHead>
-                    <TableHead>Empresa</TableHead>
-                    <TableHead>Ciudad</TableHead>
-                    <TableHead>Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredCandidatos.map((candidato: any) => (
-                    <TableRow key={candidato.id}>
-                      <TableCell className="font-medium">
-                        {candidato.numero_documento}
-                      </TableCell>
-                      <TableCell>{candidato.primer_nombre}</TableCell>
-                      <TableCell>{candidato.primer_apellido}</TableCell>
-                      <TableCell>{candidato.telefono}</TableCell>
-                      <TableCell>{candidato.email}</TableCell>
-                      <TableCell>{getEmpresaNombre(candidato.empresa_id)}</TableCell>
-                      <TableCell>{getCiudadNombre(candidato.ciudad_id)}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(candidato)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-red-600 hover:text-red-700"
-                            onClick={() => confirmarEliminacion(candidato)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setCandidatoEncontrado(candidato);
-                              setDocumentosCandidato([]); // Limpiar documentos anteriores
-                              buscarDocumentosCandidato(candidato); // Buscar documentos para este candidato
-                            }}
-                          >
-                            <FileText className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </div>
-      </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Modal de Documentos del Candidato */}
       <Dialog open={modalDocumentosOpen} onOpenChange={setModalDocumentosOpen}>

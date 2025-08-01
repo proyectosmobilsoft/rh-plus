@@ -27,6 +27,7 @@ import { rolesService } from "@/services/rolesService";
 import { empresasService, Empresa } from "@/services/empresasService";
 import { usuariosService, UsuarioData } from "@/services/usuariosService";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useLoading } from "@/contexts/LoadingContext";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useForm } from "react-hook-form";
@@ -111,6 +112,7 @@ const UsuariosPage = () => {
   const [activeTab, setActiveTab] = useState("usuarios");
   const [editingUser, setEditingUser] = useState<Usuario | null>(null);
   const { toast } = useToast();
+  const { startLoading, stopLoading } = useLoading();
   const queryClient = useQueryClient();
 
   // Query para obtener usuarios desde Supabase
@@ -156,9 +158,14 @@ const UsuariosPage = () => {
 
   // Mutaciones
   const createUserMutation = useMutation({
-    mutationFn: (data: any) => {
-      const { password, perfilIds, empresaIds, ...userData } = data;
-      return usuariosService.createUsuario(userData, password, perfilIds, empresaIds);
+    mutationFn: async (data: any) => {
+      startLoading();
+      try {
+        const { password, perfilIds, empresaIds, ...userData } = data;
+        return await usuariosService.createUsuario(userData, password, perfilIds, empresaIds);
+      } finally {
+        stopLoading();
+      }
     },
     onSuccess: () => {
       toast({
@@ -179,9 +186,14 @@ const UsuariosPage = () => {
   });
 
   const updateUserMutation = useMutation({
-    mutationFn: (data: EditarUsuarioForm) => {
-      const { password, ...userData } = data;
-      return usuariosService.updateUsuario(userData.id, userData);
+    mutationFn: async (data: EditarUsuarioForm) => {
+      startLoading();
+      try {
+        const { password, ...userData } = data;
+        return await usuariosService.updateUsuario(userData.id, userData);
+      } finally {
+        stopLoading();
+      }
     },
     onSuccess: () => {
       toast({
@@ -202,7 +214,14 @@ const UsuariosPage = () => {
   });
 
   const deleteUserMutation = useMutation({
-    mutationFn: usuariosService.deleteUsuario,
+    mutationFn: async (id: number) => {
+      startLoading();
+      try {
+        return await usuariosService.deleteUsuario(id);
+      } finally {
+        stopLoading();
+      }
+    },
     onSuccess: () => {
       toast({
         title: "Usuario eliminado",
@@ -220,7 +239,14 @@ const UsuariosPage = () => {
   });
 
   const activateUserMutation = useMutation({
-    mutationFn: usuariosService.activateUsuario,
+    mutationFn: async (id: number) => {
+      startLoading();
+      try {
+        return await usuariosService.activateUsuario(id);
+      } finally {
+        stopLoading();
+      }
+    },
     onSuccess: () => {
       toast({
         title: "Usuario activado",
@@ -238,7 +264,14 @@ const UsuariosPage = () => {
   });
 
   const deactivateUserMutation = useMutation({
-    mutationFn: usuariosService.deactivateUsuario,
+    mutationFn: async (id: number) => {
+      startLoading();
+      try {
+        return await usuariosService.deactivateUsuario(id);
+      } finally {
+        stopLoading();
+      }
+    },
     onSuccess: () => {
       toast({
         title: "Usuario desactivado",

@@ -95,11 +95,23 @@ export const empresasService = {
       return null;
     }
   },
-  update: async (empresa: Empresa): Promise<Empresa | null> => {
+  update: async (empresa: any): Promise<Empresa | null> => {
     try {
+      // Mapear los campos del frontend a los campos de la base de datos
+      const empresaToUpdate = {
+        razon_social: empresa.razonSocial,
+        nit: empresa.nit,
+        direccion: empresa.direccion,
+        ciudad: empresa.ciudad,
+        email: empresa.email,
+        telefono: empresa.telefono,
+        representante_legal: empresa.representanteLegal,
+        activo: empresa.active
+      };
+
       const { data, error } = await supabase
         .from('empresas')
-        .update(empresa)
+        .update(empresaToUpdate)
         .eq('id', empresa.id)
         .select()
         .single();
@@ -130,6 +142,42 @@ export const empresasService = {
       return true;
     } catch (error) {
       console.error('Error en delete empresa:', error);
+      return false;
+    }
+  },
+  activate: async (id: number): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('empresas')
+        .update({ activo: true })
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error al activar empresa:', error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error en activate empresa:', error);
+      return false;
+    }
+  },
+  deactivate: async (id: number): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('empresas')
+        .update({ activo: false })
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error al inactivar empresa:', error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error en deactivate empresa:', error);
       return false;
     }
   }

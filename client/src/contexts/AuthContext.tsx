@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { UserRole, Permission, getUserPermissions } from '@/config/permissions';
 import { guardarEmpresaSeleccionadaConConsulta } from '@/utils/empresaUtils';
+import { authService } from '@/services/authService';
 
 export interface User {
   id: number;
@@ -64,16 +65,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const checkSession = async () => {
     try {
-      setIsLoading(true);
-      setError(null);
-      
-      // Verificar si hay datos de usuario en localStorage
+      console.log('=== VERIFICANDO SESIÓN ===');
       const userData = localStorage.getItem('userData');
       const token = localStorage.getItem('authToken');
-      
-      console.log('=== INICIO: checkSession ===');
-      console.log('userData existe:', !!userData);
-      console.log('token existe:', !!token);
       
       if (userData && token) {
         try {
@@ -85,7 +79,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           const tokenParts = token.split('.');
           console.log('Token parts:', tokenParts.length);
           
-          if (tokenParts.length === 2) {
+          if (tokenParts.length === 3 && tokenParts[0] === 'simulated') {
             // Es un token simulado, no verificar con el servidor
             console.log('✅ Token simulado detectado, saltando verificación del servidor');
             const user = JSON.parse(userData);
@@ -122,21 +116,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
         } catch (verifyError) {
           console.error('Error verificando token:', verifyError);
           // Solo limpiar si no es un token simulado
-          if (!token.includes('.')) {
+          if (!token.includes('simulated')) {
             localStorage.removeItem('authToken');
             localStorage.removeItem('userData');
             localStorage.removeItem('empresaData');
           }
         }
       } else {
-        console.log('No hay datos de autenticación en localStorage');
-        console.log('Esto es normal si el usuario aún no ha hecho login');
+        console.log('No hay datos de sesión en localStorage');
       }
-      
-      console.log('=== FIN: checkSession ===');
     } catch (error) {
-      console.error('Error checking session:', error);
-      setError('Error al verificar sesión');
+      console.error('Error en checkSession:', error);
     } finally {
       setIsLoading(false);
     }
@@ -150,32 +140,33 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.log('- userData existe:', !!localStorage.getItem('userData'));
       console.log('- authToken existe:', !!localStorage.getItem('authToken'));
       
-      // Validar credenciales con el servidor
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(credentials),
-        credentials: 'include'
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Error en las credenciales');
-      }
-
-      const data = await response.json();
-      console.log('Respuesta del servidor:', data);
+      // Validar usuario con Supabase
+      const userValidation = await authService.validateUser(credentials.username);
       
-      // Guardar token en localStorage
-      if (data.token) {
-        localStorage.setItem('authToken', data.token);
-        console.log('Token guardado en localStorage');
+      if (!userValidation) {
+        throw new Error('Usuario no encontrado');
       }
+
+      console.log('Usuario validado:', userValidation);
+
+      // Verificar contraseña
+      const passwordResult = await authService.verifyPassword(userValidation.user.id, credentials.password);
+      
+      if (!passwordResult.success) {
+        throw new Error('Contraseña incorrecta');
+      }
+
+      console.log('Contraseña verificada correctamente');
+
+      const userData = passwordResult.userData;
+      
+      // Generar token simulado
+      const token = `simulated.${Date.now()}.${userData.id}`;
+      localStorage.setItem('authToken', token);
+      console.log('Token simulado guardado en localStorage');
         
       // Obtener permisos del usuario
-      const userPermissions = await getUserPermissionsFromDB(userData.id, userRole);
+      const userPermissions = await getUserPermissionsFromDB(userData.id, userData.role);
       
       const userWithPermissions = {
         ...userData,
@@ -199,8 +190,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setUser(userWithPermissions);
       console.log('✅ Estado del contexto actualizado:', userWithPermissions);
       
+      // Si el usuario tiene múltiples empresas, mostrar selector
+      if (userValidation.empresas.length > 1) {
+        console.log('Usuario tiene múltiples empresas, redirigiendo a selector');
+        window.location.href = '/select-empresa';
+        return;
+      }
+      
+      // Si tiene solo una empresa, seleccionarla automáticamente
+      if (userValidation.empresas.length === 1) {
+        try {
+          await selectEmpresa(userValidation.empresas[0].id.toString());
+          return;
+        } catch (empresaError) {
+          console.error('Error seleccionando empresa automáticamente:', empresaError);
+          // Continuar con el flujo normal
+        }
+      }
+      
       // Redirigir al dashboard
-      const dashboard = getDefaultDashboard(data.user.role);
+      const dashboard = getDefaultDashboard(userData.role);
       console.log('🚀 Redirigiendo a:', dashboard);
       window.location.href = dashboard;
 

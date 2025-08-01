@@ -23,7 +23,7 @@ import {
   
   interface CompanyBusinessInfoProps {
     form: UseFormReturn<CreateEmpresaDTO>;
-    existingDocuments?: [];
+    existingDocuments: any[];
   }
   
   export function CompanyBusinessInfo({ form, existingDocuments }: CompanyBusinessInfoProps) {
@@ -139,244 +139,73 @@ import {
     ];
   
     return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="representante_legal"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Representante Legal</FormLabel>
-                <FormControl>
-                  <Input placeholder="Nombre del representante legal" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-  
-          <FormField
-            control={form.control}
-            name="actividad_economica"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Actividad Económica (CIIU)</FormLabel>
-                <FormControl>
-                  <select
-                    {...field}
-                    className="w-full border rounded p-2"
-                    onChange={e => field.onChange(e.target.value)}
-                  >
-                    <option value="">Seleccione código CIIU</option>
-                    {actividadesEconomicas.map((act) => (
-                      <option key={act.codigo} value={act.codigo}>
-                        {act.codigo} - {act.descripcion}
-                      </option>
-                    ))}
-                  </select>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-  
-          <FormField
-            control={form.control}
-            name="numero_empleados"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Número de Empleados</FormLabel>
-                <FormControl>
-                  <Input 
-                    type="number" 
-                    min="1"
-                    {...field}
-                    onChange={(e) => field.onChange(parseInt(e.target.value))}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <FormField
+          control={form.control}
+          name="representante_legal"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Representante Legal</FormLabel>
+              <FormControl>
+                <Input placeholder="Nombre del representante legal" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
-          <FormField
-            control={form.control}
-            name="ciudad"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Ciudad</FormLabel>
-                <FormControl>
-                  <select
-                    {...field}
-                    className="w-full border rounded p-2"
-                    onChange={e => field.onChange(e.target.value)}
-                  >
-                    <option value="">Seleccione una ciudad</option>
-                    {ciudadesColombia.map((ciudad) => (
-                      <option key={ciudad} value={ciudad}>{ciudad}</option>
-                    ))}
-                  </select>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-  
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium">Documentos</h3>
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label htmlFor="contrato" className="block text-sm font-medium mb-2">
-                Contrato
-              </label>
-              <div className="space-y-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => document.getElementById('contrato')?.click()}
+        <FormField
+          control={form.control}
+          name="actividad_economica"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Actividad Económica (CIIU)</FormLabel>
+              <FormControl>
+                <select
+                  {...field}
+                  className="w-full border rounded p-2"
+                  onChange={e => field.onChange(e.target.value)}
                 >
-                  {uploadedFiles['contrato'] ? (
-                    <>
-                      <Check className="mr-2 h-4 w-4" />
-                      Archivo seleccionado
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="mr-2 h-4 w-4" />
-                      Subir Contrato
-                    </>
-                  )}
-                </Button>
-                {getDocumentUrl('contrato') && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => window.open(getDocumentUrl('contrato'), '_blank')}
-                  >
-                    <FileText className="mr-2 h-4 w-4" />
-                    Ver documento actual
-                  </Button>
-                )}
-              </div>
-              <input
-                id="contrato"
-                type="file"
-                className="hidden"
-                accept=".pdf"
-                onChange={(e) => handleFileChange(e, 'contrato')}
-                onClick={(e) => (e.target as HTMLInputElement).value = ''}
-              />
-              {uploadedFiles['contrato'] && (
-                <p className="mt-1 text-sm text-muted-foreground truncate">
-                  {uploadedFiles['contrato']}
-                </p>
-              )}
-            </div>
-            
-            <div>
-              <label htmlFor="camara" className="block text-sm font-medium mb-2">
-                Cámara de Comercio
-              </label>
-              <div className="space-y-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => document.getElementById('camara')?.click()}
-                >
-                  {uploadedFiles['camara_comercio'] ? (
-                    <>
-                      <Check className="mr-2 h-4 w-4" />
-                      Archivo seleccionado
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="mr-2 h-4 w-4" />
-                      Subir Documento
-                    </>
-                  )}
-                </Button>
-                {getDocumentUrl('camara_comercio') && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => window.open(getDocumentUrl('camara_comercio'), '_blank')}
-                  >
-                    <FileText className="mr-2 h-4 w-4" />
-                    Ver documento actual
-                  </Button>
-                )}
-              </div>
-              <input
-                id="camara"
-                type="file"
-                className="hidden"
-                accept=".pdf"
-                onChange={(e) => handleFileChange(e, 'camara_comercio')}
-                onClick={(e) => (e.target as HTMLInputElement).value = ''}
-              />
-              {uploadedFiles['camara_comercio'] && (
-                <p className="mt-1 text-sm text-muted-foreground truncate">
-                  {uploadedFiles['camara_comercio']}
-                </p>
-              )}
-            </div>
-            
-            <div>
-              <label htmlFor="rut" className="block text-sm font-medium mb-2">
-                RUT
-              </label>
-              <div className="space-y-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => document.getElementById('rut')?.click()}
-                >
-                  {uploadedFiles['rut'] ? (
-                    <>
-                      <Check className="mr-2 h-4 w-4" />
-                      Archivo seleccionado
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="mr-2 h-4 w-4" />
-                      Subir RUT
-                    </>
-                  )}
-                </Button>
-                {getDocumentUrl('rut') && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => window.open(getDocumentUrl('rut'), '_blank')}
-                  >
-                    <FileText className="mr-2 h-4 w-4" />
-                    Ver documento actual
-                  </Button>
-                )}
-              </div>
-              <input
-                id="rut"
-                type="file"
-                className="hidden"
-                accept=".pdf"
-                onChange={(e) => handleFileChange(e, 'rut')}
-                onClick={(e) => (e.target as HTMLInputElement).value = ''}
-              />
-              {uploadedFiles['rut'] && (
-                <p className="mt-1 text-sm text-muted-foreground truncate">
-                  {uploadedFiles['rut']}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
+                  <option value="">Seleccione código CIIU</option>
+                  <option value="0111">0111 - Cultivo de cereales</option>
+                  <option value="0112">0112 - Cultivo de arroz</option>
+                  <option value="0113">0113 - Cultivo de hortalizas</option>
+                  <option value="0141">0141 - Cría de ganado bovino</option>
+                  <option value="1011">1011 - Procesamiento y conservación de carne</option>
+                  <option value="1071">1071 - Elaboración de productos de panadería</option>
+                  <option value="2011">2011 - Fabricación de sustancias químicas</option>
+                  <option value="4711">4711 - Comercio al por menor</option>
+                  <option value="6201">6201 - Actividades de desarrollo de sistemas informáticos</option>
+                  <option value="8411">8411 - Actividades de la administración pública</option>
+                  <option value="8511">8511 - Educación preescolar</option>
+                  <option value="8610">8610 - Actividades de hospitales</option>
+                  <option value="9311">9311 - Gestión de instalaciones deportivas</option>
+                  <option value="9602">9602 - Peluquería y otros tratamientos de belleza</option>
+                </select>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="numero_empleados"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Número de Empleados</FormLabel>
+              <FormControl>
+                <Input 
+                  type="number" 
+                  min="1"
+                  {...field}
+                  onChange={(e) => field.onChange(parseInt(e.target.value))}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
       </div>
     );
   }

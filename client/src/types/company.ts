@@ -21,5 +21,18 @@ export interface Company {
     createdAt: string;
     updatedAt: string;
     tipo_documento?: string;
-    regimen_tributario?: string;
-  }
+    // Campos nuevos que coinciden con la BD
+    actividad_economica_id?: string;
+    regimen_tributario_id?: string | number;
+    numero_empleados?: number;
+    tipo_empresa?: string;
+    documento_contrato?: string;
+    documento_camara_comercio?: string;
+    documento_rut?: string;
+    // Campos de la BD con nombres diferentes
+    razon_social?: string;
+    representante_legal?: string;
+    created_at?: string;
+    updated_at?: string;
+    activo?: boolean;
+}

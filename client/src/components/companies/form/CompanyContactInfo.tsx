@@ -47,12 +47,12 @@ import {
 
   export function CompanyContactInfo({ form }: CompanyContactInfoProps) {
     return (
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <FormField
           control={form.control}
           name="direccion"
           render={({ field }) => (
-            <FormItem>
+            <FormItem className="md:col-span-2">
               <FormLabel>Dirección</FormLabel>
               <FormControl>
                 <Input placeholder="Dirección de la empresa" {...field} />
@@ -61,7 +61,7 @@ import {
             </FormItem>
           )}
         />
-  
+
         <FormField
           control={form.control}
           name="ciudad"
@@ -84,7 +84,7 @@ import {
             </FormItem>
           )}
         />
-  
+
         <FormField
           control={form.control}
           name="telefono"
@@ -98,7 +98,7 @@ import {
             </FormItem>
           )}
         />
-  
+
         <FormField
           control={form.control}
           name="email"

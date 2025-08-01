@@ -13,6 +13,7 @@ export interface Candidato {
   direccion?: string;
   ciudad?: string;
   empresa_id: number; // Relación con empresa
+  activo?: boolean; // Estado del candidato
 }
 
 export interface DocumentoCandidato {
@@ -59,13 +60,35 @@ export const candidatosService = {
     if (error) throw error;
     return data ? data[0] : null;
   },
+  
   update: async (id: number, candidato: Partial<Candidato>): Promise<Candidato | null> => {
     const { data, error } = await supabase.from('candidatos').update(candidato).eq('id', id).select();
     if (error) throw error;
     return data ? data[0] : null;
   },
+  
   delete: async (id: number): Promise<void> => {
     const { error } = await supabase.from('candidatos').delete().eq('id', id);
     if (error) throw error;
+  },
+
+  // Activar candidato
+  activate: async (id: number): Promise<boolean> => {
+    const { error } = await supabase
+      .from('candidatos')
+      .update({ activo: true })
+      .eq('id', id);
+    if (error) throw error;
+    return true;
+  },
+
+  // Inactivar candidato
+  deactivate: async (id: number): Promise<boolean> => {
+    const { error } = await supabase
+      .from('candidatos')
+      .update({ activo: false })
+      .eq('id', id);
+    if (error) throw error;
+    return true;
   },
 };
