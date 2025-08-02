@@ -28,7 +28,8 @@ import {
   Trash2,
   FileUp,
   CheckCircle2,
-  Clock
+  Clock,
+  Eye
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -457,6 +458,40 @@ export default function PerfilCandidato() {
     } catch (error) {
       console.error('Error descargando documento:', error);
               toast.error("Error al descargar el documento");
+    }
+  };
+
+  // Función para visualizar documento (similar a empresa)
+  const handleViewDocument = (documento: any) => {
+    try {
+      const base64 = `data:application/pdf;base64,${documento.url_archivo}`;
+      
+      // Crear una nueva ventana para visualizar el PDF
+      const newWindow = window.open('', '_blank');
+      if (newWindow) {
+        newWindow.document.write(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>${documento.nombre_archivo}</title>
+              <style>
+                body { margin: 0; padding: 0; }
+                iframe { width: 100%; height: 100vh; border: none; }
+              </style>
+            </head>
+            <body>
+              <iframe src="${base64}" title="${documento.nombre_archivo}"></iframe>
+            </body>
+          </html>
+        `);
+        newWindow.document.close();
+      } else {
+        // Fallback: descargar el archivo
+        handleDownloadDocument(documento);
+      }
+    } catch (error) {
+      console.error('Error visualizando documento:', error);
+      toast.error("Error al visualizar el documento");
     }
   };
 
@@ -1197,28 +1232,37 @@ export default function PerfilCandidato() {
                                         {documento.nombre_archivo}
                                       </CardDescription>
                                     </CardHeader>
-                                    <CardContent className="pt-0 pb-4">
-                                      <div className="flex space-x-2">
-                                        <Button 
-                                          variant="outline" 
-                                          size="sm"
-                                          className="text-xs h-8 flex-1 border-green-300 text-green-700 hover:bg-green-100"
-                                          onClick={() => handleDownloadDocument(documento)}
-                                        >
-                                          <Download className="w-3 h-3 mr-1" />
-                                          Descargar
-                                        </Button>
-                                        <Button 
-                                          variant="destructive" 
-                                          size="sm"
-                                          className="text-xs h-8 flex-1"
-                                          onClick={() => handleDeleteDocument(documento.id)}
-                                        >
-                                          <Trash2 className="w-3 h-3 mr-1" />
-                                          Eliminar
-                                        </Button>
-                                      </div>
-                                    </CardContent>
+                                                                         <CardContent className="pt-0 pb-4">
+                                       <div className="flex space-x-2">
+                                         <Button 
+                                           variant="outline" 
+                                           size="sm"
+                                           className="text-xs h-8 flex-1 border-green-300 text-green-700 hover:bg-green-100"
+                                           onClick={() => handleViewDocument(documento)}
+                                         >
+                                           <Eye className="w-3 h-3 mr-1" />
+                                           Visualizar
+                                         </Button>
+                                         <Button 
+                                           variant="outline" 
+                                           size="sm"
+                                           className="text-xs h-8 flex-1 border-green-300 text-green-700 hover:bg-green-100"
+                                           onClick={() => handleDownloadDocument(documento)}
+                                         >
+                                           <Download className="w-3 h-3 mr-1" />
+                                           Descargar
+                                         </Button>
+                                         <Button 
+                                           variant="destructive" 
+                                           size="sm"
+                                           className="text-xs h-8 flex-1"
+                                           onClick={() => handleDeleteDocument(documento.id)}
+                                         >
+                                           <Trash2 className="w-3 h-3 mr-1" />
+                                           Eliminar
+                                         </Button>
+                                       </div>
+                                     </CardContent>
                                   </Card>
                                 ))}
                               </div>
@@ -1272,62 +1316,92 @@ export default function PerfilCandidato() {
                                               )}
                                             </div>
                                           </div>
-                                          {isUploaded && (
-                                            <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
-                                              <CheckCircle2 className="w-3 h-3 mr-1" />
-                                              Subido
-                                            </Badge>
-                                          )}
+                                                                                     {isUploaded && (
+                                             <div className="flex items-center gap-1 text-green-600">
+                                               <CheckCircle2 className="h-3 w-3" />
+                                               <span className="text-xs font-medium">Subido</span>
+                                             </div>
+                                           )}
                                         </CardTitle>
                                         <CardDescription className="text-xs text-gray-600 mt-2">
                                           Formato PDF
                                         </CardDescription>
                                       </CardHeader>
-                                      <CardContent className="pt-0 pb-4">
-                                        <input
-                                          type="file"
-                                          accept=".pdf"
-                                          className="hidden"
-                                          id={`file-${documentoRequerido.tipo_documento_id}`}
-                                          onChange={(e) => {
-                                            console.log('📁 Input file cambiado:', e.target.files);
-                                            handleFileChange(e, documentoRequerido.tipo_documento_id, documentoRequerido.tipos_documentos.nombre);
-                                          }}
-                                          disabled={isUploaded}
-                                        />
-                                        <Button 
-                                          variant="outline" 
-                                          size="sm"
-                                          className={`text-xs h-8 w-full cursor-pointer transition-all duration-200 ${
-                                            isUploaded 
-                                              ? 'border-green-300 text-green-700 bg-green-100' 
-                                              : uploadingDocuments[documentoRequerido.tipo_documento_id]
-                                              ? 'border-blue-300 text-blue-700 bg-blue-100'
-                                              : 'border-gray-300 text-gray-700 hover:border-blue-400 hover:bg-blue-50'
-                                          }`}
-                                          disabled={isUploaded || uploadingDocuments[documentoRequerido.tipo_documento_id]}
-                                          onClick={() => {
-                                            if (!isUploaded && !uploadingDocuments[documentoRequerido.tipo_documento_id]) {
-                                              document.getElementById(`file-${documentoRequerido.tipo_documento_id}`)?.click();
-                                            }
-                                          }}
-                                        >
-                                          {uploadingDocuments[documentoRequerido.tipo_documento_id] ? (
-                                            <>
-                                              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-1"></div>
-                                              Subiendo...
-                                            </>
-                                          ) : (
-                                            <>
-                                              <Upload className="w-3 h-3 mr-1" />
-                                              {isUploaded ? 'Ya subido' : 'Subir'}
-                                            </>
-                                          )}
-                                        </Button>
-                                      </CardContent>
-                                    </Card>
-                                  );
-                                })}
+                                                                             <CardContent className="pt-0 pb-4">
+                                         <div className="flex items-center gap-3">
+                                           {isUploaded ? (
+                                             <div className="flex items-center gap-3">
+                                               <div className="flex items-center gap-1">
+                                                 <Button
+                                                   type="button"
+                                                   variant="ghost"
+                                                   size="sm"
+                                                   onClick={() => handleViewDocument(existingDocuments.find(doc => doc.tipo_documento_id === documentoRequerido.tipo_documento_id))}
+                                                   className="h-7 w-7 p-0 hover:bg-blue-50 rounded-full"
+                                                   title="Visualizar documento"
+                                                 >
+                                                   <Eye className="h-4 w-4 text-blue-600" />
+                                                 </Button>
+                                                 <Button
+                                                   type="button"
+                                                   variant="ghost"
+                                                   size="sm"
+                                                   onClick={() => document.getElementById(`file-${documentoRequerido.tipo_documento_id}`)?.click()}
+                                                   className="h-7 w-7 p-0 hover:bg-gray-50 rounded-full"
+                                                   title="Cambiar documento"
+                                                 >
+                                                   <Upload className="h-4 w-4 text-gray-600" />
+                                                 </Button>
+                                               </div>
+                                             </div>
+                                           ) : (
+                                             <Button
+                                               type="button"
+                                               variant="outline"
+                                               size="sm"
+                                               onClick={() => document.getElementById(`file-${documentoRequerido.tipo_documento_id}`)?.click()}
+                                               className="h-7 px-3 text-xs font-medium"
+                                               disabled={uploadingDocuments[documentoRequerido.tipo_documento_id]}
+                                             >
+                                               {uploadingDocuments[documentoRequerido.tipo_documento_id] ? (
+                                                 <>
+                                                   <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-1"></div>
+                                                   Subiendo...
+                                                 </>
+                                               ) : (
+                                                 <>
+                                                   <Upload className="h-3 w-3 mr-1" />
+                                                   Subir
+                                                 </>
+                                               )}
+                                             </Button>
+                                           )}
+                                         </div>
+                                         <input
+                                           type="file"
+                                           accept=".pdf"
+                                           className="hidden"
+                                           id={`file-${documentoRequerido.tipo_documento_id}`}
+                                           onChange={(e) => {
+                                             console.log('📁 Input file cambiado:', e.target.files);
+                                             handleFileChange(e, documentoRequerido.tipo_documento_id, documentoRequerido.tipos_documentos.nombre);
+                                           }}
+                                           onClick={(e) => (e.target as HTMLInputElement).value = ''}
+                                                                                  />
+                                         {isUploaded && (
+                                           <div className="text-xs mt-2 p-2 bg-gray-50 rounded">
+                                             <div className="text-gray-700 mb-1">
+                                               <span className="font-medium">Archivo:</span> {existingDocuments.find(doc => doc.tipo_documento_id === documentoRequerido.tipo_documento_id)?.nombre_archivo}
+                                             </div>
+                                             <div className="text-green-600">
+                                               <span className="font-medium">Estado:</span> Documento subido
+                                             </div>
+                                           </div>
+                                         )}
+                                       </CardContent>
+                                     </Card>
+                                   );
+                                 })}
                               </div>
                             </div>
                           )}
