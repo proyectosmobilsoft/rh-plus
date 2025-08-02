@@ -55,6 +55,150 @@ export const getAllPlantillas = async (): Promise<Plantilla[]> => {
 };
 
 /**
+ * Verifica la estructura de la base de datos y lista las tablas disponibles
+ */
+export const verificarEstructuraDB = async () => {
+  try {
+    console.log('🔍 Verificando estructura de la base de datos...');
+    
+    // Intentar obtener información de las tablas
+    const { data: tables, error: tablesError } = await supabase
+      .from('information_schema.tables')
+      .select('table_name')
+      .eq('table_schema', 'public');
+
+    if (tablesError) {
+      console.error('❌ Error al obtener tablas:', tablesError);
+      return;
+    }
+
+    console.log('📋 Tablas disponibles:', tables?.map(t => t.table_name) || []);
+    
+    // Verificar si existe la tabla empresas_plantillas
+    const empresasPlantillasExists = tables?.some(t => t.table_name === 'empresas_plantillas');
+    console.log('✅ Tabla empresas_plantillas existe:', empresasPlantillasExists);
+    
+    // Verificar si existe la tabla plantillas_solicitudes
+    const plantillasSolicitudesExists = tables?.some(t => t.table_name === 'plantillas_solicitudes');
+    console.log('✅ Tabla plantillas_solicitudes existe:', plantillasSolicitudesExists);
+    
+    return {
+      empresasPlantillasExists,
+      plantillasSolicitudesExists,
+      tables: tables?.map(t => t.table_name) || []
+    };
+  } catch (error) {
+    console.error('❌ Error al verificar estructura DB:', error);
+    return null;
+  }
+};
+
+/**
+ * Obtiene todas las plantillas activas (fallback)
+ */
+export const getAllPlantillasActivas = async (): Promise<Plantilla[]> => {
+  const { startLoading, stopLoading } = getLoadingContext();
+  
+  try {
+    startLoading();
+    console.log('🔄 Obteniendo todas las plantillas activas...');
+    
+    const { data: plantillas, error } = await supabase
+      .from('plantillas_solicitudes')
+      .select('*')
+      .eq('activa', true)
+      .order('nombre');
+
+    if (error) {
+      console.error('❌ Error al obtener plantillas activas:', error);
+      return [];
+    }
+
+    console.log('✅ Plantillas activas obtenidas:', plantillas?.length || 0);
+    return plantillas || [];
+  } catch (error) {
+    console.error('❌ Error en getAllPlantillasActivas:', error);
+    return [];
+  } finally {
+    stopLoading();
+  }
+};
+
+/**
+ * Obtiene las plantillas asociadas a una empresa específica
+ */
+export const getPlantillasByEmpresa = async (empresaId: number): Promise<Plantilla[]> => {
+  const { startLoading, stopLoading } = getLoadingContext();
+  
+  try {
+    startLoading();
+    console.log('🔍 Buscando plantillas para empresa ID:', empresaId);
+    
+    // Primero verificamos si existe la tabla empresas_plantillas
+    const { data: tableExists, error: tableError } = await supabase
+      .from('empresas_plantillas')
+      .select('count')
+      .limit(1);
+
+    if (tableError) {
+      console.error('❌ Error al verificar tabla empresas_plantillas:', tableError);
+      console.log('🔄 Intentando obtener todas las plantillas activas...');
+      
+      // Si no existe la tabla, obtenemos todas las plantillas activas
+      return await getAllPlantillasActivas();
+    }
+
+    // Si la tabla existe, obtenemos las plantillas asignadas a la empresa
+    console.log('📋 Tabla empresas_plantillas existe, buscando asignaciones...');
+    const { data: plantillasAsignadas, error: errorAsignadas } = await supabase
+      .from('empresas_plantillas')
+      .select('plantilla_id')
+      .eq('empresa_id', empresaId);
+
+    if (errorAsignadas) {
+      console.error('❌ Error al obtener plantillas asignadas:', errorAsignadas);
+      return await getAllPlantillasActivas();
+    }
+
+    console.log('📊 Plantillas asignadas encontradas:', plantillasAsignadas?.length || 0);
+    console.log('📋 Datos de plantillas asignadas:', plantillasAsignadas);
+
+    // Si no hay plantillas asignadas, obtenemos todas las plantillas activas
+    if (!plantillasAsignadas || plantillasAsignadas.length === 0) {
+      console.log('⚠️ No hay plantillas asignadas para la empresa ID:', empresaId);
+      console.log('🔄 Obteniendo todas las plantillas activas como fallback...');
+      return await getAllPlantillasActivas();
+    }
+
+    // Obtenemos los IDs de las plantillas asignadas
+    const plantillaIds = plantillasAsignadas.map(pa => pa.plantilla_id);
+    console.log('🆔 IDs de plantillas a buscar:', plantillaIds);
+
+    // Obtenemos las plantillas completas
+    const { data: plantillas, error } = await supabase
+      .from('plantillas_solicitudes')
+      .select('*')
+      .in('id', plantillaIds)
+      .eq('activa', true)
+      .order('nombre');
+
+    if (error) {
+      console.error('❌ Error al obtener plantillas:', error);
+      return await getAllPlantillasActivas();
+    }
+
+    console.log('✅ Plantillas obtenidas exitosamente:', plantillas?.length || 0);
+    console.log('📋 Plantillas:', plantillas);
+    return plantillas || [];
+  } catch (error) {
+    console.error('❌ Error en getPlantillasByEmpresa:', error);
+    return await getAllPlantillasActivas();
+  } finally {
+    stopLoading();
+  }
+};
+
+/**
  * Obtiene una plantilla por ID
  */
 export const getPlantillaById = async (id: number): Promise<Plantilla | null> => {
@@ -169,8 +313,11 @@ export const deletePlantilla = async (id: number): Promise<boolean> => {
 // Exportar el servicio completo
 export const plantillasService = {
   getAll: getAllPlantillas,
+  getAllActivas: getAllPlantillasActivas,
+  getByEmpresa: getPlantillasByEmpresa,
   getById: getPlantillaById,
   create: createPlantilla,
   update: updatePlantilla,
-  delete: deletePlantilla
+  delete: deletePlantilla,
+  verificarEstructura: verificarEstructuraDB
 }; 

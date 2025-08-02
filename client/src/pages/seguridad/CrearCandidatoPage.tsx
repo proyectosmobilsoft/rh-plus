@@ -21,6 +21,7 @@ const CrearCandidatoPage = () => {
       apellidos: '',
       cedula: '',
       email: '',
+      telefono: '',
       tipoDocumento: 'CC',
     },
   });
@@ -175,6 +176,20 @@ const CrearCandidatoPage = () => {
                       <FormLabel>Correo Electrónico</FormLabel>
                       <FormControl>
                         <Input type="email" placeholder="ana.garcia@ejemplo.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="telefono"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Número de Celular</FormLabel>
+                      <FormControl>
+                        <Input type="tel" placeholder="3001234567" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

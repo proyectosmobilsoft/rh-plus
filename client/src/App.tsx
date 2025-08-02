@@ -103,6 +103,9 @@ import AcercaEmpresaPage from './pages/empresa/AcercaEmpresaPage';
 import ConfiguracionesGlobalesPage from './pages/configuraciones/ConfiguracionesGlobalesPage';
 import EmailMasivoPage from './pages/maestro/EmailMasivoPage';
 
+// Página pública para visualizar QR
+import QRViewer from './pages/QRViewer';
+
 import NotFound from './pages/NotFound';
 
 import './App.css';
@@ -179,6 +182,10 @@ function App() {
                 <ResetPasswordEmpresa />
               </PublicRoute>
             } />
+            
+            {/* Ruta pública para visualizar QR */}
+            <Route path="/qr/:qrId" element={<QRViewer />} />
+            
             <Route path="/select-empresa" element={
               <ProtectedRoute>
                 <SelectEmpresa />
