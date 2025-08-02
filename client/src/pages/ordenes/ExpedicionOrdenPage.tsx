@@ -6,22 +6,38 @@ import { toast } from 'sonner';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogDescription } from "@/components/ui/dialog";
 import { Solicitud, solicitudesService } from '@/services/solicitudesService';
-import OrdenForm from '@/components/ordenes/OrdenForm';
 import SolicitudesList from '@/components/solicitudes/SolicitudesList';
+import PlantillasSelector from '@/components/solicitudes/PlantillasSelector';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Plantilla } from '@/services/plantillasService';
 
 const ExpedicionOrdenPage = () => {
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [estadoFilter, setEstadoFilter] = useState<string | undefined>(undefined);
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeTab, setActiveTab] = useState("listado");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSolicitud, setSelectedSolicitud] = useState<Solicitud | undefined>(undefined);
+  const [empresaData, setEmpresaData] = useState<any>(null);
+
+  // Obtener datos de la empresa del localStorage
+  useEffect(() => {
+    const empresaDataFromStorage = localStorage.getItem('empresaData');
+    if (empresaDataFromStorage) {
+      try {
+        const parsedData = JSON.parse(empresaDataFromStorage);
+        setEmpresaData(parsedData);
+      } catch (error) {
+        console.error('Error al parsear datos de empresa:', error);
+        toast.error('Error al cargar datos de la empresa');
+      }
+    }
+  }, []);
 
   // Fetch solicitudes when component mounts or filter changes
   useEffect(() => {
@@ -85,28 +101,9 @@ const ExpedicionOrdenPage = () => {
     toast.info('Vista de detalles no implementada aún');
   };
 
-  const handleFormSubmit = async (data: any) => {
-    try {
-      if (selectedSolicitud) {
-        // Update existing solicitud
-        await solicitudesService.update(selectedSolicitud.id!, data);
-        toast.success('Solicitud actualizada correctamente');
-      } else {
-        // Create new solicitud
-        await solicitudesService.create(data);
-        toast.success('Solicitud creada correctamente');
-      }
-      setActiveTab("listado");
-      fetchSolicitudes(); // Refresh the list
-    } catch (error) {
-      console.error(error);
-      toast.error('Error al guardar la solicitud');
-    }
-  };
-
-  const handleFormCancel = () => {
-    setActiveTab("listado");
-    setSelectedSolicitud(undefined);
+  const handlePlantillaSelect = (plantilla: Plantilla) => {
+    // Aquí puedes manejar la selección de plantilla si es necesario
+    console.log('Plantilla seleccionada:', plantilla);
   };
 
   // Filtrado de solicitudes
@@ -121,16 +118,6 @@ const ExpedicionOrdenPage = () => {
     return matchesSearch;
   });
 
-  // Estadísticas del dashboard
-  const estadisticas = {
-    total: solicitudes.length,
-    pendientes: solicitudes.filter(s => s.estado === "PENDIENTE").length,
-    aprobadas: solicitudes.filter(s => s.estado === "APROBADA").length,
-    rechazadas: solicitudes.filter(s => s.estado === "RECHAZADA").length,
-    altaPrioridad: solicitudes.filter(s => s.prioridad === "alta").length,
-    porcentajeAprobacion: solicitudes.length > 0 ? Math.round((solicitudes.filter(s => s.estado === "APROBADA").length / solicitudes.length) * 100) : 0
-  };
-
   return (
     <div className="p-4 max-w-full mx-auto">
       <div className="flex items-center justify-between mb-4">
@@ -141,13 +128,7 @@ const ExpedicionOrdenPage = () => {
       </div>
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-cyan-100/60 p-1 rounded-lg">
-          <TabsTrigger
-            value="dashboard"
-            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
-          >
-            Dashboard
-          </TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 bg-cyan-100/60 p-1 rounded-lg">
           <TabsTrigger
             value="listado"
             className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
@@ -161,140 +142,6 @@ const ExpedicionOrdenPage = () => {
             Registro de Solicitud
           </TabsTrigger>
         </TabsList>
-
-        <TabsContent value="dashboard" className="mt-6">
-          {/* Dashboard con estadísticas */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm opacity-90">Total Solicitudes</p>
-                    <p className="text-2xl font-bold">{estadisticas.total}</p>
-                  </div>
-                  <FileText className="w-8 h-8 opacity-80" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm opacity-90">Pendientes</p>
-                    <p className="text-2xl font-bold">{estadisticas.pendientes}</p>
-                  </div>
-                  <Clock className="w-8 h-8 opacity-80" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm opacity-90">Aprobadas</p>
-                    <p className="text-2xl font-bold">{estadisticas.aprobadas}</p>
-                    <p className="text-xs opacity-80">{estadisticas.porcentajeAprobacion}% del total</p>
-                  </div>
-                  <CheckCircle className="w-8 h-8 opacity-80" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gradient-to-r from-red-500 to-red-600 text-white">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm opacity-90">Alta Prioridad</p>
-                    <p className="text-2xl font-bold">{estadisticas.altaPrioridad}</p>
-                  </div>
-                  <AlertCircle className="w-8 h-8 opacity-80" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Gráficos adicionales o información resumida */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="w-5 h-5 text-blue-600" />
-                  Estado de Solicitudes
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">Pendientes</span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-32 bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-yellow-500 h-2 rounded-full" 
-                          style={{ width: `${estadisticas.total > 0 ? (estadisticas.pendientes / estadisticas.total) * 100 : 0}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-sm text-gray-600">{estadisticas.pendientes}</span>
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">Aprobadas</span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-32 bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-green-500 h-2 rounded-full" 
-                          style={{ width: `${estadisticas.total > 0 ? (estadisticas.aprobadas / estadisticas.total) * 100 : 0}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-sm text-gray-600">{estadisticas.aprobadas}</span>
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">Rechazadas</span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-32 bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-red-500 h-2 rounded-full" 
-                          style={{ width: `${estadisticas.total > 0 ? (estadisticas.rechazadas / estadisticas.total) * 100 : 0}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-sm text-gray-600">{estadisticas.rechazadas}</span>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Building className="w-5 h-5 text-green-600" />
-                  Empresas Principales
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                                     {Object.entries(
-                     solicitudes.reduce((acc, solicitud) => {
-                       const empresa = solicitud.empresaUsuaria || 'Sin empresa';
-                       acc[empresa] = (acc[empresa] || 0) + 1;
-                       return acc;
-                     }, {} as Record<string, number>)
-                   )
-                     .sort(([,a], [,b]) => b - a)
-                     .slice(0, 5)
-                     .map(([empresa, count]) => (
-                      <div key={empresa} className="flex justify-between items-center">
-                        <span className="text-sm">{empresa}</span>
-                        <Badge variant="outline">{count}</Badge>
-                      </div>
-                    ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
 
         <TabsContent value="listado" className="mt-6">
           {/* Header similar a usuarios */}
@@ -361,35 +208,38 @@ const ExpedicionOrdenPage = () => {
                   Error al cargar las solicitudes. Por favor intente nuevamente.
                 </div>
               ) : (
-                                 <SolicitudesList
-                   solicitudes={solicitudesFiltradas}
-                   onEdit={handleEdit}
-                   onDelete={handleDelete}
-                   onView={handleView}
-                   onApprove={handleApprove}
-                   isLoading={isLoading}
-                 />
+                <SolicitudesList
+                  solicitudes={solicitudesFiltradas}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  onView={handleView}
+                  onApprove={handleApprove}
+                  isLoading={isLoading}
+                />
               )}
             </div>
           </div>
         </TabsContent>
 
         <TabsContent value="registro" className="mt-6">
-          <Card>
-            <CardHeader>
-                             <CardTitle className="flex items-center gap-2">
-                 <FileText className="w-5 h-5 text-blue-600" />
-                 {selectedSolicitud ? 'Editar' : 'Nueva'} Solicitud
-               </CardTitle>
-             </CardHeader>
-             <CardContent>
-               <OrdenForm
-                 orden={selectedSolicitud}
-                 onSubmit={handleFormSubmit}
-                 onCancel={handleFormCancel}
-               />
-            </CardContent>
-          </Card>
+          {!empresaData ? (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center py-8">
+                  <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Error al cargar datos de empresa</h3>
+                  <p className="text-gray-600">
+                    No se pudieron cargar los datos de la empresa desde el almacenamiento local.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <PlantillasSelector
+              empresaId={empresaData.id}
+              onPlantillaSelect={handlePlantillaSelect}
+            />
+          )}
         </TabsContent>
       </Tabs>
     </div>

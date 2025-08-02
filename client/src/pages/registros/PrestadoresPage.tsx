@@ -86,11 +86,13 @@ import { prestadoresService, Prestador } from '@/services/prestadoresService';
 import { especialidadesService, Especialidad } from '@/services/especialidadesService';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
+import { useLoading } from '@/contexts/LoadingContext';
 
 const PrestadoresPage = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: cityData } = useCityData();
+  const { startLoading, stopLoading } = useLoading();
   
   // Estados para tabs
   const [activeTab, setActiveTab] = useState("prestadores");
@@ -123,7 +125,14 @@ const PrestadoresPage = () => {
   // Query para prestadores
   const { data: prestadores = [], isLoading, refetch } = useQuery({
     queryKey: ['prestadores'],
-    queryFn: prestadoresService.getAll,
+    queryFn: async () => {
+      startLoading();
+      try {
+        return await prestadoresService.getAll();
+      } finally {
+        stopLoading();
+      }
+    },
     staleTime: 0,
     refetchOnWindowFocus: false
   });
@@ -131,14 +140,28 @@ const PrestadoresPage = () => {
   // Query para especialidades
   const { data: especialidades = [] } = useQuery({
     queryKey: ['especialidades'],
-    queryFn: especialidadesService.getAll,
+    queryFn: async () => {
+      startLoading();
+      try {
+        return await especialidadesService.getAll();
+      } finally {
+        stopLoading();
+      }
+    },
     staleTime: 0,
     refetchOnWindowFocus: false
   });
 
   // Mutations
   const createPrestadorMutation = useMutation({
-    mutationFn: async (data: any) => prestadoresService.create(data),
+    mutationFn: async (data: any) => {
+      startLoading();
+      try {
+        return await prestadoresService.create(data);
+      } finally {
+        stopLoading();
+      }
+    },
     onSuccess: async () => { 
       await refetch(); 
       resetForm(); 
@@ -149,7 +172,14 @@ const PrestadoresPage = () => {
   });
 
   const updatePrestadorMutation = useMutation({
-    mutationFn: async ({ id, data }: any) => prestadoresService.update(id, data),
+    mutationFn: async ({ id, data }: any) => {
+      startLoading();
+      try {
+        return await prestadoresService.update(id, data);
+      } finally {
+        stopLoading();
+      }
+    },
     onSuccess: async () => { 
       await refetch(); 
       resetForm(); 
@@ -160,19 +190,40 @@ const PrestadoresPage = () => {
   });
 
   const deletePrestadorMutation = useMutation({
-    mutationFn: async (id: number) => prestadoresService.delete(id),
+    mutationFn: async (id: number) => {
+      startLoading();
+      try {
+        return await prestadoresService.delete(id);
+      } finally {
+        stopLoading();
+      }
+    },
     onSuccess: async () => { await refetch(); toast({ title: 'Éxito', description: 'Prestador eliminado correctamente' }); },
     onError: (error: Error) => { toast({ title: 'Error', description: error.message, variant: 'destructive' }); },
   });
 
   const activatePrestadorMutation = useMutation({
-    mutationFn: async (id: number) => prestadoresService.activate(id),
+    mutationFn: async (id: number) => {
+      startLoading();
+      try {
+        return await prestadoresService.activate(id);
+      } finally {
+        stopLoading();
+      }
+    },
     onSuccess: async () => { await refetch(); toast({ title: 'Éxito', description: 'Prestador activado correctamente' }); },
     onError: (error: Error) => { toast({ title: 'Error', description: error.message, variant: 'destructive' }); },
   });
 
   const deactivatePrestadorMutation = useMutation({
-    mutationFn: async (id: number) => prestadoresService.deactivate(id),
+    mutationFn: async (id: number) => {
+      startLoading();
+      try {
+        return await prestadoresService.deactivate(id);
+      } finally {
+        stopLoading();
+      }
+    },
     onSuccess: async () => { await refetch(); toast({ title: 'Éxito', description: 'Prestador desactivado correctamente' }); },
     onError: (error: Error) => { toast({ title: 'Error', description: error.message, variant: 'destructive' }); },
   });
@@ -360,69 +411,115 @@ const PrestadoresPage = () => {
                 </div>
                 <span className="text-lg font-semibold text-gray-700">PRESTADORES</span>
               </div>
-              <div className="flex space-x-2">
-                <Button
-                  onClick={handleNewPrestador}
-                  className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
-                  size="sm"
-                >
-                  Adicionar Registro
-                </Button>
-              </div>
+                             <div className="flex space-x-2">
+                 <TooltipProvider>
+                   <Tooltip>
+                     <TooltipTrigger asChild>
+                       <Button
+                         onClick={handleNewPrestador}
+                         className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
+                         size="sm"
+                       >
+                         Adicionar Registro
+                       </Button>
+                     </TooltipTrigger>
+                     <TooltipContent>
+                       <p>Crear un nuevo prestador</p>
+                     </TooltipContent>
+                   </Tooltip>
+                 </TooltipProvider>
+               </div>
             </div>
 
             {/* Filtros */}
             <div className="p-4 border-b bg-gray-50">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    placeholder="Buscar por identificación, nombre..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
+                                 <TooltipProvider>
+                   <Tooltip>
+                     <TooltipTrigger asChild>
+                       <div className="relative">
+                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                         <Input
+                           placeholder="Buscar por identificación, nombre..."
+                           value={searchTerm}
+                           onChange={(e) => setSearchTerm(e.target.value)}
+                           className="pl-10"
+                         />
+                       </div>
+                     </TooltipTrigger>
+                     <TooltipContent>
+                       <p>Buscar prestadores por identificación, razón social, especialidad o laboratorio</p>
+                     </TooltipContent>
+                   </Tooltip>
+                 </TooltipProvider>
 
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Filtrar por estado" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="todos">Todos los estados</SelectItem>
-                    <SelectItem value="activos">Solo activos</SelectItem>
-                    <SelectItem value="inactivos">Solo inactivos</SelectItem>
-                  </SelectContent>
-                </Select>
+                                 <TooltipProvider>
+                   <Tooltip>
+                     <TooltipTrigger asChild>
+                       <Select value={statusFilter} onValueChange={setStatusFilter}>
+                         <SelectTrigger>
+                           <SelectValue placeholder="Filtrar por estado" />
+                         </SelectTrigger>
+                         <SelectContent>
+                           <SelectItem value="todos">Todos los estados</SelectItem>
+                           <SelectItem value="activos">Solo activos</SelectItem>
+                           <SelectItem value="inactivos">Solo inactivos</SelectItem>
+                         </SelectContent>
+                       </Select>
+                     </TooltipTrigger>
+                     <TooltipContent>
+                       <p>Filtrar prestadores por estado</p>
+                     </TooltipContent>
+                   </Tooltip>
+                 </TooltipProvider>
 
-                <Select value={ciudadFilter} onValueChange={setCiudadFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Filtrar por ciudad" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas las ciudades</SelectItem>
-                    {cityData && Object.values(cityData).flatMap(dep => 
-                      dep.ciudades.map(ciudad => (
-                        <SelectItem key={ciudad.id} value={ciudad.id.toString()}>
-                          {ciudad.nombre}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+                                 <TooltipProvider>
+                   <Tooltip>
+                     <TooltipTrigger asChild>
+                       <Select value={ciudadFilter} onValueChange={setCiudadFilter}>
+                         <SelectTrigger>
+                           <SelectValue placeholder="Filtrar por ciudad" />
+                         </SelectTrigger>
+                         <SelectContent>
+                           <SelectItem value="all">Todas las ciudades</SelectItem>
+                           {cityData && Object.values(cityData).flatMap(dep => 
+                             dep.ciudades.map(ciudad => (
+                               <SelectItem key={ciudad.id} value={ciudad.id.toString()}>
+                                 {ciudad.nombre}
+                               </SelectItem>
+                             ))
+                           )}
+                         </SelectContent>
+                       </Select>
+                     </TooltipTrigger>
+                     <TooltipContent>
+                       <p>Filtrar prestadores por ciudad</p>
+                     </TooltipContent>
+                   </Tooltip>
+                 </TooltipProvider>
 
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setSearchTerm("");
-                    setStatusFilter("activos");
-                    setCiudadFilter("all");
-                  }}
-                  className="flex items-center gap-2"
-                >
-                  <Filter className="w-4 h-4" />
-                  Limpiar filtros
-                </Button>
+                                 <TooltipProvider>
+                   <Tooltip>
+                     <TooltipTrigger asChild>
+                       <Button
+                         variant="outline"
+                         onClick={() => {
+                           setSearchTerm("");
+                           setStatusFilter("activos");
+                           setEspecialidadFilter("all");
+                           setCiudadFilter("all");
+                         }}
+                         className="flex items-center gap-2"
+                       >
+                         <Filter className="w-4 h-4" />
+                         Limpiar filtros
+                       </Button>
+                     </TooltipTrigger>
+                     <TooltipContent>
+                       <p>Limpiar todos los filtros aplicados</p>
+                     </TooltipContent>
+                   </Tooltip>
+                 </TooltipProvider>
               </div>
             </div>
 
@@ -458,24 +555,24 @@ const PrestadoresPage = () => {
                       <TableRow key={prestador.id} className="hover:bg-gray-50">
                         <TableCell className="px-2 py-1">
                           <div className="flex flex-row gap-1 items-center">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleEdit(prestador)}
-                                    aria-label="Editar prestador"
-                                    className="h-8 w-8"
-                                  >
-                                    <Edit className="h-4 w-4 text-blue-600 hover:text-blue-800 transition-colors" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Editar</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
+                                                         <TooltipProvider>
+                               <Tooltip>
+                                 <TooltipTrigger asChild>
+                                   <Button
+                                     variant="ghost"
+                                     size="icon"
+                                     onClick={() => handleEdit(prestador)}
+                                     aria-label="Editar prestador"
+                                     className="h-8 w-8"
+                                   >
+                                     <Edit className="h-4 w-4 text-blue-600 hover:text-blue-800 transition-colors" />
+                                   </Button>
+                                 </TooltipTrigger>
+                                 <TooltipContent>
+                                   <p>Editar prestador</p>
+                                 </TooltipContent>
+                               </Tooltip>
+                             </TooltipProvider>
                             {prestador.activo ? (
                               <TooltipProvider>
                                 <Tooltip>
@@ -617,15 +714,15 @@ const PrestadoresPage = () => {
           {/* Formulario de prestador en el tab de registro */}
           <Card>
             <CardContent className="p-6">
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Sección 1: Información Personal */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <h3 className="text-lg font-semibold text-gray-800">Información Personal</h3>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                             <form onSubmit={handleSubmit} className="space-y-3">
+                                 {/* Sección 1: Información Personal */}
+                 <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+                   <div className="flex items-center gap-2 pb-2 border-b">
+                     <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                     <h3 className="text-lg font-semibold text-gray-800">Información Personal</h3>
+                   </div>
+                   
+                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="identificacion" className="text-sm">Identificación *</Label>
                                              <Input
@@ -675,14 +772,14 @@ const PrestadoresPage = () => {
                   </div>
                 </div>
 
-                {/* Sección 2: Información Profesional */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <h3 className="text-lg font-semibold text-gray-800">Información Profesional</h3>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                 {/* Sección 2: Información Profesional */}
+                 <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+                   <div className="flex items-center gap-2 pb-2 border-b">
+                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                     <h3 className="text-lg font-semibold text-gray-800">Información Profesional</h3>
+                   </div>
+                   
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label className="text-sm">Especialidad</Label>
                       <Popover open={openEspecialidad} onOpenChange={setOpenEspecialidad}>
@@ -793,14 +890,14 @@ const PrestadoresPage = () => {
                   </div>
                 </div>
 
-                {/* Sección 3: Información del Laboratorio */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b">
-                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                    <h3 className="text-lg font-semibold text-gray-800">Información del Laboratorio</h3>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                 {/* Sección 3: Información del Laboratorio */}
+                 <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+                   <div className="flex items-center gap-2 pb-2 border-b">
+                     <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                     <h3 className="text-lg font-semibold text-gray-800">Información del Laboratorio</h3>
+                   </div>
+                   
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="nombre_laboratorio" className="text-sm">Nombre del Laboratorio</Label>
                                              <Input
@@ -836,15 +933,33 @@ const PrestadoresPage = () => {
                   </div>
                 </div>
 
-                {/* Botones de acción */}
-                <div className="flex justify-end space-x-2 pt-4 border-t">
-                  <Button type="button" variant="outline" onClick={() => setActiveTab("prestadores")}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit">
-                    {editingId ? "Actualizar" : "Guardar"}
-                  </Button>
-                </div>
+                                 {/* Botones de acción */}
+                 <div className="flex justify-end space-x-2 pt-4 border-t">
+                   <TooltipProvider>
+                     <Tooltip>
+                       <TooltipTrigger asChild>
+                         <Button type="button" variant="outline" onClick={() => setActiveTab("prestadores")}>
+                           Cancelar
+                         </Button>
+                       </TooltipTrigger>
+                       <TooltipContent>
+                         <p>Cancelar y volver al listado</p>
+                       </TooltipContent>
+                     </Tooltip>
+                   </TooltipProvider>
+                   <TooltipProvider>
+                     <Tooltip>
+                       <TooltipTrigger asChild>
+                         <Button type="submit">
+                           {editingId ? "Actualizar" : "Guardar"}
+                         </Button>
+                       </TooltipTrigger>
+                       <TooltipContent>
+                         <p>{editingId ? "Actualizar prestador" : "Guardar nuevo prestador"}</p>
+                       </TooltipContent>
+                     </Tooltip>
+                   </TooltipProvider>
+                 </div>
               </form>
             </CardContent>
           </Card>
