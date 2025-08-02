@@ -25,7 +25,10 @@ import {
   Building,
   FileText,
   Download,
-  Trash2
+  Trash2,
+  FileUp,
+  CheckCircle2,
+  Clock
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -46,7 +49,10 @@ const perfilSchema = z.object({
   nombres: z.string().min(2, 'Los nombres son requeridos'),
   apellidos: z.string().min(2, 'Los apellidos son requeridos'),
   fechaNacimiento: z.string().optional(),
-  edad: z.coerce.number().min(18, 'Debe ser mayor de edad').max(100).optional(),
+  edad: z.union([
+    z.number().min(18, 'Debe ser mayor de edad').max(100),
+    z.undefined()
+  ]).optional(),
   sexo: z.string().optional(),
   estadoCivil: z.string().optional(),
   telefono: z.string().min(10, 'Teléfono requerido'),
@@ -126,6 +132,7 @@ export default function PerfilCandidato() {
   const [existingDocuments, setExistingDocuments] = useState<any[]>([]);
   const [tiposDocumentos, setTiposDocumentos] = useState<any[]>([]);
   const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
+  const [uploadingDocuments, setUploadingDocuments] = useState<{[key: number]: boolean}>({});
   const [tipoCandidato, setTipoCandidato] = useState<any>(null);
   const [documentosRequeridos, setDocumentosRequeridos] = useState<any[]>([]);
   const [isLoadingTipoCandidato, setIsLoadingTipoCandidato] = useState(false);
@@ -133,7 +140,25 @@ export default function PerfilCandidato() {
 
   const form = useForm<PerfilForm>({
     resolver: zodResolver(perfilSchema),
-    defaultValues: {},
+    defaultValues: {
+      nombres: '',
+      apellidos: '',
+      fechaNacimiento: '',
+      edad: undefined,
+      sexo: '',
+      estadoCivil: '',
+      telefono: '',
+      direccion: '',
+      ciudad: '',
+      cargoAspirado: '',
+      eps: '',
+      arl: '',
+      grupoSanguineo: '',
+      nivelEducativo: '',
+      contactoEmergenciaNombre: '',
+      contactoEmergenciaTelefono: '',
+      contactoEmergenciaRelacion: '',
+    },
   });
 
   useEffect(() => {
@@ -152,6 +177,19 @@ export default function PerfilCandidato() {
       return () => subscription.unsubscribe();
     }
   }, [form, candidato]);
+
+  // Efecto para monitorear el estado de validación
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === 'edad' || name === 'fechaNacimiento') {
+        console.log('🔍 Formulario - Campo cambiado:', name, 'Valor:', value[name]);
+        console.log('🔍 Formulario - Estado de errores:', form.formState.errors);
+        console.log('🔍 Formulario - Estado de validación:', form.formState.isValid);
+      }
+    });
+    
+    return () => subscription.unsubscribe();
+  }, [form]);
 
   // Cargar tipos de documentos
   const loadTiposDocumentos = async () => {
@@ -198,9 +236,22 @@ export default function PerfilCandidato() {
           )
         `)
         .eq('tipo_candidato_id', tipoCandidatoId)
+        .eq('obligatorio', true)
         .order('orden');
       
       if (documentosError) throw documentosError;
+      
+      console.log('🔍 PerfilCandidato - Documentos requeridos cargados:', {
+        tipoCandidatoId,
+        totalDocumentos: documentosData?.length || 0,
+        documentos: documentosData?.map(d => ({
+          id: d.id,
+          nombre: d.tipos_documentos.nombre,
+          obligatorio: d.obligatorio,
+          orden: d.orden
+        }))
+      });
+      
       setDocumentosRequeridos(documentosData || []);
     } catch (error) {
       console.error('Error cargando tipo de candidato:', error);
@@ -243,63 +294,131 @@ export default function PerfilCandidato() {
     }
   };
 
+  // Función para obtener una empresa válida
+  const getValidEmpresaId = async (): Promise<number> => {
+    try {
+      // Primero intentar obtener la empresa del candidato
+      if (candidato?.id) {
+        const { data: candidatoData } = await supabase
+          .from('candidatos')
+          .select('empresa_id')
+          .eq('id', candidato.id)
+          .single();
+        
+        if (candidatoData?.empresa_id) {
+          return candidatoData.empresa_id;
+        }
+      }
+      
+      // Si no tiene empresa asignada, obtener la primera empresa disponible
+      const { data: empresas } = await supabase
+        .from('empresas')
+        .select('id')
+        .eq('activo', true)
+        .limit(1)
+        .single();
+      
+      if (empresas?.id) {
+        return empresas.id;
+      }
+      
+      // Si no hay empresas activas, usar la primera empresa disponible
+      const { data: primeraEmpresa } = await supabase
+        .from('empresas')
+        .select('id')
+        .limit(1)
+        .single();
+      
+      if (primeraEmpresa?.id) {
+        return primeraEmpresa.id;
+      }
+      
+      throw new Error('No se encontró ninguna empresa válida');
+    } catch (error) {
+      console.error('Error obteniendo empresa válida:', error);
+      throw error;
+    }
+  };
+
   // Función para manejar la subida de archivos por empresa
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, tipoDocumentoId: number, nombreDocumento: string, empresaId: number) => {
-    e.preventDefault();
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, tipoDocumentoId: number, nombreDocumento: string) => {
+    console.log('🔄 handleFileChange llamado:', { tipoDocumentoId, nombreDocumento });
+    
     const file = e.target.files?.[0];
-    if (file) {
-      if (file.type !== 'application/pdf') {
-        toast.error("Solo se permiten archivos PDF");
-        return;
-      }
+    console.log('📁 Archivo seleccionado:', file);
+    
+    if (!file) {
+      console.log('❌ No se seleccionó ningún archivo');
+      return;
+    }
 
-      if (file.size > 5 * 1024 * 1024) { // 5MB
-        toast.error("El archivo no puede superar 5MB");
-        return;
-      }
+    if (file.type !== 'application/pdf') {
+      toast.error("Solo se permiten archivos PDF");
+      return;
+    }
 
-      try {
-        setIsLoadingDocuments(true);
+    if (file.size > 5 * 1024 * 1024) { // 5MB
+      toast.error("El archivo no puede superar 5MB");
+      return;
+    }
+
+    try {
+      setUploadingDocuments(prev => ({ ...prev, [tipoDocumentoId]: true }));
+      console.log('⏳ Iniciando subida de archivo...');
+      
+      // Obtener empresa válida
+      const empresaId = await getValidEmpresaId();
+      console.log('🏢 Empresa ID obtenida:', empresaId);
+      
+      // Convertir archivo a base64
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = reader.result as string;
+        const base64Data = base64.split(',')[1]; // Remover el prefijo data:application/pdf;base64,
         
-        // Convertir archivo a base64
-        const reader = new FileReader();
-        reader.onload = async () => {
-          const base64 = reader.result as string;
-          const base64Data = base64.split(',')[1]; // Remover el prefijo data:application/pdf;base64,
-          
-          if (!candidato?.id) {
-            toast.error("No se puede subir documentos sin un perfil válido");
-            return;
-          }
+        if (!candidato?.id) {
+          toast.error("No se puede subir documentos sin un perfil válido");
+          return;
+        }
 
-          // Guardar documento en la base de datos con empresa_id
-          const { data, error } = await supabase
-            .from('candidatos_documentos')
-            .upsert({
-              candidato_id: candidato.id,
-              tipo_documento_id: tipoDocumentoId,
-              empresa_id: empresaId,
-              nombre_archivo: file.name,
-              url_archivo: base64Data,
-              fecha_carga: new Date().toISOString()
-            })
-            .select();
+        console.log('💾 Guardando documento en base de datos...');
 
-          if (error) throw error;
+        // Guardar documento en la base de datos con empresa_id
+        const { data, error } = await supabase
+          .from('candidatos_documentos')
+          .upsert({
+            candidato_id: candidato.id,
+            tipo_documento_id: tipoDocumentoId,
+            empresa_id: empresaId,
+            nombre_archivo: file.name,
+            url_archivo: base64Data,
+            fecha_carga: new Date().toISOString()
+          })
+          .select();
 
-          toast.success(`${file.name} ha sido subido correctamente.`);
+        if (error) {
+          console.error('❌ Error en base de datos:', error);
+          throw error;
+        }
 
-          // Actualizar la lista de documentos
-          await loadDocumentosCandidato(candidato.id);
-        };
-        
-        reader.readAsDataURL(file);
-      } catch (error) {
-        console.error('Error subiendo archivo:', error);
-        toast.error("Error al subir el archivo");
-      } finally {
-        setIsLoadingDocuments(false);
-      }
+        console.log('✅ Documento guardado exitosamente:', data);
+        toast.success(`${file.name} ha sido subido correctamente.`);
+
+        // Actualizar la lista de documentos
+        await loadDocumentosCandidato(candidato.id);
+      };
+      
+      reader.onerror = (error) => {
+        console.error('❌ Error leyendo archivo:', error);
+        toast.error("Error al procesar el archivo");
+      };
+      
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('❌ Error subiendo archivo:', error);
+      toast.error("Error al subir el archivo");
+    } finally {
+      setUploadingDocuments(prev => ({ ...prev, [tipoDocumentoId]: false }));
     }
   };
 
@@ -404,7 +523,10 @@ export default function PerfilCandidato() {
 
   // Función para calcular la edad automáticamente
   const calcularEdad = (fechaNacimiento: string) => {
-    if (!fechaNacimiento) return '';
+    if (!fechaNacimiento) {
+      console.log('🔍 calcularEdad - No hay fecha de nacimiento');
+      return undefined;
+    }
     
     const hoy = new Date();
     const nacimiento = new Date(fechaNacimiento);
@@ -418,7 +540,8 @@ export default function PerfilCandidato() {
       edad--;
     }
     
-    return edad.toString();
+    console.log('🔍 calcularEdad - Fecha:', fechaNacimiento, 'Edad calculada:', edad);
+    return edad > 0 ? edad : undefined;
   };
 
   const loadProfile = async () => {
@@ -495,7 +618,7 @@ export default function PerfilCandidato() {
           tipoDocumento: candidatoData.tipo_documento,
           numeroDocumento: candidatoData.numero_documento,
           fechaNacimiento: candidatoData.fecha_nacimiento,
-          edad: candidatoData.edad || null,
+          edad: candidatoData.edad || undefined,
           sexo: candidatoData.genero,
           estadoCivil: candidatoData.estado_civil,
           telefono: candidatoData.telefono || '',
@@ -790,12 +913,13 @@ export default function PerfilCandidato() {
                               <Input 
                                 {...field} 
                                 type="date" 
+                                value={field.value || ''}
                                 onChange={(e) => {
+                                  console.log('🔍 Campo fechaNacimiento - Nuevo valor:', e.target.value);
                                   field.onChange(e);
                                   const edad = calcularEdad(e.target.value);
-                                  if (edad) {
-                                    form.setValue('edad', parseInt(edad));
-                                  }
+                                  console.log('🔍 Campo fechaNacimiento - Edad calculada para el formulario:', edad);
+                                  form.setValue('edad', edad);
                                 }}
                               />
                             </FormControl>
@@ -807,15 +931,29 @@ export default function PerfilCandidato() {
                       <FormField
                         control={form.control}
                         name="edad"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Edad</FormLabel>
-                            <FormControl>
-                              <Input {...field} type="number" min="18" max="100" disabled />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
+                        render={({ field }) => {
+                          console.log('🔍 Campo edad - Valor actual:', field.value, 'Tipo:', typeof field.value);
+                          return (
+                            <FormItem>
+                              <FormLabel>Edad</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  {...field} 
+                                  type="number" 
+                                  min="18" 
+                                  max="100" 
+                                  value={field.value || ''}
+                                  onChange={(e) => {
+                                    const value = e.target.value === '' ? undefined : parseInt(e.target.value);
+                                    console.log('🔍 Campo edad - Nuevo valor:', value, 'Tipo:', typeof value);
+                                    field.onChange(value);
+                                  }}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          );
+                        }}
                       />
 
                       <FormField
@@ -1007,50 +1145,64 @@ export default function PerfilCandidato() {
                   </TabsContent>
 
                   <TabsContent value="archivos" className="space-y-4">
-                    <div className="space-y-4">
-                      <div className="text-center mb-4">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-1">Documentos del Candidato</h3>
-                        <p className="text-sm text-gray-600">
-                          {tipoCandidato ? `Documentos requeridos para: ${tipoCandidato.nombre}` : 'Cargando tipo de candidato...'}
-                        </p>
+                    <div className="space-y-6">
+                      {/* Header con icono */}
+                      <div className="flex items-center space-x-3 mb-6">
+                        <div className="p-2 bg-blue-100 rounded-lg">
+                          <FileUp className="w-6 h-6 text-blue-600" />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-bold text-gray-900">Documentos</h3>
+                          <p className="text-sm text-gray-600">
+                            {tipoCandidato ? `Documentos requeridos para: ${tipoCandidato.nombre}` : 'Cargando tipo de candidato...'}
+                          </p>
+                        </div>
                       </div>
                       
                       {isLoadingTipoCandidato || isLoadingDocuments ? (
-                        <div className="flex justify-center py-8">
-                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                        <div className="flex justify-center py-12">
+                          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
                         </div>
                       ) : !tipoCandidato ? (
-                        <div className="text-center py-8">
-                          <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                          <p className="text-gray-600">No se ha configurado un tipo de candidato para este perfil.</p>
+                        <div className="text-center py-12">
+                          <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                          <p className="text-gray-600 text-lg">No se ha configurado un tipo de candidato para este perfil.</p>
                         </div>
                       ) : (
-                        <div className="space-y-4">
+                        <div className="space-y-6">
                           {/* Documentos existentes */}
                           {existingDocuments.length > 0 && (
-                            <div className="space-y-3">
-                              <h4 className="text-sm font-medium text-gray-700">Documentos subidos:</h4>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="space-y-4">
+                              <h4 className="text-lg font-semibold text-gray-800 flex items-center">
+                                <CheckCircle2 className="w-5 h-5 text-green-600 mr-2" />
+                                Documentos subidos ({existingDocuments.length})
+                              </h4>
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {existingDocuments.map((documento) => (
-                                  <Card key={documento.id} className="border border-green-200 bg-green-50">
-                                    <CardHeader className="pb-2 pt-3">
-                                      <CardTitle className="flex items-center text-xs">
-                                        <FileText className="w-4 h-4 text-green-600" />
-                                        <span className="ml-2 flex-1">{documento.tipos_documentos.nombre}</span>
-                                        {documento.tipos_documentos.requerido && (
-                                          <Badge variant="secondary" className="text-xs">Requerido</Badge>
-                                        )}
+                                  <Card key={documento.id} className="border-2 border-green-200 bg-green-50 hover:border-green-300 transition-all duration-200">
+                                    <CardHeader className="pb-3 pt-4">
+                                      <CardTitle className="flex items-center justify-between text-sm">
+                                        <div className="flex items-center">
+                                          <div className="p-2 bg-green-100 rounded-lg mr-3">
+                                            <FileText className="w-4 h-4 text-green-600" />
+                                          </div>
+                                          <span className="font-semibold text-gray-800">{documento.tipos_documentos.nombre}</span>
+                                        </div>
+                                        <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
+                                          <CheckCircle2 className="w-3 h-3 mr-1" />
+                                          Subido
+                                        </Badge>
                                       </CardTitle>
-                                      <CardDescription className="text-xs text-gray-600">
+                                      <CardDescription className="text-xs text-gray-600 mt-2">
                                         {documento.nombre_archivo}
                                       </CardDescription>
                                     </CardHeader>
-                                    <CardContent className="pt-0 pb-3">
+                                    <CardContent className="pt-0 pb-4">
                                       <div className="flex space-x-2">
                                         <Button 
                                           variant="outline" 
                                           size="sm"
-                                          className="text-xs h-7"
+                                          className="text-xs h-8 flex-1 border-green-300 text-green-700 hover:bg-green-100"
                                           onClick={() => handleDownloadDocument(documento)}
                                         >
                                           <Download className="w-3 h-3 mr-1" />
@@ -1059,7 +1211,7 @@ export default function PerfilCandidato() {
                                         <Button 
                                           variant="destructive" 
                                           size="sm"
-                                          className="text-xs h-7"
+                                          className="text-xs h-8 flex-1"
                                           onClick={() => handleDeleteDocument(documento.id)}
                                         >
                                           <Trash2 className="w-3 h-3 mr-1" />
@@ -1073,58 +1225,105 @@ export default function PerfilCandidato() {
                             </div>
                           )}
 
-                          {/* Formulario para subir nuevos documentos */}
+                          {/* Documentos requeridos con nueva interfaz */}
                           {documentosRequeridos.length > 0 && (
-                            <div className="space-y-3">
-                              <h4 className="text-sm font-medium text-gray-700">Documentos requeridos para {tipoCandidato.nombre}:</h4>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="space-y-4">
+                              <h4 className="text-lg font-semibold text-gray-800 flex items-center">
+                                <Clock className="w-5 h-5 text-blue-600 mr-2" />
+                                Documentos requeridos ({documentosRequeridos.length})
+                              </h4>
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {documentosRequeridos.map((documentoRequerido) => {
                                   const isUploaded = existingDocuments.some(
                                     (doc) => doc.tipo_documento_id === documentoRequerido.tipo_documento_id
                                   );
                                   
+                                  const getDocumentIcon = (nombre: string) => {
+                                    if (nombre.toLowerCase().includes('cedula')) return '🆔';
+                                    if (nombre.toLowerCase().includes('diploma')) return '🎓';
+                                    if (nombre.toLowerCase().includes('certificado')) return '📜';
+                                    if (nombre.toLowerCase().includes('hoja')) return '📄';
+                                    if (nombre.toLowerCase().includes('foto')) return '📷';
+                                    if (nombre.toLowerCase().includes('eps')) return '🏥';
+                                    if (nombre.toLowerCase().includes('arl')) return '🛡️';
+                                    return '📋';
+                                  };
+                                  
                                   return (
-                                    <Card key={documentoRequerido.id} className={`border ${isUploaded ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
-                                      <CardHeader className="pb-2 pt-3">
-                                        <CardTitle className="flex items-center text-xs">
-                                          <Upload className="w-4 h-4" />
-                                          <span className="ml-2 flex-1">
-                                            {documentoRequerido.tipos_documentos.nombre}
-                                            {documentoRequerido.obligatorio && <span className="text-red-500 ml-1">*</span>}
-                                          </span>
+                                    <Card key={documentoRequerido.id} className={`border-2 transition-all duration-200 hover:shadow-md ${
+                                      isUploaded 
+                                        ? 'border-green-200 bg-green-50' 
+                                        : 'border-gray-200 bg-white hover:border-blue-300'
+                                    }`}>
+                                      <CardHeader className="pb-3 pt-4">
+                                        <CardTitle className="flex items-center justify-between text-sm">
+                                          <div className="flex items-center">
+                                            <div className={`p-2 rounded-lg mr-3 ${
+                                              isUploaded ? 'bg-green-100' : 'bg-blue-100'
+                                            }`}>
+                                              <span className="text-lg">{getDocumentIcon(documentoRequerido.tipos_documentos.nombre)}</span>
+                                            </div>
+                                            <div>
+                                              <span className="font-semibold text-gray-800">
+                                                {documentoRequerido.tipos_documentos.nombre}
+                                              </span>
+                                              {documentoRequerido.obligatorio && (
+                                                <span className="text-red-500 ml-1">*</span>
+                                              )}
+                                            </div>
+                                          </div>
                                           {isUploaded && (
-                                            <Badge variant="secondary" className="text-xs">Subido</Badge>
+                                            <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
+                                              <CheckCircle2 className="w-3 h-3 mr-1" />
+                                              Subido
+                                            </Badge>
                                           )}
                                         </CardTitle>
-                                        <CardDescription className="text-xs text-gray-600">
-                                          {documentoRequerido.tipos_documentos.descripcion}
+                                        <CardDescription className="text-xs text-gray-600 mt-2">
+                                          Formato PDF
                                         </CardDescription>
                                       </CardHeader>
-                                      <CardContent className="pt-0 pb-3">
-                                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-3 text-center hover:border-blue-400 transition-colors">
-                                          <Upload className="w-5 h-5 mx-auto text-gray-400 mb-1" />
-                                          <p className="text-xs text-gray-600 mb-2">
-                                            Solo archivos PDF (máx. 5MB)
-                                          </p>
-                                          <input
-                                            type="file"
-                                            accept=".pdf"
-                                            className="hidden"
-                                            id={`file-${documentoRequerido.tipo_documento_id}`}
-                                            onChange={(e) => handleFileChange(e, documentoRequerido.tipo_documento_id, documentoRequerido.tipos_documentos.nombre, 0)}
-                                            disabled={isUploaded}
-                                          />
-                                          <label htmlFor={`file-${documentoRequerido.tipo_documento_id}`}>
-                                            <Button 
-                                              variant="outline" 
-                                              size="sm"
-                                              className="text-xs h-7 cursor-pointer"
-                                              disabled={isUploaded}
-                                            >
-                                              {isUploaded ? 'Ya subido' : 'Seleccionar'}
-                                            </Button>
-                                          </label>
-                                        </div>
+                                      <CardContent className="pt-0 pb-4">
+                                        <input
+                                          type="file"
+                                          accept=".pdf"
+                                          className="hidden"
+                                          id={`file-${documentoRequerido.tipo_documento_id}`}
+                                          onChange={(e) => {
+                                            console.log('📁 Input file cambiado:', e.target.files);
+                                            handleFileChange(e, documentoRequerido.tipo_documento_id, documentoRequerido.tipos_documentos.nombre);
+                                          }}
+                                          disabled={isUploaded}
+                                        />
+                                        <Button 
+                                          variant="outline" 
+                                          size="sm"
+                                          className={`text-xs h-8 w-full cursor-pointer transition-all duration-200 ${
+                                            isUploaded 
+                                              ? 'border-green-300 text-green-700 bg-green-100' 
+                                              : uploadingDocuments[documentoRequerido.tipo_documento_id]
+                                              ? 'border-blue-300 text-blue-700 bg-blue-100'
+                                              : 'border-gray-300 text-gray-700 hover:border-blue-400 hover:bg-blue-50'
+                                          }`}
+                                          disabled={isUploaded || uploadingDocuments[documentoRequerido.tipo_documento_id]}
+                                          onClick={() => {
+                                            if (!isUploaded && !uploadingDocuments[documentoRequerido.tipo_documento_id]) {
+                                              document.getElementById(`file-${documentoRequerido.tipo_documento_id}`)?.click();
+                                            }
+                                          }}
+                                        >
+                                          {uploadingDocuments[documentoRequerido.tipo_documento_id] ? (
+                                            <>
+                                              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-1"></div>
+                                              Subiendo...
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Upload className="w-3 h-3 mr-1" />
+                                              {isUploaded ? 'Ya subido' : 'Subir'}
+                                            </>
+                                          )}
+                                        </Button>
                                       </CardContent>
                                     </Card>
                                   );
@@ -1134,9 +1333,9 @@ export default function PerfilCandidato() {
                           )}
 
                           {documentosRequeridos.length === 0 && (
-                            <div className="text-center py-8">
-                              <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-4" />
-                              <p className="text-gray-600">No hay documentos requeridos para este tipo de candidato.</p>
+                            <div className="text-center py-12">
+                              <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
+                              <p className="text-gray-600 text-lg">No hay documentos requeridos para este tipo de candidato.</p>
                             </div>
                           )}
                         </div>

@@ -4,7 +4,18 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import { useNavigate, Link } from 'react-router-dom';
-import { Eye, EyeOff, Mail, Lock, User, Phone, IdCard, Building2, FileText, Upload } from 'lucide-react';
+import { 
+  ArrowLeft, 
+  User, 
+  Mail, 
+  Phone, 
+  Lock, 
+  Eye, 
+  EyeOff, 
+  FileText,
+  Upload,
+  IdCard
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { TipoCandidatoSelector } from '@/components/candidatos/TipoCandidatoSelector';
+import { useTiposCandidatos } from '@/hooks/useTiposCandidatos';
 
 const registroSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -34,9 +46,9 @@ const registroSchema = z.object({
 type RegistroForm = z.infer<typeof registroSchema>;
 
 export default function RegistroCandidato() {
+  const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [selectedTipoId, setSelectedTipoId] = useState<number | null>(null);
   const [documentosCargados, setDocumentosCargados] = useState<Record<number, { 
     archivo?: File; 
@@ -45,17 +57,23 @@ export default function RegistroCandidato() {
   }>>({});
   const navigate = useNavigate();
 
+  // Hook para obtener tipos de candidatos
+  const { tiposCandidatosActivos, isLoading: loadingTipos } = useTiposCandidatos();
+
+  // Debug: mostrar información de tipos de candidatos
+  console.log('🔍 RegistroCandidato - Tipos de candidatos activos:', tiposCandidatosActivos);
+  console.log('🔍 RegistroCandidato - Estado de carga:', loadingTipos);
+  console.log('🔍 RegistroCandidato - Total de tipos:', tiposCandidatosActivos.length);
+
   const form = useForm<RegistroForm>({
     resolver: zodResolver(registroSchema),
     defaultValues: {
-      email: '',
-      password: '',
-      confirmPassword: '',
       nombres: '',
       apellidos: '',
-      tipoDocumento: '',
-      numeroDocumento: '',
+      email: '',
       telefono: '',
+      password: '',
+      confirmPassword: '',
       tipoCandidatoId: 0,
     },
   });
@@ -279,16 +297,30 @@ export default function RegistroCandidato() {
                                 handleTipoChange(parseInt(value));
                               }} defaultValue={field.value?.toString()}>
                                 <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Seleccione su tipo de candidato" />
+                                  <SelectTrigger disabled={loadingTipos}>
+                                    <SelectValue placeholder={
+                                      loadingTipos 
+                                        ? "Cargando tipos de candidatos..." 
+                                        : "Seleccione su tipo de candidato"
+                                    } />
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  <SelectItem value="1">Ingeniero de Sistemas</SelectItem>
-                                  <SelectItem value="2">Diseñador Gráfico</SelectItem>
-                                  <SelectItem value="3">Administrador</SelectItem>
-                                  <SelectItem value="4">Técnico</SelectItem>
-                                  <SelectItem value="5">Auxiliar</SelectItem>
+                                  {loadingTipos ? (
+                                    <SelectItem value="" disabled>
+                                      Cargando...
+                                    </SelectItem>
+                                  ) : tiposCandidatosActivos.length === 0 ? (
+                                    <SelectItem value="" disabled>
+                                      No hay tipos disponibles
+                                    </SelectItem>
+                                  ) : (
+                                    tiposCandidatosActivos.map(tipo => (
+                                      <SelectItem key={tipo.id} value={tipo.id.toString()}>
+                                        {tipo.nombre}
+                                      </SelectItem>
+                                    ))
+                                  )}
                                 </SelectContent>
                               </Select>
                               <FormMessage />

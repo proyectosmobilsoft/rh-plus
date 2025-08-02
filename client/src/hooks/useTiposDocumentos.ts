@@ -17,7 +17,16 @@ export const useTiposDocumentos = () => {
     refetch
   } = useQuery({
     queryKey: ['tipos-documentos'],
-    queryFn: () => tiposDocumentosService.getAll(),
+    queryFn: async () => {
+      console.log('🔍 useTiposDocumentos - Ejecutando query para obtener todos los tipos de documentos...');
+      const data = await tiposDocumentosService.getAll();
+      console.log('🔍 useTiposDocumentos - Datos obtenidos:', data);
+      return data;
+    },
+    staleTime: 0, // Siempre considerar como stale
+    gcTime: 1000 * 60 * 1, // 1 minuto
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
   const {
@@ -27,7 +36,16 @@ export const useTiposDocumentos = () => {
     refetch: refetchActivos
   } = useQuery({
     queryKey: ['tipos-documentos-activos'],
-    queryFn: () => tiposDocumentosService.getActive(),
+    queryFn: async () => {
+      console.log('🔍 useTiposDocumentos - Ejecutando query para obtener tipos de documentos activos...');
+      const data = await tiposDocumentosService.getActive();
+      console.log('🔍 useTiposDocumentos - Tipos activos obtenidos:', data);
+      return data;
+    },
+    staleTime: 0, // Siempre considerar como stale
+    gcTime: 1000 * 60 * 1, // 1 minuto
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
   const {
@@ -37,18 +55,48 @@ export const useTiposDocumentos = () => {
     refetch: refetchRequeridos
   } = useQuery({
     queryKey: ['tipos-documentos-requeridos'],
-    queryFn: () => tiposDocumentosService.getRequired(),
+    queryFn: async () => {
+      console.log('🔍 useTiposDocumentos - Ejecutando query para obtener tipos de documentos requeridos...');
+      const data = await tiposDocumentosService.getRequired();
+      console.log('🔍 useTiposDocumentos - Tipos requeridos obtenidos:', data);
+      return data;
+    },
+    staleTime: 1000 * 30, // 30 segundos
+    gcTime: 1000 * 60 * 2, // 2 minutos
+  });
+
+  // Log cuando cambian los datos
+  console.log('🔍 useTiposDocumentos - Estado actual:', {
+    tiposDocumentos: tiposDocumentos.length,
+    tiposDocumentosActivos: tiposDocumentosActivos.length,
+    tiposDocumentosRequeridos: tiposDocumentosRequeridos.length,
+    isLoading,
+    loadingActivos,
+    loadingRequeridos,
+    error: error?.message,
+    errorActivos: errorActivos?.message,
+    errorRequeridos: errorRequeridos?.message
   });
 
   const createTipoDocumento = useMutation({
     mutationFn: (data: CreateTipoDocumentoData) => tiposDocumentosService.create(data),
-    onSuccess: () => {
+    onSuccess: async () => {
+      console.log('🔍 useTiposDocumentos - Tipo de documento creado exitosamente, invalidando cache...');
+      // Pequeño delay para asegurar que la BD se actualice
+      await new Promise(resolve => setTimeout(resolve, 100));
+      // Invalidar todas las queries relacionadas con tipos de documentos
       queryClient.invalidateQueries({ queryKey: ['tipos-documentos'] });
       queryClient.invalidateQueries({ queryKey: ['tipos-documentos-activos'] });
       queryClient.invalidateQueries({ queryKey: ['tipos-documentos-requeridos'] });
+      // Forzar refetch inmediato
+      queryClient.refetchQueries({ queryKey: ['tipos-documentos'] });
+      queryClient.refetchQueries({ queryKey: ['tipos-documentos-activos'] });
+      queryClient.refetchQueries({ queryKey: ['tipos-documentos-requeridos'] });
+      console.log('🔍 useTiposDocumentos - Cache invalidado y refetch ejecutado');
       toast.success('Tipo de documento creado exitosamente');
     },
     onError: (error: Error) => {
+      console.error('🔍 useTiposDocumentos - Error al crear tipo de documento:', error);
       toast.error(`Error al crear tipo de documento: ${error.message}`);
     },
   });
@@ -125,5 +173,24 @@ export const useTiposDocumentos = () => {
     refetch,
     refetchActivos,
     refetchRequeridos,
+    
+    // Cache management
+    invalidateCache: () => {
+      console.log('🔍 useTiposDocumentos - Invalidando cache manualmente...');
+      queryClient.invalidateQueries({ queryKey: ['tipos-documentos'] });
+      queryClient.invalidateQueries({ queryKey: ['tipos-documentos-activos'] });
+      queryClient.invalidateQueries({ queryKey: ['tipos-documentos-requeridos'] });
+      queryClient.refetchQueries({ queryKey: ['tipos-documentos'] });
+      queryClient.refetchQueries({ queryKey: ['tipos-documentos-activos'] });
+      queryClient.refetchQueries({ queryKey: ['tipos-documentos-requeridos'] });
+    },
+    
+    // Force refresh
+    forceRefresh: async () => {
+      console.log('🔍 useTiposDocumentos - Forzando refresh inmediato...');
+      await refetch();
+      await refetchActivos();
+      await refetchRequeridos();
+    },
   };
 }; 

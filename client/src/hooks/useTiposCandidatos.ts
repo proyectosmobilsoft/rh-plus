@@ -17,7 +17,14 @@ export const useTiposCandidatos = () => {
     refetch
   } = useQuery({
     queryKey: ['tipos-candidatos'],
-    queryFn: () => tiposCandidatosService.getAll(),
+    queryFn: async () => {
+      console.log('🔍 useTiposCandidatos - Ejecutando query para obtener todos los tipos...');
+      const data = await tiposCandidatosService.getAll();
+      console.log('🔍 useTiposCandidatos - Datos obtenidos:', data);
+      return data;
+    },
+    staleTime: 1000 * 30, // 30 segundos
+    gcTime: 1000 * 60 * 2, // 2 minutos
   });
 
   const {
@@ -27,17 +34,43 @@ export const useTiposCandidatos = () => {
     refetch: refetchActivos
   } = useQuery({
     queryKey: ['tipos-candidatos-activos'],
-    queryFn: () => tiposCandidatosService.getActive(),
+    queryFn: async () => {
+      console.log('🔍 useTiposCandidatos - Ejecutando query para obtener tipos activos...');
+      const data = await tiposCandidatosService.getActive();
+      console.log('🔍 useTiposCandidatos - Tipos activos obtenidos:', data);
+      return data;
+    },
+    staleTime: 1000 * 30, // 30 segundos
+    gcTime: 1000 * 60 * 2, // 2 minutos
+  });
+
+  // Log cuando cambian los datos
+  console.log('🔍 useTiposCandidatos - Estado actual:', {
+    tiposCandidatos: tiposCandidatos.length,
+    tiposCandidatosActivos: tiposCandidatosActivos.length,
+    isLoading,
+    loadingActivos,
+    error: error?.message,
+    errorActivos: errorActivos?.message
   });
 
   const createTipoCandidato = useMutation({
     mutationFn: (data: CreateTipoCandidatoData) => tiposCandidatosService.create(data),
-    onSuccess: () => {
+    onSuccess: async () => {
+      console.log('🔍 useTiposCandidatos - Tipo creado exitosamente, invalidando cache...');
+      // Pequeño delay para asegurar que la BD se actualice
+      await new Promise(resolve => setTimeout(resolve, 100));
+      // Invalidar todas las queries relacionadas con tipos de candidatos
       queryClient.invalidateQueries({ queryKey: ['tipos-candidatos'] });
       queryClient.invalidateQueries({ queryKey: ['tipos-candidatos-activos'] });
+      // Forzar refetch inmediato
+      queryClient.refetchQueries({ queryKey: ['tipos-candidatos'] });
+      queryClient.refetchQueries({ queryKey: ['tipos-candidatos-activos'] });
+      console.log('🔍 useTiposCandidatos - Cache invalidado y refetch ejecutado');
       toast.success('Tipo de candidato creado exitosamente');
     },
     onError: (error: Error) => {
+      console.error('🔍 useTiposCandidatos - Error al crear tipo:', error);
       toast.error(`Error al crear tipo de candidato: ${error.message}`);
     },
   });
@@ -107,5 +140,21 @@ export const useTiposCandidatos = () => {
     // Refetch functions
     refetch,
     refetchActivos,
+    
+    // Cache management
+    invalidateCache: () => {
+      console.log('🔍 useTiposCandidatos - Invalidando cache manualmente...');
+      queryClient.invalidateQueries({ queryKey: ['tipos-candidatos'] });
+      queryClient.invalidateQueries({ queryKey: ['tipos-candidatos-activos'] });
+      queryClient.refetchQueries({ queryKey: ['tipos-candidatos'] });
+      queryClient.refetchQueries({ queryKey: ['tipos-candidatos-activos'] });
+    },
+    
+    // Force refresh
+    forceRefresh: async () => {
+      console.log('🔍 useTiposCandidatos - Forzando refresh inmediato...');
+      await refetch();
+      await refetchActivos();
+    },
   };
 }; 

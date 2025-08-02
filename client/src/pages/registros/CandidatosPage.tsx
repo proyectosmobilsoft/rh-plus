@@ -39,6 +39,8 @@ import React from 'react';
 import { empresasService } from '@/services/empresasService';
 import { useLoading } from '@/contexts/LoadingContext';
 import { supabase } from '@/services/supabaseClient';
+import { useTiposCandidatos } from '@/hooks/useTiposCandidatos';
+import { useNavigate } from 'react-router-dom';
 
 interface Candidato {
   id: number;
@@ -54,6 +56,7 @@ const CandidatosPage = () => {
   const { toast } = useToast();
   const { startLoading, stopLoading } = useLoading();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("candidatos");
   
   // Estados para filtros
@@ -83,6 +86,15 @@ const CandidatosPage = () => {
   const [buscandoCandidato, setBuscandoCandidato] = useState(false);
   const [modalConfirmacionOpen, setModalConfirmacionOpen] = useState(false);
   const [candidatoAEliminar, setCandidatoAEliminar] = useState<any>(null);
+
+  // Hooks
+  const { data: empresasData = [], isLoading: loadingEmpresas } = useCompanies('empresa');
+  const { tiposCandidatosActivos, isLoading: loadingTipos } = useTiposCandidatos();
+
+  // Debug: mostrar información de tipos de candidatos
+  console.log('🔍 CandidatosPage - Tipos de candidatos activos:', tiposCandidatosActivos);
+  console.log('🔍 CandidatosPage - Estado de carga de tipos:', loadingTipos);
+  console.log('🔍 CandidatosPage - Total de tipos:', tiposCandidatosActivos.length);
 
   // Query para obtener candidatos desde Supabase
   const { data: candidatos = [], isLoading, refetch } = useQuery({
@@ -234,16 +246,9 @@ const CandidatosPage = () => {
     refetch();
   }, []);
 
-  const { data: empresasReales = [], isLoading: isLoadingEmpresas, error: errorEmpresas } = useCompanies('empresa');
-
-  // Debug: Verificar si las empresas se están cargando
-  console.log('Empresas cargadas:', empresasReales);
-  console.log('Estado de carga de empresas:', isLoadingEmpresas);
-  console.log('Error de empresas:', errorEmpresas);
-
   // Lookup helpers para empresa y ciudad
   const getEmpresaNombre = (empresa_id: number) => {
-    const empresa = empresasReales.find((e: any) => e.id === empresa_id);
+    const empresa = empresasData.find((e: any) => e.id === empresa_id);
     return empresa ? empresa.razonSocial : '';
   };
 
@@ -645,10 +650,10 @@ const CandidatosPage = () => {
                               </Tooltip>
                             </TooltipProvider>
                             {candidato.activo ? (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <AlertDialog>
+                              <AlertDialog>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
                                       <AlertDialogTrigger asChild>
                                         <Button
                                           variant="ghost"
@@ -659,33 +664,33 @@ const CandidatosPage = () => {
                                           <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
                                         </Button>
                                       </AlertDialogTrigger>
-                                      <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                          <AlertDialogTitle>¿Inactivar candidato?</AlertDialogTitle>
-                                          <AlertDialogDescription>
-                                            Esta acción inactivará el candidato y no podrá ser usado hasta que se reactive. ¿Estás seguro?
-                                          </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                          <AlertDialogAction onClick={() => handleDeactivate(candidato)}>
-                                            Sí, inactivar
-                                          </AlertDialogAction>
-                                        </AlertDialogFooter>
-                                      </AlertDialogContent>
-                                    </AlertDialog>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Inactivar</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Inactivar</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>¿Inactivar candidato?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Esta acción inactivará el candidato y no podrá ser usado hasta que se reactive. ¿Estás seguro?
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDeactivate(candidato)}>
+                                      Sí, inactivar
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                             ) : (
                               <>
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <AlertDialog>
+                                <AlertDialog>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
                                         <AlertDialogTrigger asChild>
                                           <Button
                                             variant="ghost"
@@ -696,31 +701,31 @@ const CandidatosPage = () => {
                                             <Trash2 className="h-4 w-4 text-rose-600 hover:text-rose-800 transition-colors" />
                                           </Button>
                                         </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                          <AlertDialogHeader>
-                                            <AlertDialogTitle>¿Eliminar candidato?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                              Esta acción eliminará el candidato de forma permanente. ¿Estás seguro?
-                                            </AlertDialogDescription>
-                                          </AlertDialogHeader>
-                                          <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => confirmarEliminacion(candidato)}>
-                                              Sí, eliminar
-                                            </AlertDialogAction>
-                                          </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                      </AlertDialog>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Eliminar</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <AlertDialog>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Eliminar</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>¿Eliminar candidato?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Esta acción eliminará el candidato de forma permanente. ¿Estás seguro?
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => confirmarEliminacion(candidato)}>
+                                        Sí, eliminar
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                                <AlertDialog>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
                                         <AlertDialogTrigger asChild>
                                           <Button
                                             variant="ghost"
@@ -731,27 +736,27 @@ const CandidatosPage = () => {
                                             <CheckCircle className="h-4 w-4 text-green-600 hover:text-green-800 transition-colors" />
                                           </Button>
                                         </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                          <AlertDialogHeader>
-                                            <AlertDialogTitle>¿Activar candidato?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                              Esta acción reactivará el candidato y estará disponible para su uso. ¿Estás seguro?
-                                            </AlertDialogDescription>
-                                          </AlertDialogHeader>
-                                          <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleActivate(candidato)}>
-                                              Sí, activar
-                                            </AlertDialogAction>
-                                          </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                      </AlertDialog>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Activar</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Activar</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>¿Activar candidato?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Esta acción reactivará el candidato y estará disponible para su uso. ¿Estás seguro?
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => handleActivate(candidato)}>
+                                        Sí, activar
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
                               </>
                             )}
                           </div>
@@ -879,17 +884,31 @@ const CandidatosPage = () => {
                      <Select
                        value={formData.tipoCandidatoId?.toString() || ''}
                        onValueChange={(value) => setFormData({ ...formData, tipoCandidatoId: parseInt(value) })}
-                       disabled={isSubmitting}
+                       disabled={isSubmitting || loadingTipos}
                      >
                        <SelectTrigger>
-                         <SelectValue placeholder="Seleccione el tipo de candidato" />
+                         <SelectValue placeholder={
+                           loadingTipos 
+                             ? "Cargando tipos de candidatos..." 
+                             : "Seleccione el tipo de candidato"
+                         } />
                        </SelectTrigger>
                        <SelectContent>
-                         <SelectItem value="1">Ingeniero de Sistemas</SelectItem>
-                         <SelectItem value="2">Diseñador Gráfico</SelectItem>
-                         <SelectItem value="3">Administrador</SelectItem>
-                         <SelectItem value="4">Técnico</SelectItem>
-                         <SelectItem value="5">Auxiliar</SelectItem>
+                         {loadingTipos ? (
+                           <SelectItem value="" disabled>
+                             Cargando...
+                           </SelectItem>
+                         ) : tiposCandidatosActivos.length === 0 ? (
+                           <SelectItem value="" disabled>
+                             No hay tipos disponibles
+                           </SelectItem>
+                         ) : (
+                           tiposCandidatosActivos.map((tipo) => (
+                             <SelectItem key={tipo.id} value={tipo.id.toString()}>
+                               {tipo.nombre}
+                             </SelectItem>
+                           ))
+                         )}
                        </SelectContent>
                      </Select>
                    </div>

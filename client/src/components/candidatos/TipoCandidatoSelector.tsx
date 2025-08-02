@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -51,8 +51,22 @@ export const TipoCandidatoSelector: React.FC<TipoCandidatoSelectorProps> = ({
   documentosCargados,
   onDocumentoChange,
 }) => {
-  const { data: tiposCandidatos = [], isLoading: loadingTipos } = useTiposCandidatos();
+  const { tiposCandidatos, tiposCandidatosActivos, isLoading: loadingTipos, refetch, invalidateCache, forceRefresh } = useTiposCandidatos();
   const { getDocumentosRequeridos } = useTiposCandidatosDocumentos();
+  
+  // Debug: mostrar los tipos de candidatos en consola
+  console.log('🔍 TipoCandidatoSelector - Tipos de candidatos cargados:', tiposCandidatos);
+  console.log('🔍 TipoCandidatoSelector - Tipos activos directos:', tiposCandidatosActivos);
+  console.log('🔍 TipoCandidatoSelector - Estado de carga:', loadingTipos);
+  
+  // Efecto para detectar cambios en los datos
+  useEffect(() => {
+    console.log('🔍 TipoCandidatoSelector - useEffect: Datos actualizados:', {
+      total: tiposCandidatos.length,
+      activos: tiposCandidatosActivos.length,
+      loading: loadingTipos
+    });
+  }, [tiposCandidatos, tiposCandidatosActivos, loadingTipos]);
   
   const { 
     data: documentosRequeridos = [], 
@@ -61,8 +75,31 @@ export const TipoCandidatoSelector: React.FC<TipoCandidatoSelectorProps> = ({
 
   const handleTipoChange = (tipoId: string) => {
     const id = tipoId ? parseInt(tipoId) : null;
+    console.log('🔍 TipoCandidatoSelector - Cambiando tipo a:', id);
     onTipoChange(id);
   };
+
+  // Función para forzar la recarga de datos
+  const handleRefresh = async () => {
+    console.log('🔍 TipoCandidatoSelector - Forzando recarga de datos...');
+    await forceRefresh();
+  };
+
+  // Función para verificar si los datos están actualizados
+  const checkDataFreshness = () => {
+    console.log('🔍 TipoCandidatoSelector - Verificando frescura de datos:', {
+      totalTypes: tiposCandidatos.length,
+      activeTypes: tiposCandidatosActivos.length,
+      activeTypeNames: tiposCandidatosActivos.map(t => t.nombre),
+      loading: loadingTipos,
+      timestamp: new Date().toISOString()
+    });
+  };
+
+  // Verificar datos cada vez que cambien
+  useEffect(() => {
+    checkDataFreshness();
+  }, [tiposCandidatos, tiposCandidatosActivos]);
 
   const handleFileChange = (documentoId: number, file: File | undefined) => {
     onDocumentoChange(documentoId, { 
@@ -117,39 +154,63 @@ export const TipoCandidatoSelector: React.FC<TipoCandidatoSelectorProps> = ({
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="tipo-candidato">Seleccione su tipo de candidato *</Label>
-              <Select value={selectedTipoId?.toString() || ''} onValueChange={handleTipoChange}>
-                <SelectTrigger className="mt-2">
-                  <SelectValue placeholder="Seleccione un tipo de candidato" />
-                </SelectTrigger>
-                <SelectContent>
-                  {loadingTipos ? (
-                    <SelectItem value="" disabled>Cargando tipos...</SelectItem>
-                  ) : (
-                    tiposCandidatos
-                      .filter(tipo => tipo.activo)
-                      .map((tipo) => (
-                        <SelectItem key={tipo.id} value={tipo.id.toString()}>
-                          <div className="flex items-center gap-2">
-                            <Briefcase className="h-4 w-4" />
-                            {tipo.nombre}
-                          </div>
-                        </SelectItem>
-                      ))
-                  )}
-                </SelectContent>
-              </Select>
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <Label htmlFor="tipo-candidato">Seleccione su tipo de candidato *</Label>
+                <Select value={selectedTipoId?.toString() || ''} onValueChange={handleTipoChange}>
+                  <SelectTrigger className="mt-2">
+                    <SelectValue placeholder="Seleccione un tipo de candidato" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {loadingTipos ? (
+                      <SelectItem value="" disabled>Cargando tipos...</SelectItem>
+                    ) : (
+                      tiposCandidatosActivos
+                        .map((tipo) => (
+                          <SelectItem key={tipo.id} value={tipo.id.toString()}>
+                            <div className="flex items-center gap-2">
+                              <Briefcase className="h-4 w-4" />
+                              {tipo.nombre}
+                            </div>
+                          </SelectItem>
+                        ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleRefresh}
+                disabled={loadingTipos}
+                className="mt-6"
+              >
+                🔄
+              </Button>
             </div>
 
             {selectedTipoId && (
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  Tipo seleccionado: <strong>{tiposCandidatos.find(t => t.id === selectedTipoId)?.nombre}</strong>
+                  Tipo seleccionado: <strong>{tiposCandidatosActivos.find(t => t.id === selectedTipoId)?.nombre}</strong>
                 </AlertDescription>
               </Alert>
             )}
+
+            {/* Debug info */}
+            <div className="text-xs text-gray-500 bg-gray-100 p-2 rounded">
+              <p>Total tipos: {tiposCandidatos.length}</p>
+              <p>Tipos activos: {tiposCandidatosActivos.length}</p>
+              <p>Estado de carga: {loadingTipos ? 'Cargando...' : 'Completado'}</p>
+              <p>Última actualización: {new Date().toLocaleTimeString()}</p>
+              <details className="mt-2">
+                <summary className="cursor-pointer">Ver datos completos</summary>
+                <pre className="text-xs mt-1 overflow-auto max-h-20">
+                  {JSON.stringify(tiposCandidatosActivos, null, 2)}
+                </pre>
+              </details>
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -11,6 +11,7 @@ export interface TipoCandidato {
 export interface CreateTipoCandidatoData {
   nombre: string;
   descripcion?: string;
+  activo?: boolean;
 }
 
 export interface UpdateTipoCandidatoData {
@@ -34,6 +35,7 @@ export interface CreateTipoDocumentoData {
   nombre: string;
   descripcion?: string;
   requerido?: boolean;
+  activo?: boolean;
 }
 
 export interface UpdateTipoDocumentoData {

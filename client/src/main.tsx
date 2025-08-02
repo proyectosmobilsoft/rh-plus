@@ -6,7 +6,19 @@ import { LoadingProvider } from './contexts/LoadingContext'
 import App from './App.tsx'
 import './index.css'
 
-const queryClient = new QueryClient()
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutos
+      gcTime: 1000 * 60 * 10, // 10 minutos (anteriormente cacheTime)
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+    mutations: {
+      retry: 1,
+    },
+  },
+})
 
 createRoot(document.getElementById("root")!).render(
   <QueryClientProvider client={queryClient}>
