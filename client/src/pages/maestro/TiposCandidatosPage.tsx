@@ -13,11 +13,14 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 
 import { useTiposCandidatos } from '@/hooks/useTiposCandidatos';
 import { useTiposDocumentos } from '@/hooks/useTiposDocumentos';
 import { useTiposCandidatosDocumentos } from '@/hooks/useTiposCandidatosDocumentos';
 import { TipoCandidato, TipoDocumento, TipoCandidatoForm, DocumentoTipoForm } from '@/types/maestro';
+import { useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/services/supabaseClient';
 
 const tipoCandidatoSchema = z.object({
   nombre: z.string().min(2, 'Nombre requerido'),
@@ -48,17 +51,65 @@ export default function TiposCandidatosPage() {
 
   const { 
     tiposDocumentos, 
+    tiposDocumentosActivos,
     isLoading: loadingDocumentos, 
     createTipoDocumento, 
-    isCreating: isCreatingDocumento 
+    isCreating: isCreatingDocumento,
+    forceRefresh: forceRefreshDocumentos
   } = useTiposDocumentos();
 
+  const { getDocumentosRequeridos, updateDocumentosForTipoCandidato } = useTiposCandidatosDocumentos();
+  
   const { 
-    documentosRequeridos, 
-    isLoading: loadingRequeridos, 
-    updateDocumentosForTipoCandidato, 
-    isUpdatingDocumentos 
-  } = useTiposCandidatosDocumentos(selectedTipo?.id);
+    data: documentosRequeridos = [], 
+    isLoading: loadingRequeridos 
+  } = getDocumentosRequeridos(selectedTipo?.id || 0);
+
+  // Debug: mostrar información de tipos de documentos
+  console.log('🔍 TiposCandidatosPage - Tipos de documentos cargados:', tiposDocumentos);
+  console.log('🔍 TiposCandidatosPage - Tipos de documentos activos:', tiposDocumentosActivos);
+  console.log('🔍 TiposCandidatosPage - Estado de carga de documentos:', loadingDocumentos);
+
+  // Función para limpiar completamente el cache
+  const queryClient = useQueryClient();
+  const handleClearCache = () => {
+    console.log('🔍 TiposCandidatosPage - Limpiando cache completamente...');
+    // Limpiar todas las queries relacionadas con tipos de documentos
+    queryClient.removeQueries({ queryKey: ['tipos-documentos'] });
+    queryClient.removeQueries({ queryKey: ['tipos-documentos-activos'] });
+    queryClient.removeQueries({ queryKey: ['tipos-documentos-requeridos'] });
+    // Forzar recarga inmediata
+    forceRefreshDocumentos();
+  };
+
+  // Función para verificar datos directamente desde la BD
+  const handleVerifyDatabase = async () => {
+    console.log('🔍 TiposCandidatosPage - Verificando datos directamente desde la BD...');
+    try {
+      const { data, error } = await supabase
+        .from('tipos_documentos')
+        .select('*')
+        .eq('activo', true)
+        .order('nombre');
+      
+      if (error) {
+        console.error('🔍 TiposCandidatosPage - Error al consultar BD:', error);
+        return;
+      }
+      
+      console.log('🔍 TiposCandidatosPage - Datos directos de BD:', data);
+      console.log('🔍 TiposCandidatosPage - Total en BD:', data?.length || 0);
+      console.log('🔍 TiposCandidatosPage - Total en cache:', tiposDocumentosActivos.length);
+      
+      if (data && data.length !== tiposDocumentosActivos.length) {
+        console.warn('🔍 TiposCandidatosPage - ¡DIFERENCIA DETECTADA!');
+        console.warn('🔍 TiposCandidatosPage - BD tiene:', data.length, 'elementos');
+        console.warn('🔍 TiposCandidatosPage - Cache tiene:', tiposDocumentosActivos.length, 'elementos');
+      }
+    } catch (error) {
+      console.error('🔍 TiposCandidatosPage - Error en verificación:', error);
+    }
+  };
 
   // Forms
   const tipoForm = useForm<TipoCandidatoForm>({
@@ -89,6 +140,8 @@ export default function TiposCandidatosPage() {
   };
 
   const handleToggleDocumento = (documentoId: number, obligatorio: boolean) => {
+    if (!selectedTipo) return;
+    
     const updatedDocumentos = [...documentosRequeridos];
     const index = updatedDocumentos.findIndex(d => d.tipo_documento_id === documentoId);
     
@@ -100,15 +153,15 @@ export default function TiposCandidatosPage() {
       }
     } else if (obligatorio) {
       updatedDocumentos.push({
-        tipo_candidato_id: selectedTipo!.id,
+        tipo_candidato_id: selectedTipo.id,
         tipo_documento_id: documentoId,
         obligatorio: true,
         orden: updatedDocumentos.length,
       } as any); // Usar any temporalmente para evitar conflictos de tipos
     }
 
-    updateDocumentosForTipoCandidato({
-      tipoCandidatoId: selectedTipo!.id,
+    updateDocumentosForTipoCandidato.mutate({
+      tipoCandidatoId: selectedTipo.id,
       documentos: updatedDocumentos.map(doc => ({
         tipo_documento_id: doc.tipo_documento_id,
         obligatorio: doc.obligatorio,
@@ -231,86 +284,101 @@ export default function TiposCandidatosPage() {
                 Define los documentos disponibles en el sistema
               </CardDescription>
             </div>
-            <Dialog open={showDocumentoDialog} onOpenChange={setShowDocumentoDialog}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="bg-brand-turquoise hover:bg-brand-turquoise/90">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nuevo Documento
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Crear Tipo de Documento</DialogTitle>
-                  <DialogDescription>
-                    Define un nuevo tipo de documento para el sistema
-                  </DialogDescription>
-                </DialogHeader>
-                <Form {...documentoForm}>
-                  <form onSubmit={documentoForm.handleSubmit(handleDocumentoSubmit)} className="space-y-4">
-                    <FormField
-                      control={documentoForm.control}
-                      name="nombre"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Nombre</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Ej: Hoja de Vida" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={documentoForm.control}
-                      name="descripcion"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Descripción</FormLabel>
-                          <FormControl>
-                            <Textarea placeholder="Descripción del documento" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={documentoForm.control}
-                      name="requerido"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">
-                              Requerido por defecto
-                            </FormLabel>
-                            <div className="text-sm text-muted-foreground">
-                              Este documento será requerido para todos los tipos de candidatos
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleClearCache}
+                disabled={loadingDocumentos}
+              >
+                🔄
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleVerifyDatabase}
+                disabled={loadingDocumentos}
+              >
+                🔍
+              </Button>
+              <Dialog open={showDocumentoDialog} onOpenChange={setShowDocumentoDialog}>
+                <DialogTrigger asChild>
+                  <Button size="sm">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nuevo Documento
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Crear Nuevo Tipo de Documento</DialogTitle>
+                    <DialogDescription>
+                      Agrega un nuevo tipo de documento al sistema
+                    </DialogDescription>
+                  </DialogHeader>
+                  <Form {...documentoForm}>
+                    <form onSubmit={documentoForm.handleSubmit(handleDocumentoSubmit)} className="space-y-4">
+                      <FormField
+                        control={documentoForm.control}
+                        name="nombre"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Nombre</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={documentoForm.control}
+                        name="descripcion"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Descripción</FormLabel>
+                            <FormControl>
+                              <Textarea {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={documentoForm.control}
+                        name="requerido"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                            </FormControl>
+                            <div className="space-y-1 leading-none">
+                              <FormLabel>
+                                Requerido por defecto
+                              </FormLabel>
                             </div>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    <DialogFooter>
-                      <Button type="submit" disabled={isCreatingDocumento}>
-                        {isCreatingDocumento ? 'Creando...' : 'Crear Documento'}
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </Form>
-              </DialogContent>
-            </Dialog>
+                          </FormItem>
+                        )}
+                      />
+                      <DialogFooter>
+                        <Button type="submit" disabled={isCreatingDocumento}>
+                          {isCreatingDocumento ? 'Creando...' : 'Crear Documento'}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
+            </div>
           </CardHeader>
           <CardContent>
             {loadingDocumentos ? (
               <div className="text-center py-4">Cargando...</div>
             ) : (
               <div className="space-y-2">
-                {tiposDocumentos.map((documento: TipoDocumento) => (
+                {tiposDocumentosActivos.map((documento: TipoDocumento) => (
                   <div key={documento.id} className="flex items-center justify-between p-3 border rounded-lg">
                     <div>
                       <h4 className="font-medium">{documento.nombre}</h4>
@@ -328,6 +396,25 @@ export default function TiposCandidatosPage() {
                     </div>
                   </div>
                 ))}
+                
+                {/* Debug info */}
+                <div className="text-xs text-gray-500 bg-gray-100 p-2 rounded mt-4">
+                  <p>Total tipos de documentos: {tiposDocumentos.length}</p>
+                  <p>Tipos activos: {tiposDocumentosActivos.length}</p>
+                  <p>Estado de carga: {loadingDocumentos ? 'Cargando...' : 'Completado'}</p>
+                  <p>Última actualización: {new Date().toLocaleTimeString()}</p>
+                  <details className="mt-2">
+                    <summary className="cursor-pointer">Ver datos completos</summary>
+                    <div className="mt-2 space-y-1">
+                      <p><strong>Tipos activos:</strong></p>
+                      <pre className="text-xs overflow-auto max-h-20 bg-white p-1 rounded">
+                        {JSON.stringify(tiposDocumentosActivos.map(d => ({ id: d.id, nombre: d.nombre, activo: d.activo })), null, 2)}
+                      </pre>
+                      <p><strong>Total en BD:</strong> 7 (según consulta directa)</p>
+                      <p><strong>Diferencia:</strong> {7 - tiposDocumentosActivos.length} faltantes</p>
+                    </div>
+                  </details>
+                </div>
               </div>
             )}
           </CardContent>
@@ -347,6 +434,9 @@ export default function TiposCandidatosPage() {
           </DialogHeader>
           {selectedTipo && (
             <div className="space-y-4">
+              {loadingRequeridos ? (
+                <div className="text-center py-4">Cargando documentos requeridos...</div>
+              ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -356,10 +446,10 @@ export default function TiposCandidatosPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {tiposDocumentos.map((documento: TipoDocumento) => {
-                    const isRequerido = documentosRequeridos.some(
+                  {tiposDocumentosActivos.map((documento: TipoDocumento) => {
+                    const isRequerido = documentosRequeridos?.some(
                       (dr: any) => dr.tipo_documento_id === documento.id
-                    );
+                    ) || false;
                     return (
                       <TableRow key={documento.id}>
                         <TableCell className="font-medium">{documento.nombre}</TableCell>
@@ -370,7 +460,7 @@ export default function TiposCandidatosPage() {
                             onCheckedChange={(checked) => 
                               handleToggleDocumento(documento.id, checked)
                             }
-                            disabled={isUpdatingDocumentos}
+                            disabled={updateDocumentosForTipoCandidato.isPending}
                           />
                         </TableCell>
                       </TableRow>
@@ -378,6 +468,7 @@ export default function TiposCandidatosPage() {
                   })}
                 </TableBody>
               </Table>
+              )}
             </div>
           )}
         </DialogContent>

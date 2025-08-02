@@ -482,10 +482,10 @@ const UsuariosPage = () => {
                             </TooltipProvider>
 
                             {usuario.activo ? (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <AlertDialog>
+                              <AlertDialog>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
                                       <AlertDialogTrigger asChild>
                                         <Button
                                           variant="ghost"
@@ -495,38 +495,38 @@ const UsuariosPage = () => {
                                           <Lock className="h-5 w-5 text-yellow-600 hover:text-yellow-800 transition-colors" />
                                         </Button>
                                       </AlertDialogTrigger>
-                                      <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                          <AlertDialogTitle>¿Inactivar usuario?</AlertDialogTitle>
-                                          <AlertDialogDescription>
-                                            ¿Estás seguro de que deseas inactivar el usuario{" "}
-                                            <strong>{usuario.primer_nombre} {usuario.primer_apellido}</strong>?
-                                            El usuario no podrá acceder al sistema hasta que sea reactivado.
-                                          </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                          <AlertDialogAction
-                                            onClick={() => handleInactivarUsuario(usuario.id)}
-                                            className="bg-yellow-600 hover:bg-yellow-700"
-                                          >
-                                            Inactivar
-                                          </AlertDialogAction>
-                                        </AlertDialogFooter>
-                                      </AlertDialogContent>
-                                    </AlertDialog>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Inactivar</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Inactivar</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>¿Inactivar usuario?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      ¿Estás seguro de que deseas inactivar el usuario{" "}
+                                      <strong>{usuario.primer_nombre} {usuario.primer_apellido}</strong>?
+                                      El usuario no podrá acceder al sistema hasta que sea reactivado.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => handleInactivarUsuario(usuario.id)}
+                                      className="bg-yellow-600 hover:bg-yellow-700"
+                                    >
+                                      Inactivar
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                             ) : (
                               <>
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <AlertDialog>
+                                <AlertDialog>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
                                         <AlertDialogTrigger asChild>
                                           <Button
                                             variant="ghost"
@@ -536,36 +536,36 @@ const UsuariosPage = () => {
                                             <CheckCircle className="h-5 w-5 text-green-600 hover:text-green-800 transition-colors" />
                                           </Button>
                                         </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                          <AlertDialogHeader>
-                                            <AlertDialogTitle>¿Activar usuario?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                              ¿Estás seguro de que deseas activar el usuario{" "}
-                                              <strong>{usuario.primer_nombre} {usuario.primer_apellido}</strong>?
-                                              El usuario podrá acceder al sistema nuevamente.
-                                            </AlertDialogDescription>
-                                          </AlertDialogHeader>
-                                          <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                            <AlertDialogAction
-                                              onClick={() => handleActivarUsuario(usuario.id)}
-                                              className="bg-green-600 hover:bg-green-700"
-                                            >
-                                              Activar
-                                            </AlertDialogAction>
-                                          </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                      </AlertDialog>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Activar</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <AlertDialog>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Activar</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>¿Activar usuario?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        ¿Estás seguro de que deseas activar el usuario{" "}
+                                        <strong>{usuario.primer_nombre} {usuario.primer_apellido}</strong>?
+                                        El usuario podrá acceder al sistema nuevamente.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => handleActivarUsuario(usuario.id)}
+                                        className="bg-green-600 hover:bg-green-700"
+                                      >
+                                        Activar
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                                <AlertDialog>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
                                         <AlertDialogTrigger asChild>
                                           <Button
                                             variant="ghost"
@@ -575,32 +575,32 @@ const UsuariosPage = () => {
                                             <Trash2 className="h-5 w-5 text-rose-600 hover:text-rose-800 transition-colors" />
                                           </Button>
                                         </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                          <AlertDialogHeader>
-                                            <AlertDialogTitle>¿Eliminar usuario?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                              ¿Estás seguro de que deseas eliminar permanentemente el usuario{" "}
-                                              <strong>{usuario.primer_nombre} {usuario.primer_apellido}</strong>?
-                                              Esta acción no se puede deshacer.
-                                            </AlertDialogDescription>
-                                          </AlertDialogHeader>
-                                          <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                            <AlertDialogAction
-                                              onClick={() => handleEliminarUsuario(usuario.id)}
-                                              className="bg-red-600 hover:bg-red-700"
-                                            >
-                                              Eliminar
-                                            </AlertDialogAction>
-                                          </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                      </AlertDialog>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Eliminar</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Eliminar</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>¿Eliminar usuario?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        ¿Estás seguro de que deseas eliminar permanentemente el usuario{" "}
+                                        <strong>{usuario.primer_nombre} {usuario.primer_apellido}</strong>?
+                                        Esta acción no se puede deshacer.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => handleEliminarUsuario(usuario.id)}
+                                        className="bg-red-600 hover:bg-red-700"
+                                      >
+                                        Eliminar
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
                               </>
                             )}
                           </div>

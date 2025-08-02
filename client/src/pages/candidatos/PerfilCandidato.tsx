@@ -22,7 +22,13 @@ import {
   Settings,
   Key,
   ChevronDown,
-  Building
+  Building,
+  FileText,
+  Download,
+  Trash2,
+  FileUp,
+  CheckCircle2,
+  Clock
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -43,7 +49,10 @@ const perfilSchema = z.object({
   nombres: z.string().min(2, 'Los nombres son requeridos'),
   apellidos: z.string().min(2, 'Los apellidos son requeridos'),
   fechaNacimiento: z.string().optional(),
-  edad: z.coerce.number().min(18, 'Debe ser mayor de edad').max(100).optional(),
+  edad: z.union([
+    z.number().min(18, 'Debe ser mayor de edad').max(100),
+    z.undefined()
+  ]).optional(),
   sexo: z.string().optional(),
   estadoCivil: z.string().optional(),
   telefono: z.string().min(10, 'Teléfono requerido'),
@@ -119,42 +128,405 @@ export default function PerfilCandidato() {
   const [activeTab, setActiveTab] = useState("personal");
   const [experienciaLaboral, setExperienciaLaboral] = useState<ExperienciaLaboral[]>([]);
   const [educacion, setEducacion] = useState<Educacion[]>([]);
-  const [empresasDisponibles] = useState([
-    { id: 1, nombre: "TechCorp Solutions", requiredDocs: ["hojaDeVida", "diploma", "certificaciones"] },
-    { id: 2, nombre: "Innovación Digital SA", requiredDocs: ["hojaDeVida", "fotografia", "referencias"] },
-    { id: 3, nombre: "Consultora Estratégica", requiredDocs: ["hojaDeVida", "portafolio", "certificaciones"] }
-  ]);
+  const [uploadedFiles, setUploadedFiles] = useState<{[key: string]: string}>({});
+  const [existingDocuments, setExistingDocuments] = useState<any[]>([]);
+  const [tiposDocumentos, setTiposDocumentos] = useState<any[]>([]);
+  const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
+  const [uploadingDocuments, setUploadingDocuments] = useState<{[key: number]: boolean}>({});
+  const [tipoCandidato, setTipoCandidato] = useState<any>(null);
+  const [documentosRequeridos, setDocumentosRequeridos] = useState<any[]>([]);
+  const [isLoadingTipoCandidato, setIsLoadingTipoCandidato] = useState(false);
   const navigate = useNavigate();
 
   const form = useForm<PerfilForm>({
     resolver: zodResolver(perfilSchema),
-    defaultValues: {},
+    defaultValues: {
+      nombres: '',
+      apellidos: '',
+      fechaNacimiento: '',
+      edad: undefined,
+      sexo: '',
+      estadoCivil: '',
+      telefono: '',
+      direccion: '',
+      ciudad: '',
+      cargoAspirado: '',
+      eps: '',
+      arl: '',
+      grupoSanguineo: '',
+      nivelEducativo: '',
+      contactoEmergenciaNombre: '',
+      contactoEmergenciaTelefono: '',
+      contactoEmergenciaRelacion: '',
+    },
   });
 
   useEffect(() => {
     loadProfile();
+    loadTiposDocumentos();
   }, []);
+
+  // Efecto para actualizar el progreso cuando cambien los valores del formulario
+  useEffect(() => {
+    if (candidato) {
+      const subscription = form.watch((value) => {
+        // Actualizar el candidato con los nuevos valores del formulario
+        setCandidato(prev => prev ? { ...prev, ...value } : prev);
+      });
+      
+      return () => subscription.unsubscribe();
+    }
+  }, [form, candidato]);
+
+  // Efecto para monitorear el estado de validación
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === 'edad' || name === 'fechaNacimiento') {
+        console.log('🔍 Formulario - Campo cambiado:', name, 'Valor:', value[name]);
+        console.log('🔍 Formulario - Estado de errores:', form.formState.errors);
+        console.log('🔍 Formulario - Estado de validación:', form.formState.isValid);
+      }
+    });
+    
+    return () => subscription.unsubscribe();
+  }, [form]);
+
+  // Cargar tipos de documentos
+  const loadTiposDocumentos = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('tipos_documentos')
+        .select('*')
+        .eq('activo', true)
+        .order('nombre');
+      
+      if (error) throw error;
+      setTiposDocumentos(data || []);
+    } catch (error) {
+      console.error('Error cargando tipos de documentos:', error);
+    }
+  };
+
+  // Cargar tipo de candidato y sus documentos requeridos
+  const loadTipoCandidato = async (tipoCandidatoId: number) => {
+    try {
+      setIsLoadingTipoCandidato(true);
+      
+      // Cargar información del tipo de candidato
+      const { data: tipoData, error: tipoError } = await supabase
+        .from('tipos_candidatos')
+        .select('*')
+        .eq('id', tipoCandidatoId)
+        .single();
+      
+      if (tipoError) throw tipoError;
+      setTipoCandidato(tipoData);
+
+      // Cargar documentos requeridos para este tipo de candidato
+      const { data: documentosData, error: documentosError } = await supabase
+        .from('tipos_candidatos_documentos')
+        .select(`
+          *,
+          tipos_documentos (
+            id,
+            nombre,
+            descripcion,
+            requerido,
+            activo
+          )
+        `)
+        .eq('tipo_candidato_id', tipoCandidatoId)
+        .eq('obligatorio', true)
+        .order('orden');
+      
+      if (documentosError) throw documentosError;
+      
+      console.log('🔍 PerfilCandidato - Documentos requeridos cargados:', {
+        tipoCandidatoId,
+        totalDocumentos: documentosData?.length || 0,
+        documentos: documentosData?.map(d => ({
+          id: d.id,
+          nombre: d.tipos_documentos.nombre,
+          obligatorio: d.obligatorio,
+          orden: d.orden
+        }))
+      });
+      
+      setDocumentosRequeridos(documentosData || []);
+    } catch (error) {
+      console.error('Error cargando tipo de candidato:', error);
+    } finally {
+      setIsLoadingTipoCandidato(false);
+    }
+  };
+
+  // Cargar documentos existentes del candidato
+  const loadDocumentosCandidato = async (candidatoId: number) => {
+    try {
+      setIsLoadingDocuments(true);
+      const { data, error } = await supabase
+        .from('candidatos_documentos')
+        .select(`
+          *,
+          tipos_documentos (
+            id,
+            nombre,
+            descripcion,
+            requerido
+          )
+        `)
+        .eq('candidato_id', candidatoId)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setExistingDocuments(data || []);
+      
+      // Actualizar uploadedFiles con los documentos existentes
+      const files: {[key: string]: string} = {};
+      data?.forEach((doc: any) => {
+        files[doc.tipos_documentos.nombre] = doc.nombre_archivo;
+      });
+      setUploadedFiles(files);
+    } catch (error) {
+      console.error('Error cargando documentos:', error);
+    } finally {
+      setIsLoadingDocuments(false);
+    }
+  };
+
+  // Función para obtener una empresa válida
+  const getValidEmpresaId = async (): Promise<number> => {
+    try {
+      // Primero intentar obtener la empresa del candidato
+      if (candidato?.id) {
+        const { data: candidatoData } = await supabase
+          .from('candidatos')
+          .select('empresa_id')
+          .eq('id', candidato.id)
+          .single();
+        
+        if (candidatoData?.empresa_id) {
+          return candidatoData.empresa_id;
+        }
+      }
+      
+      // Si no tiene empresa asignada, obtener la primera empresa disponible
+      const { data: empresas } = await supabase
+        .from('empresas')
+        .select('id')
+        .eq('activo', true)
+        .limit(1)
+        .single();
+      
+      if (empresas?.id) {
+        return empresas.id;
+      }
+      
+      // Si no hay empresas activas, usar la primera empresa disponible
+      const { data: primeraEmpresa } = await supabase
+        .from('empresas')
+        .select('id')
+        .limit(1)
+        .single();
+      
+      if (primeraEmpresa?.id) {
+        return primeraEmpresa.id;
+      }
+      
+      throw new Error('No se encontró ninguna empresa válida');
+    } catch (error) {
+      console.error('Error obteniendo empresa válida:', error);
+      throw error;
+    }
+  };
+
+  // Función para manejar la subida de archivos por empresa
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, tipoDocumentoId: number, nombreDocumento: string) => {
+    console.log('🔄 handleFileChange llamado:', { tipoDocumentoId, nombreDocumento });
+    
+    const file = e.target.files?.[0];
+    console.log('📁 Archivo seleccionado:', file);
+    
+    if (!file) {
+      console.log('❌ No se seleccionó ningún archivo');
+      return;
+    }
+
+    if (file.type !== 'application/pdf') {
+      toast.error("Solo se permiten archivos PDF");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) { // 5MB
+      toast.error("El archivo no puede superar 5MB");
+      return;
+    }
+
+    try {
+      setUploadingDocuments(prev => ({ ...prev, [tipoDocumentoId]: true }));
+      console.log('⏳ Iniciando subida de archivo...');
+      
+      // Obtener empresa válida
+      const empresaId = await getValidEmpresaId();
+      console.log('🏢 Empresa ID obtenida:', empresaId);
+      
+      // Convertir archivo a base64
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = reader.result as string;
+        const base64Data = base64.split(',')[1]; // Remover el prefijo data:application/pdf;base64,
+        
+        if (!candidato?.id) {
+          toast.error("No se puede subir documentos sin un perfil válido");
+          return;
+        }
+
+        console.log('💾 Guardando documento en base de datos...');
+
+        // Guardar documento en la base de datos con empresa_id
+        const { data, error } = await supabase
+          .from('candidatos_documentos')
+          .upsert({
+            candidato_id: candidato.id,
+            tipo_documento_id: tipoDocumentoId,
+            empresa_id: empresaId,
+            nombre_archivo: file.name,
+            url_archivo: base64Data,
+            fecha_carga: new Date().toISOString()
+          })
+          .select();
+
+        if (error) {
+          console.error('❌ Error en base de datos:', error);
+          throw error;
+        }
+
+        console.log('✅ Documento guardado exitosamente:', data);
+        toast.success(`${file.name} ha sido subido correctamente.`);
+
+        // Actualizar la lista de documentos
+        await loadDocumentosCandidato(candidato.id);
+      };
+      
+      reader.onerror = (error) => {
+        console.error('❌ Error leyendo archivo:', error);
+        toast.error("Error al procesar el archivo");
+      };
+      
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('❌ Error subiendo archivo:', error);
+      toast.error("Error al subir el archivo");
+    } finally {
+      setUploadingDocuments(prev => ({ ...prev, [tipoDocumentoId]: false }));
+    }
+  };
+
+  // Función para eliminar documento
+  const handleDeleteDocument = async (documentoId: number) => {
+    try {
+      const { error } = await supabase
+        .from('candidatos_documentos')
+        .delete()
+        .eq('id', documentoId);
+
+      if (error) throw error;
+
+              toast.success("El documento ha sido eliminado correctamente.");
+
+      // Recargar documentos
+      if (candidato?.id) {
+        await loadDocumentosCandidato(candidato.id);
+      }
+    } catch (error) {
+      console.error('Error eliminando documento:', error);
+              toast.error("Error al eliminar el documento");
+    }
+  };
+
+  // Función para descargar documento
+  const handleDownloadDocument = (documento: any) => {
+    try {
+      const base64 = `data:application/pdf;base64,${documento.url_archivo}`;
+      const link = document.createElement('a');
+      link.href = base64;
+      link.download = documento.nombre_archivo;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Error descargando documento:', error);
+              toast.error("Error al descargar el documento");
+    }
+  };
 
   // Función para calcular el progreso del perfil
   const calcularProgresoPerfil = () => {
     if (!candidato) return 0;
     
-    const camposRequeridos = [
-      'nombres', 'apellidos', 'fechaNacimiento', 'telefono', 'direccion', 
-      'ciudad', 'cargoAspirado', 'eps', 'arl', 'nivelEducativo'
+    // Todos los campos del formulario con sus pesos
+    const camposConPeso = [
+      { campo: 'nombres', peso: 8, requerido: true },
+      { campo: 'apellidos', peso: 8, requerido: true },
+      { campo: 'fechaNacimiento', peso: 6, requerido: false },
+      { campo: 'edad', peso: 4, requerido: false },
+      { campo: 'sexo', peso: 4, requerido: false },
+      { campo: 'estadoCivil', peso: 4, requerido: false },
+      { campo: 'telefono', peso: 8, requerido: true },
+      { campo: 'direccion', peso: 6, requerido: false },
+      { campo: 'ciudad', peso: 6, requerido: false },
+      { campo: 'cargoAspirado', peso: 8, requerido: false },
+      { campo: 'eps', peso: 6, requerido: false },
+      { campo: 'arl', peso: 6, requerido: false },
+      { campo: 'grupoSanguineo', peso: 4, requerido: false },
+      { campo: 'nivelEducativo', peso: 6, requerido: false },
+      { campo: 'contactoEmergenciaNombre', peso: 4, requerido: false },
+      { campo: 'contactoEmergenciaTelefono', peso: 4, requerido: false },
+      { campo: 'contactoEmergenciaRelacion', peso: 4, requerido: false },
+      { campo: 'hojaDeVida', peso: 8, requerido: false },
+      { campo: 'fotografia', peso: 6, requerido: false }
     ];
     
-    const camposCompletos = camposRequeridos.filter(campo => {
+    let puntajeTotal = 0;
+    let puntajeCompletado = 0;
+    
+    camposConPeso.forEach(({ campo, peso, requerido }) => {
+      puntajeTotal += peso;
       const valor = candidato[campo as keyof Candidato];
-      return valor && valor.toString().trim() !== '';
+      
+      if (valor && valor.toString().trim() !== '') {
+        puntajeCompletado += peso;
+      } else if (requerido) {
+        // Los campos requeridos vacíos no suman puntos
+        puntajeTotal -= peso;
+      }
     });
     
-    return Math.round((camposCompletos.length / camposRequeridos.length) * 100);
+    return puntajeTotal > 0 ? Math.round((puntajeCompletado / puntajeTotal) * 100) : 0;
+  };
+
+  // Función para obtener el color del progreso
+  const getColorProgreso = (progreso: number) => {
+    if (progreso < 30) return 'bg-red-500';
+    if (progreso < 60) return 'bg-yellow-500';
+    if (progreso < 90) return 'bg-blue-500';
+    return 'bg-green-500';
+  };
+
+  // Función para obtener el texto del progreso
+  const getTextoProgreso = (progreso: number) => {
+    if (progreso < 30) return 'Incompleto';
+    if (progreso < 60) return 'En progreso';
+    if (progreso < 90) return 'Casi completo';
+    return 'Completo';
   };
 
   // Función para calcular la edad automáticamente
   const calcularEdad = (fechaNacimiento: string) => {
-    if (!fechaNacimiento) return '';
+    if (!fechaNacimiento) {
+      console.log('🔍 calcularEdad - No hay fecha de nacimiento');
+      return undefined;
+    }
     
     const hoy = new Date();
     const nacimiento = new Date(fechaNacimiento);
@@ -168,7 +540,8 @@ export default function PerfilCandidato() {
       edad--;
     }
     
-    return edad.toString();
+    console.log('🔍 calcularEdad - Fecha:', fechaNacimiento, 'Edad calculada:', edad);
+    return edad > 0 ? edad : undefined;
   };
 
   const loadProfile = async () => {
@@ -179,6 +552,9 @@ export default function PerfilCandidato() {
         return;
       }
 
+      // Verificar si el usuario es un candidato o un administrador
+      console.log('Usuario autenticado:', user);
+
       // Buscar el candidato en la base de datos usando el email del usuario
       const { data: candidatoData, error } = await supabase
         .from('candidatos')
@@ -188,6 +564,46 @@ export default function PerfilCandidato() {
 
       if (error) {
         console.error('Error cargando perfil:', error);
+        
+        // Si no se encuentra el candidato, crear un perfil vacío para administradores
+        if (error.code === 'PGRST116') {
+          console.log('No se encontró candidato, creando perfil vacío para administrador');
+          
+          // Crear un perfil vacío para administradores
+          const perfilVacio = {
+            id: 0,
+            email: user.email,
+            nombres: user.primerNombre || '',
+            apellidos: user.primerApellido || '',
+            tipoDocumento: '',
+            numeroDocumento: '',
+            fechaNacimiento: '',
+            edad: undefined,
+            sexo: '',
+            estadoCivil: '',
+            telefono: '',
+            direccion: '',
+            ciudad: '',
+            cargoAspirado: '',
+            eps: '',
+            arl: '',
+            grupoSanguineo: '',
+            nivelEducativo: '',
+            contactoEmergenciaNombre: '',
+            contactoEmergenciaTelefono: '',
+            contactoEmergenciaRelacion: '',
+            hojaDeVida: '',
+            fotografia: '',
+            completado: false,
+            estado: 'activo',
+            fechaRegistro: new Date().toISOString()
+          };
+
+          setCandidato(perfilVacio);
+          form.reset(perfilVacio);
+          return;
+        }
+        
         toast.error('Error al cargar el perfil');
         return;
       }
@@ -202,7 +618,7 @@ export default function PerfilCandidato() {
           tipoDocumento: candidatoData.tipo_documento,
           numeroDocumento: candidatoData.numero_documento,
           fechaNacimiento: candidatoData.fecha_nacimiento,
-          edad: candidatoData.edad || null,
+          edad: candidatoData.edad || undefined,
           sexo: candidatoData.genero,
           estadoCivil: candidatoData.estado_civil,
           telefono: candidatoData.telefono || '',
@@ -225,6 +641,14 @@ export default function PerfilCandidato() {
 
         setCandidato(candidatoTransformado);
         form.reset(candidatoTransformado);
+        
+        // Cargar tipo de candidato y sus documentos requeridos
+        if (candidatoData.tipo_candidato_id) {
+          await loadTipoCandidato(candidatoData.tipo_candidato_id);
+        }
+        
+        // Cargar documentos del candidato
+        await loadDocumentosCandidato(candidatoData.id);
       } else {
         toast.error('No se encontró el perfil del candidato');
       }
@@ -366,13 +790,25 @@ export default function PerfilCandidato() {
             <p className="text-gray-600">Administra tu información personal y profesional</p>
           </div>
           <div className="flex items-center space-x-4">
-            {/* Indicador de progreso */}
-            <div className="flex items-center space-x-2">
-              <span className="text-sm font-medium text-gray-700">Progreso:</span>
-              <div className="w-24">
-                <Progress value={calcularProgresoPerfil()} className="h-2" />
+            {/* Indicador de progreso mejorado */}
+            <div className="flex items-center space-x-3 bg-gray-50 p-3 rounded-lg">
+              <div className="flex flex-col items-center">
+                <span className="text-xs font-medium text-gray-600">Progreso del Perfil</span>
+                <div className="flex items-center space-x-2">
+                  <div className="w-20">
+                    <Progress 
+                      value={calcularProgresoPerfil()} 
+                      className={`h-2 ${getColorProgreso(calcularProgresoPerfil())}`} 
+                    />
+                  </div>
+                  <span className={`text-sm font-bold ${getColorProgreso(calcularProgresoPerfil()).replace('bg-', 'text-')}`}>
+                    {calcularProgresoPerfil()}%
+                  </span>
+                </div>
+                <span className="text-xs text-gray-500 mt-1">
+                  {getTextoProgreso(calcularProgresoPerfil())}
+                </span>
               </div>
-              <span className="text-sm font-bold text-green-600">{calcularProgresoPerfil()}%</span>
             </div>
             
             {/* Menú de usuario */}
@@ -477,12 +913,13 @@ export default function PerfilCandidato() {
                               <Input 
                                 {...field} 
                                 type="date" 
+                                value={field.value || ''}
                                 onChange={(e) => {
+                                  console.log('🔍 Campo fechaNacimiento - Nuevo valor:', e.target.value);
                                   field.onChange(e);
                                   const edad = calcularEdad(e.target.value);
-                                  if (edad) {
-                                    form.setValue('edad', parseInt(edad));
-                                  }
+                                  console.log('🔍 Campo fechaNacimiento - Edad calculada para el formulario:', edad);
+                                  form.setValue('edad', edad);
                                 }}
                               />
                             </FormControl>
@@ -494,15 +931,29 @@ export default function PerfilCandidato() {
                       <FormField
                         control={form.control}
                         name="edad"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Edad</FormLabel>
-                            <FormControl>
-                              <Input {...field} type="number" min="18" max="100" disabled />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
+                        render={({ field }) => {
+                          console.log('🔍 Campo edad - Valor actual:', field.value, 'Tipo:', typeof field.value);
+                          return (
+                            <FormItem>
+                              <FormLabel>Edad</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  {...field} 
+                                  type="number" 
+                                  min="18" 
+                                  max="100" 
+                                  value={field.value || ''}
+                                  onChange={(e) => {
+                                    const value = e.target.value === '' ? undefined : parseInt(e.target.value);
+                                    console.log('🔍 Campo edad - Nuevo valor:', value, 'Tipo:', typeof value);
+                                    field.onChange(value);
+                                  }}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          );
+                        }}
                       />
 
                       <FormField
@@ -694,119 +1145,201 @@ export default function PerfilCandidato() {
                   </TabsContent>
 
                   <TabsContent value="archivos" className="space-y-4">
-                    <div className="space-y-4">
-                      <div className="text-center mb-4">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-1">Documentos por Empresa</h3>
-                        <p className="text-sm text-gray-600">
-                          Selecciona la empresa para la cual deseas subir documentos específicos
-                        </p>
+                    <div className="space-y-6">
+                      {/* Header con icono */}
+                      <div className="flex items-center space-x-3 mb-6">
+                        <div className="p-2 bg-blue-100 rounded-lg">
+                          <FileUp className="w-6 h-6 text-blue-600" />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-bold text-gray-900">Documentos</h3>
+                          <p className="text-sm text-gray-600">
+                            {tipoCandidato ? `Documentos requeridos para: ${tipoCandidato.nombre}` : 'Cargando tipo de candidato...'}
+                          </p>
+                        </div>
                       </div>
                       
-                      <Accordion type="single" collapsible className="w-full space-y-2">
-                        {empresasDisponibles.map((empresa) => (
-                          <AccordionItem key={empresa.id} value={`empresa-${empresa.id}`} className="border border-gray-200 rounded-lg">
-                            <AccordionTrigger className="hover:no-underline px-4 py-3 hover:bg-gray-50 rounded-t-lg">
-                              <div className="flex items-center justify-between w-full">
-                                <div className="flex items-center space-x-3">
-                                  <Building className="w-5 h-5 text-blue-600" />
-                                  <span className="font-medium text-sm">{empresa.nombre}</span>
-                                </div>
-                                <Badge variant="outline" className="text-xs">
-                                  {empresa.requiredDocs.length} docs
-                                </Badge>
-                              </div>
-                            </AccordionTrigger>
-                            <AccordionContent className="px-4 pb-4">
-                              <div className="pt-2">
-                                <p className="text-xs text-gray-600 mb-3">
-                                  Documentos requeridos para esta empresa:
-                                </p>
-                                
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                  {empresa.requiredDocs.map((docType, index) => {
-                                    const docConfig = {
-                                      hojaDeVida: { 
-                                        name: 'Hoja de Vida', 
-                                        icon: <Upload className="w-4 h-4" />, 
-                                        description: 'CV en formato PDF (máx. 5MB)',
-                                        required: true
-                                      },
-                                      diploma: { 
-                                        name: 'Diploma', 
-                                        icon: <GraduationCap className="w-4 h-4" />, 
-                                        description: 'Título profesional (PDF)',
-                                        required: true
-                                      },
-                                      certificaciones: { 
-                                        name: 'Certificaciones', 
-                                        icon: <Upload className="w-4 h-4" />, 
-                                        description: 'Certificados adicionales (PDF)',
-                                        required: false
-                                      },
-                                      fotografia: { 
-                                        name: 'Fotografía', 
-                                        icon: <User className="w-4 h-4" />, 
-                                        description: 'Foto profesional (JPG/PNG, máx. 2MB)',
-                                        required: false
-                                      },
-                                      referencias: { 
-                                        name: 'Referencias', 
-                                        icon: <Mail className="w-4 h-4" />, 
-                                        description: 'Cartas de recomendación (PDF)',
-                                        required: false
-                                      },
-                                      portafolio: { 
-                                        name: 'Portafolio', 
-                                        icon: <Briefcase className="w-4 h-4" />, 
-                                        description: 'Muestra de trabajos (PDF/ZIP)',
-                                        required: false
-                                      }
-                                    };
-                                    
-                                    const config = docConfig[docType as keyof typeof docConfig];
-                                    
-                                    return (
-                                      <Card key={index} className="border border-gray-200 bg-gray-50">
-                                        <CardHeader className="pb-2 pt-3">
-                                          <CardTitle className="flex items-center text-xs">
-                                            {config.icon}
-                                            <span className="ml-2 flex-1">
-                                              {config.name}
-                                              {config.required && <span className="text-red-500 ml-1">*</span>}
-                                            </span>
-                                          </CardTitle>
-                                          <CardDescription className="text-xs text-gray-600">
-                                            {config.description}
-                                          </CardDescription>
-                                        </CardHeader>
-                                        <CardContent className="pt-0 pb-3">
-                                          <div className="border-2 border-dashed border-gray-300 rounded-lg p-3 text-center hover:border-blue-400 transition-colors">
-                                            <Upload className="w-5 h-5 mx-auto text-gray-400 mb-1" />
-                                            <p className="text-xs text-gray-600 mb-2">
-                                              Arrastra aquí o
-                                            </p>
-                                            <Button 
-                                              variant="outline" 
-                                              size="sm"
-                                              className="text-xs h-7"
-                                              onClick={() => {
-                                                // Simular subida de archivo
-                                                toast.success(`${config.name} subido para ${empresa.nombre}`);
-                                              }}
-                                            >
-                                              Seleccionar
-                                            </Button>
+                      {isLoadingTipoCandidato || isLoadingDocuments ? (
+                        <div className="flex justify-center py-12">
+                          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+                        </div>
+                      ) : !tipoCandidato ? (
+                        <div className="text-center py-12">
+                          <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                          <p className="text-gray-600 text-lg">No se ha configurado un tipo de candidato para este perfil.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-6">
+                          {/* Documentos existentes */}
+                          {existingDocuments.length > 0 && (
+                            <div className="space-y-4">
+                              <h4 className="text-lg font-semibold text-gray-800 flex items-center">
+                                <CheckCircle2 className="w-5 h-5 text-green-600 mr-2" />
+                                Documentos subidos ({existingDocuments.length})
+                              </h4>
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {existingDocuments.map((documento) => (
+                                  <Card key={documento.id} className="border-2 border-green-200 bg-green-50 hover:border-green-300 transition-all duration-200">
+                                    <CardHeader className="pb-3 pt-4">
+                                      <CardTitle className="flex items-center justify-between text-sm">
+                                        <div className="flex items-center">
+                                          <div className="p-2 bg-green-100 rounded-lg mr-3">
+                                            <FileText className="w-4 h-4 text-green-600" />
                                           </div>
-                                        </CardContent>
-                                      </Card>
-                                    );
-                                  })}
-                                </div>
+                                          <span className="font-semibold text-gray-800">{documento.tipos_documentos.nombre}</span>
+                                        </div>
+                                        <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
+                                          <CheckCircle2 className="w-3 h-3 mr-1" />
+                                          Subido
+                                        </Badge>
+                                      </CardTitle>
+                                      <CardDescription className="text-xs text-gray-600 mt-2">
+                                        {documento.nombre_archivo}
+                                      </CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="pt-0 pb-4">
+                                      <div className="flex space-x-2">
+                                        <Button 
+                                          variant="outline" 
+                                          size="sm"
+                                          className="text-xs h-8 flex-1 border-green-300 text-green-700 hover:bg-green-100"
+                                          onClick={() => handleDownloadDocument(documento)}
+                                        >
+                                          <Download className="w-3 h-3 mr-1" />
+                                          Descargar
+                                        </Button>
+                                        <Button 
+                                          variant="destructive" 
+                                          size="sm"
+                                          className="text-xs h-8 flex-1"
+                                          onClick={() => handleDeleteDocument(documento.id)}
+                                        >
+                                          <Trash2 className="w-3 h-3 mr-1" />
+                                          Eliminar
+                                        </Button>
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+                                ))}
                               </div>
-                            </AccordionContent>
-                          </AccordionItem>
-                        ))}
-                      </Accordion>
+                            </div>
+                          )}
+
+                          {/* Documentos requeridos con nueva interfaz */}
+                          {documentosRequeridos.length > 0 && (
+                            <div className="space-y-4">
+                              <h4 className="text-lg font-semibold text-gray-800 flex items-center">
+                                <Clock className="w-5 h-5 text-blue-600 mr-2" />
+                                Documentos requeridos ({documentosRequeridos.length})
+                              </h4>
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {documentosRequeridos.map((documentoRequerido) => {
+                                  const isUploaded = existingDocuments.some(
+                                    (doc) => doc.tipo_documento_id === documentoRequerido.tipo_documento_id
+                                  );
+                                  
+                                  const getDocumentIcon = (nombre: string) => {
+                                    if (nombre.toLowerCase().includes('cedula')) return '🆔';
+                                    if (nombre.toLowerCase().includes('diploma')) return '🎓';
+                                    if (nombre.toLowerCase().includes('certificado')) return '📜';
+                                    if (nombre.toLowerCase().includes('hoja')) return '📄';
+                                    if (nombre.toLowerCase().includes('foto')) return '📷';
+                                    if (nombre.toLowerCase().includes('eps')) return '🏥';
+                                    if (nombre.toLowerCase().includes('arl')) return '🛡️';
+                                    return '📋';
+                                  };
+                                  
+                                  return (
+                                    <Card key={documentoRequerido.id} className={`border-2 transition-all duration-200 hover:shadow-md ${
+                                      isUploaded 
+                                        ? 'border-green-200 bg-green-50' 
+                                        : 'border-gray-200 bg-white hover:border-blue-300'
+                                    }`}>
+                                      <CardHeader className="pb-3 pt-4">
+                                        <CardTitle className="flex items-center justify-between text-sm">
+                                          <div className="flex items-center">
+                                            <div className={`p-2 rounded-lg mr-3 ${
+                                              isUploaded ? 'bg-green-100' : 'bg-blue-100'
+                                            }`}>
+                                              <span className="text-lg">{getDocumentIcon(documentoRequerido.tipos_documentos.nombre)}</span>
+                                            </div>
+                                            <div>
+                                              <span className="font-semibold text-gray-800">
+                                                {documentoRequerido.tipos_documentos.nombre}
+                                              </span>
+                                              {documentoRequerido.obligatorio && (
+                                                <span className="text-red-500 ml-1">*</span>
+                                              )}
+                                            </div>
+                                          </div>
+                                          {isUploaded && (
+                                            <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
+                                              <CheckCircle2 className="w-3 h-3 mr-1" />
+                                              Subido
+                                            </Badge>
+                                          )}
+                                        </CardTitle>
+                                        <CardDescription className="text-xs text-gray-600 mt-2">
+                                          Formato PDF
+                                        </CardDescription>
+                                      </CardHeader>
+                                      <CardContent className="pt-0 pb-4">
+                                        <input
+                                          type="file"
+                                          accept=".pdf"
+                                          className="hidden"
+                                          id={`file-${documentoRequerido.tipo_documento_id}`}
+                                          onChange={(e) => {
+                                            console.log('📁 Input file cambiado:', e.target.files);
+                                            handleFileChange(e, documentoRequerido.tipo_documento_id, documentoRequerido.tipos_documentos.nombre);
+                                          }}
+                                          disabled={isUploaded}
+                                        />
+                                        <Button 
+                                          variant="outline" 
+                                          size="sm"
+                                          className={`text-xs h-8 w-full cursor-pointer transition-all duration-200 ${
+                                            isUploaded 
+                                              ? 'border-green-300 text-green-700 bg-green-100' 
+                                              : uploadingDocuments[documentoRequerido.tipo_documento_id]
+                                              ? 'border-blue-300 text-blue-700 bg-blue-100'
+                                              : 'border-gray-300 text-gray-700 hover:border-blue-400 hover:bg-blue-50'
+                                          }`}
+                                          disabled={isUploaded || uploadingDocuments[documentoRequerido.tipo_documento_id]}
+                                          onClick={() => {
+                                            if (!isUploaded && !uploadingDocuments[documentoRequerido.tipo_documento_id]) {
+                                              document.getElementById(`file-${documentoRequerido.tipo_documento_id}`)?.click();
+                                            }
+                                          }}
+                                        >
+                                          {uploadingDocuments[documentoRequerido.tipo_documento_id] ? (
+                                            <>
+                                              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-1"></div>
+                                              Subiendo...
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Upload className="w-3 h-3 mr-1" />
+                                              {isUploaded ? 'Ya subido' : 'Subir'}
+                                            </>
+                                          )}
+                                        </Button>
+                                      </CardContent>
+                                    </Card>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {documentosRequeridos.length === 0 && (
+                            <div className="text-center py-12">
+                              <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
+                              <p className="text-gray-600 text-lg">No hay documentos requeridos para este tipo de candidato.</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </TabsContent>
                 </Tabs>

@@ -4,7 +4,18 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import { useNavigate, Link } from 'react-router-dom';
-import { Eye, EyeOff, Mail, Lock, User, Phone, IdCard, Building2, FileText, Upload } from 'lucide-react';
+import { 
+  ArrowLeft, 
+  User, 
+  Mail, 
+  Phone, 
+  Lock, 
+  Eye, 
+  EyeOff, 
+  FileText,
+  Upload,
+  IdCard
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { TipoCandidatoSelector } from '@/components/candidatos/TipoCandidatoSelector';
+import { useTiposCandidatos } from '@/hooks/useTiposCandidatos';
 
 const registroSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -34,9 +46,9 @@ const registroSchema = z.object({
 type RegistroForm = z.infer<typeof registroSchema>;
 
 export default function RegistroCandidato() {
+  const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [selectedTipoId, setSelectedTipoId] = useState<number | null>(null);
   const [documentosCargados, setDocumentosCargados] = useState<Record<number, { 
     archivo?: File; 
@@ -45,17 +57,23 @@ export default function RegistroCandidato() {
   }>>({});
   const navigate = useNavigate();
 
+  // Hook para obtener tipos de candidatos
+  const { tiposCandidatosActivos, isLoading: loadingTipos } = useTiposCandidatos();
+
+  // Debug: mostrar información de tipos de candidatos
+  console.log('🔍 RegistroCandidato - Tipos de candidatos activos:', tiposCandidatosActivos);
+  console.log('🔍 RegistroCandidato - Estado de carga:', loadingTipos);
+  console.log('🔍 RegistroCandidato - Total de tipos:', tiposCandidatosActivos.length);
+
   const form = useForm<RegistroForm>({
     resolver: zodResolver(registroSchema),
     defaultValues: {
-      email: '',
-      password: '',
-      confirmPassword: '',
       nombres: '',
       apellidos: '',
-      tipoDocumento: '',
-      numeroDocumento: '',
+      email: '',
       telefono: '',
+      password: '',
+      confirmPassword: '',
       tipoCandidatoId: 0,
     },
   });
@@ -144,9 +162,8 @@ export default function RegistroCandidato() {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="datos" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="datos">Datos Personales</TabsTrigger>
-                <TabsTrigger value="tipo">Tipo y Documentos</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="datos">Datos y Tipo</TabsTrigger>
                 <TabsTrigger value="resumen">Resumen</TabsTrigger>
               </TabsList>
 
@@ -265,6 +282,54 @@ export default function RegistroCandidato() {
                       />
                     </div>
 
+                    {/* Select de Tipo de Candidato */}
+                    <div className="space-y-4">
+                      <div className="border-t pt-4">
+                        <h3 className="text-lg font-medium mb-4">Tipo de Candidato</h3>
+                        <FormField
+                          control={form.control}
+                          name="tipoCandidatoId"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Tipo de Candidato *</FormLabel>
+                              <Select onValueChange={(value) => {
+                                field.onChange(parseInt(value));
+                                handleTipoChange(parseInt(value));
+                              }} defaultValue={field.value?.toString()}>
+                                <FormControl>
+                                  <SelectTrigger disabled={loadingTipos}>
+                                    <SelectValue placeholder={
+                                      loadingTipos 
+                                        ? "Cargando tipos de candidatos..." 
+                                        : "Seleccione su tipo de candidato"
+                                    } />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {loadingTipos ? (
+                                    <SelectItem value="" disabled>
+                                      Cargando...
+                                    </SelectItem>
+                                  ) : tiposCandidatosActivos.length === 0 ? (
+                                    <SelectItem value="" disabled>
+                                      No hay tipos disponibles
+                                    </SelectItem>
+                                  ) : (
+                                    tiposCandidatosActivos.map(tipo => (
+                                      <SelectItem key={tipo.id} value={tipo.id.toString()}>
+                                        {tipo.nombre}
+                                      </SelectItem>
+                                    ))
+                                  )}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
+
                     <div className="grid md:grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
@@ -341,34 +406,25 @@ export default function RegistroCandidato() {
                       <Button type="button" variant="outline" onClick={() => navigate('/candidato/login')}>
                         Ya tengo cuenta
                       </Button>
-                      <Button type="submit" disabled={isLoading}>
-                        {isLoading ? 'Registrando...' : 'Siguiente'}
+                      <Button type="submit" disabled={isLoading || !selectedTipoId}>
+                        {isLoading ? 'Registrando...' : 'Completar Registro'}
                       </Button>
                     </div>
+
+                    {/* Documentos Requeridos */}
+                    {selectedTipoId && (
+                      <div className="border-t pt-4">
+                        <h3 className="text-lg font-medium mb-4">Documentos Requeridos</h3>
+                        <TipoCandidatoSelector
+                          selectedTipoId={selectedTipoId}
+                          onTipoChange={handleTipoChange}
+                          documentosCargados={documentosCargados}
+                          onDocumentoChange={handleDocumentoChange}
+                        />
+                      </div>
+                    )}
                   </form>
                 </Form>
-              </TabsContent>
-
-              <TabsContent value="tipo" className="space-y-6">
-                <TipoCandidatoSelector
-                  selectedTipoId={selectedTipoId}
-                  onTipoChange={handleTipoChange}
-                  documentosCargados={documentosCargados}
-                  onDocumentoChange={handleDocumentoChange}
-                />
-
-                <div className="flex justify-between">
-                  <Button type="button" variant="outline" onClick={() => navigate('/candidato/login')}>
-                    Cancelar
-                  </Button>
-                  <Button 
-                    type="button" 
-                    onClick={() => form.handleSubmit(onSubmit)()}
-                    disabled={isLoading || !selectedTipoId}
-                  >
-                    {isLoading ? 'Registrando...' : 'Completar Registro'}
-                  </Button>
-                </div>
               </TabsContent>
 
               <TabsContent value="resumen" className="space-y-6">
@@ -388,9 +444,16 @@ export default function RegistroCandidato() {
                         </div>
                       </div>
                       <div>
-                        <h4 className="font-medium mb-2">Documentos</h4>
+                        <h4 className="font-medium mb-2">Tipo y Documentos</h4>
                         <div className="space-y-1 text-sm">
-                          <p><strong>Tipo de candidato:</strong> {selectedTipoId ? 'Seleccionado' : 'No seleccionado'}</p>
+                          <p><strong>Tipo de candidato:</strong> {
+                            selectedTipoId === 1 ? 'Ingeniero de Sistemas' :
+                            selectedTipoId === 2 ? 'Diseñador Gráfico' :
+                            selectedTipoId === 3 ? 'Administrador' :
+                            selectedTipoId === 4 ? 'Técnico' :
+                            selectedTipoId === 5 ? 'Auxiliar' :
+                            'No seleccionado'
+                          }</p>
                           <p><strong>Documentos cargados:</strong> {documentosCargadosCount}</p>
                         </div>
                       </div>

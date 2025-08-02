@@ -39,6 +39,8 @@ import React from 'react';
 import { empresasService } from '@/services/empresasService';
 import { useLoading } from '@/contexts/LoadingContext';
 import { supabase } from '@/services/supabaseClient';
+import { useTiposCandidatos } from '@/hooks/useTiposCandidatos';
+import { useNavigate } from 'react-router-dom';
 
 interface Candidato {
   id: number;
@@ -47,12 +49,14 @@ interface Candidato {
   nombre: string;
   apellido: string;
   correo: string;
+  tipoCandidatoId?: number;
 }
 
 const CandidatosPage = () => {
   const { toast } = useToast();
   const { startLoading, stopLoading } = useLoading();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("candidatos");
   
   // Estados para filtros
@@ -66,10 +70,12 @@ const CandidatosPage = () => {
     tipoDocumento: 'CC',
     nombre: '',
     apellido: '',
-    correo: ''
+    correo: '',
+    tipoCandidatoId: undefined
   });
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { data: cityData = {}, isLoading: loadingCities } = useCityData();
   const [selectedDepartamento, setSelectedDepartamento] = useState<string>('');
 
@@ -80,6 +86,15 @@ const CandidatosPage = () => {
   const [buscandoCandidato, setBuscandoCandidato] = useState(false);
   const [modalConfirmacionOpen, setModalConfirmacionOpen] = useState(false);
   const [candidatoAEliminar, setCandidatoAEliminar] = useState<any>(null);
+
+  // Hooks
+  const { data: empresasData = [], isLoading: loadingEmpresas } = useCompanies('empresa');
+  const { tiposCandidatosActivos, isLoading: loadingTipos } = useTiposCandidatos();
+
+  // Debug: mostrar información de tipos de candidatos
+  console.log('🔍 CandidatosPage - Tipos de candidatos activos:', tiposCandidatosActivos);
+  console.log('🔍 CandidatosPage - Estado de carga de tipos:', loadingTipos);
+  console.log('🔍 CandidatosPage - Total de tipos:', tiposCandidatosActivos.length);
 
   // Query para obtener candidatos desde Supabase
   const { data: candidatos = [], isLoading, refetch } = useQuery({
@@ -182,7 +197,7 @@ const CandidatosPage = () => {
     return tipos[tipo] || tipo;
   };
 
-  // Mutation para crear candidato en Supabase
+  // Mutation para crear candidato en Supabase (mantenido para compatibilidad)
   const createCandidatoMutation = useMutation({
     mutationFn: async (data: any) => {
       return candidatosService.create(data);
@@ -231,16 +246,9 @@ const CandidatosPage = () => {
     refetch();
   }, []);
 
-  const { data: empresasReales = [], isLoading: isLoadingEmpresas, error: errorEmpresas } = useCompanies('empresa');
-
-  // Debug: Verificar si las empresas se están cargando
-  console.log('Empresas cargadas:', empresasReales);
-  console.log('Estado de carga de empresas:', isLoadingEmpresas);
-  console.log('Error de empresas:', errorEmpresas);
-
   // Lookup helpers para empresa y ciudad
   const getEmpresaNombre = (empresa_id: number) => {
-    const empresa = empresasReales.find((e: any) => e.id === empresa_id);
+    const empresa = empresasData.find((e: any) => e.id === empresa_id);
     return empresa ? empresa.razonSocial : '';
   };
 
@@ -269,50 +277,84 @@ const CandidatosPage = () => {
       tipoDocumento: 'CC',
       nombre: '',
       apellido: '',
-      correo: ''
+      correo: '',
+      tipoCandidatoId: undefined
     });
     setEditingId(null);
   };
 
   // Función para manejar envío del formulario
-  const handleSubmit = () => {
-    if (formData.identificacion && formData.nombre && formData.apellido && formData.correo) {
+  const handleSubmit = async () => {
+    if (formData.identificacion && formData.nombre && formData.apellido && formData.correo && formData.tipoCandidatoId) {
+      setIsSubmitting(true);
+      
       const candidatoPayload = {
         tipo_documento: formData.tipoDocumento || 'CC',
         numero_documento: formData.identificacion,
         primer_nombre: formData.nombre,
         primer_apellido: formData.apellido,
         email: formData.correo,
+        tipo_candidato_id: formData.tipoCandidatoId,
         activo: true, // Por defecto activo
       };
       
-      if (editingId) {
-        // Actualizar candidato existente en Supabase
-        candidatosService.update(editingId, candidatoPayload)
-          .then(() => {
-            refetch();
-            setActiveTab("candidatos");
-            resetForm();
-            toast({
-              title: "✅ Éxito",
-              description: "Candidato actualizado correctamente",
-            });
-          })
-          .catch((error) => {
-            toast({
-              title: "❌ Error",
-              description: error.message,
-              variant: "destructive",
-            });
+      try {
+        if (editingId) {
+          // Actualizar candidato existente en Supabase
+          await candidatosService.update(editingId, candidatoPayload);
+          await refetch();
+          setActiveTab("candidatos");
+          resetForm();
+          toast({
+            title: "✅ Candidato Actualizado Exitosamente",
+            description: `Se ha actualizado el candidato ${candidatoPayload.primer_nombre} ${candidatoPayload.primer_apellido}`,
           });
-      } else {
-        // Crear nuevo candidato
-        createCandidatoMutation.mutate(candidatoPayload);
+        } else {
+          // Crear nuevo candidato
+          await candidatosService.create(candidatoPayload);
+          await refetch();
+          resetForm();
+          toast({
+            title: "✅ Candidato Creado Exitosamente",
+            description: `Se ha creado el candidato ${candidatoPayload.primer_nombre} ${candidatoPayload.primer_apellido} con el email ${candidatoPayload.email}`,
+          });
+        }
+      } catch (error: any) {
+        toast({
+          title: "❌ Error",
+          description: error.message || "Error al procesar la solicitud",
+          variant: "destructive",
+        });
+      } finally {
+        setIsSubmitting(false);
       }
     } else {
+      let errorMessage = "Por favor complete todos los campos obligatorios";
+      let errorTitle = "❌ Campos Incompletos";
+      
+      if (!formData.tipoCandidatoId) {
+        errorMessage = "Por favor seleccione un tipo de candidato";
+        errorTitle = "❌ Tipo de Candidato Requerido";
+      } else if (!formData.identificacion) {
+        errorMessage = "Por favor ingrese el número de documento";
+        errorTitle = "❌ Documento Requerido";
+      } else if (!formData.nombre) {
+        errorMessage = "Por favor ingrese los nombres";
+        errorTitle = "❌ Nombres Requeridos";
+      } else if (!formData.apellido) {
+        errorMessage = "Por favor ingrese los apellidos";
+        errorTitle = "❌ Apellidos Requeridos";
+      } else if (!formData.correo) {
+        errorMessage = "Por favor ingrese el correo electrónico";
+        errorTitle = "❌ Correo Requerido";
+      } else if (!formData.correo.includes('@')) {
+        errorMessage = "Por favor ingrese un correo electrónico válido";
+        errorTitle = "❌ Correo Inválido";
+      }
+      
       toast({
-        title: "❌ Error",
-        description: "Por favor complete todos los campos obligatorios",
+        title: errorTitle,
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -335,7 +377,8 @@ const CandidatosPage = () => {
       tipoDocumento: candidato.tipo_documento || 'CC',
       nombre: candidato.primer_nombre || '',
       apellido: candidato.primer_apellido || '',
-      correo: candidato.email || ''
+      correo: candidato.email || '',
+      tipoCandidatoId: candidato.tipo_candidato_id
     });
     setEditingId(candidato.id);
     setActiveTab("registro");
@@ -607,10 +650,10 @@ const CandidatosPage = () => {
                               </Tooltip>
                             </TooltipProvider>
                             {candidato.activo ? (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <AlertDialog>
+                              <AlertDialog>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
                                       <AlertDialogTrigger asChild>
                                         <Button
                                           variant="ghost"
@@ -621,33 +664,33 @@ const CandidatosPage = () => {
                                           <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
                                         </Button>
                                       </AlertDialogTrigger>
-                                      <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                          <AlertDialogTitle>¿Inactivar candidato?</AlertDialogTitle>
-                                          <AlertDialogDescription>
-                                            Esta acción inactivará el candidato y no podrá ser usado hasta que se reactive. ¿Estás seguro?
-                                          </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                          <AlertDialogAction onClick={() => handleDeactivate(candidato)}>
-                                            Sí, inactivar
-                                          </AlertDialogAction>
-                                        </AlertDialogFooter>
-                                      </AlertDialogContent>
-                                    </AlertDialog>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Inactivar</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Inactivar</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>¿Inactivar candidato?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Esta acción inactivará el candidato y no podrá ser usado hasta que se reactive. ¿Estás seguro?
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDeactivate(candidato)}>
+                                      Sí, inactivar
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                             ) : (
                               <>
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <AlertDialog>
+                                <AlertDialog>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
                                         <AlertDialogTrigger asChild>
                                           <Button
                                             variant="ghost"
@@ -658,31 +701,31 @@ const CandidatosPage = () => {
                                             <Trash2 className="h-4 w-4 text-rose-600 hover:text-rose-800 transition-colors" />
                                           </Button>
                                         </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                          <AlertDialogHeader>
-                                            <AlertDialogTitle>¿Eliminar candidato?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                              Esta acción eliminará el candidato de forma permanente. ¿Estás seguro?
-                                            </AlertDialogDescription>
-                                          </AlertDialogHeader>
-                                          <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => confirmarEliminacion(candidato)}>
-                                              Sí, eliminar
-                                            </AlertDialogAction>
-                                          </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                      </AlertDialog>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Eliminar</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <AlertDialog>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Eliminar</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>¿Eliminar candidato?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Esta acción eliminará el candidato de forma permanente. ¿Estás seguro?
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => confirmarEliminacion(candidato)}>
+                                        Sí, eliminar
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                                <AlertDialog>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
                                         <AlertDialogTrigger asChild>
                                           <Button
                                             variant="ghost"
@@ -693,27 +736,27 @@ const CandidatosPage = () => {
                                             <CheckCircle className="h-4 w-4 text-green-600 hover:text-green-800 transition-colors" />
                                           </Button>
                                         </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                          <AlertDialogHeader>
-                                            <AlertDialogTitle>¿Activar candidato?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                              Esta acción reactivará el candidato y estará disponible para su uso. ¿Estás seguro?
-                                            </AlertDialogDescription>
-                                          </AlertDialogHeader>
-                                          <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleActivate(candidato)}>
-                                              Sí, activar
-                                            </AlertDialogAction>
-                                          </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                      </AlertDialog>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Activar</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Activar</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>¿Activar candidato?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Esta acción reactivará el candidato y estará disponible para su uso. ¿Estás seguro?
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => handleActivate(candidato)}>
+                                        Sí, activar
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
                               </>
                             )}
                           </div>
@@ -756,66 +799,119 @@ const CandidatosPage = () => {
                   <span>Información del Candidato</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Tipo de Documento *</label>
-                      <Select
-                        value={formData.tipoDocumento || 'CC'}
-                        onValueChange={(value) => setFormData({ ...formData, tipoDocumento: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar tipo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="CC">Cédula de Ciudadanía</SelectItem>
-                          <SelectItem value="CE">Cédula de Extranjería</SelectItem>
-                          <SelectItem value="TI">Tarjeta de Identidad</SelectItem>
-                          <SelectItem value="PP">Pasaporte</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                             <CardContent>
+                 {isSubmitting && (
+                   <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                     <div className="flex items-center space-x-3">
+                       <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                       <div>
+                         <p className="text-sm font-medium text-blue-800">
+                           {editingId ? 'Actualizando candidato...' : 'Creando candidato...'}
+                         </p>
+                         <p className="text-xs text-blue-600">Por favor espere, esto puede tomar unos segundos</p>
+                       </div>
+                     </div>
+                   </div>
+                 )}
+                 
+                 <div className="space-y-6">
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                         <div>
+                       <label className="block text-sm font-medium mb-1">Tipo de Documento *</label>
+                       <Select
+                         value={formData.tipoDocumento || 'CC'}
+                         onValueChange={(value) => setFormData({ ...formData, tipoDocumento: value })}
+                         disabled={isSubmitting}
+                       >
+                         <SelectTrigger>
+                           <SelectValue placeholder="Seleccionar tipo" />
+                         </SelectTrigger>
+                         <SelectContent>
+                           <SelectItem value="CC">Cédula de Ciudadanía</SelectItem>
+                           <SelectItem value="CE">Cédula de Extranjería</SelectItem>
+                           <SelectItem value="TI">Tarjeta de Identidad</SelectItem>
+                           <SelectItem value="PP">Pasaporte</SelectItem>
+                         </SelectContent>
+                       </Select>
+                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Número de Documento *</label>
-                      <Input
-                        value={formData.identificacion || ''}
-                        onChange={(e) => setFormData({ ...formData, identificacion: e.target.value })}
-                        placeholder="12345678"
-                      />
-                    </div>
+                                         <div>
+                       <label className="block text-sm font-medium mb-1">Número de Documento *</label>
+                       <Input
+                         value={formData.identificacion || ''}
+                         onChange={(e) => setFormData({ ...formData, identificacion: e.target.value })}
+                         placeholder="12345678"
+                         disabled={isSubmitting}
+                       />
+                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Nombres *</label>
-                      <Input
-                        value={formData.nombre || ''}
-                        onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                        placeholder="Ana María"
-                      />
-                    </div>
+                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div>
+                       <label className="block text-sm font-medium mb-1">Nombres *</label>
+                       <Input
+                         value={formData.nombre || ''}
+                         onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                         placeholder="Ana María"
+                         disabled={isSubmitting}
+                       />
+                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Apellidos *</label>
-                      <Input
-                        value={formData.apellido || ''}
-                        onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
-                        placeholder="García López"
-                      />
-                    </div>
-                  </div>
+                     <div>
+                       <label className="block text-sm font-medium mb-1">Apellidos *</label>
+                       <Input
+                         value={formData.apellido || ''}
+                         onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
+                         placeholder="García López"
+                         disabled={isSubmitting}
+                       />
+                     </div>
+                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Correo Electrónico *</label>
-                    <Input
-                      type="email"
-                      value={formData.correo || ''}
-                      onChange={(e) => setFormData({ ...formData, correo: e.target.value })}
-                      placeholder="ana.garcia@ejemplo.com"
-                    />
-                  </div>
+                                     <div>
+                     <label className="block text-sm font-medium mb-1">Correo Electrónico *</label>
+                     <Input
+                       type="email"
+                       value={formData.correo || ''}
+                       onChange={(e) => setFormData({ ...formData, correo: e.target.value })}
+                       placeholder="ana.garcia@ejemplo.com"
+                       disabled={isSubmitting}
+                     />
+                   </div>
+
+                                     <div>
+                     <label className="block text-sm font-medium mb-1">Tipo de Candidato *</label>
+                     <Select
+                       value={formData.tipoCandidatoId?.toString() || ''}
+                       onValueChange={(value) => setFormData({ ...formData, tipoCandidatoId: parseInt(value) })}
+                       disabled={isSubmitting || loadingTipos}
+                     >
+                       <SelectTrigger>
+                         <SelectValue placeholder={
+                           loadingTipos 
+                             ? "Cargando tipos de candidatos..." 
+                             : "Seleccione el tipo de candidato"
+                         } />
+                       </SelectTrigger>
+                       <SelectContent>
+                         {loadingTipos ? (
+                           <SelectItem value="" disabled>
+                             Cargando...
+                           </SelectItem>
+                         ) : tiposCandidatosActivos.length === 0 ? (
+                           <SelectItem value="" disabled>
+                             No hay tipos disponibles
+                           </SelectItem>
+                         ) : (
+                           tiposCandidatosActivos.map((tipo) => (
+                             <SelectItem key={tipo.id} value={tipo.id.toString()}>
+                               {tipo.nombre}
+                             </SelectItem>
+                           ))
+                         )}
+                       </SelectContent>
+                     </Select>
+                   </div>
 
                   <div className="bg-cyan-50 p-4 rounded-lg border border-cyan-200">
                     <h3 className="font-medium text-cyan-800 mb-2">Información importante:</h3>
@@ -826,21 +922,29 @@ const CandidatosPage = () => {
                     </ul>
                   </div>
 
-                  <div className="flex justify-end space-x-4">
-                    <Button 
-                      variant="outline" 
-                      onClick={handleSaved}
-                    >
-                      Cancelar
-                    </Button>
-                    <Button 
-                      onClick={handleSubmit} 
-                      className="bg-cyan-600 hover:bg-cyan-700" 
-                      disabled={createCandidatoMutation.isPending}
-                    >
-                      {createCandidatoMutation.isPending ? 'Creando candidato...' : 'Crear Candidato'}
-                    </Button>
-                  </div>
+                                     <div className="flex justify-end space-x-4">
+                     <Button 
+                       variant="outline" 
+                       onClick={handleSaved}
+                       disabled={isSubmitting}
+                     >
+                       Cancelar
+                     </Button>
+                     <Button 
+                       onClick={handleSubmit} 
+                       className="bg-cyan-600 hover:bg-cyan-700" 
+                       disabled={isSubmitting}
+                     >
+                       {isSubmitting ? (
+                         <div className="flex items-center space-x-2">
+                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                           <span>{editingId ? 'Actualizando...' : 'Creando candidato...'}</span>
+                         </div>
+                       ) : (
+                         editingId ? 'Actualizar Candidato' : 'Crear Candidato'
+                       )}
+                     </Button>
+                   </div>
                 </div>
               </CardContent>
             </Card>

@@ -8,20 +8,24 @@ import {
 export const tiposCandidatosService = {
   // Obtener todos los tipos de candidatos
   async getAll(): Promise<TipoCandidato[]> {
+    console.log('🔍 tiposCandidatosService.getAll - Ejecutando query...');
     const { data, error } = await supabase
       .from('tipos_candidatos')
       .select('*')
       .order('nombre');
 
     if (error) {
+      console.error('🔍 tiposCandidatosService.getAll - Error:', error);
       throw new Error(`Error al obtener tipos de candidatos: ${error.message}`);
     }
 
+    console.log('🔍 tiposCandidatosService.getAll - Datos obtenidos:', data);
     return data || [];
   },
 
   // Obtener tipos de candidatos activos
   async getActive(): Promise<TipoCandidato[]> {
+    console.log('🔍 tiposCandidatosService.getActive - Ejecutando query...');
     const { data, error } = await supabase
       .from('tipos_candidatos')
       .select('*')
@@ -29,9 +33,11 @@ export const tiposCandidatosService = {
       .order('nombre');
 
     if (error) {
+      console.error('🔍 tiposCandidatosService.getActive - Error:', error);
       throw new Error(`Error al obtener tipos de candidatos activos: ${error.message}`);
     }
 
+    console.log('🔍 tiposCandidatosService.getActive - Datos obtenidos:', data);
     return data || [];
   },
 
@@ -57,7 +63,7 @@ export const tiposCandidatosService = {
   async create(data: CreateTipoCandidatoData): Promise<TipoCandidato> {
     const { data: newTipo, error } = await supabase
       .from('tipos_candidatos')
-      .insert([data])
+      .insert([{ ...data, activo: data.activo ?? true }])
       .select()
       .single();
 

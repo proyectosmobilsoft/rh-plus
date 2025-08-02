@@ -8,20 +8,24 @@ import {
 export const tiposDocumentosService = {
   // Obtener todos los tipos de documentos
   async getAll(): Promise<TipoDocumento[]> {
+    console.log('🔍 tiposDocumentosService.getAll - Ejecutando query...');
     const { data, error } = await supabase
       .from('tipos_documentos')
       .select('*')
       .order('nombre');
 
     if (error) {
+      console.error('🔍 tiposDocumentosService.getAll - Error:', error);
       throw new Error(`Error al obtener tipos de documentos: ${error.message}`);
     }
 
+    console.log('🔍 tiposDocumentosService.getAll - Datos obtenidos:', data);
     return data || [];
   },
 
   // Obtener tipos de documentos activos
   async getActive(): Promise<TipoDocumento[]> {
+    console.log('🔍 tiposDocumentosService.getActive - Ejecutando query...');
     const { data, error } = await supabase
       .from('tipos_documentos')
       .select('*')
@@ -29,14 +33,17 @@ export const tiposDocumentosService = {
       .order('nombre');
 
     if (error) {
+      console.error('🔍 tiposDocumentosService.getActive - Error:', error);
       throw new Error(`Error al obtener tipos de documentos activos: ${error.message}`);
     }
 
+    console.log('🔍 tiposDocumentosService.getActive - Datos obtenidos:', data);
     return data || [];
   },
 
   // Obtener tipos de documentos requeridos por defecto
   async getRequired(): Promise<TipoDocumento[]> {
+    console.log('🔍 tiposDocumentosService.getRequired - Ejecutando query...');
     const { data, error } = await supabase
       .from('tipos_documentos')
       .select('*')
@@ -45,9 +52,11 @@ export const tiposDocumentosService = {
       .order('nombre');
 
     if (error) {
+      console.error('🔍 tiposDocumentosService.getRequired - Error:', error);
       throw new Error(`Error al obtener tipos de documentos requeridos: ${error.message}`);
     }
 
+    console.log('🔍 tiposDocumentosService.getRequired - Datos obtenidos:', data);
     return data || [];
   },
 
@@ -71,16 +80,19 @@ export const tiposDocumentosService = {
 
   // Crear un nuevo tipo de documento
   async create(data: CreateTipoDocumentoData): Promise<TipoDocumento> {
+    console.log('🔍 tiposDocumentosService.create - Creando nuevo tipo de documento:', data);
     const { data: newTipo, error } = await supabase
       .from('tipos_documentos')
-      .insert([data])
+      .insert([{ ...data, activo: data.activo ?? true }])
       .select()
       .single();
 
     if (error) {
+      console.error('🔍 tiposDocumentosService.create - Error:', error);
       throw new Error(`Error al crear tipo de documento: ${error.message}`);
     }
 
+    console.log('🔍 tiposDocumentosService.create - Tipo creado exitosamente:', newTipo);
     return newTipo;
   },
 
