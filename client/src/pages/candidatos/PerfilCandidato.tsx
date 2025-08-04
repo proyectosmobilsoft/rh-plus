@@ -134,9 +134,11 @@ export default function PerfilCandidato() {
   const [tiposDocumentos, setTiposDocumentos] = useState<any[]>([]);
   const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
   const [uploadingDocuments, setUploadingDocuments] = useState<{[key: number]: boolean}>({});
+  const [uploadProgress, setUploadProgress] = useState<{[key: number]: number}>({});
   const [tipoCandidato, setTipoCandidato] = useState<any>(null);
   const [documentosRequeridos, setDocumentosRequeridos] = useState<any[]>([]);
   const [isLoadingTipoCandidato, setIsLoadingTipoCandidato] = useState(false);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
   const navigate = useNavigate();
 
   const form = useForm<PerfilForm>({
@@ -191,6 +193,71 @@ export default function PerfilCandidato() {
     
     return () => subscription.unsubscribe();
   }, [form]);
+
+  // Efecto para forzar actualización del progreso cuando cambien los documentos
+  useEffect(() => {
+    if (candidato && (existingDocuments.length > 0 || documentosRequeridos.length > 0)) {
+      console.log('🔄 Documentos actualizados - Forzando recálculo del progreso');
+      // Forzar re-render del componente para actualizar el progreso
+      setCandidato(prev => prev ? { ...prev } : prev);
+    }
+  }, [existingDocuments, documentosRequeridos, candidato]);
+
+  // Función de auto-guardado
+  const autoSave = async (data: any) => {
+    if (!user || !candidato) return;
+    
+    try {
+      setIsAutoSaving(true);
+      console.log('💾 Auto-guardando cambios...');
+      
+      const { error } = await supabase
+        .from('candidatos')
+        .update({
+          primer_nombre: data.nombres,
+          primer_apellido: data.apellidos,
+          fecha_nacimiento: data.fechaNacimiento,
+          edad: data.edad,
+          sexo: data.sexo,
+          estado_civil: data.estadoCivil,
+          telefono: data.telefono,
+          direccion: data.direccion,
+          ciudad: data.ciudad,
+          cargo_aspirado: data.cargoAspirado,
+          eps: data.eps,
+          arl: data.arl,
+          grupo_sanguineo: data.grupoSanguineo,
+          nivel_educativo: data.nivelEducativo,
+          contacto_emergencia_nombre: data.contactoEmergenciaNombre,
+          contacto_emergencia_telefono: data.contactoEmergenciaTelefono,
+          contacto_emergencia_relacion: data.contactoEmergenciaRelacion,
+          updated_at: new Date().toISOString()
+        })
+        .eq('email', user.email);
+
+      if (error) {
+        console.error('Error en auto-guardado:', error);
+      } else {
+        console.log('✅ Auto-guardado exitoso');
+      }
+    } catch (error) {
+      console.error('Error en auto-guardado:', error);
+    } finally {
+      setIsAutoSaving(false);
+    }
+  };
+
+  // useEffect para auto-guardado con debounce
+  useEffect(() => {
+    if (!candidato) return;
+
+    const timeoutId = setTimeout(() => {
+      const formData = form.getValues();
+      autoSave(formData);
+    }, 2000); // Auto-guardar después de 2 segundos de inactividad
+
+    return () => clearTimeout(timeoutId);
+  }, [candidato, form.watch()]);
 
   // Cargar tipos de documentos
   const loadTiposDocumentos = async () => {
@@ -365,11 +432,15 @@ export default function PerfilCandidato() {
 
     try {
       setUploadingDocuments(prev => ({ ...prev, [tipoDocumentoId]: true }));
+      setUploadProgress(prev => ({ ...prev, [tipoDocumentoId]: 0 }));
       console.log('⏳ Iniciando subida de archivo...');
       
       // Obtener empresa válida
       const empresaId = await getValidEmpresaId();
       console.log('🏢 Empresa ID obtenida:', empresaId);
+      
+      // Simular progreso de lectura del archivo
+      setUploadProgress(prev => ({ ...prev, [tipoDocumentoId]: 25 }));
       
       // Convertir archivo a base64
       const reader = new FileReader();
@@ -377,12 +448,18 @@ export default function PerfilCandidato() {
         const base64 = reader.result as string;
         const base64Data = base64.split(',')[1]; // Remover el prefijo data:application/pdf;base64,
         
+        // Simular progreso de procesamiento
+        setUploadProgress(prev => ({ ...prev, [tipoDocumentoId]: 50 }));
+        
         if (!candidato?.id) {
           toast.error("No se puede subir documentos sin un perfil válido");
           return;
         }
 
         console.log('💾 Guardando documento en base de datos...');
+        
+        // Simular progreso de guardado
+        setUploadProgress(prev => ({ ...prev, [tipoDocumentoId]: 75 }));
 
         // Guardar documento en la base de datos con empresa_id
         const { data, error } = await supabase
@@ -402,22 +479,44 @@ export default function PerfilCandidato() {
           throw error;
         }
 
+        // Completar progreso
+        setUploadProgress(prev => ({ ...prev, [tipoDocumentoId]: 100 }));
+        
         console.log('✅ Documento guardado exitosamente:', data);
         toast.success(`${file.name} ha sido subido correctamente.`);
 
         // Actualizar la lista de documentos
         await loadDocumentosCandidato(candidato.id);
+        
+        // Limpiar progreso después de un momento
+        setTimeout(() => {
+          setUploadProgress(prev => {
+            const newProgress = { ...prev };
+            delete newProgress[tipoDocumentoId];
+            return newProgress;
+          });
+        }, 1000);
       };
       
       reader.onerror = (error) => {
         console.error('❌ Error leyendo archivo:', error);
         toast.error("Error al procesar el archivo");
+        setUploadProgress(prev => {
+          const newProgress = { ...prev };
+          delete newProgress[tipoDocumentoId];
+          return newProgress;
+        });
       };
       
       reader.readAsDataURL(file);
     } catch (error) {
       console.error('❌ Error subiendo archivo:', error);
       toast.error("Error al subir el archivo");
+      setUploadProgress(prev => {
+        const newProgress = { ...prev };
+        delete newProgress[tipoDocumentoId];
+        return newProgress;
+      });
     } finally {
       setUploadingDocuments(prev => ({ ...prev, [tipoDocumentoId]: false }));
     }
@@ -525,6 +624,7 @@ export default function PerfilCandidato() {
     let puntajeTotal = 0;
     let puntajeCompletado = 0;
     
+    // Calcular progreso de campos del formulario
     camposConPeso.forEach(({ campo, peso, requerido }) => {
       puntajeTotal += peso;
       const valor = candidato[campo as keyof Candidato];
@@ -536,6 +636,36 @@ export default function PerfilCandidato() {
         puntajeTotal -= peso;
       }
     });
+    
+    // Calcular progreso de documentos requeridos
+    if (documentosRequeridos.length > 0) {
+      // Distribuir 40% del progreso total entre los documentos
+      const pesoPorDocumento = Math.floor(40 / documentosRequeridos.length);
+      
+      // Contar solo los documentos que corresponden a los requeridos para este tipo de candidato
+      const documentosCompletados = existingDocuments.filter(doc => 
+        documentosRequeridos.some(req => req.tipo_documento_id === doc.tipo_documento_id)
+      ).length;
+      
+      puntajeTotal += documentosRequeridos.length * pesoPorDocumento;
+      puntajeCompletado += documentosCompletados * pesoPorDocumento;
+      
+      console.log('🔍 calcularProgresoPerfil - Peso por documento:', pesoPorDocumento);
+      console.log('🔍 calcularProgresoPerfil - Documentos completados vs requeridos:', documentosCompletados, '/', documentosRequeridos.length);
+    }
+    
+    console.log('🔍 calcularProgresoPerfil - Documentos requeridos:', documentosRequeridos.length);
+    console.log('🔍 calcularProgresoPerfil - Documentos existentes totales:', existingDocuments.length);
+    console.log('🔍 calcularProgresoPerfil - Documentos completados (filtrados):', existingDocuments.filter(doc => 
+      documentosRequeridos.some(req => req.tipo_documento_id === doc.tipo_documento_id)
+    ).length);
+    console.log('🔍 calcularProgresoPerfil - Campos del formulario completados:', camposConPeso.filter(({ campo, requerido }) => {
+      const valor = candidato[campo as keyof Candidato];
+      return valor && valor.toString().trim() !== '';
+    }).length, '/', camposConPeso.length);
+    console.log('🔍 calcularProgresoPerfil - Puntaje total:', puntajeTotal);
+    console.log('🔍 calcularProgresoPerfil - Puntaje completado:', puntajeCompletado);
+    console.log('🔍 calcularProgresoPerfil - Progreso calculado:', puntajeTotal > 0 ? Math.round((puntajeCompletado / puntajeTotal) * 100) : 0);
     
     return puntajeTotal > 0 ? Math.round((puntajeCompletado / puntajeTotal) * 100) : 0;
   };
@@ -823,29 +953,36 @@ export default function PerfilCandidato() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Mi Perfil</h1>
             <p className="text-gray-600">Administra tu información personal y profesional</p>
+            {isAutoSaving && (
+              <div className="flex items-center mt-2 text-sm text-blue-600">
+                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-2"></div>
+                Guardando cambios...
+              </div>
+            )}
           </div>
-          <div className="flex items-center space-x-4">
-            {/* Indicador de progreso mejorado */}
-            <div className="flex items-center space-x-3 bg-gray-50 p-3 rounded-lg">
-              <div className="flex flex-col items-center">
-                <span className="text-xs font-medium text-gray-600">Progreso del Perfil</span>
-                <div className="flex items-center space-x-2">
-                  <div className="w-20">
-                    <Progress 
-                      value={calcularProgresoPerfil()} 
-                      className={`h-2 ${getColorProgreso(calcularProgresoPerfil())}`} 
-                    />
-                  </div>
-                  <span className={`text-sm font-bold ${getColorProgreso(calcularProgresoPerfil()).replace('bg-', 'text-')}`}>
-                    {calcularProgresoPerfil()}%
-                  </span>
-                </div>
-                <span className="text-xs text-gray-500 mt-1">
+          
+          {/* Progress Bar - Between Mi Perfil and Mi Cuenta */}
+          <div className="flex-1 max-w-md mx-8">
+            <div className="flex flex-col items-center space-y-2">
+              <span className="text-sm font-medium text-gray-700">Progreso del Perfil</span>
+              <div className="w-full">
+                <Progress 
+                  value={calcularProgresoPerfil()} 
+                  className={`h-3 ${getColorProgreso(calcularProgresoPerfil())}`} 
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className={`text-lg font-bold ${getColorProgreso(calcularProgresoPerfil()).replace('bg-', 'text-')}`}>
+                  {calcularProgresoPerfil()}%
+                </span>
+                <span className="text-sm text-gray-500">
                   {getTextoProgreso(calcularProgresoPerfil())}
                 </span>
               </div>
             </div>
-            
+          </div>
+          
+          <div className="flex items-center space-x-4">
             {/* Menú de usuario */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -1205,70 +1342,6 @@ export default function PerfilCandidato() {
                         </div>
                       ) : (
                         <div className="space-y-6">
-                          {/* Documentos existentes */}
-                          {existingDocuments.length > 0 && (
-                            <div className="space-y-4">
-                              <h4 className="text-lg font-semibold text-gray-800 flex items-center">
-                                <CheckCircle2 className="w-5 h-5 text-green-600 mr-2" />
-                                Documentos subidos ({existingDocuments.length})
-                              </h4>
-                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {existingDocuments.map((documento) => (
-                                  <Card key={documento.id} className="border-2 border-green-200 bg-green-50 hover:border-green-300 transition-all duration-200">
-                                    <CardHeader className="pb-3 pt-4">
-                                      <CardTitle className="flex items-center justify-between text-sm">
-                                        <div className="flex items-center">
-                                          <div className="p-2 bg-green-100 rounded-lg mr-3">
-                                            <FileText className="w-4 h-4 text-green-600" />
-                                          </div>
-                                          <span className="font-semibold text-gray-800">{documento.tipos_documentos.nombre}</span>
-                                        </div>
-                                        <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
-                                          <CheckCircle2 className="w-3 h-3 mr-1" />
-                                          Subido
-                                        </Badge>
-                                      </CardTitle>
-                                      <CardDescription className="text-xs text-gray-600 mt-2">
-                                        {documento.nombre_archivo}
-                                      </CardDescription>
-                                    </CardHeader>
-                                                                         <CardContent className="pt-0 pb-4">
-                                       <div className="flex space-x-2">
-                                         <Button 
-                                           variant="outline" 
-                                           size="sm"
-                                           className="text-xs h-8 flex-1 border-green-300 text-green-700 hover:bg-green-100"
-                                           onClick={() => handleViewDocument(documento)}
-                                         >
-                                           <Eye className="w-3 h-3 mr-1" />
-                                           Visualizar
-                                         </Button>
-                                         <Button 
-                                           variant="outline" 
-                                           size="sm"
-                                           className="text-xs h-8 flex-1 border-green-300 text-green-700 hover:bg-green-100"
-                                           onClick={() => handleDownloadDocument(documento)}
-                                         >
-                                           <Download className="w-3 h-3 mr-1" />
-                                           Descargar
-                                         </Button>
-                                         <Button 
-                                           variant="destructive" 
-                                           size="sm"
-                                           className="text-xs h-8 flex-1"
-                                           onClick={() => handleDeleteDocument(documento.id)}
-                                         >
-                                           <Trash2 className="w-3 h-3 mr-1" />
-                                           Eliminar
-                                         </Button>
-                                       </div>
-                                     </CardContent>
-                                  </Card>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
                           {/* Documentos requeridos con nueva interfaz */}
                           {documentosRequeridos.length > 0 && (
                             <div className="space-y-4">
@@ -1328,54 +1401,85 @@ export default function PerfilCandidato() {
                                         </CardDescription>
                                       </CardHeader>
                                                                              <CardContent className="pt-0 pb-4">
-                                         <div className="flex items-center gap-3">
-                                           {isUploaded ? (
-                                             <div className="flex items-center gap-3">
-                                               <div className="flex items-center gap-1">
-                                                 <Button
-                                                   type="button"
-                                                   variant="ghost"
-                                                   size="sm"
-                                                   onClick={() => handleViewDocument(existingDocuments.find(doc => doc.tipo_documento_id === documentoRequerido.tipo_documento_id))}
-                                                   className="h-7 w-7 p-0 hover:bg-blue-50 rounded-full"
-                                                   title="Visualizar documento"
-                                                 >
-                                                   <Eye className="h-4 w-4 text-blue-600" />
-                                                 </Button>
-                                                 <Button
-                                                   type="button"
-                                                   variant="ghost"
-                                                   size="sm"
-                                                   onClick={() => document.getElementById(`file-${documentoRequerido.tipo_documento_id}`)?.click()}
-                                                   className="h-7 w-7 p-0 hover:bg-gray-50 rounded-full"
-                                                   title="Cambiar documento"
-                                                 >
-                                                   <Upload className="h-4 w-4 text-gray-600" />
-                                                 </Button>
+                                         <div className="space-y-3">
+                                           {/* Progress Bar for Upload */}
+                                           {uploadProgress[documentoRequerido.tipo_documento_id] !== undefined && (
+                                             <div className="space-y-2">
+                                               <div className="flex items-center justify-between text-xs text-gray-600">
+                                                 <span>Subiendo documento...</span>
+                                                 <span>{uploadProgress[documentoRequerido.tipo_documento_id]}%</span>
                                                </div>
+                                               <Progress 
+                                                 value={uploadProgress[documentoRequerido.tipo_documento_id]} 
+                                                 className="h-2 bg-gray-200"
+                                               />
                                              </div>
-                                           ) : (
-                                             <Button
-                                               type="button"
-                                               variant="outline"
-                                               size="sm"
-                                               onClick={() => document.getElementById(`file-${documentoRequerido.tipo_documento_id}`)?.click()}
-                                               className="h-7 px-3 text-xs font-medium"
-                                               disabled={uploadingDocuments[documentoRequerido.tipo_documento_id]}
-                                             >
-                                               {uploadingDocuments[documentoRequerido.tipo_documento_id] ? (
-                                                 <>
-                                                   <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-1"></div>
-                                                   Subiendo...
-                                                 </>
-                                               ) : (
-                                                 <>
-                                                   <Upload className="h-3 w-3 mr-1" />
-                                                   Subir
-                                                 </>
-                                               )}
-                                             </Button>
                                            )}
+                                           
+                                           <div className="flex items-center gap-3">
+                                             {isUploaded ? (
+                                               <div className="flex items-center gap-3">
+                                                 <div className="flex items-center gap-1">
+                                                   <Button
+                                                     type="button"
+                                                     variant="ghost"
+                                                     size="sm"
+                                                     onClick={() => handleViewDocument(existingDocuments.find(doc => doc.tipo_documento_id === documentoRequerido.tipo_documento_id))}
+                                                     className="h-7 w-7 p-0 hover:bg-blue-50 rounded-full"
+                                                     title="Visualizar documento"
+                                                   >
+                                                     <Eye className="h-4 w-4 text-blue-600" />
+                                                   </Button>
+                                                   <Button
+                                                     type="button"
+                                                     variant="ghost"
+                                                     size="sm"
+                                                     onClick={() => document.getElementById(`file-${documentoRequerido.tipo_documento_id}`)?.click()}
+                                                     className="h-7 w-7 p-0 hover:bg-gray-50 rounded-full"
+                                                     title="Cambiar documento"
+                                                   >
+                                                     <Upload className="h-4 w-4 text-gray-600" />
+                                                   </Button>
+                                                   <Button
+                                                     type="button"
+                                                     variant="ghost"
+                                                     size="sm"
+                                                     onClick={() => {
+                                                       const existingDoc = existingDocuments.find(doc => doc.tipo_documento_id === documentoRequerido.tipo_documento_id);
+                                                       if (existingDoc) {
+                                                         handleDeleteDocument(existingDoc.id);
+                                                       }
+                                                     }}
+                                                     className="h-7 w-7 p-0 hover:bg-red-50 rounded-full"
+                                                     title="Eliminar documento"
+                                                   >
+                                                     <Trash2 className="h-4 w-4 text-red-600" />
+                                                   </Button>
+                                                 </div>
+                                               </div>
+                                             ) : (
+                                               <Button
+                                                 type="button"
+                                                 variant="outline"
+                                                 size="sm"
+                                                 onClick={() => document.getElementById(`file-${documentoRequerido.tipo_documento_id}`)?.click()}
+                                                 className="h-7 px-3 text-xs font-medium"
+                                                 disabled={uploadingDocuments[documentoRequerido.tipo_documento_id]}
+                                               >
+                                                 {uploadingDocuments[documentoRequerido.tipo_documento_id] ? (
+                                                   <>
+                                                     <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-1"></div>
+                                                     Subiendo...
+                                                   </>
+                                                 ) : (
+                                                   <>
+                                                     <Upload className="h-3 w-3 mr-1" />
+                                                     Subir
+                                                   </>
+                                                 )}
+                                               </Button>
+                                             )}
+                                           </div>
                                          </div>
                                          <input
                                            type="file"
