@@ -103,6 +103,7 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
   const [empresaData, setEmpresaData] = useState<any>(null);
   const [showUserOverlay, setShowUserOverlay] = useState(false);
   const [userData, setUserData] = useState<any>(null);
+  const sidebarRef = React.useRef<HTMLDivElement>(null);
   
   // Verificar si AuthProvider está disponible
   let authContext;
@@ -337,11 +338,9 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
   };
 
   return (
-    <div className="w-full bg-white border-r border-gray-200 flex flex-col h-full shadow-lg sidebar-container relative">
+    <div className="sidebar-container" ref={sidebarRef}>
       {/* Header con información del usuario */}
-      <div className="p-4 border-b border-gray-200 bg-gray-50 sidebar-header">
-        
-        
+      <div className="sidebar-header">
         {/* Información del usuario */}
         <div className="flex items-center space-x-3">
           <button 
@@ -491,86 +490,84 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
         </div>
       </div>
 
-      {/* Sistema de navegación */}
-      <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent sidebar-scroll">
-        <div className="p-3">
-          <nav className="space-y-1">
-            {menuItems.map((menu, index) => {
-              const hasChildren = menu.subItems && menu.subItems.length > 0;
-              const isExpanded = expandedMenus.has(index.toString());
-              const isMenuActive = isActive(menu.path);
+      {/* Sistema de navegación con Flexbox perfecto */}
+      <div className="sidebar-scroll">
+        <nav className="space-y-1">
+          {menuItems.map((menu, index) => {
+            const hasChildren = menu.subItems && menu.subItems.length > 0;
+            const isExpanded = expandedMenus.has(index.toString());
+            const isMenuActive = isActive(menu.path);
 
-              return (
-                <div key={index} className="mb-1">
-                  {hasChildren ? (
-                    // Menú con submenús
-                    <button
-                      onClick={() => toggleMenu(index)}
-                      className={`w-full flex items-center justify-between px-3 py-2.5 text-sm text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-700 transition-all duration-200 font-medium menu-item-animation sidebar-menu-item ${
-                        isMenuActive ? 'menu-item-active' : ''
-                      }`}
-                    >
-                      <div className="flex items-center space-x-3">
-                        {menu.icon}
-                        <span>{menu.title}</span>
-                      </div>
-                      {isExpanded ? (
-                        <ChevronDown className="w-4 h-4" />
-                      ) : (
-                        <ChevronRight className="w-4 h-4" />
-                      )}
-                    </button>
-                  ) : (
-                    // Menú directo
-                    <button
-                      onClick={() => handleNavigate(menu.path || '#')}
-                      className={`w-full text-left px-3 py-2.5 text-sm rounded-lg transition-all duration-200 font-medium menu-item-animation sidebar-menu-item ${
-                        isMenuActive
-                          ? 'menu-item-active'
-                          : 'text-gray-700 hover:bg-blue-50 hover:text-blue-700'
-                      }`}
-                    >
-                      <div className="flex items-center space-x-3">
-                        {menu.icon}
-                        <span>{menu.title}</span>
-                      </div>
-                    </button>
-                  )}
-
-                  {/* Submenús */}
-                  {hasChildren && isExpanded && (
-                    <div className="ml-6 mt-2 space-y-1 border-l-2 border-gray-200 pl-4">
-                      {menu.subItems?.map((subItem, subIndex) => {
-                        const isSubItemActive = isActive(subItem.path);
-
-                        return (
-                          <button
-                            key={subIndex}
-                            onClick={() => handleNavigate(subItem.path || '#')}
-                            className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-all duration-200 menu-item-animation sidebar-menu-item ${
-                              isSubItemActive
-                                ? 'menu-item-active'
-                                : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'
-                            }`}
-                          >
-                            <div className="flex items-center space-x-3">
-                              {subItem.icon}
-                              <span>{subItem.title}</span>
-                            </div>
-                          </button>
-                        );
-                      })}
+            return (
+              <div key={index} className="mb-1">
+                {hasChildren ? (
+                  // Menú con submenús
+                  <button
+                    onClick={() => toggleMenu(index)}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 text-sm text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-700 transition-all duration-200 font-medium menu-item-animation sidebar-menu-item ${
+                      isMenuActive ? 'menu-item-active' : ''
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      {menu.icon}
+                      <span>{menu.title}</span>
                     </div>
-                  )}
-                </div>
-              );
-            })}
-          </nav>
-        </div>
+                    {isExpanded ? (
+                      <ChevronDown className="w-4 h-4" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4" />
+                    )}
+                  </button>
+                ) : (
+                  // Menú directo
+                  <button
+                    onClick={() => handleNavigate(menu.path || '#')}
+                    className={`w-full text-left px-3 py-2.5 text-sm rounded-lg transition-all duration-200 font-medium menu-item-animation sidebar-menu-item ${
+                      isMenuActive
+                        ? 'menu-item-active'
+                        : 'text-gray-700 hover:bg-blue-50 hover:text-blue-700'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      {menu.icon}
+                      <span>{menu.title}</span>
+                    </div>
+                  </button>
+                )}
+
+                {/* Submenús */}
+                {hasChildren && isExpanded && (
+                  <div className="ml-6 mt-2 space-y-1 border-l-2 border-gray-200 pl-4">
+                    {menu.subItems?.map((subItem, subIndex) => {
+                      const isSubItemActive = isActive(subItem.path);
+
+                      return (
+                        <button
+                          key={subIndex}
+                          onClick={() => handleNavigate(subItem.path || '#')}
+                          className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-all duration-200 menu-item-animation sidebar-menu-item ${
+                            isSubItemActive
+                              ? 'menu-item-active'
+                              : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'
+                          }`}
+                        >
+                          <div className="flex items-center space-x-3">
+                            {subItem.icon}
+                            <span>{subItem.title}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </nav>
       </div>
 
-      {/* Footer con logout */}
-      <div className="p-4 border-t border-gray-200 bg-gray-50 sidebar-footer">
+      {/* Footer del sidebar */}
+      <div className="sidebar-footer">
         {/* El botón de logout ahora está en el overlay del usuario */}
       </div>
     </div>

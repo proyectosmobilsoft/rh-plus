@@ -290,9 +290,9 @@ export function PermissionsForm({ selectedPermissions, onPermissionsChange }: Pe
       )}
 
       {selectedPermissions.length > 0 && (
-        <div className="bg-blue-50 p-4 rounded-lg">
-          <h4 className="font-medium text-blue-900 mb-2">Resumen de Permisos</h4>
-          <div className="text-sm text-blue-700">
+        <div className="bg-cyan-50 p-4 rounded-lg">
+          <h4 className="font-medium text-cyan-900 mb-2">Resumen de Permisos</h4>
+          <div className="text-sm text-cyan-700">
             <span className="font-medium">{selectedPermissions.length}</span> vistas seleccionadas con{' '}
             <span className="font-medium">
               {selectedPermissions.reduce((total, p) => total + (p.actions?.length || 0), 0)}

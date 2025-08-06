@@ -96,7 +96,7 @@ export default function AcercaEmpresaPage() {
 
   const getEstadoBadge = (activo: boolean) => {
     return activo ? (
-      <Badge className="bg-green-100 text-green-700 border-0">
+      <Badge className="bg-brand-lime/10 text-brand-lime border-0">
         <Shield className="w-3 h-3 mr-1" />
         Activa
       </Badge>
@@ -112,7 +112,7 @@ export default function AcercaEmpresaPage() {
     const tipos = {
       'prestador': { 
         label: 'Prestador de Servicios', 
-        color: 'bg-blue-100 text-blue-700',
+        color: 'bg-cyan-100 text-cyan-700',
         icon: <TrendingUp className="w-3 h-3 mr-1" />
       },
       'cliente': { 
@@ -145,7 +145,7 @@ export default function AcercaEmpresaPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-cyan-600 mx-auto"></div>
           <p className="mt-4 text-gray-600 font-medium">Cargando información de la empresa...</p>
         </div>
       </div>
@@ -194,8 +194,8 @@ export default function AcercaEmpresaPage() {
         {/* Header Minimalista */}
         <div className="text-center space-y-4">
           <div className="flex items-center justify-center space-x-3 mb-6">
-            <div className="p-3 bg-blue-100 rounded-xl">
-              <Building2 className="h-8 w-8 text-blue-600" />
+            <div className="p-3 bg-cyan-100 rounded-xl">
+<Building2 className="h-8 w-8 text-cyan-600" />
             </div>
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Acerca de la Empresa</h1>
@@ -221,7 +221,7 @@ export default function AcercaEmpresaPage() {
                  <div className="p-2 bg-gray-100 rounded-lg">
                    <Users className="h-4 w-4 text-gray-600" />
                  </div>
-                 <div>
+                 <div className="min-w-0 flex-1">
                    <p className="text-sm text-gray-500">Empleados</p>
                    <p className="font-medium text-gray-900">{empresa.numero_empleados}</p>
                  </div>
@@ -231,9 +231,9 @@ export default function AcercaEmpresaPage() {
                  <div className="p-2 bg-gray-100 rounded-lg">
                    <MapPin className="h-4 w-4 text-gray-600" />
                  </div>
-                 <div>
+                 <div className="min-w-0 flex-1">
                    <p className="text-sm text-gray-500">Ubicación</p>
-                   <p className="font-medium text-gray-900">{empresa.ciudad_nombre || empresa.ciudad}</p>
+                   <p className="font-medium text-gray-900 truncate">{empresa.ciudad_nombre || empresa.ciudad}</p>
                  </div>
                </div>
                
@@ -241,9 +241,9 @@ export default function AcercaEmpresaPage() {
                  <div className="p-2 bg-gray-100 rounded-lg">
                    <Phone className="h-4 w-4 text-gray-600" />
                  </div>
-                 <div>
+                 <div className="min-w-0 flex-1">
                    <p className="text-sm text-gray-500">Teléfono</p>
-                   <p className="font-medium text-gray-900">{empresa.telefono}</p>
+                   <p className="font-medium text-gray-900 truncate">{empresa.telefono}</p>
                  </div>
                </div>
                
@@ -251,9 +251,9 @@ export default function AcercaEmpresaPage() {
                  <div className="p-2 bg-gray-100 rounded-lg">
                    <Mail className="h-4 w-4 text-gray-600" />
                  </div>
-                 <div>
+                 <div className="min-w-0 flex-1">
                    <p className="text-sm text-gray-500">Email</p>
-                   <p className="font-medium text-gray-900">{empresa.email}</p>
+                   <p className="font-medium text-gray-900 break-all text-xs">{empresa.email}</p>
                  </div>
                </div>
             </div>
@@ -266,7 +266,7 @@ export default function AcercaEmpresaPage() {
           <Card className="shadow-sm border border-black bg-white">
             <CardHeader className="border-b border-gray-100">
               <CardTitle className="flex items-center space-x-2 text-xl font-semibold text-gray-900">
-                <Building2 className="h-6 w-6 text-blue-600" />
+                <Building2 className="h-6 w-6 text-cyan-600" />
                 <span>Información General</span>
               </CardTitle>
               <CardDescription className="text-gray-600">Datos básicos de la empresa</CardDescription>
@@ -275,8 +275,8 @@ export default function AcercaEmpresaPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <FileText className="h-4 w-4 text-blue-600" />
+                    <div className="p-2 bg-cyan-100 rounded-lg">
+<FileText className="h-4 w-4 text-cyan-600" />
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-700">Tipo de Documento</p>
@@ -285,8 +285,8 @@ export default function AcercaEmpresaPage() {
                   </div>
 
                   <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-green-100 rounded-lg">
-                      <FileText className="h-4 w-4 text-green-600" />
+                    <div className="p-2 bg-brand-lime/10 rounded-lg">
+                      <FileText className="h-4 w-4 text-brand-lime" />
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-700">NIT</p>
@@ -324,7 +324,7 @@ export default function AcercaEmpresaPage() {
           <Card className="shadow-sm border border-black bg-white">
             <CardHeader className="border-b border-gray-100">
               <CardTitle className="flex items-center space-x-2 text-xl font-semibold text-gray-900">
-                <Phone className="h-6 w-6 text-blue-600" />
+                <Phone className="h-6 w-6 text-cyan-600" />
                 <span>Información de Contacto</span>
               </CardTitle>
               <CardDescription className="text-gray-600">Datos de contacto de la empresa</CardDescription>
@@ -332,8 +332,8 @@ export default function AcercaEmpresaPage() {
             <CardContent className="p-6 space-y-6">
               <div className="space-y-4">
                 <div className="flex items-start space-x-4">
-                  <div className="p-3 bg-green-100 rounded-xl">
-                    <MapPin className="h-5 w-5 text-green-600" />
+                  <div className="p-3 bg-brand-lime/10 rounded-xl">
+                    <MapPin className="h-5 w-5 text-brand-lime" />
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-medium text-gray-700 mb-1">Dirección</p>
@@ -345,8 +345,8 @@ export default function AcercaEmpresaPage() {
                 </div>
 
                 <div className="flex items-center space-x-4">
-                  <div className="p-3 bg-blue-100 rounded-xl">
-                    <Phone className="h-5 w-5 text-blue-600" />
+                  <div className="p-3 bg-cyan-100 rounded-xl">
+<Phone className="h-5 w-5 text-cyan-600" />
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-700 mb-1">Teléfono</p>
@@ -358,9 +358,9 @@ export default function AcercaEmpresaPage() {
                   <div className="p-3 bg-purple-100 rounded-xl">
                     <Mail className="h-5 w-5 text-purple-600" />
                   </div>
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-gray-700 mb-1">Correo Electrónico</p>
-                    <p className="text-gray-900 font-semibold">{empresa.email}</p>
+                    <p className="text-gray-900 font-semibold break-all text-sm">{empresa.email}</p>
                   </div>
                 </div>
 
@@ -381,7 +381,7 @@ export default function AcercaEmpresaPage() {
           <Card className="shadow-sm border border-black bg-white">
             <CardHeader className="border-b border-gray-100">
               <CardTitle className="flex items-center space-x-2 text-xl font-semibold text-gray-900">
-                <Activity className="h-6 w-6 text-blue-600" />
+                <Activity className="h-6 w-6 text-cyan-600" />
                 <span>Actividad Económica</span>
               </CardTitle>
               <CardDescription className="text-gray-600">Información sobre la actividad de la empresa</CardDescription>
@@ -403,8 +403,8 @@ export default function AcercaEmpresaPage() {
                 {empresa.actividad_nombre && (
                   <div className="bg-gray-50 rounded-xl p-4">
                     <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-blue-100 rounded-lg">
-                        <Globe className="h-4 w-4 text-blue-600" />
+                      <div className="p-2 bg-cyan-100 rounded-lg">
+<Globe className="h-4 w-4 text-cyan-600" />
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-700">Descripción de Actividad</p>
@@ -421,7 +421,7 @@ export default function AcercaEmpresaPage() {
           <Card className="shadow-sm border border-black bg-white">
             <CardHeader className="border-b border-gray-100">
               <CardTitle className="flex items-center space-x-2 text-xl font-semibold text-gray-900">
-                <Calendar className="h-6 w-6 text-blue-600" />
+                <Calendar className="h-6 w-6 text-cyan-600" />
                 <span>Información del Sistema</span>
               </CardTitle>
               <CardDescription className="text-gray-600">Datos de registro y actualización</CardDescription>
@@ -430,8 +430,8 @@ export default function AcercaEmpresaPage() {
               <div className="space-y-4">
                 <div className="bg-gray-50 rounded-xl p-4">
                   <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-green-100 rounded-lg">
-                      <Calendar className="h-4 w-4 text-green-600" />
+                    <div className="p-2 bg-brand-lime/10 rounded-lg">
+                      <Calendar className="h-4 w-4 text-brand-lime" />
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-700">Fecha de Registro</p>

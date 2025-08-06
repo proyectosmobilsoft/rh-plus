@@ -505,7 +505,7 @@ export default function EmailMasivoPage() {
   const getEstadoColor = (estado: string) => {
     switch (estado) {
       case 'borrador': return 'bg-slate-100 text-slate-800';
-      case 'enviando': return 'bg-blue-100 text-blue-800';
+      case 'enviando': return 'bg-cyan-100 text-cyan-800';
       case 'completada': return 'bg-emerald-100 text-emerald-800';
       case 'cancelada': return 'bg-red-100 text-red-800';
       default: return 'bg-slate-100 text-slate-800';
@@ -546,7 +546,7 @@ export default function EmailMasivoPage() {
           <Badge 
             key={index} 
             variant="secondary" 
-            className="bg-blue-100 text-blue-800 border-blue-200 text-xs font-mono mx-1"
+            className="bg-cyan-100 text-cyan-800 border-cyan-200 text-xs font-mono mx-1"
           >
             {variableName}
           </Badge>
@@ -1077,7 +1077,7 @@ export default function EmailMasivoPage() {
                        <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-2">
                          {loadingDestinatarios ? (
                            <div className="flex items-center justify-center py-8">
-                             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-cyan-600"></div>
                              <span className="ml-2 text-sm text-gray-600">Cargando destinatarios...</span>
                            </div>
                          ) : getFilteredRecipients().length === 0 ? (
@@ -1091,7 +1091,7 @@ export default function EmailMasivoPage() {
                                  key={recipient.id}
                                  className={`flex items-center space-x-3 p-2 rounded cursor-pointer transition-colors ${
                                    selectedRecipients.includes(recipient.id)
-                                     ? 'bg-blue-100 border border-blue-300'
+                                     ? 'bg-cyan-100 border border-cyan-300'
                                      : 'bg-gray-50 hover:bg-gray-100'
                                  }`}
                                  onClick={() => handleRecipientToggle(recipient.id)}
@@ -1127,8 +1127,8 @@ export default function EmailMasivoPage() {
                        </div>
                        
                        {selectedRecipients.length > 0 && (
-                         <div className="p-2 bg-green-50 rounded border border-green-200">
-                           <p className="text-xs text-green-700">
+                         <div className="p-2 bg-brand-lime/10 rounded border border-brand-lime/20">
+                           <p className="text-xs text-brand-lime">
                              <strong>{selectedRecipients.length}</strong> destinatario(s) seleccionado(s)
                            </p>
                          </div>
@@ -1159,7 +1159,7 @@ export default function EmailMasivoPage() {
                          `Plantilla: ${selectedTemplate.nombre}` 
                          : 'Selecciona una plantilla para comenzar'}
                        {isDragging && (
-                         <span className="ml-2 text-blue-300">• Arrastra variables aquí</span>
+                         <span className="ml-2 text-cyan-300">• Arrastra variables aquí</span>
                        )}
                      </CardDescription>
                   </div>
@@ -1301,7 +1301,7 @@ export default function EmailMasivoPage() {
                                                                                 <div 
                               className={`mt-2 border-2 border-dashed rounded-lg transition-all duration-200 relative ${
                                 isDragging 
-                                  ? 'border-blue-400 bg-blue-50 shadow-lg' 
+                                  ? 'border-cyan-400 bg-cyan-50 shadow-lg' 
                                   : 'border-slate-300 hover:border-slate-400'
                               }`}
                               onDragOver={handleDragOver}
@@ -1316,8 +1316,8 @@ export default function EmailMasivoPage() {
                                 rows={15}
                               />
                               {isDragging && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-blue-50 bg-opacity-50 rounded-lg pointer-events-none">
-                                  <div className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg">
+                                <div className="absolute inset-0 flex items-center justify-center bg-cyan-50 bg-opacity-50 rounded-lg pointer-events-none">
+<div className="bg-cyan-600 text-white px-4 py-2 rounded-lg shadow-lg">
                                     <span className="font-medium">Suelta aquí para insertar: {`{{${draggedVariable}}}`}</span>
                                   </div>
                                 </div>
@@ -1330,7 +1330,7 @@ export default function EmailMasivoPage() {
                                {isDragging && (
                                  <div className="flex items-center space-x-2">
                                    <div className="animate-pulse">
-                                     <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                                     <Badge variant="secondary" className="bg-cyan-100 text-cyan-700">
                                        Arrastrando: {`{{${draggedVariable}}}`}
                                      </Badge>
                                    </div>
@@ -1359,7 +1359,7 @@ export default function EmailMasivoPage() {
                           key={variable.name} 
                           className={`flex items-center justify-between p-2 rounded-lg border transition-all duration-200 cursor-grab active:cursor-grabbing ${
                             isDragging && draggedVariable === variable.name
-                              ? 'bg-blue-100 border-blue-300 shadow-lg scale-105'
+                              ? 'bg-cyan-100 border-cyan-300 shadow-lg scale-105'
                               : 'bg-white border-slate-200 hover:bg-slate-100 hover:border-slate-300'
                           }`}
                           draggable
@@ -1634,7 +1634,7 @@ export default function EmailMasivoPage() {
                {gmailCampaigns.length > 0 && (
                  <div className="mb-6">
                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                     <Mail className="h-5 w-5 text-blue-600" />
+                     <Mail className="h-5 w-5 text-cyan-600" />
                      <span>Campañas de Gmail</span>
                    </h3>
                    <div className="space-y-3">

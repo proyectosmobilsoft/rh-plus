@@ -240,7 +240,7 @@ Equipo de Recursos Humanos`);
   const getEstadoBadge = (estado: string) => {
     switch (estado) {
       case 'aprobado':
-        return <Badge className="bg-green-100 text-green-800 border-green-200">Aprobado</Badge>;
+        return <Badge className="bg-brand-lime/10 text-brand-lime border-brand-lime/20">Aprobado</Badge>;
       case 'rechazado':
         return <Badge className="bg-red-100 text-red-800 border-red-200">Rechazado</Badge>;
       case 'pendiente':
@@ -302,7 +302,7 @@ Equipo de Recursos Humanos`);
                         <p className="text-sm text-gray-600">{candidato.cedula} • {candidato.empresa}</p>
                       </div>
                       {candidato.qrGenerado ? (
-                        <Badge className="bg-green-100 text-green-800 border-green-200">
+                        <Badge className="bg-brand-lime/10 text-brand-lime border-brand-lime/20">
                           <CheckCircle className="w-3 h-3 mr-1" />
                           QR Generado
                         </Badge>
@@ -385,7 +385,7 @@ Equipo de Recursos Humanos`);
                 {selectedCandidatos.length > 0 && (
                   <Button 
                     onClick={sendWhatsApp}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white"
+                    className="w-full bg-brand-lime hover:bg-brand-lime/90 text-white"
                     size="lg"
                   >
                     <Send className="w-4 h-4 mr-2" />
@@ -483,7 +483,7 @@ Equipo de Recursos Humanos`);
                 {selectedCandidatos.length > 0 && (
                   <Button 
                     onClick={sendEmail}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                    className="w-full bg-cyan-600 hover:bg-cyan-700 text-white"
                     size="lg"
                   >
                     <Send className="w-4 h-4 mr-2" />
@@ -551,14 +551,14 @@ Equipo de Recursos Humanos`);
                   </div>
                 </div>
                 
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4">
                   <div className="flex items-start space-x-2">
-                    <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
+                    <AlertCircle className="w-5 h-5 text-cyan-600 mt-0.5" />
                     <div className="space-y-1">
-                      <h4 className="text-sm font-medium text-blue-900">
+                      <h4 className="text-sm font-medium text-cyan-900">
                         Información sobre plantillas
                       </h4>
-                      <p className="text-sm text-blue-800">
+                                              <p className="text-sm text-cyan-800">
                         Las plantillas permiten personalizar automáticamente los mensajes con las variables disponibles. 
                         Puedes editar el mensaje después de seleccionar una plantilla.
                       </p>

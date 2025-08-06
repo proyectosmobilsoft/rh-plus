@@ -30,8 +30,8 @@ const OrdenesStatistics: React.FC<OrdenesStatisticsProps> = ({ ordenes }) => {
       title: "Total Órdenes",
       value: totalOrdenes,
       icon: FileText,
-      color: "text-blue-600",
-      bgColor: "bg-blue-50"
+      color: "text-cyan-600",
+      bgColor: "bg-cyan-50"
     },
     {
       title: "Órdenes Pendientes", 

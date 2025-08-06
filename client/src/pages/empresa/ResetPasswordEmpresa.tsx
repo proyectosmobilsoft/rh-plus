@@ -103,11 +103,11 @@ export default function ResetPasswordEmpresa() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-cyan-50 to-cyan-100 p-4">
         <Card className="w-full max-w-md">
           <CardContent className="pt-6">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-600 mx-auto"></div>
               <p className="mt-4 text-gray-600">Validando token...</p>
             </div>
           </CardContent>
@@ -118,7 +118,7 @@ export default function ResetPasswordEmpresa() {
 
   if (error && !token) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-cyan-50 to-cyan-100 p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
@@ -147,13 +147,13 @@ export default function ResetPasswordEmpresa() {
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-cyan-50 to-cyan-100 p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
-              <CheckCircle2 className="h-12 w-12 text-green-600" />
+              <CheckCircle2 className="h-12 w-12 text-brand-lime" />
             </div>
-            <CardTitle className="text-2xl text-green-800">
+            <CardTitle className="text-2xl text-brand-lime">
               Contraseña actualizada
             </CardTitle>
           </CardHeader>
@@ -165,10 +165,10 @@ export default function ResetPasswordEmpresa() {
               Ya puede iniciar sesión con su nueva contraseña.
             </p>
             <div className="pt-4">
-              <Button 
-                className="w-full bg-blue-600 hover:bg-blue-700"
-                onClick={() => navigate('/empresa/login')}
-              >
+                             <Button 
+                 className="w-full bg-cyan-600 hover:bg-cyan-700"
+                 onClick={() => navigate('/empresa/login')}
+               >
                 Iniciar sesión
               </Button>
             </div>
@@ -179,13 +179,13 @@ export default function ResetPasswordEmpresa() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-cyan-50 to-cyan-100 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <Lock className="h-12 w-12 text-blue-600" />
+            <Lock className="h-12 w-12 text-cyan-600" />
           </div>
-          <CardTitle className="text-2xl text-blue-800">
+          <CardTitle className="text-2xl text-cyan-800">
             Nueva contraseña
           </CardTitle>
           <p className="text-sm text-gray-600">
@@ -250,20 +250,20 @@ export default function ResetPasswordEmpresa() {
               </div>
             </div>
 
-            <Button 
-              type="submit" 
-              className="w-full bg-blue-600 hover:bg-blue-700" 
-              disabled={isSubmitting}
-            >
+                         <Button 
+               type="submit" 
+               className="w-full bg-cyan-600 hover:bg-cyan-700" 
+               disabled={isSubmitting}
+             >
               {isSubmitting ? "Actualizando..." : "Actualizar contraseña"}
             </Button>
 
             <div className="text-center">
-              <button 
-                type="button"
-                onClick={() => navigate('/empresa/login')} 
-                className="text-sm text-blue-600 hover:text-blue-800"
-              >
+                             <button 
+                 type="button"
+                 onClick={() => navigate('/empresa/login')} 
+                 className="text-sm text-cyan-600 hover:text-cyan-800"
+               >
                 ← Volver al inicio de sesión
               </button>
             </div>

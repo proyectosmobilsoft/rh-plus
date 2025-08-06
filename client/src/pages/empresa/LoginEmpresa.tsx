@@ -57,11 +57,11 @@ export default function LoginEmpresa() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+            <div className="min-h-screen bg-gradient-to-br from-cyan-50 to-teal-100 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
+            <div className="w-16 h-16 bg-cyan-600 rounded-full flex items-center justify-center">
               <Building2 className="w-8 h-8 text-white" />
             </div>
           </div>
@@ -109,7 +109,7 @@ export default function LoginEmpresa() {
                 )}
               />
 
-              <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
+              <Button type="submit" className="w-full bg-cyan-600 hover:bg-cyan-700" disabled={isLoading}>
                 {isLoading ? (
                   'Iniciando sesión...'
                 ) : (
@@ -124,7 +124,7 @@ export default function LoginEmpresa() {
                 <button 
                   type="button"
                   onClick={() => navigate('/empresa/forgot-password')} 
-                  className="text-sm text-blue-600 hover:text-blue-800"
+                  className="text-sm text-cyan-600 hover:text-cyan-800"
                 >
                   ¿Olvidó su contraseña?
                 </button>

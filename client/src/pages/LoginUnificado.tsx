@@ -382,14 +382,14 @@ export default function LoginUnificado() {
                   </Alert>
                 )}
 
-                <div className="mb-4 p-4 bg-blue-50 rounded-lg">
+                <div className="mb-4 p-4 bg-cyan-50 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
-                    <Building2 className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm font-medium text-blue-800">
+                    <Building2 className="w-4 h-4 text-cyan-600" />
+                    <span className="text-sm font-medium text-cyan-800">
                       Bienvenido, {userValidation?.user.primer_nombre} {userValidation?.user.primer_apellido}
                     </span>
                   </div>
-                  <p className="text-xs text-blue-600">
+                                      <p className="text-xs text-cyan-600">
                     Selecciona la empresa con la que deseas iniciar sesión
                   </p>
                 </div>

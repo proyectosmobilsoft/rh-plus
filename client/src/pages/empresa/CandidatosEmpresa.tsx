@@ -97,7 +97,7 @@ export default function CandidatosEmpresa() {
   const getEstadoBadge = (estado: string) => {
     const badges = {
       pendiente: <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">Pendiente</Badge>,
-      aprobado: <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Aprobado</Badge>,
+      aprobado: <Badge variant="outline" className="bg-brand-lime/10 text-brand-lime border-brand-lime/20">Aprobado</Badge>,
       rechazado: <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Rechazado</Badge>,
     };
     return badges[estado as keyof typeof badges] || <Badge variant="outline">{estado}</Badge>;
@@ -115,7 +115,7 @@ export default function CandidatosEmpresa() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Cargando candidatos...</p>
         </div>
       </div>
@@ -138,7 +138,7 @@ export default function CandidatosEmpresa() {
                 <span>Volver</span>
               </Button>
               <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-cyan-600 rounded-lg flex items-center justify-center">
                   <Users className="w-5 h-5 text-white" />
                 </div>
                 <div>
@@ -153,7 +153,7 @@ export default function CandidatosEmpresa() {
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button className="bg-blue-600 hover:bg-blue-700">
+                <Button className="bg-cyan-600 hover:bg-cyan-700">
                   <Plus className="w-4 h-4 mr-2" />
                   Nuevo Candidato
                 </Button>
@@ -234,7 +234,7 @@ export default function CandidatosEmpresa() {
               {candidatos.length === 0 && (
                 <Button
                   onClick={() => navigate('/empresa/candidatos/crear')}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-cyan-600 hover:bg-cyan-700"
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Crear Candidato
@@ -250,8 +250,8 @@ export default function CandidatosEmpresa() {
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                          <Users className="w-6 h-6 text-blue-600" />
+                        <div className="w-12 h-12 bg-cyan-100 rounded-full flex items-center justify-center">
+<Users className="w-6 h-6 text-cyan-600" />
                         </div>
                         <div className="flex-1">
                           <h3 className="text-lg font-medium text-gray-900">
@@ -283,7 +283,7 @@ export default function CandidatosEmpresa() {
                           Registrado: {formatDate(candidato.fechaRegistro)}
                         </p>
                         {candidato.completado && (
-                          <p className="text-xs text-green-600 mt-1">
+                          <p className="text-xs text-brand-lime mt-1">
                             Perfil completo
                           </p>
                         )}

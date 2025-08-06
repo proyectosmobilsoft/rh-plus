@@ -75,7 +75,7 @@ export default function DashboardEmpresa() {
     return (
       <div className="p-6 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Cargando...</p>
         </div>
       </div>
@@ -120,10 +120,10 @@ export default function DashboardEmpresa() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Aprobados</CardTitle>
-              <UserCheck className="h-4 w-4 text-green-500" />
+              <UserCheck className="h-4 w-4 text-brand-lime" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">{stats.candidatosAprobados}</div>
+              <div className="text-2xl font-bold text-brand-lime">{stats.candidatosAprobados}</div>
               <p className="text-xs text-muted-foreground">Candidatos aprobados</p>
             </CardContent>
           </Card>

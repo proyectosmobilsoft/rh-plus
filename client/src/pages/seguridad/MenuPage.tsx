@@ -355,7 +355,7 @@ const MenuPage = () => {
     <div key={node.id} className="border-b border-gray-100 last:border-0">
       <div 
         className={`flex items-center py-2 px-3 hover:bg-gray-50 cursor-pointer ${
-          selectedNode === node.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+          selectedNode === node.id ? 'bg-cyan-50 border-l-4 border-cyan-500' : ''
         }`}
         onClick={() => selectNode(node.id, node.tipo, node.name)}
       >
@@ -414,7 +414,7 @@ const MenuPage = () => {
               )}
             />
             <div className="flex justify-end space-x-2 pt-4">
-              <Button type="submit" className="bg-green-600 hover:bg-green-700">
+              <Button type="submit" className="bg-brand-lime hover:bg-brand-lime/90 text-white border-0 shadow-sm px-6 py-2 rounded text-sm font-medium transition-colors">
                 💾 Guardar
               </Button>
             </div>
@@ -486,7 +486,7 @@ const MenuPage = () => {
                                   <Input 
                                     {...field} 
                                     placeholder="Código"
-                                    className="h-8 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500" 
+                                    className="h-8 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500" 
                                   />
                                 </FormControl>
                               </FormItem>
@@ -503,7 +503,7 @@ const MenuPage = () => {
                                   <Input 
                                     {...field} 
                                     placeholder="Nombre de la acción"
-                                    className="h-8 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500" 
+                                    className="h-8 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500" 
                                   />
                                 </FormControl>
                               </FormItem>
@@ -518,7 +518,7 @@ const MenuPage = () => {
                               <FormItem>
                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                                   <FormControl>
-                                    <SelectTrigger className="h-8 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                                    <SelectTrigger className="h-8 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500">
                                       <SelectValue placeholder="Tipo" />
                                     </SelectTrigger>
                                   </FormControl>
@@ -536,7 +536,7 @@ const MenuPage = () => {
                             <Button
                               type="button"
                               size="sm"
-                              className="h-8 w-8 p-0 bg-blue-500 hover:bg-blue-600 text-white border-0 rounded"
+                              className="h-8 w-8 p-0 bg-cyan-500 hover:bg-cyan-600 text-white border-0 rounded"
                             >
                               <Edit className="w-4 h-4" />
                             </Button>
@@ -560,7 +560,7 @@ const MenuPage = () => {
                 type="button"
                 size="sm"
                 onClick={addAction}
-                className="bg-green-500 hover:bg-green-600 text-white border-0 shadow-sm px-4 py-2 rounded text-sm font-medium transition-colors"
+                className="bg-brand-lime hover:bg-brand-lime/90 text-white border-0 shadow-sm px-4 py-2 rounded text-sm font-medium transition-colors"
               >
                 <Plus size={16} className="mr-2" />
                 Agregar
@@ -570,7 +570,7 @@ const MenuPage = () => {
             <div className="flex justify-end space-x-2 pt-4">
               <Button 
                 type="submit" 
-                className="bg-green-500 hover:bg-green-600 text-white border-0 shadow-sm px-6 py-2 rounded text-sm font-medium transition-colors"
+                className="bg-brand-lime hover:bg-brand-lime/90 text-white border-0 shadow-sm px-6 py-2 rounded text-sm font-medium transition-colors"
               >
                 Guardar
               </Button>
@@ -599,8 +599,8 @@ const MenuPage = () => {
         <h1 className="text-2xl font-bold text-gray-900 mr-4">Gestión de Menús</h1>
       </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-        <p className="text-blue-800 text-sm">
+      <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4 mb-6">
+        <p className="text-cyan-800 text-sm">
           ❈ Arrastra y suelta los elementos hasta organizar el menú de la manera deseado...
         </p>
       </div>
@@ -609,7 +609,7 @@ const MenuPage = () => {
       <div className="flex items-center space-x-2 mb-6">
         <Dialog open={isAddNodeModalOpen} onOpenChange={setIsAddNodeModalOpen}>
           <DialogTrigger asChild>
-            <Button size="sm" className="bg-green-600 hover:bg-green-700">
+            <Button size="sm" className="bg-brand-lime hover:bg-brand-lime/90">
               <Plus size={16} className="mr-1" />
               Nodo
             </Button>
@@ -684,7 +684,7 @@ const MenuPage = () => {
                   >
                     Cancelar
                   </Button>
-                  <Button type="submit" className="bg-green-600 hover:bg-green-700">
+                  <Button type="submit" className="bg-brand-lime hover:bg-brand-lime/90">
                     Agregar
                   </Button>
                 </div>
@@ -725,7 +725,7 @@ const MenuPage = () => {
 
         <Dialog open={isCreatePermissionModalOpen} onOpenChange={setIsCreatePermissionModalOpen}>
           <DialogTrigger asChild>
-            <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+                            <Button size="sm" className="bg-cyan-600 hover:bg-cyan-700">
               <Settings size={16} className="mr-1" />
               Gestión de Permisos
             </Button>
@@ -749,7 +749,7 @@ const MenuPage = () => {
                     <div 
                       key={node.id}
                       className={`flex items-center p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 ${
-                        selectedNode === node.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                        selectedNode === node.id ? 'bg-cyan-50 border-l-4 border-cyan-500' : ''
                       }`}
                       onClick={() => {
                         selectNode(node.id, node.tipo, node.name);
@@ -763,12 +763,12 @@ const MenuPage = () => {
                 )}
               </div>
               {selectedNode && selectedNodeType === 'file' && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                  <div className="flex items-center text-green-800 text-sm">
+                <div className="bg-brand-lime/10 border border-brand-lime/20 rounded-lg p-3">
+                  <div className="flex items-center text-brand-lime text-sm">
                     <FileText size={16} className="mr-2" />
                     Formulario seleccionado: {nodes.find((n: any) => n.id === selectedNode)?.name}
                   </div>
-                  <div className="text-xs text-green-600 mt-1">
+                  <div className="text-xs text-brand-lime mt-1">
                     Puedes configurar los permisos en el panel derecho
                   </div>
                 </div>

@@ -337,7 +337,7 @@ export default function RegistroEmpresas() {
                                     aria-label="Editar empresa"
                                     className="h-8 w-8"
                                   >
-                                    <Edit className="h-4 w-4 text-blue-600 hover:text-blue-800 transition-colors" />
+                                    <Edit className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
@@ -429,7 +429,7 @@ export default function RegistroEmpresas() {
                                             aria-label="Activar empresa"
                                             className="h-8 w-8"
                                           >
-                                            <CheckCircle className="h-4 w-4 text-green-600 hover:text-green-800 transition-colors" />
+                                            <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
                                           </Button>
                                         </AlertDialogTrigger>
                                         <AlertDialogContent>
@@ -463,7 +463,7 @@ export default function RegistroEmpresas() {
                         <TableCell className="px-4 py-3 text-sm text-gray-500">{cityData[company.ciudad] || company.ciudad}</TableCell>
                         <TableCell className="px-4 py-3 text-sm text-gray-500">{company.telefono}</TableCell>
                         <TableCell className="px-4 py-3">
-                          <Badge variant={company.active ? "default" : "secondary"} className={company.active ? "bg-green-100 text-green-700 border-green-200" : "bg-gray-200 text-gray-600 border-gray-300"}>
+                          <Badge variant={company.active ? "default" : "secondary"} className={company.active ? "bg-brand-lime/10 text-brand-lime border-brand-lime/20" : "bg-gray-200 text-gray-600 border-gray-300"}>
                             {company.active ? "Activo" : "Inactivo"}
                           </Badge>
                         </TableCell>

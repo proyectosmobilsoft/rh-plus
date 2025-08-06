@@ -74,7 +74,7 @@ export default function LoginAdmin() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-cyan-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Recursos humanos</h1>
@@ -156,7 +156,7 @@ export default function LoginAdmin() {
             </Form>
 
             <div className="text-center mt-4">
-              <Link to="/forgot-password" className="text-sm text-green-600 hover:text-green-800">
+              <Link to="/forgot-password" className="text-sm text-brand-lime hover:text-brand-lime/80">
                 ¿Olvidó su contraseña?
               </Link>
             </div>

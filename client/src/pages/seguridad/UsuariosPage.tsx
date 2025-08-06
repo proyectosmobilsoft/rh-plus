@@ -397,7 +397,7 @@ const UsuariosPage = () => {
                     form.reset();
                     setActiveTab("registro");
                   }}
-                  className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
+                  className="bg-brand-lime hover:bg-brand-lime/90"
                   size="sm"
                 >
                   Adicionar Registro
@@ -472,7 +472,7 @@ const UsuariosPage = () => {
                                     onClick={() => handleEditarUsuario(usuario)}
                                     aria-label="Editar usuario"
                                   >
-                                    <Edit className="h-5 w-5 text-blue-600 hover:text-blue-800 transition-colors" />
+                                    <Edit className="h-5 w-5 text-cyan-600 hover:text-cyan-800 transition-colors" />
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
@@ -533,7 +533,7 @@ const UsuariosPage = () => {
                                             size="icon"
                                             aria-label="Activar usuario"
                                           >
-                                            <CheckCircle className="h-5 w-5 text-green-600 hover:text-green-800 transition-colors" />
+                                            <CheckCircle className="h-5 w-5 text-brand-lime hover:text-brand-lime/80 transition-colors" />
                                           </Button>
                                         </AlertDialogTrigger>
                                       </TooltipTrigger>
@@ -555,7 +555,7 @@ const UsuariosPage = () => {
                                       <AlertDialogCancel>Cancelar</AlertDialogCancel>
                                       <AlertDialogAction
                                         onClick={() => handleActivarUsuario(usuario.id)}
-                                        className="bg-green-600 hover:bg-green-700"
+                                        className="bg-brand-lime hover:bg-brand-lime/90"
                                       >
                                         Activar
                                       </AlertDialogAction>
@@ -626,7 +626,7 @@ const UsuariosPage = () => {
                               <Badge
                                 key={role.id}
                                 variant="outline"
-                                className="text-xs bg-green-50 text-green-700 border-green-200"
+                                className="text-xs bg-brand-lime/10 text-brand-lime"
                               >
                                 {role.gen_roles?.nombre || 'Sin nombre'}
                               </Badge>
@@ -641,7 +641,7 @@ const UsuariosPage = () => {
                             variant={usuario.activo ? "default" : "secondary"}
                             className={
                               usuario.activo
-                                ? "bg-green-100 text-green-800"
+                                ? "bg-brand-lime/10 text-brand-lime"
                                 : "bg-gray-100 text-gray-800"
                             }
                           >
@@ -665,7 +665,7 @@ const UsuariosPage = () => {
                   {/* Datos Personales */}
                   <div className="p-4 border rounded-lg bg-slate-50 mb-4">
                     <h3 className="text-base font-bold text-gray-700 mb-2 flex items-center gap-2">
-                      <User className="w-5 h-5 text-blue-600" />
+                      <User className="w-5 h-5 text-cyan-600" />
                       Datos Personales
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -758,7 +758,7 @@ const UsuariosPage = () => {
                   {/* Credenciales de Acceso */}
                   <div className="p-4 border rounded-lg bg-slate-50 mb-4">
                     <h3 className="text-base font-bold text-gray-700 mb-2 flex items-center gap-2">
-                      <Lock className="w-5 h-5 text-blue-600" />
+                      <Lock className="w-5 h-5 text-cyan-600" />
                       Credenciales de Acceso
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -817,26 +817,26 @@ const UsuariosPage = () => {
                             {field.value && (
                               <div className="mt-2 space-y-1">
                                 <div className="flex items-center gap-2">
-                                  <div className={`w-2 h-2 rounded-full ${field.value.length >= 8 ? 'bg-green-500' : 'bg-gray-300'}`} />
-                                  <span className={`text-xs ${field.value.length >= 8 ? 'text-green-600' : 'text-gray-500'}`}>
+                                  <div className={`w-2 h-2 rounded-full ${field.value.length >= 8 ? 'bg-brand-lime' : 'bg-gray-300'}`} />
+                                  <span className={`text-xs ${field.value.length >= 8 ? 'text-brand-lime' : 'text-gray-500'}`}>
                                     Mínimo 8 caracteres
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <div className={`w-2 h-2 rounded-full ${/[a-z]/.test(field.value) ? 'bg-green-500' : 'bg-gray-300'}`} />
-                                  <span className={`text-xs ${/[a-z]/.test(field.value) ? 'text-green-600' : 'text-gray-500'}`}>
+                                  <div className={`w-2 h-2 rounded-full ${/[a-z]/.test(field.value) ? 'bg-brand-lime' : 'bg-gray-300'}`} />
+                                  <span className={`text-xs ${/[a-z]/.test(field.value) ? 'text-brand-lime' : 'text-gray-500'}`}>
                                     Al menos una letra minúscula
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <div className={`w-2 h-2 rounded-full ${/[A-Z]/.test(field.value) ? 'bg-green-500' : 'bg-gray-300'}`} />
-                                  <span className={`text-xs ${/[A-Z]/.test(field.value) ? 'text-green-600' : 'text-gray-500'}`}>
+                                  <div className={`w-2 h-2 rounded-full ${/[A-Z]/.test(field.value) ? 'bg-brand-lime' : 'bg-gray-300'}`} />
+                                  <span className={`text-xs ${/[A-Z]/.test(field.value) ? 'text-brand-lime' : 'text-gray-500'}`}>
                                     Al menos una letra mayúscula
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <div className={`w-2 h-2 rounded-full ${/\d/.test(field.value) ? 'bg-green-500' : 'bg-gray-300'}`} />
-                                  <span className={`text-xs ${/\d/.test(field.value) ? 'text-green-600' : 'text-gray-500'}`}>
+                                  <div className={`w-2 h-2 rounded-full ${/\d/.test(field.value) ? 'bg-brand-lime' : 'bg-gray-300'}`} />
+                                  <span className={`text-xs ${/\d/.test(field.value) ? 'text-brand-lime' : 'text-gray-500'}`}>
                                     Al menos un número
                                   </span>
                                 </div>
@@ -867,8 +867,8 @@ const UsuariosPage = () => {
                               {field.value && password && (
                                 <div className="mt-2">
                                   <div className="flex items-center gap-2">
-                                    <div className={`w-2 h-2 rounded-full ${isMatch ? 'bg-green-500' : 'bg-red-500'}`} />
-                                    <span className={`text-xs ${isMatch ? 'text-green-600' : 'text-red-600'}`}>
+                                    <div className={`w-2 h-2 rounded-full ${isMatch ? 'bg-brand-lime' : 'bg-red-500'}`} />
+                                    <span className={`text-xs ${isMatch ? 'text-brand-lime' : 'text-red-600'}`}>
                                       {isMatch ? 'Las contraseñas coinciden' : 'Las contraseñas no coinciden'}
                                     </span>
                                   </div>
@@ -882,9 +882,9 @@ const UsuariosPage = () => {
                   </div>
 
                   {/* Perfiles y Empresas */}
-                  <div className="p-4 border rounded-lg bg-blue-50 mt-6">
+                  <div className="p-4 border rounded-lg bg-cyan-50 mt-6">
                     <h3 className="text-lg font-semibold mb-4 text-gray-800 flex items-center gap-2">
-                      <Users className="w-5 h-5 text-blue-600" />
+                      <Users className="w-5 h-5 text-cyan-600" />
                       Asignaciones
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -954,7 +954,7 @@ const UsuariosPage = () => {
                     </Button>
                     <Button
                       type="submit"
-                      className="bg-green-500 hover:bg-green-600 text-white border-0 shadow-sm px-6 py-2 rounded text-sm font-medium transition-colors"
+                      className="bg-brand-lime hover:bg-brand-lime/90 text-white border-0 shadow-sm px-6 py-2 rounded text-sm font-medium transition-colors"
                       disabled={createUserMutation.isPending}
                     >
                       {createUserMutation.isPending ?

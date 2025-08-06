@@ -89,7 +89,7 @@ export default function DetalleCandidatoEmpresa() {
   const getEstadoBadge = (estado: string) => {
     const badges = {
       pendiente: <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">Pendiente</Badge>,
-      aprobado: <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Aprobado</Badge>,
+      aprobado: <Badge variant="outline" className="bg-brand-lime/10 text-brand-lime border-brand-lime/20">Aprobado</Badge>,
       rechazado: <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Rechazado</Badge>,
     };
     return badges[estado as keyof typeof badges] || <Badge variant="outline">{estado}</Badge>;
@@ -108,7 +108,7 @@ export default function DetalleCandidatoEmpresa() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Cargando información del candidato...</p>
         </div>
       </div>
@@ -144,7 +144,7 @@ export default function DetalleCandidatoEmpresa() {
                 <span>Volver</span>
               </Button>
               <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-cyan-600 rounded-lg flex items-center justify-center">
                   <User className="w-5 h-5 text-white" />
                 </div>
                 <div>

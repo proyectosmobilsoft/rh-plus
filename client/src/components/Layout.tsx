@@ -124,12 +124,12 @@ const Header = ({ sidebarOpen, toggleSidebar }: { sidebarOpen: boolean; toggleSi
         </Button>
         
         {/* Nombre de la empresa */}
-        <h1 className="text-2xl font-bold text-gray-900 bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
+        <h1 className="text-2xl font-bold text-gray-900 bg-gradient-to-r from-cyan-600 to-cyan-800 bg-clip-text text-transparent">
           {empresaData?.razon_social || empresaData?.nombre || 'Sistema'}
         </h1>
       </div>
       
-      {/* Información del usuario y botón de logout */}
+      {/* Información del usuario */}
       <div className="flex items-center space-x-4">
         {/* El avatar del usuario ahora está solo en el sidebar */}
       </div>
@@ -145,34 +145,31 @@ const Layout = () => {
     setSidebarOpen(!sidebarOpen);
   };
 
-  // Función para manejar la navegación sin cerrar el sidebar
+  // Función para manejar la navegación
   const handleNavigation = (path: string) => {
-    // Mantener el sidebar siempre abierto
-    setSidebarOpen(true);
+    // El sidebar permanece expandido después de la navegación
   };
 
   return (
     <div className="flex h-screen bg-gray-50 relative">
-      {/* Sidebar con animación */}
+      {/* Sidebar fijo que ocupa toda la altura */}
       <div 
-        className={`sidebar-animation ${
-          sidebarOpen ? 'w-64' : 'w-0'
-        } overflow-hidden`}
+        className={`sidebar-full-height sidebar-animation ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
       >
-        <div className={`w-64 sidebar-animation ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-          <DynamicSidebar onNavigate={handleNavigation} />
-        </div>
+        <DynamicSidebar onNavigate={handleNavigation} />
       </div>
 
-      {/* Contenido principal */}
-      <div className={`flex flex-col overflow-hidden sidebar-animation ${
-        sidebarOpen ? 'flex-1' : 'w-full'
+      {/* Contenido principal adaptado al sidebar */}
+      <div className={`main-content-with-sidebar sidebar-animation ${
+        sidebarOpen ? 'ml-64' : 'ml-0 sidebar-hidden'
       }`}>
         {/* Header */}
         <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
         
         {/* Contenido */}
-        <main className="flex-1 overflow-y-auto p-4">
+        <main className="main-content p-4">
           <Outlet />
         </main>
       </div>

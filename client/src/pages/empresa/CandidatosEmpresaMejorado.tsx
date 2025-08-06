@@ -146,7 +146,7 @@ export default function CandidatosEmpresa() {
   const getEstadoBadge = (estado: string) => {
     switch (estado) {
       case 'aprobado':
-        return <Badge className="bg-green-100 text-green-800 border-green-200">Aprobado</Badge>;
+        return <Badge className="bg-brand-lime/10 text-brand-lime border-brand-lime/20">Aprobado</Badge>;
       case 'rechazado':
         return <Badge className="bg-red-100 text-red-800 border-red-200">Rechazado</Badge>;
       case 'pendiente':
@@ -249,7 +249,7 @@ export default function CandidatosEmpresa() {
     return (
       <div className="p-6 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Cargando candidatos...</p>
         </div>
       </div>
@@ -324,7 +324,7 @@ export default function CandidatosEmpresa() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center">
-              <Check className="h-4 w-4 text-green-500" />
+              <Check className="h-4 w-4 text-brand-lime" />
               <div className="ml-2">
                 <p className="text-2xl font-bold">{candidatos.filter(c => c.estado === 'aprobado').length}</p>
                 <p className="text-xs text-muted-foreground">Aprobados</p>
@@ -367,7 +367,7 @@ export default function CandidatosEmpresa() {
                       <div className="flex items-center space-x-2">
                         {getEstadoBadge(candidato.estado)}
                         {candidato.completado && (
-                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                          <Badge variant="outline" className="bg-cyan-50 text-cyan-700 border-cyan-200">
                             Completo
                           </Badge>
                         )}
@@ -388,7 +388,7 @@ export default function CandidatosEmpresa() {
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
-                          className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                          className="bg-cyan-600 h-2 rounded-full transition-all duration-300" 
                           style={{ width: `${calcularProgresoPerfil(candidato)}%` }}
                         ></div>
                       </div>
@@ -413,7 +413,7 @@ export default function CandidatosEmpresa() {
                         variant="outline"
                         size="sm"
                         onClick={() => handleQuickSendWhatsApp(candidato)}
-                        className="flex items-center space-x-1 text-green-600 border-green-300 hover:bg-green-50"
+                        className="flex items-center space-x-1 text-brand-lime border-brand-lime/30 hover:bg-brand-lime/5"
                       >
                         <MessageCircle className="w-4 h-4" />
                         <span>WhatsApp</span>
@@ -424,7 +424,7 @@ export default function CandidatosEmpresa() {
                       variant="outline"
                       size="sm"
                       onClick={() => handleQuickSendEmail(candidato)}
-                      className="flex items-center space-x-1 text-blue-600 border-blue-300 hover:bg-blue-50"
+                      className="flex items-center space-x-1 text-cyan-600 border-cyan-300 hover:bg-cyan-50"
                     >
                       <Mail className="w-4 h-4" />
                       <span>Email</span>
@@ -446,8 +446,8 @@ export default function CandidatosEmpresa() {
                         {candidato.estado === 'pendiente' && (
                           <>
                             <DropdownMenuItem onClick={() => openApprovalModal(candidato, 'aprobar')}>
-                              <Check className="w-4 h-4 mr-2 text-green-600" />
-                              <span className="text-green-600">Aprobar candidato</span>
+                              <Check className="w-4 h-4 mr-2 text-brand-lime" />
+                              <span className="text-brand-lime">Aprobar candidato</span>
                             </DropdownMenuItem>
                             
                             <DropdownMenuItem onClick={() => openApprovalModal(candidato, 'rechazar')}>
@@ -533,7 +533,7 @@ export default function CandidatosEmpresa() {
             </Button>
             <Button
               onClick={handleApprovalSubmit}
-              className={approvalAction === 'aprobar' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}
+              className={approvalAction === 'aprobar' ? 'bg-brand-lime hover:bg-brand-lime/90' : 'bg-red-600 hover:bg-red-700'}
             >
               {approvalAction === 'aprobar' ? 'Aprobar' : 'Rechazar'} candidato
             </Button>

@@ -157,8 +157,8 @@ export default function PlantillasSelector({ empresaId, onPlantillaSelect }: Pla
         </div>
 
         {/* Información de la Plantilla */}
-        <div className="bg-blue-50 p-4 rounded-lg">
-          <h4 className="font-medium text-blue-900 mb-3">Información de la Plantilla</h4>
+        <div className="bg-cyan-50 p-4 rounded-lg">
+          <h4 className="font-medium text-cyan-900 mb-3">Información de la Plantilla</h4>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <span className="font-medium">Nombre:</span> {selectedPlantilla.nombre}
@@ -199,7 +199,7 @@ export default function PlantillasSelector({ empresaId, onPlantillaSelect }: Pla
             ) : estructuraFormulario ? (
               <>
                 {/* Debug info */}
-                <div className="mb-4 p-2 bg-blue-50 rounded text-xs">
+                <div className="mb-4 p-2 bg-cyan-50 rounded text-xs">
                   <strong>Debug:</strong> Estructura cargada desde BD
                   <br />
                   <strong>Tipo:</strong> {typeof estructuraFormulario}

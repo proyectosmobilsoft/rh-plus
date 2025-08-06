@@ -11,6 +11,8 @@
     /* #1fb5ca - Azul turquesa */
     --brand-gray: 0 0% 62%;
     /* #9d9d9d - Gris neutro */
+    --placeholder-color: 0 0% 62%;
+    /* #9d9d9d - Gris específico para placeholders */
 
     /* Aplicación de la paleta personalizada */
     --background: 0 0% 100%;
@@ -40,8 +42,8 @@
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 90%;
-    --input: 0 0% 90%;
+    --border: var(--brand-gray);
+    --input: var(--brand-gray);
     --ring: var(--brand-lime);
 
     --radius: 0.5rem;
@@ -82,8 +84,8 @@
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 0 0% 20%;
-    --input: 0 0% 20%;
+    --border: var(--brand-gray);
+    --input: var(--brand-gray);
     --ring: var(--brand-lime);
 
     --sidebar-background: 0 0% 8%;
@@ -111,8 +113,8 @@
 
   /* Estilos para los placeholders */
   ::placeholder {
-    color: var(--placeholder-color) !important;
-    /* Forzamos el color con !important */
+    color: hsl(var(--placeholder-color)) !important;
+    /* #9d9d9d - Gris específico para placeholders */
     opacity: 1;
     /* Aseguramos opacidad completa */
   }
@@ -120,30 +122,53 @@
   /* Para navegadores específicos */
   ::-webkit-input-placeholder {
     /* Chrome/Opera/Safari */
-    color: var(--placeholder-color) !important;
+    color: hsl(var(--placeholder-color)) !important;
   }
 
   ::-moz-placeholder {
     /* Firefox 19+ */
-    color: var(--placeholder-color) !important;
+    color: hsl(var(--placeholder-color)) !important;
     opacity: 1;
   }
 
   :-ms-input-placeholder {
     /* IE 10+ */
-    color: var(--placeholder-color) !important;
+    color: hsl(var(--placeholder-color)) !important;
   }
 
   :-moz-placeholder {
     /* Firefox 18- */
-    color: var(--placeholder-color) !important;
+    color: hsl(var(--placeholder-color)) !important;
     opacity: 1;
   }
 
   /* Asegurar que los inputs en modo oscuro también respeten el color */
   .dark input::placeholder,
   .dark textarea::placeholder {
-    color: var(--placeholder-color) !important;
+    color: hsl(var(--placeholder-color)) !important;
+  }
+
+  /* Estilos para hovers en inputs y campos */
+  input:hover,
+  textarea:hover,
+  select:hover {
+    border-color: hsl(var(--brand-gray)) !important;
+  }
+
+  /* Estilos para focus en inputs y campos */
+  input:focus,
+  textarea:focus,
+  select:focus {
+    border-color: hsl(var(--brand-lime)) !important;
+    outline-color: hsl(var(--brand-lime)) !important;
+  }
+
+  /* Estilos para campos deshabilitados */
+  input:disabled,
+  textarea:disabled,
+  select:disabled {
+    background-color: hsl(var(--muted)) !important;
+    color: hsl(var(--muted-foreground)) !important;
   }
 
   body {
@@ -175,8 +200,83 @@
 
 /* Estilos personalizados para formularios */
 .login-input::placeholder {
-  color: hsl(0 0% 62%) !important;
-  /* Gris específico para placeholders */
+  color: hsl(var(--placeholder-color)) !important;
+  /* #9d9d9d - Gris específico para placeholders */
+}
+
+/* Estilos para componentes de shadcn/ui */
+.form-input,
+.form-textarea,
+.form-select {
+  border-color: hsl(var(--brand-gray)) !important;
+}
+
+.form-input:hover,
+.form-textarea:hover,
+.form-select:hover {
+  border-color: hsl(var(--brand-gray)) !important;
+}
+
+.form-input:focus,
+.form-textarea:focus,
+.form-select:focus {
+  border-color: hsl(var(--brand-lime)) !important;
+  outline-color: hsl(var(--brand-lime)) !important;
+}
+
+/* Estilos para componentes de select y multi-select */
+.select-trigger,
+.multi-select {
+  border-color: hsl(var(--brand-gray)) !important;
+}
+
+.select-trigger:hover,
+.multi-select:hover {
+  border-color: hsl(var(--brand-gray)) !important;
+}
+
+.select-trigger:focus,
+.multi-select:focus {
+  border-color: hsl(var(--brand-lime)) !important;
+  outline-color: hsl(var(--brand-lime)) !important;
+}
+
+/* Estilos para componentes de calendario */
+.calendar,
+.date-picker {
+  border-color: hsl(var(--brand-gray)) !important;
+}
+
+.calendar:hover,
+.date-picker:hover {
+  border-color: hsl(var(--brand-gray)) !important;
+}
+
+/* Estilos para componentes de popover y dropdown */
+.popover,
+.dropdown-menu {
+  border-color: hsl(var(--brand-gray)) !important;
+}
+
+/* Estilos para componentes de card con hover */
+.card:hover {
+  border-color: hsl(var(--brand-gray)) !important;
+}
+
+/* Estilos para componentes de badge */
+.badge {
+  border-color: hsl(var(--brand-gray)) !important;
+}
+
+/* Estilos para componentes de switch y toggle */
+.switch,
+.toggle {
+  background-color: hsl(var(--brand-gray)) !important;
+}
+
+.switch:checked,
+.toggle:checked {
+  background-color: hsl(var(--brand-lime)) !important;
 }
 
 .login-button {
@@ -603,5 +703,5 @@ form button:hover {
 }
 
 main *, .border-input {
-  border-color: #c1c1c1;
+  border-color: hsl(var(--brand-gray));
 }
