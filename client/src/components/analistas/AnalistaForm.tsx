@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Save, UserCheck, Building2, FileText, MapPin, ArrowUpDown, User, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -88,6 +88,7 @@ const SUCURSALES = [
 export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [analistaActualizado, setAnalistaActualizado] = useState<any>(analistaSeleccionado);
+  const queryClient = useQueryClient();
   
   console.log('AnalistaForm renderizado con analistaSeleccionado:', analistaSeleccionado);
   console.log('AnalistaForm con datos actualizados:', analistaActualizado);
@@ -310,6 +311,11 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
       }
       
       console.log('=== FIN onSubmit - ÉXITO ===');
+      
+      // Invalidar la consulta del listado de analistas para refrescar los datos
+      await queryClient.invalidateQueries({ queryKey: ['analistas-prioridades'] });
+      console.log('Consulta de analistas invalidada, listado refrescado');
+      
       form.reset();
       onSuccess?.();
       

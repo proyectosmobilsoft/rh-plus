@@ -53,6 +53,7 @@ import { analystsService, Analyst } from '@/services/analystsService';
 import { testConnection, testAnalistas } from '@/services/testConnection';
 import { empresasService } from '@/services/empresasService';
 import { asociacionPrioridadService, AnalistaPrioridad } from '@/services/asociacionPrioridadService';
+import { supabase } from '@/services/supabaseClient';
 import { useLoading } from '@/contexts/LoadingContext';
 import { useToast } from '@/hooks/use-toast';
 import { AnalistaForm } from '@/components/analistas/AnalistaForm';
@@ -62,7 +63,7 @@ export default function AnalistasPage() {
   const [activeTab, setActiveTab] = useState("analistas");
   const [searchTerm, setSearchTerm] = useState('');
   const [filterEmpresa, setFilterEmpresa] = useState('todas');
-  const [filterNivel, setFilterNivel] = useState('todos');
+  const [filterSucursal, setFilterSucursal] = useState('todas');
   const [filterEstado, setFilterEstado] = useState('activo');
   const [showActivateModal, setShowActivateModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -92,18 +93,7 @@ export default function AnalistasPage() {
         const data = await asociacionPrioridadService.getAnalistasWithPriorities();
         console.log('Analistas con prioridades cargados:', data);
         
-        // Obtener cantidad de solicitudes para cada analista
-        const analistasConSolicitudes = await Promise.all(
-          data.map(async (analista) => {
-            const cantidadSolicitudes = await asociacionPrioridadService.getSolicitudesPorAnalista(
-              analista.usuario_id, 
-              analista.empresa_id
-            );
-            return { ...analista, cantidad_solicitudes: cantidadSolicitudes };
-          })
-        );
-        
-        return analistasConSolicitudes || [];
+        return data || [];
       } catch (error) {
         console.error('Error cargando analistas con prioridades:', error);
         toast({
@@ -134,6 +124,30 @@ export default function AnalistasPage() {
     staleTime: 5 * 60 * 1000, // 5 minutos
   });
 
+  // Cargar sucursales para el filtro
+  const { data: sucursales = [] } = useQuery({
+    queryKey: ['sucursales'],
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase
+          .from('gen_sucursales')
+          .select('id, nombre')
+          .order('nombre');
+        
+        if (error) {
+          console.error('Error cargando sucursales:', error);
+          return [];
+        }
+        
+        return data || [];
+      } catch (error) {
+        console.error('Error cargando sucursales:', error);
+        return [];
+      }
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutos
+  });
+
   // Los datos ya vienen mapeados del servicio de asociación de prioridades
   const analistasMapeados = analistasConPrioridades;
 
@@ -156,26 +170,16 @@ export default function AnalistasPage() {
       filtered = filtered.filter(analista => analista.empresa_id === parseInt(filterEmpresa));
     }
 
-    // Filtro por nivel de prioridad
-    if (filterNivel !== 'todos') {
-      switch (filterNivel) {
-        case 'nivel1':
-          filtered = filtered.filter(analista => analista.nivel_prioridad_1);
-          break;
-        case 'nivel2':
-          filtered = filtered.filter(analista => analista.nivel_prioridad_2);
-          break;
-        case 'nivel3':
-          filtered = filtered.filter(analista => analista.nivel_prioridad_3);
-          break;
-      }
+    // Filtro por sucursal
+    if (filterSucursal !== 'todas') {
+      filtered = filtered.filter(analista => analista.sucursal_id === parseInt(filterSucursal));
     }
 
     // Filtro por estado (no aplicable directamente, ya que no tenemos campo activo en AnalistaPrioridad)
     // Se podría implementar consultando la tabla gen_usuarios si es necesario
 
     return filtered;
-  }, [analistasMapeados, searchTerm, filterEmpresa, filterNivel, filterEstado]);
+  }, [analistasMapeados, searchTerm, filterEmpresa, filterSucursal, filterEstado]);
 
   const handleEliminarAnalista = (analista: AnalistaPrioridad) => {
     setSelectedAnalista(analista);
@@ -287,25 +291,25 @@ export default function AnalistasPage() {
         [
           'Analista',
           'Email', 
-          'Empresa',
-          'NIT',
-          'Sucursal',
           'Nivel 1',
           'Nivel 2',
           'Nivel 3',
-          'Solicitudes'
+          'Solicitudes',
+          'Empresa',
+          'NIT',
+          'Sucursal'
         ],
          // Datos de los analistas (SIN ICONOS en estados)
          ...filteredAnalistas.map(analista => [
            analista.usuario_nombre || 'No especificado',
            analista.usuario_email || 'No especificado',
-           analista.empresa_nombre || 'Sin asignar',
-           analista.empresa_nit || '-',
-           analista.empresa_direccion || '-',
            analista.nivel_prioridad_1 ? 'Sí' : 'No',
            analista.nivel_prioridad_2 ? 'Sí' : 'No',
            analista.nivel_prioridad_3 ? 'Sí' : 'No',
-           analista.cantidad_solicitudes || 0
+           analista.cantidad_solicitudes || 0,
+           analista.empresa_nombre || 'Sin asignar',
+           analista.empresa_nit || '-',
+           analista.empresa_direccion || '-'
          ])
        ];
 
@@ -317,13 +321,13 @@ export default function AnalistasPage() {
       const colWidths = [
         { wch: 25 }, // Analista
         { wch: 30 }, // Email
-        { wch: 30 }, // Empresa
-        { wch: 15 }, // NIT
-        { wch: 25 }, // Sucursal
         { wch: 10 }, // Nivel 1
         { wch: 10 }, // Nivel 2
         { wch: 10 }, // Nivel 3
-        { wch: 12 }  // Solicitudes
+        { wch: 12 }, // Solicitudes
+        { wch: 30 }, // Empresa
+        { wch: 15 }, // NIT
+        { wch: 25 }  // Sucursal
       ];
       ws['!cols'] = colWidths;
 
@@ -475,6 +479,20 @@ export default function AnalistasPage() {
     return badges[estado as keyof typeof badges] || <Badge variant="outline">{estado}</Badge>;
   };
 
+  // Función para determinar el color del badge según el valor de la prioridad
+  const getPrioridadBadgeClass = (valor: string) => {
+    switch (valor) {
+      case 'empresa':
+        return 'bg-blue-50 text-blue-700 border-blue-200';
+      case 'sucursal':
+        return 'bg-purple-50 text-purple-700 border-purple-200';
+      case 'solicitudes':
+        return 'bg-orange-50 text-orange-700 border-orange-200';
+      default:
+        return 'bg-gray-50 text-gray-700 border-gray-200';
+    }
+  };
+
 
 
   return (
@@ -553,15 +571,17 @@ export default function AnalistasPage() {
                   </SelectContent>
                 </Select>
 
-                <Select value={filterNivel} onValueChange={setFilterNivel}>
+                <Select value={filterSucursal} onValueChange={setFilterSucursal}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Filtrar por nivel" />
+                    <SelectValue placeholder="Filtrar por sucursal" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="todos">Todos los niveles</SelectItem>
-                    <SelectItem value="nivel1">Nivel 1</SelectItem>
-                    <SelectItem value="nivel2">Nivel 2</SelectItem>
-                    <SelectItem value="nivel3">Nivel 3</SelectItem>
+                    <SelectItem value="todas">Todas las sucursales</SelectItem>
+                    {sucursales.map(sucursal => (
+                      <SelectItem key={sucursal.id} value={sucursal.id.toString()}>
+                        {sucursal.nombre}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
 
@@ -581,7 +601,7 @@ export default function AnalistasPage() {
                    onClick={() => {
                      setSearchTerm("");
                      setFilterEmpresa("todas");
-                     setFilterNivel("todos");
+                     setFilterSucursal("todas");
                      setFilterEstado("activo");
                    }}
                    className="flex items-center gap-2"
@@ -604,62 +624,26 @@ export default function AnalistasPage() {
               ) : (
                 <Table className="min-w-[1200px] w-full text-xs">
                   <TableHeader>
-                    <TableRow className="bg-gray-50">
-                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-3 px-4">Acciones</TableHead>
-                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-3 px-4">Analista</TableHead>
-                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-3 px-4">Email</TableHead>
-                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-3 px-4">Empresa</TableHead>
-                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-3 px-4">NIT</TableHead>
-                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-3 px-4">Sucursal</TableHead>
-                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-3 px-4">Nivel 1</TableHead>
-                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-3 px-4">Nivel 2</TableHead>
-                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-3 px-4">Nivel 3</TableHead>
-                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-3 px-4">Solicitudes</TableHead>
+                    <TableRow className="bg-gray-100 border-b border-gray-200 h-12">
+                      <TableHead colSpan={5} className="text-center text-xs font-semibold text-gray-700 py-1 px-2 border-r-2 border-gray-400"></TableHead>
+                      <TableHead colSpan={3} className="text-center text-xs font-semibold text-gray-700 py-1 px-2">Prioridades Configuradas</TableHead>
+                    </TableRow>
+                    <TableRow className="bg-gray-100 border-b border-gray-200 h-12">
+                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-1 px-2 border-r border-gray-200 w-20">Acciones</TableHead>
+                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-1 px-2 border-r border-gray-200">Analista</TableHead>
+                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-1 px-2 border-r border-gray-200">Prioridad 1</TableHead>
+                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-1 px-2 border-r border-gray-200">Prioridad 2</TableHead>
+                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-1 px-2 border-r-2 border-gray-400">Prioridad 3</TableHead>
+                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-1 px-2 border-r border-gray-200">Solicitudes</TableHead>
+                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-1 px-2 border-r border-gray-200">Empresa</TableHead>
+                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-1 px-2">Sucursal</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredAnalistas.map((analista, index) => (
                       <TableRow key={`${analista.usuario_id}-${analista.empresa_id || 'sin-empresa'}-${index}`} className="hover:bg-gray-50 border-b border-gray-200">
-                        <TableCell className="py-3 px-4">
-                          <div className="flex gap-1">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleView(analista)}
-                                    aria-label="Ver analista"
-                                    className="h-8 w-8"
-                                  >
-                                    <Eye className="h-4 w-4 text-blue-600" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Ver detalles</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleEdit(analista)}
-                                    aria-label="Editar analista"
-                                    className="h-8 w-8"
-                                  >
-                                    <Edit3 className="h-4 w-4 text-green-600" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Editar</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-
+                        <TableCell className="py-1 px-2 border-r border-gray-200 w-20">
+                          <div className="flex gap-1 justify-center">
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -681,54 +665,61 @@ export default function AnalistasPage() {
                           </div>
                         </TableCell>
                         
-                        <TableCell className="py-3 px-4 font-medium text-gray-900">
+                        <TableCell className="py-1 px-2 font-medium text-gray-900 border-r border-gray-200">
                           {analista.usuario_nombre || 'No especificado'}
                         </TableCell>
                         
-                        <TableCell className="py-3 px-4 text-gray-700">
-                          {analista.usuario_email || 'No especificado'}
-                        </TableCell>
-                        
-                        <TableCell className="py-3 px-4 text-gray-700">
-                          {analista.empresa_nombre || 'Sin asignar'}
-                        </TableCell>
-                        
-                        <TableCell className="py-3 px-4 text-gray-700">
-                          {analista.empresa_nit || '-'}
-                        </TableCell>
-                        
-                        <TableCell className="py-3 px-4 text-gray-700">
-                          {analista.empresa_direccion || '-'}
-                        </TableCell>
-                        
-                        <TableCell className="py-3 px-4 text-center">
+                        <TableCell className="py-1 px-2 text-center border-r border-gray-200">
                           {analista.nivel_prioridad_1 ? (
-                            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">✓</Badge>
+                            <Badge variant="outline" className={getPrioridadBadgeClass(analista.nivel_prioridad_1)}>
+                              {analista.nivel_prioridad_1 === 'empresa' ? 'Empresa' : 
+                               analista.nivel_prioridad_1 === 'sucursal' ? 'Sucursal' : 
+                               analista.nivel_prioridad_1 === 'solicitudes' ? 'Solicitudes' : 
+                               analista.nivel_prioridad_1}
+                            </Badge>
                           ) : (
                             <span className="text-gray-400">-</span>
                           )}
                         </TableCell>
                         
-                        <TableCell className="py-3 px-4 text-center">
+                        <TableCell className="py-1 px-2 text-center border-r border-gray-200">
                           {analista.nivel_prioridad_2 ? (
-                            <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">✓</Badge>
+                            <Badge variant="outline" className={getPrioridadBadgeClass(analista.nivel_prioridad_2)}>
+                              {analista.nivel_prioridad_2 === 'empresa' ? 'Empresa' : 
+                               analista.nivel_prioridad_2 === 'sucursal' ? 'Sucursal' : 
+                               analista.nivel_prioridad_2 === 'solicitudes' ? 'Solicitudes' : 
+                               analista.nivel_prioridad_2}
+                            </Badge>
                           ) : (
                             <span className="text-gray-400">-</span>
                           )}
                         </TableCell>
                         
-                        <TableCell className="py-3 px-4 text-center">
+                        <TableCell className="py-1 px-2 text-center border-r-2 border-gray-400">
                           {analista.nivel_prioridad_3 ? (
-                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">✓</Badge>
+                            <Badge variant="outline" className={getPrioridadBadgeClass(analista.nivel_prioridad_3)}>
+                              {analista.nivel_prioridad_3 === 'empresa' ? 'Empresa' : 
+                               analista.nivel_prioridad_3 === 'sucursal' ? 'Sucursal' : 
+                               analista.nivel_prioridad_3 === 'solicitudes' ? 'Solicitudes' : 
+                               analista.nivel_prioridad_3}
+                            </Badge>
                           ) : (
                             <span className="text-gray-400">-</span>
                           )}
                         </TableCell>
                         
-                        <TableCell className="py-3 px-4 text-center font-medium">
+                        <TableCell className="py-1 px-2 text-center font-medium border-r border-gray-200">
                           <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
                             {analista.cantidad_solicitudes || 0}
                           </Badge>
+                        </TableCell>
+                        
+                        <TableCell className="py-1 px-2 text-gray-700 border-r border-gray-200">
+                          {analista.empresa_nombre || 'Sin asignar'}
+                        </TableCell>
+                        
+                        <TableCell className="py-1 px-2 text-gray-700">
+                          {analista.sucursal_nombre || analista.empresa_direccion || '-'}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -740,7 +731,7 @@ export default function AnalistasPage() {
                 <div className="text-center py-8 text-gray-500">
                   <Users className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                                                        <p className="font-medium">
-                    {searchTerm || filterEmpresa !== 'todas' || filterNivel !== 'todos' || filterEstado !== 'activo'
+                    {searchTerm || filterEmpresa !== 'todas' || filterSucursal !== 'todas' || filterEstado !== 'activo'
                       ? "No se encontraron analistas con los filtros aplicados"
                       : "No hay analistas registrados"
                     }

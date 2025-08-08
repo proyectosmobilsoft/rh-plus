@@ -66,8 +66,20 @@ const EditarUsuarioPage = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedPerfiles, setSelectedPerfiles] = useState<number[]>([]);
+  const [fieldErrors, setFieldErrors] = useState<{[key: string]: string}>({});
   const params = useParams();
   const userId = parseInt(params.id || "0");
+
+  // Función para limpiar errores de campos cuando el usuario comience a escribir
+  const handleFieldChange = (fieldName: string) => {
+    if (fieldErrors[fieldName]) {
+      setFieldErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[fieldName];
+        return newErrors;
+      });
+    }
+  };
 
   // Query para obtener el usuario
   const { data: usuario, isLoading: loadingUsuario } = useQuery<Usuario>({
@@ -200,6 +212,8 @@ const EditarUsuarioPage = () => {
       );
     },
     onSuccess: () => {
+      // Limpiar errores de campos
+      setFieldErrors({});
       toast({
         title: "✅ Usuario actualizado exitosamente",
         description: "Los cambios han sido guardados correctamente.",
@@ -210,11 +224,41 @@ const EditarUsuarioPage = () => {
       setLocation("/seguridad/usuarios");
     },
     onError: (error: any) => {
-      toast({
-        title: "❌ Error al actualizar usuario",
-        description: error.message || "No se pudieron guardar los cambios. Verifica los datos e intenta nuevamente.",
-        variant: "destructive",
-      });
+      console.error("Error completo:", error);
+      
+      // Extraer errores específicos de campos del mensaje de error
+      const errorMessage = error.message || "";
+      const newFieldErrors: {[key: string]: string} = {};
+      
+      // Detectar errores específicos por campo
+      if (errorMessage.toLowerCase().includes("username") && errorMessage.toLowerCase().includes("ya está en uso")) {
+        newFieldErrors.username = "Este nombre de usuario ya está en uso";
+      }
+      
+      if (errorMessage.toLowerCase().includes("email") && errorMessage.toLowerCase().includes("ya está en uso")) {
+        newFieldErrors.email = "Este correo electrónico ya está en uso";
+      }
+      
+      if (errorMessage.toLowerCase().includes("identificacion") || errorMessage.toLowerCase().includes("identificación")) {
+        newFieldErrors.identificacion = "Esta identificación ya está registrada";
+      }
+      
+      // Si hay errores específicos de campos, marcarlos
+      if (Object.keys(newFieldErrors).length > 0) {
+        setFieldErrors(newFieldErrors);
+        toast({
+          title: "❌ Error de validación",
+          description: "Por favor, corrige los campos marcados y vuelve a intentar.",
+          variant: "destructive",
+        });
+      } else {
+        // Error general
+        toast({
+          title: "❌ Error al actualizar usuario",
+          description: errorMessage || "No se pudieron guardar los cambios. Verifica los datos e intenta nuevamente.",
+          variant: "destructive",
+        });
+      }
     },
   });
 
@@ -306,11 +350,15 @@ const EditarUsuarioPage = () => {
                     id="identificacion"
                     placeholder="00000000"
                     {...register("identificacion")}
-                    className={errors.identificacion ? "border-red-500" : ""}
+                    onChange={(e) => {
+                      register("identificacion").onChange(e);
+                      handleFieldChange("identificacion");
+                    }}
+                    className={(errors.identificacion || fieldErrors.identificacion) ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
                   />
-                  {errors.identificacion && (
+                  {(errors.identificacion || fieldErrors.identificacion) && (
                     <p className="text-sm text-red-500 mt-1">
-                      {errors.identificacion.message}
+                      {fieldErrors.identificacion || errors.identificacion?.message}
                     </p>
                   )}
                 </div>
@@ -321,7 +369,7 @@ const EditarUsuarioPage = () => {
                     id="primerNombre"
                     placeholder="Primer nombre"
                     {...register("primerNombre")}
-                    className={errors.primerNombre ? "border-red-500" : ""}
+                    className={errors.primerNombre ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
                   />
                   {errors.primerNombre && (
                     <p className="text-sm text-red-500 mt-1">
@@ -347,7 +395,7 @@ const EditarUsuarioPage = () => {
                     id="primerApellido"
                     placeholder="Primer apellido"
                     {...register("primerApellido")}
-                    className={errors.primerApellido ? "border-red-500" : ""}
+                    className={errors.primerApellido ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
                   />
                   {errors.primerApellido && (
                     <p className="text-sm text-red-500 mt-1">
@@ -384,11 +432,15 @@ const EditarUsuarioPage = () => {
                     type="email"
                     placeholder="Correo Electrónico"
                     {...register("email")}
-                    className={errors.email ? "border-red-500" : ""}
+                    onChange={(e) => {
+                      register("email").onChange(e);
+                      handleFieldChange("email");
+                    }}
+                    className={(errors.email || fieldErrors.email) ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
                   />
-                  {errors.email && (
+                  {(errors.email || fieldErrors.email) && (
                     <p className="text-sm text-red-500 mt-1">
-                      {errors.email.message}
+                      {fieldErrors.email || errors.email?.message}
                     </p>
                   )}
                 </div>
@@ -399,11 +451,15 @@ const EditarUsuarioPage = () => {
                     id="username"
                     placeholder="Usuario"
                     {...register("username")}
-                    className={errors.username ? "border-red-500" : ""}
+                    onChange={(e) => {
+                      register("username").onChange(e);
+                      handleFieldChange("username");
+                    }}
+                    className={(errors.username || fieldErrors.username) ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
                   />
-                  {errors.username && (
+                  {(errors.username || fieldErrors.username) && (
                     <p className="text-sm text-red-500 mt-1">
-                      {errors.username.message}
+                      {fieldErrors.username || errors.username?.message}
                     </p>
                   )}
                 </div>
@@ -417,7 +473,7 @@ const EditarUsuarioPage = () => {
                   type="password"
                   placeholder="Dejar vacío para mantener la actual"
                   {...register("password")}
-                  className={errors.password ? "border-red-500" : ""}
+                  className={errors.password ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
                 />
                 {errors.password && (
                   <p className="text-sm text-red-500 mt-1">

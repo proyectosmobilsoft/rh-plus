@@ -21,6 +21,8 @@ export interface AnalistaPrioridad {
   empresa_nombre?: string;
   empresa_nit?: string;
   empresa_direccion?: string;
+  sucursal_id?: number;
+  sucursal_nombre?: string;
   nivel_prioridad_1: string | null;
   nivel_prioridad_2: string | null;
   nivel_prioridad_3: string | null;
@@ -209,6 +211,10 @@ export const asociacionPrioridadService = {
               razon_social,
               nit,
               direccion
+            ),
+            gen_sucursales(
+              id,
+              nombre
             )
           `)
           .eq('usuario_id', analista.id);
@@ -229,6 +235,8 @@ export const asociacionPrioridadService = {
               empresa_nombre: (prioridad.empresas as any)?.razon_social || '',
               empresa_nit: (prioridad.empresas as any)?.nit || '',
               empresa_direccion: (prioridad.empresas as any)?.direccion || '',
+              sucursal_id: prioridad.sucursal_id,
+              sucursal_nombre: (prioridad.gen_sucursales as any)?.nombre || '',
               nivel_prioridad_1: prioridad.nivel_prioridad_1,
               nivel_prioridad_2: prioridad.nivel_prioridad_2,
               nivel_prioridad_3: prioridad.nivel_prioridad_3,
@@ -246,6 +254,8 @@ export const asociacionPrioridadService = {
             empresa_nombre: '',
             empresa_nit: '',
             empresa_direccion: '',
+            sucursal_id: undefined,
+            sucursal_nombre: '',
             nivel_prioridad_1: null,
             nivel_prioridad_2: null,
             nivel_prioridad_3: null,
@@ -258,7 +268,16 @@ export const asociacionPrioridadService = {
       console.log('=== FIN getAnalistasWithPriorities ===');
       console.log('Total de analistas retornados:', analistasConPrioridades.length);
       console.log('Analistas con prioridades:', analistasConPrioridades);
-      return analistasConPrioridades;
+      
+      // Ordenar por cantidad de solicitudes en orden descendente
+      const analistasOrdenados = analistasConPrioridades.sort((a, b) => {
+        const solicitudesA = a.cantidad_solicitudes || 0;
+        const solicitudesB = b.cantidad_solicitudes || 0;
+        return solicitudesB - solicitudesA; // Orden descendente
+      });
+      
+      console.log('Analistas ordenados por solicitudes (descendente):', analistasOrdenados);
+      return analistasOrdenados;
     } catch (error) {
       console.error('Error en getAnalistasWithPriorities:', error);
       return [];
@@ -376,32 +395,4 @@ export const asociacionPrioridadService = {
     }
   },
 
-  // Obtener cantidad de solicitudes por analista y empresa
-  getSolicitudesPorAnalista: async (usuarioId?: number, empresaId?: number): Promise<number> => {
-    try {
-      let query = supabase
-        .from('hum_solicitudes')
-        .select('id', { count: 'exact', head: true });
-
-      if (usuarioId) {
-        query = query.eq('analista_id', usuarioId);
-      }
-
-      if (empresaId) {
-        query = query.eq('empresa_id', empresaId);
-      }
-
-      const { count, error } = await query;
-
-      if (error) {
-        console.error('Error al contar solicitudes:', error);
-        return 0;
-      }
-
-      return count || 0;
-    } catch (error) {
-      console.error('Error en getSolicitudesPorAnalista:', error);
-      return 0;
-    }
-  }
 };

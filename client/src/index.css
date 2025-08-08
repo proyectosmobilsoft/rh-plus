@@ -605,3 +605,8 @@ form button:hover {
 main *, .border-input {
   border-color: #c1c1c1;
 }
+
+/* Clase personalizada para altura de header */
+.h-12 {
+  height: 2rem;
+}

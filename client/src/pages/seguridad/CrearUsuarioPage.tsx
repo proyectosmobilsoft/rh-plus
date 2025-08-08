@@ -69,6 +69,20 @@ const CrearUsuarioPage = () => {
   const { register, handleSubmit, formState: { errors }, watch, setValue } = form;
   const passwordValue = watch("password");
 
+  // Estado para manejar errores específicos de campos
+  const [fieldErrors, setFieldErrors] = useState<{[key: string]: string}>({});
+
+  // Función para limpiar errores de campos cuando el usuario comience a escribir
+  const handleFieldChange = (fieldName: string) => {
+    if (fieldErrors[fieldName]) {
+      setFieldErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[fieldName];
+        return newErrors;
+      });
+    }
+  };
+
   // Mutation para crear usuario
   const createUsuarioMutation = useMutation({
     mutationFn: async (data: FormData) => {
@@ -81,6 +95,8 @@ const CrearUsuarioPage = () => {
       });
     },
     onSuccess: () => {
+      // Limpiar errores de campos
+      setFieldErrors({});
       toast({
         title: "✅ Usuario creado exitosamente",
         description: "El nuevo usuario ha sido registrado en el sistema.",
@@ -90,11 +106,41 @@ const CrearUsuarioPage = () => {
       setLocation("/seguridad/usuarios");
     },
     onError: (error: any) => {
-      toast({
-        title: "❌ Error al crear usuario",
-        description: error.message || "No se pudo crear el usuario. Verifica los datos e intenta nuevamente.",
-        variant: "destructive",
-      });
+      console.error("Error completo:", error);
+      
+      // Extraer errores específicos de campos del mensaje de error
+      const errorMessage = error.message || "";
+      const newFieldErrors: {[key: string]: string} = {};
+      
+      // Detectar errores específicos por campo
+      if (errorMessage.toLowerCase().includes("username") && errorMessage.toLowerCase().includes("ya está en uso")) {
+        newFieldErrors.username = "Este nombre de usuario ya está en uso";
+      }
+      
+      if (errorMessage.toLowerCase().includes("email") && errorMessage.toLowerCase().includes("ya está en uso")) {
+        newFieldErrors.email = "Este correo electrónico ya está en uso";
+      }
+      
+      if (errorMessage.toLowerCase().includes("identificacion") || errorMessage.toLowerCase().includes("identificación")) {
+        newFieldErrors.identificacion = "Esta identificación ya está registrada";
+      }
+      
+      // Si hay errores específicos de campos, marcarlos
+      if (Object.keys(newFieldErrors).length > 0) {
+        setFieldErrors(newFieldErrors);
+        toast({
+          title: "❌ Error de validación",
+          description: "Por favor, corrige los campos marcados y vuelve a intentar.",
+          variant: "destructive",
+        });
+      } else {
+        // Error general
+        toast({
+          title: "❌ Error al crear usuario",
+          description: errorMessage || "No se pudo crear el usuario. Verifica los datos e intenta nuevamente.",
+          variant: "destructive",
+        });
+      }
     },
   });
 
@@ -168,11 +214,15 @@ const CrearUsuarioPage = () => {
                     id="identificacion"
                     placeholder="00000000"
                     {...register("identificacion")}
-                    className={errors.identificacion ? "border-red-500" : ""}
+                    onChange={(e) => {
+                      register("identificacion").onChange(e);
+                      handleFieldChange("identificacion");
+                    }}
+                    className={(errors.identificacion || fieldErrors.identificacion) ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
                   />
-                  {errors.identificacion && (
+                  {(errors.identificacion || fieldErrors.identificacion) && (
                     <p className="text-sm text-red-500 mt-1">
-                      {errors.identificacion.message}
+                      {fieldErrors.identificacion || errors.identificacion?.message}
                     </p>
                   )}
                 </div>
@@ -182,7 +232,7 @@ const CrearUsuarioPage = () => {
                     id="primerNombre"
                     placeholder="Primer nombre"
                     {...register("primerNombre")}
-                    className={errors.primerNombre ? "border-red-500" : ""}
+                    className={errors.primerNombre ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
                   />
                   {errors.primerNombre && (
                     <p className="text-sm text-red-500 mt-1">
@@ -206,7 +256,7 @@ const CrearUsuarioPage = () => {
                     id="primerApellido"
                     placeholder="Primer apellido"
                     {...register("primerApellido")}
-                    className={errors.primerApellido ? "border-red-500" : ""}
+                    className={errors.primerApellido ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
                   />
                   {errors.primerApellido && (
                     <p className="text-sm text-red-500 mt-1">
@@ -243,11 +293,15 @@ const CrearUsuarioPage = () => {
                     type="email"
                     placeholder="Correo Electrónico"
                     {...register("email")}
-                    className={errors.email ? "border-red-500" : ""}
+                    onChange={(e) => {
+                      register("email").onChange(e);
+                      handleFieldChange("email");
+                    }}
+                    className={(errors.email || fieldErrors.email) ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
                   />
-                  {errors.email && (
+                  {(errors.email || fieldErrors.email) && (
                     <p className="text-sm text-red-500 mt-1">
-                      {errors.email.message}
+                      {fieldErrors.email || errors.email?.message}
                     </p>
                   )}
                 </div>
@@ -258,11 +312,15 @@ const CrearUsuarioPage = () => {
                     id="username"
                     placeholder="Usuario"
                     {...register("username")}
-                    className={errors.username ? "border-red-500" : ""}
+                    onChange={(e) => {
+                      register("username").onChange(e);
+                      handleFieldChange("username");
+                    }}
+                    className={(errors.username || fieldErrors.username) ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
                   />
-                  {errors.username && (
+                  {(errors.username || fieldErrors.username) && (
                     <p className="text-sm text-red-500 mt-1">
-                      {errors.username.message}
+                      {fieldErrors.username || errors.username?.message}
                     </p>
                   )}
                 </div>
@@ -276,7 +334,7 @@ const CrearUsuarioPage = () => {
                   type="password"
                   placeholder="••••••••••••••"
                   {...register("password")}
-                  className={errors.password ? "border-red-500" : ""}
+                  className={errors.password ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
                 />
                 {errors.password && (
                   <p className="text-sm text-red-500 mt-1">
