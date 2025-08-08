@@ -350,8 +350,8 @@ const CertificadoForm = ({ orden, onSubmit, onCancel }: CertificadoFormProps) =>
           
           {/* Tab de Certificado Médico */}
           <TabsContent value="certificado" className="space-y-4 p-4 border rounded-md">
-            <div className="bg-blue-50 p-4 rounded-md border border-blue-200 mb-4">
-              <h3 className="text-blue-700 font-medium mb-2">PARA DAR EL CONCEPTO DE APTITUD, SE TUVIERON EN CUENTA LOS SIGUIENTES PARACLÍNICOS:</h3>
+            <div className="bg-cyan-50 p-4 rounded-md border border-cyan-200 mb-4">
+              <h3 className="text-cyan-700 font-medium mb-2">PARA DAR EL CONCEPTO DE APTITUD, SE TUVIERON EN CUENTA LOS SIGUIENTES PARACLÍNICOS:</h3>
               <div className="grid grid-cols-1 gap-4">
                 <FormField
                   control={form.control}
@@ -422,8 +422,8 @@ const CertificadoForm = ({ orden, onSubmit, onCancel }: CertificadoFormProps) =>
             </div>
             
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-blue-50 p-4 rounded-md border border-blue-200 h-full">
-                <h3 className="text-blue-700 font-medium mb-2">USO DE ELEMENTOS DE PROTECCIÓN PERSONAL RECOMENDADO PARA LA LABOR ASIGNADA:</h3>
+              <div className="bg-cyan-50 p-4 rounded-md border border-cyan-200 h-full">
+                <h3 className="text-cyan-700 font-medium mb-2">USO DE ELEMENTOS DE PROTECCIÓN PERSONAL RECOMENDADO PARA LA LABOR ASIGNADA:</h3>
                 <FormField
                   control={form.control}
                   name="elementosProteccion"
@@ -442,8 +442,8 @@ const CertificadoForm = ({ orden, onSubmit, onCancel }: CertificadoFormProps) =>
                 />
               </div>
               
-              <div className="bg-blue-50 p-4 rounded-md border border-blue-200 h-full">
-                <h3 className="text-blue-700 font-medium mb-2">CONCEPTO MÉDICO:</h3>
+              <div className="bg-cyan-50 p-4 rounded-md border border-cyan-200 h-full">
+                <h3 className="text-cyan-700 font-medium mb-2">CONCEPTO MÉDICO:</h3>
                 <FormField
                   control={form.control}
                   name="conceptoMedico"
@@ -464,8 +464,8 @@ const CertificadoForm = ({ orden, onSubmit, onCancel }: CertificadoFormProps) =>
               </div>
             </div>
             
-            <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
-              <h3 className="text-blue-700 font-medium mb-2">Recomendaciones Generales:</h3>
+            <div className="bg-cyan-50 p-4 rounded-md border border-cyan-200">
+              <h3 className="text-cyan-700 font-medium mb-2">Recomendaciones Generales:</h3>
               <ol className="list-decimal pl-5 space-y-2 text-sm">
                 <li>Cumplir con las normas de protección, seguridad industrial y seguridad vial encaminadas a prevenir la accidentalidad.</li>
                 <li>
@@ -492,8 +492,8 @@ const CertificadoForm = ({ orden, onSubmit, onCancel }: CertificadoFormProps) =>
               </ol>
             </div>
             
-            <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
-              <h3 className="text-blue-700 font-medium mb-2">Vigilancia Epidemiológica:</h3>
+            <div className="bg-cyan-50 p-4 rounded-md border border-cyan-200">
+              <h3 className="text-cyan-700 font-medium mb-2">Vigilancia Epidemiológica:</h3>
               
               <div className="bg-gray-100 text-center p-2 rounded mb-4">
                 <p className="font-medium">INCLUIR EN SISTEMAS DE VIGILANCIA EPIDEMIOLÓGICA</p>

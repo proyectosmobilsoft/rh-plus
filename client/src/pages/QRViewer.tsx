@@ -158,7 +158,7 @@ export default function QRViewer() {
               QR Vencido
             </Badge>
           ) : (
-            <Badge className="bg-green-100 text-green-700 border-green-200 px-4 py-2">
+            <Badge className="bg-brand-lime/10 text-brand-lime border-brand-lime/20 px-4 py-2">
               <CheckCircle className="w-4 h-4 mr-2" />
               QR Válido
             </Badge>

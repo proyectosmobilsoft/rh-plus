@@ -98,7 +98,7 @@ class EmailService {
           .logo {
             font-size: 24px;
             font-weight: bold;
-            color: #2563eb;
+            color: #1fb5ca;
             margin-bottom: 10px;
           }
           .code-container {
@@ -112,7 +112,7 @@ class EmailService {
           .code {
             font-size: 32px;
             font-weight: bold;
-            color: #2563eb;
+            color: #1fb5ca;
             letter-spacing: 4px;
             font-family: 'Courier New', monospace;
           }
@@ -125,12 +125,12 @@ class EmailService {
             color: #92400e;
           }
           .info-box {
-            background-color: #dbeafe;
-            border: 1px solid #3b82f6;
+            background-color: rgba(31, 181, 202, 0.1);
+            border: 1px solid #1fb5ca;
             border-radius: 6px;
             padding: 15px;
             margin: 20px 0;
-            color: #1e40af;
+            color: #1fb5ca;
           }
           .footer {
             text-align: center;
@@ -142,7 +142,7 @@ class EmailService {
           }
           .button {
             display: inline-block;
-            background-color: #2563eb;
+            background-color: #1fb5ca;
             color: white;
             padding: 12px 24px;
             text-decoration: none;

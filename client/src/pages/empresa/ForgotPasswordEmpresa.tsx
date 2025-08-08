@@ -44,13 +44,13 @@ export default function ForgotPasswordEmpresa() {
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-cyan-50 to-cyan-100 p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
-              <CheckCircle2 className="h-12 w-12 text-green-600" />
+              <CheckCircle2 className="h-12 w-12 text-brand-lime" />
             </div>
-            <CardTitle className="text-2xl text-green-800">
+            <CardTitle className="text-2xl text-brand-lime">
               Enlace enviado
             </CardTitle>
           </CardHeader>
@@ -77,13 +77,13 @@ export default function ForgotPasswordEmpresa() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-cyan-50 to-cyan-100 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <Mail className="h-12 w-12 text-blue-600" />
+            <Mail className="h-12 w-12 text-cyan-600" />
           </div>
-          <CardTitle className="text-2xl text-blue-800">
+          <CardTitle className="text-2xl text-cyan-800">
             Recuperar contraseña
           </CardTitle>
           <p className="text-gray-600 mt-2">
@@ -117,7 +117,7 @@ export default function ForgotPasswordEmpresa() {
 
             <Button 
               type="submit" 
-              className="w-full bg-blue-600 hover:bg-blue-700" 
+              className="w-full bg-cyan-600 hover:bg-cyan-700" 
               disabled={isSubmitting}
             >
               {isSubmitting ? "Enviando..." : "Enviar enlace de recuperación"}
@@ -127,7 +127,7 @@ export default function ForgotPasswordEmpresa() {
               <button 
                 type="button"
                 onClick={() => navigate('/empresa/login')} 
-                className="text-sm text-blue-600 hover:text-blue-800"
+                className="text-sm text-cyan-600 hover:text-cyan-800"
               >
                 ← Volver al inicio de sesión
               </button>

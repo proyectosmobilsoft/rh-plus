@@ -125,7 +125,7 @@ const SolicitudForm: React.FC<SolicitudFormProps> = ({
         {/* Información del Trabajador */}
         <div className="p-4 border rounded-lg bg-slate-50 mb-4">
           <h3 className="text-base font-bold text-gray-700 mb-2 flex items-center gap-2">
-            <Users className="w-5 h-5 text-blue-600" />
+            <Users className="w-5 h-5 text-cyan-600" />
             Datos del Trabajador
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -342,9 +342,9 @@ const SolicitudForm: React.FC<SolicitudFormProps> = ({
         </div>
 
         {/* Estado y Prioridad */}
-        <div className="p-4 border rounded-lg bg-blue-50 mb-4">
+        <div className="p-4 border rounded-lg bg-cyan-50 mb-4">
           <h3 className="text-base font-bold text-gray-700 mb-2 flex items-center gap-2">
-            <FileText className="w-5 h-5 text-blue-600" />
+            <FileText className="w-5 h-5 text-cyan-600" />
             Estado y Prioridad
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -552,7 +552,7 @@ Equipo de Recursos Humanos`);
 
   const getEstadoBadge = (activo?: boolean) => {
     if (activo) {
-      return <Badge className="bg-green-100 text-green-800">Activo</Badge>;
+      return <Badge className="bg-brand-lime/10 text-brand-lime">Activo</Badge>;
     } else {
       return <Badge className="bg-red-100 text-red-800">Inactivo</Badge>;
     }
@@ -567,7 +567,7 @@ Equipo de Recursos Humanos`);
       return <Badge className="bg-red-100 text-red-700 border-red-200">Vencido</Badge>;
     }
     
-    return <Badge className="bg-green-100 text-green-700 border-green-200">Generado</Badge>;
+    return <Badge className="bg-brand-lime/10 text-brand-lime">Generado</Badge>;
   };
 
   // Filtrar candidatos
@@ -828,7 +828,7 @@ Equipo de Recursos Humanos`);
                                       className="h-8 w-8"
                                       disabled={generateQRMutation.isPending || regenerateQRMutation.isPending}
                                     >
-                                      <QrCode className="h-4 w-4 text-blue-600 hover:text-blue-800 transition-colors" />
+                                      <QrCode className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
                                     </Button>
                                   </TooltipTrigger>
                                   <TooltipContent>
@@ -849,7 +849,7 @@ Equipo de Recursos Humanos`);
                                           aria-label="Descargar QR"
                                           className="h-8 w-8"
                                         >
-                                          <Download className="h-4 w-4 text-green-600 hover:text-green-800 transition-colors" />
+                                          <Download className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
                                         </Button>
                                       </TooltipTrigger>
                                       <TooltipContent>
@@ -949,7 +949,7 @@ Equipo de Recursos Humanos`);
                                           className="h-8 w-8"
                                           disabled={activateCandidatoMutation.isPending}
                                         >
-                                          <Power className="h-4 w-4 text-green-600 hover:text-green-800 transition-colors" />
+                                          <Power className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
                                         </Button>
                                       </TooltipTrigger>
                                       <TooltipContent>
@@ -1171,7 +1171,7 @@ Equipo de Recursos Humanos`);
                   <Checkbox
                     checked={selectAll}
                     onCheckedChange={toggleSelectAll}
-                    className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                    className="data-[state=checked]:bg-cyan-600 data-[state=checked]:border-cyan-600"
                   />
                   <label className="text-sm font-medium">
                     Seleccionar todos ({candidatosConQR.length})
@@ -1187,7 +1187,7 @@ Equipo de Recursos Humanos`);
                         <Checkbox
                           checked={selectedCandidatos.includes(candidato.id!)}
                           onCheckedChange={() => toggleCandidato(candidato.id!)}
-                          className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                          className="data-[state=checked]:bg-cyan-600 data-[state=checked]:border-cyan-600"
                         />
                         <div className="flex-1">
                           <p className="font-medium text-sm">{nombreCompleto}</p>
@@ -1280,7 +1280,7 @@ Equipo de Recursos Humanos`);
                   <Checkbox
                     checked={selectAll}
                     onCheckedChange={toggleSelectAll}
-                    className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                    className="data-[state=checked]:bg-cyan-600 data-[state=checked]:border-cyan-600"
                   />
                   <label className="text-sm font-medium">
                     Seleccionar todos ({candidatosConQR.length})
@@ -1296,7 +1296,7 @@ Equipo de Recursos Humanos`);
                         <Checkbox
                           checked={selectedCandidatos.includes(candidato.id!)}
                           onCheckedChange={() => toggleCandidato(candidato.id!)}
-                          className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                          className="data-[state=checked]:bg-cyan-600 data-[state=checked]:border-cyan-600"
                         />
                         <div className="flex-1">
                           <p className="font-medium text-sm">{nombreCompleto}</p>

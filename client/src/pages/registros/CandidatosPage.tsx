@@ -641,7 +641,7 @@ const CandidatosPage = () => {
                                     aria-label="Editar candidato"
                                     className="h-8 w-8"
                                   >
-                                    <Edit className="h-4 w-4 text-blue-600 hover:text-blue-800 transition-colors" />
+                                    <Edit className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
@@ -733,7 +733,7 @@ const CandidatosPage = () => {
                                             aria-label="Activar candidato"
                                             className="h-8 w-8"
                                           >
-                                            <CheckCircle className="h-4 w-4 text-green-600 hover:text-green-800 transition-colors" />
+                                            <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
                                           </Button>
                                         </AlertDialogTrigger>
                                       </TooltipTrigger>
@@ -770,7 +770,7 @@ const CandidatosPage = () => {
                         <TableCell className="px-4 py-3 text-sm text-gray-500">{getEmpresaNombre(candidato.empresa_id)}</TableCell>
                         <TableCell className="px-4 py-3 text-sm text-gray-500">{getCiudadNombre(candidato.ciudad_id)}</TableCell>
                         <TableCell className="px-4 py-3">
-                          <Badge variant={candidato.activo ? "default" : "secondary"} className={candidato.activo ? "bg-green-100 text-green-700 border-green-200" : "bg-gray-200 text-gray-600 border-gray-300"}>
+                          <Badge variant={candidato.activo ? "default" : "secondary"} className={candidato.activo ? "bg-brand-lime/10 text-brand-lime border-brand-lime/20" : "bg-gray-200 text-gray-600 border-gray-300"}>
                             {candidato.activo ? "Activo" : "Inactivo"}
                           </Badge>
                         </TableCell>
@@ -801,14 +801,14 @@ const CandidatosPage = () => {
               </CardHeader>
                              <CardContent>
                  {isSubmitting && (
-                   <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                   <div className="mb-4 p-4 bg-cyan-50 border border-cyan-200 rounded-lg">
                      <div className="flex items-center space-x-3">
-                       <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                       <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-cyan-600"></div>
                        <div>
-                         <p className="text-sm font-medium text-blue-800">
+                         <p className="text-sm font-medium text-cyan-800">
                            {editingId ? 'Actualizando candidato...' : 'Creando candidato...'}
                          </p>
-                         <p className="text-xs text-blue-600">Por favor espere, esto puede tomar unos segundos</p>
+                         <p className="text-xs text-cyan-600">Por favor espere, esto puede tomar unos segundos</p>
                        </div>
                      </div>
                    </div>
@@ -957,7 +957,7 @@ const CandidatosPage = () => {
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-blue-600" />
+                              <FileText className="h-5 w-5 text-cyan-600" />
               Documentos del Candidato
             </DialogTitle>
           </DialogHeader>
@@ -1018,7 +1018,7 @@ const CandidatosPage = () => {
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-2">
-                                <FileText className="h-4 w-4 text-blue-600" />
+                                <FileText className="h-4 w-4 text-cyan-600" />
                                 <h4 className="font-medium text-sm">
                                   {getTipoDocumentoLabel(documento.tipo)}
                                 </h4>
@@ -1035,7 +1035,7 @@ const CandidatosPage = () => {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => descargarDocumento(documento)}
-                                className="text-blue-600 hover:text-blue-700"
+                                className="text-cyan-600 hover:text-cyan-700"
                               >
                                 <Download className="h-4 w-4" />
                               </Button>
@@ -1043,7 +1043,7 @@ const CandidatosPage = () => {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => window.open(documento.url_archivo, '_blank')}
-                                className="text-green-600 hover:text-green-700"
+                                className="text-brand-lime hover:text-brand-lime/80"
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>

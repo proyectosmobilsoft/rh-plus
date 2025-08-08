@@ -69,7 +69,7 @@ const PasswordStrengthIndicator = ({ password }: PasswordStrengthIndicatorProps)
       case 3:
         return "bg-yellow-500";
       case 4:
-        return "bg-blue-500";
+        return "bg-cyan-500";
       case 5:
         return "bg-green-500";
       default:

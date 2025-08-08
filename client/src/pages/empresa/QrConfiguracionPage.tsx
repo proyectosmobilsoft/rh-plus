@@ -253,14 +253,14 @@ export default function QrConfiguracionPage() {
 
             <Separator />
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4">
               <div className="flex items-start space-x-2">
-                <AlertTriangle className="w-5 h-5 text-blue-600 mt-0.5" />
+                <AlertTriangle className="w-5 h-5 text-cyan-600 mt-0.5" />
                 <div className="space-y-1">
-                  <h4 className="text-sm font-medium text-blue-900">
+                  <h4 className="text-sm font-medium text-cyan-900">
                     Información importante
                   </h4>
-                  <p className="text-sm text-blue-800">
+                  <p className="text-sm text-cyan-800">
                     {getPeriodoDescripcion(config.periodoRenovacion)}. 
                     {config.renovacionAutomatica && " La renovación se realizará automáticamente."}
                     {config.notificacionVencimiento && ` Recibirás notificaciones ${config.diasNotificacionPrevia} días antes del vencimiento.`}
@@ -269,14 +269,14 @@ export default function QrConfiguracionPage() {
               </div>
             </div>
 
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="bg-brand-lime/10 border border-brand-lime/20 rounded-lg p-4">
               <div className="flex items-start space-x-2">
-                <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
+                <CheckCircle className="w-5 h-5 text-brand-lime mt-0.5" />
                 <div className="space-y-1">
-                  <h4 className="text-sm font-medium text-green-900">
+                  <h4 className="text-sm font-medium text-brand-lime">
                     Estado actual
                   </h4>
-                  <p className="text-sm text-green-800">
+                  <p className="text-sm text-brand-lime">
                     Configuración aplicada a todos los códigos QR nuevos y existentes.
                   </p>
                 </div>

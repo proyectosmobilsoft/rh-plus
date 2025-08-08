@@ -104,7 +104,7 @@ export default function CrearCandidatoSimple() {
                 <span>Volver al Dashboard</span>
               </Button>
               <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-brand-lime rounded-lg flex items-center justify-center">
                   <UserPlus className="w-5 h-5 text-white" />
                 </div>
                 <div>
@@ -124,7 +124,7 @@ export default function CrearCandidatoSimple() {
       <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Card>
           <CardHeader>
-            <CardTitle className="text-green-600">Registro de Candidato</CardTitle>
+            <CardTitle className="text-brand-lime">Registro de Candidato</CardTitle>
             <CardDescription>
               Complete los datos básicos del candidato. Se generará automáticamente una cuenta con acceso al portal.
             </CardDescription>
@@ -134,7 +134,7 @@ export default function CrearCandidatoSimple() {
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 {/* Información Personal */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-medium text-gray-900 border-b border-green-200 pb-2">
+                  <h3 className="text-lg font-medium text-gray-900 border-b border-brand-lime/20 pb-2">
                     Datos Personales
                   </h3>
                   
@@ -234,9 +234,9 @@ export default function CrearCandidatoSimple() {
                 </div>
 
                 {/* Información de acceso */}
-                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                  <h4 className="font-medium text-green-800 mb-2">Información de Acceso</h4>
-                  <div className="text-sm text-green-700 space-y-1">
+                <div className="bg-brand-lime/10 p-4 rounded-lg border border-brand-lime/20">
+                  <h4 className="font-medium text-brand-lime mb-2">Información de Acceso</h4>
+                  <div className="text-sm text-brand-lime space-y-1">
                     <p>• Se creará automáticamente una cuenta para el candidato</p>
                     <p>• Usuario: El email proporcionado</p>
                     <p>• Contraseña inicial: El número de documento</p>
@@ -253,7 +253,7 @@ export default function CrearCandidatoSimple() {
                   >
                     Cancelar
                   </Button>
-                  <Button type="submit" disabled={isSaving} className="bg-green-600 hover:bg-green-700">
+                  <Button type="submit" disabled={isSaving} className="bg-brand-lime hover:bg-brand-lime/90">
                     {isSaving ? (
                       'Creando...'
                     ) : (

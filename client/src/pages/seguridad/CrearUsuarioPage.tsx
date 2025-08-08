@@ -100,7 +100,7 @@ const CrearUsuarioPage = () => {
       toast({
         title: "✅ Usuario creado exitosamente",
         description: "El nuevo usuario ha sido registrado en el sistema.",
-        className: "bg-green-50 border-green-200",
+        className: "bg-brand-lime/10 border-brand-lime/20",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/usuarios"] });
       setLocation("/seguridad/usuarios");
@@ -181,7 +181,7 @@ const CrearUsuarioPage = () => {
             Volver
           </Button>
           <div className="flex items-center gap-3">
-            <UserPlus className="w-8 h-8 text-green-600" />
+            <UserPlus className="w-8 h-8 text-brand-lime" />
             <div>
               <h1 className="text-2xl font-semibold text-gray-900">
                 Registro de Usuarios
@@ -204,7 +204,7 @@ const CrearUsuarioPage = () => {
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
-                <User className="w-5 h-5 text-blue-600" />
+                <User className="w-5 h-5 text-cyan-600" />
                 Datos Personales
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -282,7 +282,7 @@ const CrearUsuarioPage = () => {
                 </div>
               </div>
               <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
-                <Lock className="w-5 h-5 text-blue-600" />
+                <Lock className="w-5 h-5 text-cyan-600" />
                 Credenciales de Acceso
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -344,7 +344,7 @@ const CrearUsuarioPage = () => {
                 <PasswordStrengthIndicator password={passwordValue || ""} />
               </div>
               <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
-                <Users className="w-5 h-5 text-blue-600" />
+                <Users className="w-5 h-5 text-cyan-600" />
                 Perfiles Asociados
               </h3>
               <div className="mb-6">
@@ -389,7 +389,7 @@ const CrearUsuarioPage = () => {
                 <Button
                   type="submit"
                   disabled={createUsuarioMutation.isPending}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                  className="flex-1 bg-brand-lime hover:bg-brand-lime/90 text-white"
                 >
                   {createUsuarioMutation.isPending ? (
                     "Guardando..."

@@ -77,7 +77,7 @@ const CrearCoordinadorPage = () => {
             <span>Volver</span>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-blue-800">Crear Coordinador</h1>
+            <h1 className="text-2xl font-bold text-cyan-800">Crear Coordinador</h1>
             <p className="text-gray-600">
               Crea una nueva cuenta de coordinador con permisos de gestión intermedia
             </p>
@@ -88,7 +88,7 @@ const CrearCoordinadorPage = () => {
       <div className="max-w-2xl mx-auto">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2 text-blue-800">
+            <CardTitle className="flex items-center space-x-2 text-cyan-800">
               <Clipboard className="h-5 w-5" />
               <span>Información del Coordinador</span>
             </CardTitle>
@@ -154,9 +154,9 @@ const CrearCoordinadorPage = () => {
                   )}
                 />
 
-                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                  <h3 className="font-medium text-blue-800 mb-2">Información importante:</h3>
-                  <ul className="text-sm text-blue-700 space-y-1">
+                <div className="bg-cyan-50 p-4 rounded-lg border border-cyan-200">
+<h3 className="font-medium text-cyan-800 mb-2">Información importante:</h3>
+<ul className="text-sm text-cyan-700 space-y-1">
                     <li>• El coordinador tendrá permisos de gestión intermedia</li>
                     <li>• Usuario para iniciar sesión: el nombre de usuario ingresado</li>
                     <li>• Contraseña temporal: 12345678</li>
@@ -174,7 +174,7 @@ const CrearCoordinadorPage = () => {
                   </Button>
                   <Button 
                     type="submit" 
-                    className="bg-blue-600 hover:bg-blue-700" 
+                    className="bg-cyan-600 hover:bg-cyan-700" 
                     disabled={isLoading}
                   >
                     {isLoading ? 'Creando coordinador...' : 'Crear Coordinador'}

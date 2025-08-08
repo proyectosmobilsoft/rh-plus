@@ -79,7 +79,7 @@ const CrearCandidatoPage = () => {
             <span>Volver</span>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-green-800">Crear Candidato</h1>
+            <h1 className="text-2xl font-bold text-brand-lime">Crear Candidato</h1>
             <p className="text-gray-600">
               Crea una nueva cuenta de candidato con información básica
             </p>
@@ -90,7 +90,7 @@ const CrearCandidatoPage = () => {
       <div className="max-w-2xl mx-auto">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2 text-green-800">
+            <CardTitle className="flex items-center space-x-2 text-brand-lime">
               <UserPlus className="h-5 w-5" />
               <span>Información del Candidato</span>
             </CardTitle>
@@ -196,9 +196,9 @@ const CrearCandidatoPage = () => {
                   )}
                 />
 
-                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                  <h3 className="font-medium text-green-800 mb-2">Información importante:</h3>
-                  <ul className="text-sm text-green-700 space-y-1">
+                <div className="bg-brand-lime/10 p-4 rounded-lg border border-brand-lime/20">
+                  <h3 className="font-medium text-brand-lime mb-2">Información importante:</h3>
+                  <ul className="text-sm text-brand-lime space-y-1">
                     <li>• El usuario para iniciar sesión será el correo electrónico ingresado</li>
                     <li>• La contraseña inicial será el número de documento</li>
                     <li>• El candidato deberá cambiar la contraseña en su primer inicio de sesión</li>
@@ -215,7 +215,7 @@ const CrearCandidatoPage = () => {
                   </Button>
                   <Button 
                     type="submit" 
-                    className="bg-green-600 hover:bg-green-700" 
+                    className="bg-brand-lime hover:bg-brand-lime/90" 
                     disabled={isLoading}
                   >
                     {isLoading ? 'Creando candidato...' : 'Crear Candidato'}

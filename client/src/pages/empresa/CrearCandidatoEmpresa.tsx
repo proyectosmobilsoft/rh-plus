@@ -95,7 +95,7 @@ export default function CrearCandidatoEmpresa() {
                 <span>Volver</span>
               </Button>
               <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-cyan-600 rounded-lg flex items-center justify-center">
                   <User className="w-5 h-5 text-white" />
                 </div>
                 <div>
@@ -381,7 +381,7 @@ export default function CrearCandidatoEmpresa() {
                   >
                     Cancelar
                   </Button>
-                  <Button type="submit" disabled={isSaving} className="bg-blue-600 hover:bg-blue-700">
+                  <Button type="submit" disabled={isSaving} className="bg-cyan-600 hover:bg-cyan-700">
                     {isSaving ? (
                       'Guardando...'
                     ) : (

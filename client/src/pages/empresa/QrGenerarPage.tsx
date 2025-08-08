@@ -112,7 +112,7 @@ export default function QrGenerarPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
-              <CheckCircle className="w-5 h-5 mr-2 text-green-600" />
+              <CheckCircle className="w-5 h-5 mr-2 text-brand-lime" />
               Candidatos Aprobados
             </CardTitle>
             <CardDescription>
@@ -126,7 +126,7 @@ export default function QrGenerarPage() {
                   <div
                     key={candidato.id}
                     className={`p-4 border rounded-lg cursor-pointer transition-colors hover:bg-gray-50 ${
-                      selectedCandidato?.id === candidato.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                      selectedCandidato?.id === candidato.id ? 'border-cyan-500 bg-cyan-50' : 'border-gray-200'
                     }`}
                     onClick={() => setSelectedCandidato(candidato)}
                   >
@@ -143,7 +143,7 @@ export default function QrGenerarPage() {
                         </div>
                       </div>
                       <div className="text-right space-y-1">
-                        <Badge variant="outline" className="text-green-600 border-green-600">
+                        <Badge variant="outline" className="text-brand-lime border-brand-lime">
                           Aprobado
                         </Badge>
                         <div className="text-xs text-gray-500">

@@ -217,7 +217,7 @@ const EditarUsuarioPage = () => {
       toast({
         title: "✅ Usuario actualizado exitosamente",
         description: "Los cambios han sido guardados correctamente.",
-        className: "bg-blue-50 border-blue-200",
+        className: "bg-cyan-50 border-cyan-200",
       });
       queryClient.invalidateQueries({ queryKey: ["usuarios"] });
       queryClient.invalidateQueries({ queryKey: ["usuario", userId] });
@@ -323,7 +323,7 @@ const EditarUsuarioPage = () => {
             Volver
           </Button>
           <div className="flex items-center gap-3">
-            <UserCheck className="w-8 h-8 text-blue-600" />
+            <UserCheck className="w-8 h-8 text-cyan-600" />
             <div>
               <h1 className="text-2xl font-semibold text-gray-900">
                 Editar Usuario
@@ -553,7 +553,7 @@ const EditarUsuarioPage = () => {
                 <Button
                   type="submit"
                   disabled={updateUsuarioMutation.isPending}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                  className="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white"
                 >
                   {updateUsuarioMutation.isPending ? (
                     "Actualizando..."

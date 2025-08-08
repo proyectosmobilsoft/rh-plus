@@ -674,8 +674,8 @@ export default function PerfilCandidato() {
   const getColorProgreso = (progreso: number) => {
     if (progreso < 30) return 'bg-red-500';
     if (progreso < 60) return 'bg-yellow-500';
-    if (progreso < 90) return 'bg-blue-500';
-    return 'bg-green-500';
+    if (progreso < 90) return 'bg-cyan-500';
+    return 'bg-brand-lime';
   };
 
   // Función para obtener el texto del progreso
@@ -933,7 +933,7 @@ export default function PerfilCandidato() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Cargando perfil...</p>
         </div>
       </div>
@@ -954,8 +954,8 @@ export default function PerfilCandidato() {
             <h1 className="text-3xl font-bold text-gray-900">Mi Perfil</h1>
             <p className="text-gray-600">Administra tu información personal y profesional</p>
             {isAutoSaving && (
-              <div className="flex items-center mt-2 text-sm text-blue-600">
-                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-2"></div>
+              <div className="flex items-center mt-2 text-sm text-cyan-600">
+                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-cyan-600 mr-2"></div>
                 Guardando cambios...
               </div>
             )}
@@ -1011,8 +1011,8 @@ export default function PerfilCandidato() {
         <Card className="mb-8">
           <CardContent className="p-6">
             <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
-                <User className="w-8 h-8 text-blue-600" />
+              <div className="w-16 h-16 bg-cyan-100 rounded-full flex items-center justify-center">
+                <User className="w-8 h-8 text-cyan-600" />
               </div>
               <div>
                 <h2 className="text-xl font-semibold">{candidato.nombres} {candidato.apellidos}</h2>
@@ -1369,14 +1369,14 @@ export default function PerfilCandidato() {
                                   return (
                                     <Card key={documentoRequerido.id} className={`border-2 transition-all duration-200 hover:shadow-md ${
                                       isUploaded 
-                                        ? 'border-green-200 bg-green-50' 
+                                        ? 'border-brand-lime/20 bg-brand-lime/10' 
                                         : 'border-gray-200 bg-white hover:border-blue-300'
                                     }`}>
                                       <CardHeader className="pb-3 pt-4">
                                         <CardTitle className="flex items-center justify-between text-sm">
                                           <div className="flex items-center">
                                             <div className={`p-2 rounded-lg mr-3 ${
-                                              isUploaded ? 'bg-green-100' : 'bg-blue-100'
+                                              isUploaded ? 'bg-brand-lime/10' : 'bg-blue-100'
                                             }`}>
                                               <span className="text-lg">{getDocumentIcon(documentoRequerido.tipos_documentos.nombre)}</span>
                                             </div>
@@ -1390,7 +1390,7 @@ export default function PerfilCandidato() {
                                             </div>
                                           </div>
                                                                                      {isUploaded && (
-                                             <div className="flex items-center gap-1 text-green-600">
+                                             <div className="flex items-center gap-1 text-brand-lime">
                                                <CheckCircle2 className="h-3 w-3" />
                                                <span className="text-xs font-medium">Subido</span>
                                              </div>
@@ -1497,7 +1497,7 @@ export default function PerfilCandidato() {
                                              <div className="text-gray-700 mb-1">
                                                <span className="font-medium">Archivo:</span> {existingDocuments.find(doc => doc.tipo_documento_id === documentoRequerido.tipo_documento_id)?.nombre_archivo}
                                              </div>
-                                             <div className="text-green-600">
+                                             <div className="text-brand-lime">
                                                <span className="font-medium">Estado:</span> Documento subido
                                              </div>
                                            </div>
@@ -1512,7 +1512,7 @@ export default function PerfilCandidato() {
 
                           {documentosRequeridos.length === 0 && (
                             <div className="text-center py-12">
-                              <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
+                              <CheckCircle className="w-16 h-16 text-brand-lime mx-auto mb-4" />
                               <p className="text-gray-600 text-lg">No hay documentos requeridos para este tipo de candidato.</p>
                             </div>
                           )}

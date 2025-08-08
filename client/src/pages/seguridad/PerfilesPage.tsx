@@ -295,8 +295,8 @@ const PerfilesPage = () => {
 
   const getActionTypeColor = (tipo: string) => {
     const colors: Record<string, string> = {
-      'visualizacion': 'bg-blue-100 text-blue-800',
-      'creacion': 'bg-green-100 text-green-800',
+              'visualizacion': 'bg-cyan-100 text-cyan-800',
+      'creacion': 'bg-brand-lime/10 text-brand-lime',
       'edicion': 'bg-yellow-100 text-yellow-800',
       'eliminacion': 'bg-red-100 text-red-800',
       'exportacion': 'bg-purple-100 text-purple-800',
@@ -619,7 +619,7 @@ const PerfilesPage = () => {
                                     aria-label="Editar perfil"
                                     className="h-8 w-8"
                                   >
-                                    <Edit className="h-4 w-4 text-blue-600 hover:text-blue-800 transition-colors" />
+                                    <Edit className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
@@ -711,7 +711,7 @@ const PerfilesPage = () => {
                                             aria-label="Activar perfil"
                                             className="h-8 w-8"
                                           >
-                                            <CheckCircle className="h-4 w-4 text-green-600 hover:text-green-800 transition-colors" />
+                                            <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
                                           </Button>
                                         </AlertDialogTrigger>
                                         <AlertDialogContent>
@@ -766,7 +766,7 @@ const PerfilesPage = () => {
                           </div>
                         </TableCell>
                         <TableCell className="px-4 py-3">
-                          <Badge variant={perfil.activo ? "default" : "secondary"} className={perfil.activo ? "bg-green-100 text-green-700 border-green-200" : "bg-gray-200 text-gray-600 border-gray-300"}>
+                          <Badge variant={perfil.activo ? "default" : "secondary"} className={perfil.activo ? "bg-brand-lime/10 text-brand-lime border-brand-lime/20" : "bg-gray-200 text-gray-600 border-gray-300"}>
                             {perfil.activo ? "Activo" : "Inactivo"}
                           </Badge>
                         </TableCell>
@@ -881,7 +881,7 @@ const PerfilesPage = () => {
                     </Button>
                     <Button
                       type="submit"
-                      className="bg-green-500 hover:bg-green-600 text-white border-0 shadow-sm px-6 py-2 rounded text-sm font-medium transition-colors"
+                      className="bg-brand-lime hover:bg-brand-lime/90 text-white border-0 shadow-sm px-6 py-2 rounded text-sm font-medium transition-colors"
                       disabled={savePerfilMutation.isPending}
                     >
                       {savePerfilMutation.isPending ?
@@ -983,7 +983,7 @@ const PerfilesPage = () => {
                     </Button>
                     <Button
                       type="submit"
-                      className="bg-green-500 hover:bg-green-600 text-white border-0 shadow-sm px-6 py-2 rounded text-sm font-medium transition-colors"
+                      className="bg-brand-lime hover:bg-brand-lime/90 text-white border-0 shadow-sm px-6 py-2 rounded text-sm font-medium transition-colors"
                       disabled={savePerfilMutation.isPending}
                     >
                       {savePerfilMutation.isPending ?
@@ -1008,14 +1008,14 @@ const PerfilesPage = () => {
                   <div className="text-2xl font-bold text-gray-900">{mockSystemViews.length}</div>
                   <div className="text-sm text-gray-600">Vistas Totales</div>
                 </div>
-                <div className="text-center p-3 bg-blue-50 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600">
+                            <div className="text-center p-3 bg-cyan-50 rounded-lg">
+              <div className="text-2xl font-bold text-cyan-600">
                     {mockSystemViews.reduce((sum, v) => sum + v.acciones.filter(a => a.tipo === 'visualizacion').length, 0)}
                   </div>
                   <div className="text-sm text-gray-600">Acciones de Vista</div>
                 </div>
-                <div className="text-center p-3 bg-green-50 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">
+                <div className="text-center p-3 bg-brand-lime/10 rounded-lg">
+                  <div className="text-2xl font-bold text-brand-lime">
                     {mockSystemViews.reduce((sum, v) => sum + v.acciones.filter(a => a.tipo === 'creacion').length, 0)}
                   </div>
                   <div className="text-sm text-gray-600">Acciones de Creación</div>

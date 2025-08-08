@@ -39,7 +39,7 @@ export default function SelectEmpresa() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+            <div className="min-h-screen bg-gradient-to-br from-cyan-50 to-teal-100 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
@@ -60,14 +60,14 @@ export default function SelectEmpresa() {
                 key={empresa.id}
                 className={`p-4 border rounded-lg cursor-pointer transition-all ${
                   selectedEmpresa === empresa.id.toString()
-                    ? 'border-blue-500 bg-blue-50'
+                    ? 'border-cyan-500 bg-cyan-50'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
                 onClick={() => setSelectedEmpresa(empresa.id.toString())}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <Building2 className="w-5 h-5 text-blue-600" />
+                    <Building2 className="w-5 h-5 text-cyan-600" />
                     <div>
                       <h3 className="font-medium text-gray-900">
                         {empresa.razon_social}
@@ -78,7 +78,7 @@ export default function SelectEmpresa() {
                     </div>
                   </div>
                   {selectedEmpresa === empresa.id.toString() && (
-                    <CheckCircle className="w-5 h-5 text-blue-600" />
+                    <CheckCircle className="w-5 h-5 text-cyan-600" />
                   )}
                 </div>
               </div>

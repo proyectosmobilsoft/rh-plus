@@ -72,7 +72,7 @@ export default function DashboardReportes() {
     switch (prioridad) {
       case "alta": return "text-red-500";
       case "media": return "text-yellow-500";
-      case "baja": return "text-green-500";
+      case "baja": return "text-brand-lime";
       default: return "text-gray-500";
     }
   };
@@ -174,7 +174,7 @@ export default function DashboardReportes() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="text-4xl font-bold text-blue-600 mb-2">
+                      <div className="text-4xl font-bold text-cyan-600 mb-2">
             {dashboardData?.leadTimePromedio || 0} días
           </div>
           <Progress value={Math.min((dashboardData?.leadTimePromedio || 0) / 30 * 100, 100)} className="h-2" />
@@ -243,18 +243,18 @@ export default function DashboardReportes() {
                     
                     <div className="grid grid-cols-2 gap-4 mb-3">
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-blue-600">{analista.ordenesAbiertas}</div>
+                        <div className="text-2xl font-bold text-cyan-600">{analista.ordenesAbiertas}</div>
                         <div className="text-sm text-gray-600">Órdenes Abiertas</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-green-600">{analista.ordenesCerradas}</div>
+                        <div className="text-2xl font-bold text-brand-lime">{analista.ordenesCerradas}</div>
                         <div className="text-sm text-gray-600">Órdenes Cerradas</div>
                       </div>
                     </div>
 
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div 
-                        className="bg-blue-600 h-2 rounded-full" 
+                        className="bg-cyan-600 h-2 rounded-full" 
                         style={{
                           width: `${Math.min((analista.leadTimePromedio / 30) * 100, 100)}%`
                         }}
@@ -285,7 +285,7 @@ export default function DashboardReportes() {
             {dashboardData?.ordenesPorAnalista?.map((item, index) => (
               <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                  <div className="w-8 h-8 bg-cyan-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
                     {item.analista.split(' ').map(n => n[0]).join('')}
                   </div>
                   <span className="font-medium">{item.analista}</span>

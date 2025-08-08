@@ -565,7 +565,7 @@ const PrestadoresPage = () => {
                                      aria-label="Editar prestador"
                                      className="h-8 w-8"
                                    >
-                                     <Edit className="h-4 w-4 text-blue-600 hover:text-blue-800 transition-colors" />
+                                     <Edit className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
                                    </Button>
                                  </TooltipTrigger>
                                  <TooltipContent>
@@ -657,7 +657,7 @@ const PrestadoresPage = () => {
                                             aria-label="Activar prestador"
                                             className="h-8 w-8"
                                           >
-                                            <CheckCircle className="h-4 w-4 text-green-600 hover:text-green-800 transition-colors" />
+                                            <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
                                           </Button>
                                         </AlertDialogTrigger>
                                         <AlertDialogContent>
@@ -691,7 +691,7 @@ const PrestadoresPage = () => {
                         <TableCell className="px-4 py-3 text-sm text-gray-500">{prestador.nombre_laboratorio || 'N/A'}</TableCell>
                         <TableCell className="px-4 py-3 text-sm text-gray-500">{prestador.ciudad_nombre || 'N/A'}</TableCell>
                         <TableCell className="px-4 py-3">
-                          <Badge variant={prestador.activo ? "default" : "secondary"} className={prestador.activo ? "bg-green-100 text-green-700 border-green-200" : "bg-gray-200 text-gray-600 border-gray-300"}>
+                          <Badge variant={prestador.activo ? "default" : "secondary"} className={prestador.activo ? "bg-brand-lime/10 text-brand-lime border-brand-lime/20" : "bg-gray-200 text-gray-600 border-gray-300"}>
                             {prestador.activo ? "Activo" : "Inactivo"}
                           </Badge>
                         </TableCell>
@@ -718,7 +718,7 @@ const PrestadoresPage = () => {
                                  {/* Sección 1: Información Personal */}
                  <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
                    <div className="flex items-center gap-2 pb-2 border-b">
-                     <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                     <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
                      <h3 className="text-lg font-semibold text-gray-800">Información Personal</h3>
                    </div>
                    
@@ -775,7 +775,7 @@ const PrestadoresPage = () => {
                                  {/* Sección 2: Información Profesional */}
                  <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
                    <div className="flex items-center gap-2 pb-2 border-b">
-                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                     <div className="w-2 h-2 bg-brand-lime rounded-full"></div>
                      <h3 className="text-lg font-semibold text-gray-800">Información Profesional</h3>
                    </div>
                    

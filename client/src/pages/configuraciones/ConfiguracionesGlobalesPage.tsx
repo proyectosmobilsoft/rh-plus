@@ -243,7 +243,7 @@ export default function ConfiguracionesGlobalesPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-blue-600 mx-auto"></div>
+                     <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-cyan-600 mx-auto"></div>
           <p className="mt-4 text-gray-600 font-medium">Cargando configuraciones...</p>
         </div>
       </div>
@@ -299,8 +299,8 @@ export default function ConfiguracionesGlobalesPage() {
         {/* Header Minimalista */}
         <div className="text-center space-y-4">
           <div className="flex items-center justify-center space-x-3 mb-6">
-            <div className="p-3 bg-blue-100 rounded-xl">
-              <Settings className="h-8 w-8 text-blue-600" />
+            <div className="p-3 bg-cyan-100 rounded-xl">
+              <Settings className="h-8 w-8 text-cyan-600" />
             </div>
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Configuración Global</h1>
@@ -316,11 +316,11 @@ export default function ConfiguracionesGlobalesPage() {
                 <p className="text-gray-600">Empresa de Servicios de RRHH</p>
               </div>
               <div className="flex space-x-2">
-                <Badge className="bg-blue-100 text-blue-700 border-0">
+                <Badge className="bg-cyan-100 text-cyan-700 border-0">
                   <Shield className="w-3 h-3 mr-1" />
                   Activa
                 </Badge>
-                <Badge className="bg-green-100 text-green-700 border-0">
+                <Badge className="bg-brand-lime/10 text-brand-lime border-0">
                   <Briefcase className="w-3 h-3 mr-1" />
                   Talento Humano
                 </Badge>
@@ -377,7 +377,7 @@ export default function ConfiguracionesGlobalesPage() {
                     <Button
                       onClick={handleSave}
                       disabled={saving}
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                      className="bg-cyan-600 hover:bg-cyan-700 text-white"
                     >
                       {saving ? (
                         <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
@@ -398,7 +398,7 @@ export default function ConfiguracionesGlobalesPage() {
                 ) : (
                   <Button
                     onClick={() => setEditing(true)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                                          className="bg-cyan-600 hover:bg-cyan-700 text-white"
                   >
                     <Edit3 className="h-4 w-4 mr-2" />
                     Editar
@@ -412,7 +412,7 @@ export default function ConfiguracionesGlobalesPage() {
               {/* Información Básica */}
               <div className="space-y-6">
                 <div className="flex items-center space-x-2 mb-6">
-                  <Building2 className="h-5 w-5 text-blue-600" />
+                  <Building2 className="h-5 w-5 text-cyan-600" />
                   <h3 className="text-lg font-semibold text-gray-900">Información Básica</h3>
                 </div>
                 
@@ -426,7 +426,7 @@ export default function ConfiguracionesGlobalesPage() {
                       value={formData.razon_social || ''}
                       onChange={(e) => handleInputChange('razon_social', e.target.value)}
                       disabled={!editing}
-                      className="mt-2 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                      className="mt-2 border-gray-200 focus:border-cyan-500 focus:ring-cyan-500"
                     />
                   </div>
 
@@ -439,7 +439,7 @@ export default function ConfiguracionesGlobalesPage() {
                       value={formData.nit || ''}
                       onChange={(e) => handleInputChange('nit', e.target.value)}
                       disabled={!editing}
-                      className="mt-2 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                      className="mt-2 border-gray-200 focus:border-cyan-500 focus:ring-cyan-500"
                     />
                   </div>
 
@@ -452,7 +452,7 @@ export default function ConfiguracionesGlobalesPage() {
                       value={formData.representante_legal || ''}
                       onChange={(e) => handleInputChange('representante_legal', e.target.value)}
                       disabled={!editing}
-                      className="mt-2 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                      className="mt-2 border-gray-200 focus:border-cyan-500 focus:ring-cyan-500"
                     />
                   </div>
 
@@ -460,13 +460,13 @@ export default function ConfiguracionesGlobalesPage() {
                     <Label htmlFor="cargo_representante" className="text-sm font-medium text-gray-700">
                       Cargo del Representante
                     </Label>
-                    <Input
-                      id="cargo_representante"
-                      value={formData.cargo_representante || ''}
-                      onChange={(e) => handleInputChange('cargo_representante', e.target.value)}
-                      disabled={!editing}
-                      className="mt-2 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                    />
+                                         <Input
+                       id="cargo_representante"
+                       value={formData.cargo_representante || ''}
+                       onChange={(e) => handleInputChange('cargo_representante', e.target.value)}
+                       disabled={!editing}
+                       className="mt-2 border-gray-200 focus:border-cyan-500 focus:ring-cyan-500"
+                     />
                   </div>
                 </div>
               </div>
@@ -474,7 +474,7 @@ export default function ConfiguracionesGlobalesPage() {
               {/* Información de Contacto */}
               <div className="space-y-6">
                 <div className="flex items-center space-x-2 mb-6">
-                  <Phone className="h-5 w-5 text-blue-600" />
+                  <Phone className="h-5 w-5 text-cyan-600" />
                   <h3 className="text-lg font-semibold text-gray-900">Información de Contacto</h3>
                 </div>
                 
@@ -483,41 +483,41 @@ export default function ConfiguracionesGlobalesPage() {
                     <Label htmlFor="telefono" className="text-sm font-medium text-gray-700">
                       Teléfono
                     </Label>
-                    <Input
-                      id="telefono"
-                      value={formData.telefono || ''}
-                      onChange={(e) => handleInputChange('telefono', e.target.value)}
-                      disabled={!editing}
-                      className="mt-2 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                    />
+                                         <Input
+                       id="telefono"
+                       value={formData.telefono || ''}
+                       onChange={(e) => handleInputChange('telefono', e.target.value)}
+                       disabled={!editing}
+                       className="mt-2 border-gray-200 focus:border-cyan-500 focus:ring-cyan-500"
+                     />
                   </div>
 
                   <div>
                     <Label htmlFor="email" className="text-sm font-medium text-gray-700">
                       Correo Electrónico
                     </Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email || ''}
-                      onChange={(e) => handleInputChange('email', e.target.value)}
-                      disabled={!editing}
-                      className="mt-2 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                    />
+                                         <Input
+                       id="email"
+                       type="email"
+                       value={formData.email || ''}
+                       onChange={(e) => handleInputChange('email', e.target.value)}
+                       disabled={!editing}
+                       className="mt-2 border-gray-200 focus:border-cyan-500 focus:ring-cyan-500"
+                     />
                   </div>
 
                   <div>
                     <Label htmlFor="direccion" className="text-sm font-medium text-gray-700">
                       Dirección
                     </Label>
-                    <Textarea
-                      id="direccion"
-                      value={formData.direccion || ''}
-                      onChange={(e) => handleInputChange('direccion', e.target.value)}
-                      disabled={!editing}
-                      className="mt-2 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                      rows={3}
-                    />
+                                         <Textarea
+                       id="direccion"
+                       value={formData.direccion || ''}
+                       onChange={(e) => handleInputChange('direccion', e.target.value)}
+                       disabled={!editing}
+                       className="mt-2 border-gray-200 focus:border-cyan-500 focus:ring-cyan-500"
+                       rows={3}
+                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -530,7 +530,7 @@ export default function ConfiguracionesGlobalesPage() {
                         onValueChange={handleDepartamentoChange}
                         disabled={!editing}
                       >
-                        <SelectTrigger className="mt-2 border-gray-200 focus:border-blue-500 focus:ring-blue-500">
+                        <SelectTrigger className="mt-2 border-gray-200 focus:border-cyan-500 focus:ring-cyan-500">
                           <SelectValue placeholder="Selecciona un departamento" />
                         </SelectTrigger>
                         <SelectContent>
@@ -552,7 +552,7 @@ export default function ConfiguracionesGlobalesPage() {
                         onValueChange={handleCiudadChange}
                         disabled={!editing || !departamentoSeleccionado}
                       >
-                        <SelectTrigger className="mt-2 border-gray-200 focus:border-blue-500 focus:ring-blue-500">
+                        <SelectTrigger className="mt-2 border-gray-200 focus:border-cyan-500 focus:ring-cyan-500">
                           <SelectValue placeholder={departamentoSeleccionado ? "Selecciona una ciudad" : "Primero selecciona departamento"} />
                         </SelectTrigger>
                         <SelectContent>
@@ -574,15 +574,15 @@ export default function ConfiguracionesGlobalesPage() {
             {/* Información del Sistema */}
             <div className="space-y-6">
               <div className="flex items-center space-x-2 mb-6">
-                <FileText className="h-5 w-5 text-blue-600" />
+                <FileText className="h-5 w-5 text-cyan-600" />
                 <h3 className="text-lg font-semibold text-gray-900">Información del Sistema</h3>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-gray-50 rounded-xl p-6">
                   <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-green-100 rounded-lg">
-                      <FileText className="h-4 w-4 text-green-600" />
+                    <div className="p-2 bg-brand-lime/10 rounded-lg">
+                      <FileText className="h-4 w-4 text-brand-lime" />
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-700">Fecha de Registro</p>
@@ -593,8 +593,8 @@ export default function ConfiguracionesGlobalesPage() {
 
                 <div className="bg-gray-50 rounded-xl p-6">
                   <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <FileText className="h-4 w-4 text-blue-600" />
+                    <div className="p-2 bg-cyan-100 rounded-lg">
+                      <FileText className="h-4 w-4 text-cyan-600" />
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-700">Última Actualización</p>

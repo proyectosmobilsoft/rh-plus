@@ -146,12 +146,12 @@ export default function RecuperarPasswordPage() {
                 Tu identidad ha sido validada. El código de verificación ha sido enviado al administrador del sistema.
               </p>
               
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+              <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4 mb-4">
                 <div className="flex items-center space-x-2">
-                  <Mail className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm font-medium text-blue-800">Correo del administrador:</span>
+                  <Mail className="h-4 w-4 text-cyan-600" />
+                  <span className="text-sm font-medium text-cyan-800">Correo del administrador:</span>
                 </div>
-                <p className="text-blue-900 font-mono text-sm mt-1">{adminEmail}</p>
+                <p className="text-cyan-900 font-mono text-sm mt-1">{adminEmail}</p>
               </div>
               
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
@@ -166,7 +166,7 @@ export default function RecuperarPasswordPage() {
               
               <Button
                 onClick={handleCloseModal}
-                className="w-full bg-blue-600 hover:bg-blue-700"
+                className="w-full bg-cyan-600 hover:bg-cyan-700"
               >
                 Continuar
               </Button>

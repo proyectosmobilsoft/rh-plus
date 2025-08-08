@@ -527,12 +527,12 @@ export const AdvancedProfileManager: React.FC<AdvancedProfileManagerProps> = ({
                               placeholder="usuario@empresa.com"
                             />
                           </div>
-                          <div className="bg-blue-50 p-4 rounded-lg">
+                          <div className="bg-cyan-50 p-4 rounded-lg">
                             <div className="flex items-start space-x-2">
-                              <Key className="w-5 h-5 text-blue-600 mt-0.5" />
+                              <Key className="w-5 h-5 text-cyan-600 mt-0.5" />
                               <div>
-                                <h5 className="font-medium text-blue-900">Contraseña Temporal</h5>
-                                <p className="text-sm text-blue-800">
+                                <h5 className="font-medium text-cyan-900">Contraseña Temporal</h5>
+                                <p className="text-sm text-cyan-800">
                                   Se generará automáticamente una contraseña temporal segura y se enviará al correo del usuario. 
                                   El usuario deberá cambiar la contraseña en el primer inicio de sesión.
                                 </p>

@@ -231,6 +231,9 @@
 .sidebar-scroll {
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 transparent;
+  overflow-y: auto;
+  overflow-x: hidden;
+  transition: overflow-y 0.3s ease;
 }
 
 .sidebar-scroll::-webkit-scrollbar {
@@ -248,6 +251,91 @@
 
 .sidebar-scroll::-webkit-scrollbar-thumb:hover {
   background-color: #94a3b8;
+}
+
+/* Indicador de scroll */
+.scroll-indicator {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  width: 8px;
+  height: 32px;
+  background-color: #d1d5db;
+  border-radius: 4px;
+  opacity: 0.5;
+  pointer-events: none;
+  animation: pulse 2s infinite;
+}
+
+.scroll-indicator::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background-color: #3b82f6;
+  border-radius: 4px;
+  animation: scroll-pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes scroll-pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+/* Asegurar que el header y footer del sidebar no se muevan */
+.sidebar-header {
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.sidebar-footer {
+  flex-shrink: 0;
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  border-top: 2px solid #e2e8f0;
+}
+
+/* Mejorar la experiencia de scroll */
+.sidebar-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 256px;
+  z-index: 50;
+}
+
+/* Asegurar que el contenido del sidebar tenga altura máxima */
+.sidebar-scroll {
+  flex: 1;
+  min-height: 0;
+  max-height: calc(100vh - 200px);
+  height: calc(100vh - 200px);
+}
+
+/* Mejoras para dispositivos móviles */
+@media (max-width: 1024px) {
+  .sidebar-scroll {
+    max-height: calc(100vh - 180px);
+    height: calc(100vh - 180px);
+  }
 }
 
 /* Estilos para mantener el sidebar abierto en navegación */
@@ -287,7 +375,7 @@
   }
 }
 
-/* Estilos para sidebar siempre visible */
+/* Estilos para sidebar siempre visible y ocupando toda la altura */
 .sidebar-always-visible {
   position: fixed;
   left: 0;
@@ -299,6 +387,8 @@
   border-right: 1px solid #e5e7eb;
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease-in-out;
+  height: 100vh;
+  overflow: hidden;
 }
 
 /* Contenido principal con sidebar siempre visible */
@@ -307,6 +397,11 @@
   width: calc(100% - 256px);
   min-height: 100vh;
   transition: margin-left 0.3s ease-in-out;
+  padding: 0;
+  margin-top: 0;
+  margin-bottom: 0;
+  height: 100vh;
+  overflow: hidden;
 }
 
 /* Responsive para sidebar siempre visible */
@@ -319,6 +414,41 @@
   .content-with-fixed-sidebar {
     margin-left: 0;
     width: 100%;
+  }
+}
+
+/* Asegurar que el sidebar ocupe toda la altura */
+.sidebar-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 256px;
+  z-index: 50;
+  background: white;
+  border-right: 1px solid #e5e7eb;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Asegurar que el contenido del sidebar tenga altura máxima */
+.sidebar-scroll {
+  flex: 1;
+  min-height: 0;
+  max-height: calc(100vh - 200px);
+  height: calc(100vh - 200px);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Mejoras para dispositivos móviles */
+@media (max-width: 1024px) {
+  .sidebar-scroll {
+    max-height: calc(100vh - 180px);
+    height: calc(100vh - 180px);
   }
 }
 
@@ -423,4 +553,107 @@
   height: 100%;
   color: #6b7280;
   font-size: 0.875rem;
+} 
+
+/* Estilos específicos para sidebar de altura completa SIN espacio blanco */
+.sidebar-full-height {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 256px;
+  height: 100vh;
+  z-index: 50;
+  background: white;
+  border-right: 1px solid #e5e7eb;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Animaciones para el sidebar */
+.sidebar-animation {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Contenedor principal adaptado */
+.main-content-with-sidebar {
+  margin-left: 256px;
+  width: calc(100vw - 256px);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Cuando el sidebar está oculto, el contenido principal ocupa todo el ancho */
+.main-content-with-sidebar.sidebar-hidden {
+  margin-left: 0;
+  width: 100vw;
+}
+
+/* Asegurar que el contenido principal ocupe todo el espacio */
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  background: #f9fafb;
+}
+
+/* Sidebar container con Flexbox perfecto - SIN ESPACIOS */
+.sidebar-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 256px;
+  overflow: hidden;
+  background: white;
+  border-right: 1px solid #e5e7eb;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Header del sidebar - altura fija */
+.sidebar-header {
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  border-bottom: 2px solid #e2e8f0;
+  padding: 1rem;
+}
+
+/* Contenido del sidebar - ocupa todo el espacio restante */
+.sidebar-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0.75rem;
+  min-height: 0;
+}
+
+/* Footer del sidebar - altura fija */
+.sidebar-footer {
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  border-top: 2px solid #e2e8f0;
+  padding: 1rem;
+}
+
+/* Eliminar completamente el indicador de scroll */
+.scroll-indicator {
+  display: none !important;
+}
+
+/* Responsive para móviles */
+@media (max-width: 1024px) {
+  .sidebar-full-height {
+    width: 280px;
+  }
+  
+  .sidebar-container {
+    width: 280px;
+  }
+  
+  .main-content-with-sidebar {
+    margin-left: 0;
+    width: 100vw;
+  }
 } 
