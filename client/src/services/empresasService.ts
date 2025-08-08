@@ -4,13 +4,13 @@ import { supabase } from './supabaseClient';
 export interface Empresa {
   id: number;
   nombre: string;
-  razonSocial: string;
+  razon_social: string;
   nit: string;
   direccion: string;
   telefono: string;
   email: string;
-  representanteLegal: string;
-  cargoRepresentante: string;
+  representante_legal: string;
+  cargo_representante: string;
   estado: string;
   createdAt: string;
   updatedAt: string;
@@ -53,6 +53,7 @@ export const obtenerEmpresaPorId = async (empresaId: number): Promise<Empresa | 
 export const obtenerEmpresas = async (): Promise<Empresa[]> => {
   try {
     console.log('Consultando tabla empresas...');
+    
     const { data, error } = await supabase
       .from('empresas')
       .select('*')
@@ -60,10 +61,12 @@ export const obtenerEmpresas = async (): Promise<Empresa[]> => {
 
     if (error) {
       console.error('Error al obtener empresas:', error);
+      console.error('Detalles del error:', error.message, error.details, error.hint);
       return [];
     }
 
     console.log('Empresas encontradas en BD:', data);
+    console.log('Número de empresas:', data?.length || 0);
     return data || [];
   } catch (error) {
     console.error('Error en obtenerEmpresas:', error);
@@ -74,7 +77,10 @@ export const obtenerEmpresas = async (): Promise<Empresa[]> => {
 // Exportar el servicio completo para mantener compatibilidad
 export const empresasService = {
   getAll: async (): Promise<Empresa[]> => {
-    return await obtenerEmpresas();
+    console.log('Llamando a obtenerEmpresas...');
+    const result = await obtenerEmpresas();
+    console.log('Resultado de obtenerEmpresas:', result);
+    return result;
   },
   create: async (empresa: Omit<Empresa, 'id' | 'createdAt' | 'updatedAt'>): Promise<Empresa | null> => {
     try {

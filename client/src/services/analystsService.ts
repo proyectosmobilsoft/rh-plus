@@ -50,11 +50,47 @@ export const analystsService = {
     if (error) throw error;
     return data ? data[0] : null;
   },
-  // Eliminar analista
+  // Eliminar analista (solo si está inactivo)
   remove: async (id: number): Promise<boolean> => {
+    // Primero verificar si el analista está inactivo
+    const { data: analyst, error: fetchError } = await supabase
+      .from('gen_usuarios')
+      .select('activo')
+      .eq('id', id)
+      .eq('rol_id', ANALISTA_ROLE_ID)
+      .single();
+    
+    if (fetchError) throw fetchError;
+    
+    if (analyst?.activo === true) {
+      throw new Error('No se puede eliminar un analista activo. Primero desactívalo.');
+    }
+
     const { error } = await supabase
       .from('gen_usuarios')
       .delete()
+      .eq('id', id)
+      .eq('rol_id', ANALISTA_ROLE_ID);
+    if (error) throw error;
+    return true;
+  },
+
+  // Activar analista
+  activate: async (id: number): Promise<boolean> => {
+    const { error } = await supabase
+      .from('gen_usuarios')
+      .update({ activo: true, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('rol_id', ANALISTA_ROLE_ID);
+    if (error) throw error;
+    return true;
+  },
+
+  // Desactivar analista
+  deactivate: async (id: number): Promise<boolean> => {
+    const { error } = await supabase
+      .from('gen_usuarios')
+      .update({ activo: false, updated_at: new Date().toISOString() })
       .eq('id', id)
       .eq('rol_id', ANALISTA_ROLE_ID);
     if (error) throw error;

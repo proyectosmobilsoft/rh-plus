@@ -9,13 +9,18 @@ import {
   Trash2, 
   Download,
   UserCheck,
-  BarChart3
+  BarChart3,
+  Users,
+  Eye,
+  CheckCircle,
+  Lock
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Table, 
   TableBody, 
@@ -32,6 +37,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,18 +51,31 @@ import {
 } from '@/components/ui/alert-dialog';
 import { analystsService, Analyst } from '@/services/analystsService';
 import { testConnection, testAnalistas } from '@/services/testConnection';
+import { empresasService } from '@/services/empresasService';
+import { asociacionPrioridadService, AnalistaPrioridad } from '@/services/asociacionPrioridadService';
+import { useLoading } from '@/contexts/LoadingContext';
+import { useToast } from '@/hooks/use-toast';
+import { AnalistaForm } from '@/components/analistas/AnalistaForm';
 
 export default function AnalistasPage() {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState("analistas");
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterRegional, setFilterRegional] = useState('todas');
+  const [filterEmpresa, setFilterEmpresa] = useState('todas');
   const [filterNivel, setFilterNivel] = useState('todos');
-  const [filterEstado, setFilterEstado] = useState('todos');
+  const [filterEstado, setFilterEstado] = useState('activo');
+  const [showActivateModal, setShowActivateModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showDeactivateModal, setShowDeactivateModal] = useState(false);
+  const [selectedAnalista, setSelectedAnalista] = useState<any>(null);
+  const [analistaParaConfigurar, setAnalistaParaConfigurar] = useState<any>(null);
   const queryClient = useQueryClient();
+  const { startLoading, stopLoading } = useLoading();
+  const { toast } = useToast();
 
-  // Usar React Query para cargar analistas
-  const { data: analistas = [], isLoading, error } = useQuery({
-    queryKey: ['analistas'],
+  // Usar React Query para cargar analistas con prioridades
+  const { data: analistasConPrioridades = [], isLoading, error } = useQuery({
+    queryKey: ['analistas-prioridades'],
     queryFn: async () => {
       try {
         // Primero probar la conexión
@@ -68,18 +87,30 @@ export default function AnalistasPage() {
           throw new Error('No se pudo conectar a Supabase');
         }
         
-        // Luego probar cargar analistas
-        console.log('🔍 Probando carga de analistas...');
-        const analistasTest = await testAnalistas();
-        console.log('Resultado test analistas:', analistasTest);
+        // Cargar analistas con sus prioridades
+        console.log('🔍 Cargando analistas con prioridades...');
+        const data = await asociacionPrioridadService.getAnalistasWithPriorities();
+        console.log('Analistas con prioridades cargados:', data);
         
-        // Finalmente cargar con el servicio normal
-        const data = await analystsService.getAll();
-        console.log('Analistas cargados con servicio:', data);
-        return data || [];
+        // Obtener cantidad de solicitudes para cada analista
+        const analistasConSolicitudes = await Promise.all(
+          data.map(async (analista) => {
+            const cantidadSolicitudes = await asociacionPrioridadService.getSolicitudesPorAnalista(
+              analista.usuario_id, 
+              analista.empresa_id
+            );
+            return { ...analista, cantidad_solicitudes: cantidadSolicitudes };
+          })
+        );
+        
+        return analistasConSolicitudes || [];
       } catch (error) {
-        console.error('Error cargando analistas:', error);
-        toast.error('Error al cargar analistas de Supabase');
+        console.error('Error cargando analistas con prioridades:', error);
+        toast({
+          title: "❌ Error",
+          description: "Error al cargar analistas de Supabase",
+          variant: "destructive"
+        });
         throw error;
       }
     },
@@ -88,19 +119,23 @@ export default function AnalistasPage() {
     refetchOnMount: true,
   });
 
-  // Mapear los datos recibidos para que coincidan con la estructura esperada
-  const analistasMapeados = analistas.map((a: any) => ({
-    id: a.id,
-    username: a.username || '',
-    email: a.email || '',
-    primer_nombre: a.primer_nombre || '',
-    segundo_nombre: a.segundo_nombre || '',
-    primer_apellido: a.primer_apellido || '',
-    segundo_apellido: a.segundo_apellido || '',
-    activo: a.activo !== false ? 'activo' : 'inactivo' as 'activo' | 'inactivo',
-    regional: a.regional || 'N/A',
-    nivelPrioridad: a.nivel_prioridad || 'bajo'
-  }));
+  // Cargar empresas para el filtro
+  const { data: empresas = [] } = useQuery({
+    queryKey: ['empresas'],
+    queryFn: async () => {
+      try {
+        const data = await empresasService.getAll();
+        return data || [];
+      } catch (error) {
+        console.error('Error cargando empresas:', error);
+        return [];
+      }
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutos
+  });
+
+  // Los datos ya vienen mapeados del servicio de asociación de prioridades
+  const analistasMapeados = analistasConPrioridades;
 
   // Aplicar filtros usando useMemo para mejor rendimiento
   const filteredAnalistas = React.useMemo(() => {
@@ -109,61 +144,318 @@ export default function AnalistasPage() {
     // Filtro de búsqueda
     if (searchTerm) {
       filtered = filtered.filter(analista =>
-        analista.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        analista.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        analista.primer_nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        analista.segundo_nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        analista.primer_apellido.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        analista.segundo_apellido.toLowerCase().includes(searchTerm.toLowerCase())
+        analista.usuario_nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        analista.usuario_email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (analista.empresa_nombre && analista.empresa_nombre.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (analista.empresa_nit && analista.empresa_nit.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
 
-    // Filtro por estado
-    if (filterEstado !== 'todos') {
-      filtered = filtered.filter(analista => analista.activo === filterEstado);
+    // Filtro por empresa
+    if (filterEmpresa !== 'todas') {
+      filtered = filtered.filter(analista => analista.empresa_id === parseInt(filterEmpresa));
     }
 
-    return filtered;
-  }, [analistasMapeados, searchTerm, filterEstado]);
+    // Filtro por nivel de prioridad
+    if (filterNivel !== 'todos') {
+      switch (filterNivel) {
+        case 'nivel1':
+          filtered = filtered.filter(analista => analista.nivel_prioridad_1);
+          break;
+        case 'nivel2':
+          filtered = filtered.filter(analista => analista.nivel_prioridad_2);
+          break;
+        case 'nivel3':
+          filtered = filtered.filter(analista => analista.nivel_prioridad_3);
+          break;
+      }
+    }
 
-  const handleEliminarAnalista = async (id: number) => {
+    // Filtro por estado (no aplicable directamente, ya que no tenemos campo activo en AnalistaPrioridad)
+    // Se podría implementar consultando la tabla gen_usuarios si es necesario
+
+    return filtered;
+  }, [analistasMapeados, searchTerm, filterEmpresa, filterNivel, filterEstado]);
+
+  const handleEliminarAnalista = (analista: AnalistaPrioridad) => {
+    setSelectedAnalista(analista);
+    setShowDeleteModal(true);
+  };
+
+  const confirmEliminarAnalista = async () => {
+    if (!selectedAnalista) return;
+    
     try {
-      await analystsService.remove(id);
-      toast.success('Analista eliminado exitosamente');
-      // Invalidar la query para refrescar los datos
-      queryClient.invalidateQueries({ queryKey: ['analistas'] });
-    } catch (error) {
+      startLoading();
+      await analystsService.remove(selectedAnalista.usuario_id);
+      toast({
+        title: "✅ Éxito",
+        description: "Analista eliminado correctamente",
+        variant: "default"
+      });
+      queryClient.invalidateQueries({ queryKey: ['analistas-prioridades'] });
+      setShowDeleteModal(false);
+      setSelectedAnalista(null);
+    } catch (error: any) {
       console.error('Error eliminando analista:', error);
-      toast.error('Error al eliminar analista');
+      toast({
+        title: "❌ Error",
+        description: error.message || "Error al eliminar analista",
+        variant: "destructive"
+      });
+    } finally {
+      stopLoading();
     }
   };
 
-  const handleExportarExcel = () => {
-    // Función para exportar a Excel - implementación simplificada
-    const csvContent = [
-      ['Usuario', 'Email', 'Primer Nombre', 'Segundo Nombre', 'Primer Apellido', 'Segundo Apellido', 'Estado'].join(','),
-      ...filteredAnalistas.map(analista => [
-        analista.username,
-        analista.email,
-        analista.primer_nombre,
-        analista.segundo_nombre,
-        analista.primer_apellido,
-        analista.segundo_apellido,
-        analista.activo
-      ].join(','))
-    ].join('\n');
+  const handleActivateAnalista = (analista: AnalistaPrioridad) => {
+    setSelectedAnalista(analista);
+    setShowActivateModal(true);
+  };
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `analistas_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const confirmActivateAnalista = async () => {
+    if (!selectedAnalista) return;
     
-    toast.success('Lista de analistas exportada exitosamente');
+    try {
+      startLoading();
+      await analystsService.activate(selectedAnalista.usuario_id);
+      toast({
+        title: "✅ Éxito",
+        description: "Analista activado correctamente",
+        variant: "default"
+      });
+      queryClient.invalidateQueries({ queryKey: ['analistas-prioridades'] });
+      setShowActivateModal(false);
+      setSelectedAnalista(null);
+    } catch (error: any) {
+      console.error('Error activando analista:', error);
+      toast({
+        title: "❌ Error",
+        description: error.message || "Error al activar analista",
+        variant: "destructive"
+      });
+    } finally {
+      stopLoading();
+    }
+  };
+
+  const handleDeactivateAnalista = (analista: AnalistaPrioridad) => {
+    setSelectedAnalista(analista);
+    setShowDeactivateModal(true);
+  };
+
+  const confirmDeactivateAnalista = async () => {
+    if (!selectedAnalista) return;
+    
+    try {
+      startLoading();
+      await analystsService.deactivate(selectedAnalista.usuario_id);
+      toast({
+        title: "✅ Éxito",
+        description: "Analista desactivado correctamente",
+        variant: "default"
+      });
+      queryClient.invalidateQueries({ queryKey: ['analistas-prioridades'] });
+      setShowDeactivateModal(false);
+      setSelectedAnalista(null);
+    } catch (error: any) {
+      console.error('Error desactivando analista:', error);
+      toast({
+        title: "❌ Error",
+        description: error.message || "Error al desactivar analista",
+        variant: "destructive"
+      });
+    } finally {
+      stopLoading();
+    }
+  };
+
+  const handleExportarExcel = async () => {
+    try {
+      // Importar xlsx dinámicamente para evitar problemas de SSR
+      const XLSX = await import('xlsx');
+      
+      const fecha = new Date().toLocaleDateString('es-ES');
+      const fechaHora = new Date().toLocaleString('es-ES');
+      
+                    // Preparar los datos para Excel con diseño limpio
+       const excelData = [
+         // Fila de título principal
+         ['ANALISTAS DEL SISTEMA'],
+         [], // Fila vacía
+                 // Headers de la tabla (SIN ICONOS)
+        [
+          'Analista',
+          'Email', 
+          'Empresa',
+          'NIT',
+          'Sucursal',
+          'Nivel 1',
+          'Nivel 2',
+          'Nivel 3',
+          'Solicitudes'
+        ],
+         // Datos de los analistas (SIN ICONOS en estados)
+         ...filteredAnalistas.map(analista => [
+           analista.usuario_nombre || 'No especificado',
+           analista.usuario_email || 'No especificado',
+           analista.empresa_nombre || 'Sin asignar',
+           analista.empresa_nit || '-',
+           analista.empresa_direccion || '-',
+           analista.nivel_prioridad_1 ? 'Sí' : 'No',
+           analista.nivel_prioridad_2 ? 'Sí' : 'No',
+           analista.nivel_prioridad_3 ? 'Sí' : 'No',
+           analista.cantidad_solicitudes || 0
+         ])
+       ];
+
+      // Crear el workbook y worksheet
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(excelData);
+
+      // Configurar el ancho de las columnas
+      const colWidths = [
+        { wch: 25 }, // Analista
+        { wch: 30 }, // Email
+        { wch: 30 }, // Empresa
+        { wch: 15 }, // NIT
+        { wch: 25 }, // Sucursal
+        { wch: 10 }, // Nivel 1
+        { wch: 10 }, // Nivel 2
+        { wch: 10 }, // Nivel 3
+        { wch: 12 }  // Solicitudes
+      ];
+      ws['!cols'] = colWidths;
+
+       // Estilo para el título principal (primera fila) - VERDE CLARO
+       if (ws['A1']) {
+         ws['A1'].s = {
+           font: { bold: true, size: 16, color: { rgb: "000000" } },
+           fill: { fgColor: { rgb: "90EE90" } }, // Verde claro como en la imagen
+           alignment: { horizontal: "center", vertical: "center" }
+         };
+       }
+
+       // Estilo para los headers (fila 3) - VERDE CLARO COMO EL TÍTULO
+       const headerRow = 3;
+       const headerCols = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
+       headerCols.forEach(col => {
+         const cellRef = col + headerRow;
+         if (ws[cellRef]) {
+           ws[cellRef].s = {
+             font: { bold: true, size: 12, color: { rgb: "000000" } },
+             fill: { fgColor: { rgb: "90EE90" } }, // Verde claro igual al título
+             alignment: { horizontal: "center", vertical: "center" },
+             border: {
+               top: { style: "thin", color: { rgb: "C0C0C0" } },
+               bottom: { style: "thin", color: { rgb: "C0C0C0" } },
+               left: { style: "thin", color: { rgb: "C0C0C0" } },
+               right: { style: "thin", color: { rgb: "C0C0C0" } }
+             }
+           };
+         }
+       });
+
+       // Estilo para las filas de datos (TODAS BLANCAS SIN COLORES ALTERNADOS)
+       const dataStartRow = 4;
+       const dataEndRow = dataStartRow + filteredAnalistas.length - 1;
+       
+       for (let row = dataStartRow; row <= dataEndRow; row++) {
+         headerCols.forEach(col => {
+           const cellRef = col + row;
+           if (ws[cellRef]) {
+             ws[cellRef].s = {
+               font: { size: 11, color: { rgb: "000000" } }, // Texto negro
+               fill: { fgColor: { rgb: "FFFFFF" } }, // Fondo blanco
+               alignment: { horizontal: "left" }, // Alineación a la izquierda como en la imagen
+               border: {
+                 top: { style: "thin", color: { rgb: "C0C0C0" } },
+                 bottom: { style: "thin", color: { rgb: "C0C0C0" } },
+                 left: { style: "thin", color: { rgb: "C0C0C0" } },
+                 right: { style: "thin", color: { rgb: "C0C0C0" } }
+               }
+             };
+           }
+         });
+       }
+
+                    // Mergear celdas para mejor presentación
+       ws['!merges'] = [
+         { s: { r: 0, c: 0 }, e: { r: 0, c: 8 } } // Mergear título principal (9 columnas)
+       ];
+
+      // Agregar la hoja al workbook
+      XLSX.utils.book_append_sheet(wb, ws, "Analistas");
+
+      // Generar el archivo Excel como buffer
+      const excelBuffer = XLSX.write(wb, { 
+        bookType: 'xlsx', 
+        type: 'array',
+        compression: true 
+      });
+
+      // Crear blob con el buffer
+      const blob = new Blob([excelBuffer], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      });
+
+      // Crear URL para el blob
+      const url = URL.createObjectURL(blob);
+      
+      // Crear nombre del archivo
+      const fileName = `analistas_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+             // Descargar el archivo directamente
+       const link = document.createElement('a');
+       link.href = url;
+       link.download = fileName;
+       link.style.display = 'none';
+       document.body.appendChild(link);
+       link.click();
+       document.body.removeChild(link);
+       
+       // Limpiar la URL después de un tiempo
+       setTimeout(() => {
+         URL.revokeObjectURL(url);
+       }, 5000);
+       
+       toast({
+         title: "✅ Éxito",
+         description: `Archivo Excel "${fileName}" descargado correctamente`,
+         variant: "default"
+       });
+      
+    } catch (error) {
+      console.error('Error exportando analistas a Excel:', error);
+      toast({
+        title: "❌ Error",
+        description: "Error al exportar la lista de analistas a Excel",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleNewAnalista = (analista?: any) => {
+    console.log('handleNewAnalista llamado con:', analista);
+    if (analista) {
+      console.log('Configurando analista:', analista);
+      setAnalistaParaConfigurar(analista);
+    }
+    setActiveTab("registro");
+  };
+
+  const handleEdit = (analista: AnalistaPrioridad) => {
+    // TODO: Implementar edición inline o navegación
+    navigate(`/analistas/${analista.usuario_id}/editar`, { replace: true });
+    window.location.reload();
+  };
+
+  const handleView = (analista: AnalistaPrioridad) => {
+    toast({
+      title: "ℹ️ Información",
+      description: "Vista de detalles no implementada aún",
+      variant: "default"
+    });
   };
 
   const getNivelBadge = (nivel: string) => {
@@ -183,233 +475,407 @@ export default function AnalistasPage() {
     return badges[estado as keyof typeof badges] || <Badge variant="outline">{estado}</Badge>;
   };
 
-  // Obtener regionales únicas para el filtro
-  const regionalesUnicas = Array.from(new Set(analistasMapeados.map(a => a.regional)));
+
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Gestión de Analistas</h1>
-          <p className="text-gray-600 mt-2">
-            Administra el equipo de analistas del sistema
-          </p>
-        </div>
-        <div className="flex gap-3">
-          <Button
-            onClick={handleExportarExcel}
-            variant="outline"
-            className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Exportar Excel
-          </Button>
-          <Button
-            onClick={() => navigate('/analistas/crear')}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Agregar Analista
-          </Button>
-        </div>
+    <div className="p-4 max-w-full mx-auto">
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-3xl font-extrabold text-cyan-800 flex items-center gap-2 mb-2">
+          <Users className="w-8 h-8 text-cyan-600" />
+          Gestión de Analistas
+        </h1>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Analistas</CardTitle>
-            <UserCheck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{analistasMapeados.length}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Analistas Activos</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {analistasMapeados.filter(a => a.activo === 'activo').length}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                 <TabsList className="grid w-full grid-cols-2 bg-cyan-100/60 p-1 rounded-lg">
+           <TabsTrigger
+             value="analistas"
+             className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+           >
+             Listado de Analistas
+           </TabsTrigger>
+                       <TabsTrigger
+              value="registro"
+              disabled
+              className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300 opacity-50 cursor-not-allowed"
+            >
+              Asociación Prioridad de Analista
+            </TabsTrigger>
+         </TabsList>
+
+        <TabsContent value="analistas" className="mt-6">
+          {/* Header similar al diseño de empresas */}
+          <div className="bg-white rounded-lg border">
+            <div className="flex items-center justify-between p-4 border-b">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-orange-100 rounded flex items-center justify-center">
+                  <Users className="w-5 h-5 text-orange-600" />
+                </div>
+                <span className="text-lg font-semibold text-gray-700">ANALISTAS DEL SISTEMA</span>
+              </div>
+                             <div className="flex space-x-2">
+                 <Button
+                   onClick={handleExportarExcel}
+                   variant="outline"
+                   className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200 text-xs px-3 py-1"
+                   size="sm"
+                 >
+                   <Download className="w-4 h-4 mr-1" />
+                   Exportar Excel
+                 </Button>
+               </div>
             </div>
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Prioridad Alta</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              {analistasMapeados.filter(a => a.nivelPrioridad === 'alto').length}
-            </div>
-          </CardContent>
-        </Card>
+            {/* Filtros */}
+            <div className="p-4 border-b bg-gray-50">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    placeholder="Buscar por nombre, email..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Regionales</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{regionalesUnicas.length}</div>
-          </CardContent>
-        </Card>
-      </div>
+                <Select value={filterEmpresa} onValueChange={setFilterEmpresa}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filtrar por empresa" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todas">Todas las empresas</SelectItem>
+                    {empresas.map(empresa => (
+                      <SelectItem key={empresa.id} value={empresa.id.toString()}>
+                        {empresa.razon_social || empresa.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-      {/* Filtros */}
-      <Card className="mb-6">
-        <CardContent className="pt-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  placeholder="Buscar por nombre, email, regional o cliente..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
+                <Select value={filterNivel} onValueChange={setFilterNivel}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filtrar por nivel" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos los niveles</SelectItem>
+                    <SelectItem value="nivel1">Nivel 1</SelectItem>
+                    <SelectItem value="nivel2">Nivel 2</SelectItem>
+                    <SelectItem value="nivel3">Nivel 3</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select value={filterEstado} onValueChange={setFilterEstado}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filtrar por estado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos los estados</SelectItem>
+                    <SelectItem value="activo">Solo activos</SelectItem>
+                    <SelectItem value="inactivo">Solo inactivos</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                                 <Button
+                   variant="outline"
+                   onClick={() => {
+                     setSearchTerm("");
+                     setFilterEmpresa("todas");
+                     setFilterNivel("todos");
+                     setFilterEstado("activo");
+                   }}
+                   className="flex items-center gap-2"
+                 >
+                  <Filter className="w-4 h-4" />
+                  Limpiar filtros
+                </Button>
               </div>
             </div>
-            
-            <Select value={filterRegional} onValueChange={setFilterRegional}>
-              <SelectTrigger className="w-48">
-                <Filter className="w-4 h-4 mr-2" />
-                <SelectValue placeholder="Filtrar por regional" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todas">Todas las regionales</SelectItem>
-                {regionalesUnicas.filter(r => r).map(regional => (
-                  <SelectItem key={regional} value={regional}>{regional}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
 
-            <Select value={filterNivel} onValueChange={setFilterNivel}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Nivel" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos los niveles</SelectItem>
-                <SelectItem value="alto">Alto</SelectItem>
-                <SelectItem value="medio">Medio</SelectItem>
-                <SelectItem value="bajo">Bajo</SelectItem>
-              </SelectContent>
-            </Select>
+            {/* Tabla de Analistas */}
+            <div className="overflow-x-auto rounded-lg shadow-sm">
+              {isLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 mx-auto"></div>
+                    <p className="mt-4 text-gray-600">Cargando analistas...</p>
+                  </div>
+                </div>
+              ) : (
+                <Table className="min-w-[1200px] w-full text-xs">
+                  <TableHeader>
+                    <TableRow className="bg-gray-50">
+                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-3 px-4">Acciones</TableHead>
+                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-3 px-4">Analista</TableHead>
+                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-3 px-4">Email</TableHead>
+                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-3 px-4">Empresa</TableHead>
+                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-3 px-4">NIT</TableHead>
+                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-3 px-4">Sucursal</TableHead>
+                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-3 px-4">Nivel 1</TableHead>
+                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-3 px-4">Nivel 2</TableHead>
+                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-3 px-4">Nivel 3</TableHead>
+                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-3 px-4">Solicitudes</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredAnalistas.map((analista, index) => (
+                      <TableRow key={`${analista.usuario_id}-${analista.empresa_id || 'sin-empresa'}-${index}`} className="hover:bg-gray-50 border-b border-gray-200">
+                        <TableCell className="py-3 px-4">
+                          <div className="flex gap-1">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleView(analista)}
+                                    aria-label="Ver analista"
+                                    className="h-8 w-8"
+                                  >
+                                    <Eye className="h-4 w-4 text-blue-600" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Ver detalles</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
 
-            <Select value={filterEstado} onValueChange={setFilterEstado}>
-              <SelectTrigger className="w-32">
-                <SelectValue placeholder="Estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos</SelectItem>
-                <SelectItem value="activo">Activo</SelectItem>
-                <SelectItem value="inactivo">Inactivo</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleEdit(analista)}
+                                    aria-label="Editar analista"
+                                    className="h-8 w-8"
+                                  >
+                                    <Edit3 className="h-4 w-4 text-green-600" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Editar</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
 
-      {/* Tabla de Analistas */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Lista de Analistas</CardTitle>
-          <CardDescription>
-            Gestiona el equipo de analistas del sistema
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="text-center py-8">Cargando analistas...</div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Usuario</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Primer Nombre</TableHead>
-                  <TableHead>Segundo Nombre</TableHead>
-                  <TableHead>Primer Apellido</TableHead>
-                  <TableHead>Segundo Apellido</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredAnalistas.map((analista) => (
-                  <TableRow key={analista.id}>
-                    <TableCell>{analista.username}</TableCell>
-                    <TableCell>{analista.email}</TableCell>
-                    <TableCell>{analista.primer_nombre}</TableCell>
-                    <TableCell>{analista.segundo_nombre}</TableCell>
-                    <TableCell>{analista.primer_apellido}</TableCell>
-                    <TableCell>{analista.segundo_apellido}</TableCell>
-                    <TableCell>{analista.activo === 'activo' ? (
-                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Activo</Badge>
-                    ) : (
-                      <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Inactivo</Badge>
-                    )}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            navigate(`/analistas/${analista.id}/editar`, { replace: true });
-                            window.location.reload();
-                          }}
-                        >
-                          <Edit3 className="w-4 h-4" />
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700">
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>¿Eliminar analista?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Esta acción no se puede deshacer. Se eliminará permanentemente el analista {analista.username}.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleEliminarAnalista(analista.id)}
-                                className="bg-red-600 hover:bg-red-700"
-                              >
-                                Eliminar
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-          
-          {!isLoading && filteredAnalistas.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              {searchTerm || filterRegional !== 'todas' || filterNivel !== 'todos' || filterEstado !== 'todos'
-                ? "No se encontraron analistas con los filtros aplicados"
-                : "No hay analistas registrados"
-              }
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleNewAnalista(analista)}
+                                    aria-label="Configurar prioridades"
+                                    className="h-8 w-8"
+                                  >
+                                    <UserCheck className="h-4 w-4 text-blue-600" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Configurar prioridades</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                        </TableCell>
+                        
+                        <TableCell className="py-3 px-4 font-medium text-gray-900">
+                          {analista.usuario_nombre || 'No especificado'}
+                        </TableCell>
+                        
+                        <TableCell className="py-3 px-4 text-gray-700">
+                          {analista.usuario_email || 'No especificado'}
+                        </TableCell>
+                        
+                        <TableCell className="py-3 px-4 text-gray-700">
+                          {analista.empresa_nombre || 'Sin asignar'}
+                        </TableCell>
+                        
+                        <TableCell className="py-3 px-4 text-gray-700">
+                          {analista.empresa_nit || '-'}
+                        </TableCell>
+                        
+                        <TableCell className="py-3 px-4 text-gray-700">
+                          {analista.empresa_direccion || '-'}
+                        </TableCell>
+                        
+                        <TableCell className="py-3 px-4 text-center">
+                          {analista.nivel_prioridad_1 ? (
+                            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">✓</Badge>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </TableCell>
+                        
+                        <TableCell className="py-3 px-4 text-center">
+                          {analista.nivel_prioridad_2 ? (
+                            <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">✓</Badge>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </TableCell>
+                        
+                        <TableCell className="py-3 px-4 text-center">
+                          {analista.nivel_prioridad_3 ? (
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">✓</Badge>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </TableCell>
+                        
+                        <TableCell className="py-3 px-4 text-center font-medium">
+                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                            {analista.cantidad_solicitudes || 0}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+              
+              {!isLoading && filteredAnalistas.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  <Users className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                                                       <p className="font-medium">
+                    {searchTerm || filterEmpresa !== 'todas' || filterNivel !== 'todos' || filterEstado !== 'activo'
+                      ? "No se encontraron analistas con los filtros aplicados"
+                      : "No hay analistas registrados"
+                    }
+                  </p>
+                </div>
+              )}
             </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="registro" className="mt-6">
+          <div className="bg-white rounded-lg border">
+            <div className="flex items-center justify-between p-4 border-b">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center">
+                  <Plus className="w-5 h-5 text-blue-600" />
+                </div>
+                                 <span className="text-lg font-semibold text-gray-700">ASOCIACIÓN PRIORIDAD DE ANALISTA</span>
+              </div>
+            </div>
+                         <div className="p-6">
+               <AnalistaForm 
+                 analistaSeleccionado={analistaParaConfigurar}
+                 onSuccess={() => {
+                   setActiveTab("analistas");
+                   setAnalistaParaConfigurar(null);
+                   queryClient.invalidateQueries({ queryKey: ['analistas'] });
+                 }} 
+               />
+             </div>
+          </div>
+                 </TabsContent>
+       </Tabs>
+
+       {/* Modal de Confirmación para Activar Analista */}
+       <AlertDialog open={showActivateModal} onOpenChange={setShowActivateModal}>
+         <AlertDialogContent>
+           <AlertDialogHeader>
+             <AlertDialogTitle className="flex items-center gap-2">
+               <CheckCircle className="w-5 h-5 text-green-600" />
+               Activar Analista
+             </AlertDialogTitle>
+             <AlertDialogDescription>
+               ¿Estás seguro de que deseas activar al analista{" "}
+               <span className="font-semibold">
+                 {selectedAnalista?.usuario_nombre}
+               </span>
+               ? Esta acción permitirá que el analista acceda nuevamente al sistema.
+             </AlertDialogDescription>
+           </AlertDialogHeader>
+           <AlertDialogFooter>
+             <AlertDialogCancel onClick={() => {
+               setShowActivateModal(false);
+               setSelectedAnalista(null);
+             }}>
+               Cancelar
+             </AlertDialogCancel>
+             <AlertDialogAction
+               onClick={confirmActivateAnalista}
+               className="bg-green-600 hover:bg-green-700"
+             >
+               <CheckCircle className="w-4 h-4 mr-2" />
+               Activar
+             </AlertDialogAction>
+           </AlertDialogFooter>
+         </AlertDialogContent>
+       </AlertDialog>
+
+               {/* Modal de Confirmación para Desactivar Analista */}
+        <AlertDialog open={showDeactivateModal} onOpenChange={setShowDeactivateModal}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <Lock className="w-5 h-5 text-orange-600" />
+                Desactivar Analista
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                ¿Estás seguro de que deseas desactivar al analista{" "}
+                <span className="font-semibold">
+                  {selectedAnalista?.usuario_nombre}
+                </span>
+                ? Esta acción impedirá que el analista acceda al sistema temporalmente.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => {
+                setShowDeactivateModal(false);
+                setSelectedAnalista(null);
+              }}>
+                Cancelar
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmDeactivateAnalista}
+                className="bg-orange-600 hover:bg-orange-700"
+              >
+                <Lock className="w-4 h-4 mr-2" />
+                Desactivar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Modal de Confirmación para Eliminar Analista */}
+        <AlertDialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <Trash2 className="w-5 h-5 text-red-600" />
+                Eliminar Analista
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                              ¿Estás seguro de que deseas eliminar al analista{" "}
+              <span className="font-semibold">
+                {selectedAnalista?.usuario_nombre}
+              </span>
+              ? Esta acción es irreversible y no se puede deshacer.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => {
+                setShowDeleteModal(false);
+                setSelectedAnalista(null);
+              }}>
+                Cancelar
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmEliminarAnalista}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    );
+  }

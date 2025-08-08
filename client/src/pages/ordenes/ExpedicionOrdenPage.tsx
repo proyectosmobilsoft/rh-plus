@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { FileText, Plus, Filter, Users, Building, DollarSign, CheckCircle, Clock, AlertCircle } from "lucide-react";
+import { FileText, Plus, Filter, Users, Building, DollarSign, CheckCircle, Clock, AlertCircle, Loader2 } from "lucide-react";
 import { toast } from 'sonner';
 
 import { Button } from "@/components/ui/button";
@@ -198,7 +198,7 @@ const ExpedicionOrdenPage = () => {
               {isLoading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-white/70 z-20">
                   <div className="flex flex-col items-center gap-2">
-                    <div className="animate-spin h-10 w-10 text-cyan-600">Cargando...</div>
+                    <Loader2 className="h-10 w-10 animate-spin text-cyan-600" />
                     <span className="text-cyan-700 font-semibold">Cargando solicitudes...</span>
                   </div>
                 </div>
@@ -238,6 +238,14 @@ const ExpedicionOrdenPage = () => {
             <PlantillasSelector
               empresaId={empresaData.id}
               onPlantillaSelect={handlePlantillaSelect}
+              selectedSolicitud={selectedSolicitud}
+              onSave={() => {
+                setActiveTab("listado");
+                fetchSolicitudes();
+              }}
+              onCancel={() => {
+                setActiveTab("listado");
+              }}
             />
           )}
         </TabsContent>

@@ -2,74 +2,101 @@ import { supabase } from '@/services/supabaseClient';
 
 export interface Solicitud {
   id?: number;
-  // Información del trabajador
-  nombres: string;
-  apellidos: string;
-  tipoDocumento: string;
-  numeroDocumento: string;
-  lugarExpedicion?: string;
-  celular?: string;
-  direccion?: string;
-  // Información de la empresa usuaria
-  empresaUsuaria?: string;
-  ciudadPrestacionServicio?: string;
-  departamentoPrestacionServicio?: string;
-  // Información del trabajo
-  cargo: string;
-  salario?: string;
-  ciudad: string;
-  fechaIngreso?: string;
-  tipoContrato?: string;
-  // Especificaciones para el ingreso
-  salarioBasico?: string;
-  auxilioTransporte?: string;
-  viajeRotativo?: boolean;
-  // Vehículo de transporte y alimentación
-  vehiculoTransporte?: string;
-  vehiculoAlimentacion?: string;
-  // Salario mensual
-  salarioMensual?: string;
-  // Jornada laboral
-  jornadaLaboral?: string;
-  // Pagos adicionales
-  pagosAuxilios?: string;
-  // Especificaciones adicionales
-  especificacionesAdicionales?: string;
-  // Estado y seguimiento
+  empresa_id?: number;
+  candidato_id?: number;
+  plantilla_id?: number;
   estado: string;
-  prioridad?: string;
-  // Fechas de seguimiento
-  fechaCreacion?: string;
-  fechaAsignacion?: string;
-  fechaInicioExamenes?: string;
-  fechaFinalizacion?: string;
-  fechaVencimiento?: string;
-  // Metadatos
-  observaciones?: string;
-  notasInternas?: string;
-  leadTime?: number;
-  // Campos adicionales para el examen médico
-  centroTrabajo?: string;
-  areaFuncional?: string;
-  tipoExamen?: string;
-  examenMedicoRealizar?: string;
-  // Información adicional de ubicación
-  departamento?: string;
-  // Campos de cumplimiento
-  cumpleHorario?: boolean;
-  especifique?: string;
-  // Campos de auditoría
+  fecha_solicitud?: string;
+  fecha_programada?: string;
+  created_by?: number;
   created_at?: string;
   updated_at?: string;
+  // Nuevos campos para manejo de estructura JSON
+  estructura_datos?: Record<string, any>; // Los datos del formulario en formato JSON
+  plantilla_nombre?: string; // Nombre de la plantilla utilizada
+  nombres?: string;
+  apellidos?: string;
+  tipo_documento?: string;
+  numero_documento?: string;
+  lugar_expedicion?: string;
+  celular?: string;
+  direccion?: string;
+  empresa_usuaria?: string;
+  ciudad_prestacion_servicio?: string;
+  departamento_prestacion_servicio?: string;
+  cargo?: string;
+  salario?: string;
+  ciudad?: string;
+  fecha_ingreso?: string;
+  tipo_contrato?: string;
+  salario_basico?: string;
+  auxilio_transporte?: string;
+  viaje_rotativo?: boolean;
+  vehiculo_transportel?: string;
+  vehiculo_alimentacion?: string;
+  salario_mensual?: string;
+  jornada_laboral?: string;
+  pagos_auxilios?: string;
+  especificaciones_adicionales?: string;
+  prioridad?: string;
+  observaciones?: string;
+  notas_internas?: string;
+  centro_trabajo?: string;
+  area_funcional?: string;
+  tipo_examen?: string;
+  examen_medico_realizar?: string;
+  departamento?: string;
+  cumple_horario?: boolean;
+  especifique?: string;
+  // Relaciones
+  candidatos?: {
+    id: number;
+    primer_nombre: string;
+    segundo_nombre?: string;
+    primer_apellido: string;
+    segundo_apellido?: string;
+    tipo_documento: string;
+    numero_documento: string;
+    telefono?: string;
+    direccion?: string;
+    ciudad_id?: number;
+    ciudades?: {
+      nombre: string;
+    };
+  };
+  empresas?: {
+    id: number;
+    razon_social: string;
+    nit: string;
+    ciudad?: string;
+  };
 }
 
 export const solicitudesService = {
-  // Obtener todas las solicitudes
   getAll: async (): Promise<Solicitud[]> => {
     try {
       const { data, error } = await supabase
         .from('hum_solicitudes')
-        .select('*')
+        .select(`
+          *,
+          candidatos!candidato_id (
+            primer_nombre,
+            segundo_nombre,
+            primer_apellido,
+            segundo_apellido,
+            tipo_documento,
+            numero_documento,
+            telefono,
+            direccion,
+            ciudad_id,
+            ciudades!ciudad_id ( nombre )
+          ),
+          empresas!empresa_id (
+            razon_social,
+            nit,
+            ciudad
+          )
+        `)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -84,12 +111,69 @@ export const solicitudesService = {
     }
   },
 
-  // Obtener solicitud por ID
+  getByStatus: async (estado: string): Promise<Solicitud[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('hum_solicitudes')
+        .select(`
+          *,
+          candidatos!candidato_id (
+            primer_nombre,
+            segundo_nombre,
+            primer_apellido,
+            segundo_apellido,
+            tipo_documento,
+            numero_documento,
+            telefono,
+            direccion,
+            ciudad_id,
+            ciudades!ciudad_id ( nombre )
+          ),
+          empresas!empresa_id (
+            razon_social,
+            nit,
+            ciudad
+          )
+        `)
+        .eq('estado', estado)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching solicitudes by status:', error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Error in solicitudesService.getByStatus:', error);
+      throw error;
+    }
+  },
+
   getById: async (id: number): Promise<Solicitud | null> => {
     try {
       const { data, error } = await supabase
         .from('hum_solicitudes')
-        .select('*')
+        .select(`
+          *,
+          candidatos!candidato_id (
+            primer_nombre,
+            segundo_nombre,
+            primer_apellido,
+            segundo_apellido,
+            tipo_documento,
+            numero_documento,
+            telefono,
+            direccion,
+            ciudad_id,
+            ciudades!ciudad_id ( nombre )
+          ),
+          empresas!empresa_id (
+            razon_social,
+            nit,
+            ciudad
+          )
+        `)
         .eq('id', id)
         .single();
 
@@ -98,19 +182,18 @@ export const solicitudesService = {
         throw error;
       }
 
-      return data;
+      return data || null;
     } catch (error) {
       console.error('Error in solicitudesService.getById:', error);
       throw error;
     }
   },
 
-  // Crear nueva solicitud
-  create: async (solicitud: Omit<Solicitud, 'id'>): Promise<Solicitud> => {
+  create: async (solicitud: Omit<Solicitud, 'id' | 'created_at' | 'updated_at'>): Promise<Solicitud> => {
     try {
       const { data, error } = await supabase
         .from('hum_solicitudes')
-        .insert([solicitud])
+        .insert(solicitud)
         .select()
         .single();
 
@@ -126,12 +209,11 @@ export const solicitudesService = {
     }
   },
 
-  // Actualizar solicitud
-  update: async (id: number, solicitud: Partial<Solicitud>): Promise<Solicitud> => {
+  update: async (id: number, updates: Partial<Solicitud>): Promise<Solicitud> => {
     try {
       const { data, error } = await supabase
         .from('hum_solicitudes')
-        .update(solicitud)
+        .update(updates)
         .eq('id', id)
         .select()
         .single();
@@ -148,7 +230,6 @@ export const solicitudesService = {
     }
   },
 
-  // Eliminar solicitud
   delete: async (id: number): Promise<void> => {
     try {
       const { error } = await supabase
@@ -162,27 +243,6 @@ export const solicitudesService = {
       }
     } catch (error) {
       console.error('Error in solicitudesService.delete:', error);
-      throw error;
-    }
-  },
-
-  // Filtrar por estado
-  getByStatus: async (estado: string): Promise<Solicitud[]> => {
-    try {
-      const { data, error } = await supabase
-        .from('hum_solicitudes')
-        .select('*')
-        .eq('estado', estado)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching solicitudes by status:', error);
-        throw error;
-      }
-
-      return data || [];
-    } catch (error) {
-      console.error('Error in solicitudesService.getByStatus:', error);
       throw error;
     }
   },
@@ -257,6 +317,72 @@ export const solicitudesService = {
       };
     } catch (error) {
       console.error('Error in solicitudesService.getStatistics:', error);
+      throw error;
+    }
+  },
+
+  // Crear solicitud con estructura de plantilla
+  createWithTemplate: async (
+    empresaId: number,
+    plantillaId: number,
+    plantillaNombre: string,
+    estructuraDatos: Record<string, any>,
+    candidatoId?: number
+  ): Promise<Solicitud> => {
+    try {
+      const solicitudData = {
+        empresa_id: empresaId,
+        plantilla_id: plantillaId,
+        plantilla_nombre: plantillaNombre,
+        estructura_datos: estructuraDatos,
+        candidato_id: candidatoId,
+        estado: 'PENDIENTE',
+        fecha_solicitud: new Date().toISOString()
+        // created_by se omite por ahora hasta implementar autenticación de usuarios
+      };
+
+      const { data, error } = await supabase
+        .from('hum_solicitudes')
+        .insert(solicitudData)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating solicitud with template:', error);
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error in solicitudesService.createWithTemplate:', error);
+      throw error;
+    }
+  },
+
+  // Actualizar solicitud con estructura de plantilla
+  updateWithTemplate: async (
+    id: number,
+    estructuraDatos: Record<string, any>
+  ): Promise<Solicitud> => {
+    try {
+      const { data, error } = await supabase
+        .from('hum_solicitudes')
+        .update({
+          estructura_datos: estructuraDatos,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating solicitud with template:', error);
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error in solicitudesService.updateWithTemplate:', error);
       throw error;
     }
   }

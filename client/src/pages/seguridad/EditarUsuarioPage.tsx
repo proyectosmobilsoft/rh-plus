@@ -10,6 +10,9 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, Save, UserCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { usuariosService, UsuarioData } from "@/services/usuariosService";
+import { rolesService } from "@/services/rolesService";
+import { debugService } from "@/services/debugService";
 import { useLocation, useParams } from "wouter";
 import PasswordStrengthIndicator from "@/components/PasswordStrengthIndicator";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -68,18 +71,43 @@ const EditarUsuarioPage = () => {
 
   // Query para obtener el usuario
   const { data: usuario, isLoading: loadingUsuario } = useQuery<Usuario>({
-    queryKey: ["/api/usuarios", userId],
+    queryKey: ["usuario", userId],
     queryFn: async () => {
-      const usuarios = await apiRequest("/api/usuarios");
-      const user = usuarios.find((u: Usuario) => u.id === userId);
+      const usuarios = await usuariosService.listUsuarios();
+      const user = usuarios.find((u: any) => u.id === userId);
       if (!user) throw new Error("Usuario no encontrado");
-      return user;
+      
+      // Mapear los datos al formato esperado por el formulario
+      return {
+        id: user.id,
+        identificacion: user.identificacion || "",
+        primerNombre: user.primer_nombre,
+        segundoNombre: user.segundo_nombre || "",
+        primerApellido: user.primer_apellido,
+        segundoApellido: user.segundo_apellido || "",
+        telefono: user.telefono || "",
+        email: user.email,
+        username: user.username,
+        activo: user.activo,
+        perfiles: user.gen_usuario_roles?.map((ur: any) => ({
+          id: ur.rol_id,
+          nombre: ur.gen_roles?.nombre || "Sin nombre"
+        })) || []
+      };
     },
   });
 
   // Query para obtener perfiles disponibles
   const { data: perfiles = [], isLoading: loadingPerfiles } = useQuery<Perfil[]>({
-    queryKey: ["/api/perfiles"],
+    queryKey: ["roles"],
+    queryFn: async () => {
+      const roles = await rolesService.listRoles();
+      return roles.map((rol: any) => ({
+        id: rol.id,
+        nombre: rol.nombre,
+        descripcion: rol.descripcion || ""
+      }));
+    },
   });
 
   const form = useForm<FormData>({
@@ -125,19 +153,51 @@ const EditarUsuarioPage = () => {
   // Mutation para actualizar usuario
   const updateUsuarioMutation = useMutation({
     mutationFn: async (data: FormData) => {
-      const updateData = { ...data };
-      // Si no se proporciona contraseña, no enviarla
-      if (!updateData.password || updateData.password === "") {
-        delete updateData.password;
+      console.log('📝 Datos del formulario a actualizar:', data);
+      console.log('🔍 Usuario ID:', userId);
+      
+      // Hacer diagnóstico completo antes de la actualización
+      console.log('🔬 Ejecutando diagnóstico previo...');
+      
+      // Verificar usuario actual
+      const currentUserDebug = await debugService.getUserById(userId);
+      console.log('👤 Usuario actual en BD:', currentUserDebug.data);
+      
+      // Verificar conflictos potenciales
+      const testResult = await debugService.testUpdate(userId, {
+        username: data.username,
+        email: data.email
+      });
+      
+      if (!testResult.success) {
+        console.error('❌ Test de actualización falló:', testResult);
+        throw new Error(testResult.error || 'Error en validación previa');
       }
       
-      return await apiRequest(`/api/usuarios/${userId}`, {
-        method: "PUT",
-        body: JSON.stringify(updateData),
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      // Mapear los datos al formato esperado por el servicio
+      const usuarioData: Partial<UsuarioData> = {
+        identificacion: data.identificacion,
+        primer_nombre: data.primerNombre,
+        segundo_nombre: data.segundoNombre || undefined,
+        primer_apellido: data.primerApellido,
+        segundo_apellido: data.segundoApellido || undefined,
+        telefono: data.telefono || undefined,
+        email: data.email,
+        username: data.username,
+        activo: data.activo,
+      };
+      
+      console.log('📤 Datos mapeados para el servicio:', usuarioData);
+      
+      const password = data.password && data.password.trim() !== "" ? data.password : undefined;
+      
+      return await usuariosService.updateUsuario(
+        userId,
+        usuarioData,
+        data.perfilIds || [],
+        [], // empresaIds - por ahora vacío, se puede agregar después
+        password
+      );
     },
     onSuccess: () => {
       toast({
@@ -145,7 +205,8 @@ const EditarUsuarioPage = () => {
         description: "Los cambios han sido guardados correctamente.",
         className: "bg-blue-50 border-blue-200",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/usuarios"] });
+      queryClient.invalidateQueries({ queryKey: ["usuarios"] });
+      queryClient.invalidateQueries({ queryKey: ["usuario", userId] });
       setLocation("/seguridad/usuarios");
     },
     onError: (error: any) => {

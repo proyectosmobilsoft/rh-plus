@@ -36,8 +36,10 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
         return <Badge variant="default" className="bg-green-100 text-green-800">Aprobada</Badge>;
       case 'RECHAZADA':
         return <Badge variant="destructive" className="bg-red-100 text-red-800">Rechazada</Badge>;
+      case 'EN_PROCESO':
+        return <Badge variant="outline" className="bg-blue-100 text-blue-800">En Proceso</Badge>;
       default:
-        return <Badge variant="outline">{estado}</Badge>;
+        return <Badge variant="outline">{estado || 'Sin estado'}</Badge>;
     }
   };
 
@@ -66,6 +68,11 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     } catch (error) {
       return 'Fecha inválida';
     }
+  };
+
+  // Función para mostrar datos con valores por defecto
+  const getDisplayValue = (value: string | undefined, defaultValue: string = 'No especificado') => {
+    return value && value.trim() !== '' ? value : defaultValue;
   };
 
   const handleDeleteClick = (id: number | undefined) => {
@@ -113,47 +120,22 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>ID</TableHead>
+              <TableHead className="text-center">Acciones</TableHead>
+              
               <TableHead>Trabajador</TableHead>
               <TableHead>Documento</TableHead>
               <TableHead>Empresa</TableHead>
-              <TableHead>Cargo</TableHead>
-              <TableHead>Ciudad</TableHead>
+              
               <TableHead>Estado</TableHead>
               <TableHead>Prioridad</TableHead>
-              <TableHead>Fecha</TableHead>
-              <TableHead className="text-right">Acciones</TableHead>
+              
             </TableRow>
           </TableHeader>
           <TableBody>
             {solicitudes.map((solicitud) => (
               <TableRow key={solicitud.id}>
-                <TableCell className="font-medium">#{solicitud.id}</TableCell>
                 <TableCell>
-                  <div className="flex flex-col">
-                    <span className="font-medium">{solicitud.nombres} {solicitud.apellidos}</span>
-                    <span className="text-sm text-muted-foreground">{solicitud.celular}</span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-col">
-                    <span>{solicitud.tipoDocumento}: {solicitud.numeroDocumento}</span>
-                    <span className="text-sm text-muted-foreground">{solicitud.lugarExpedicion}</span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-col">
-                    <span>{solicitud.empresaUsuaria || 'Sin empresa'}</span>
-                    <span className="text-sm text-muted-foreground">{solicitud.ciudadPrestacionServicio}</span>
-                  </div>
-                </TableCell>
-                <TableCell>{solicitud.cargo}</TableCell>
-                <TableCell>{solicitud.ciudad}</TableCell>
-                <TableCell>{getStatusBadge(solicitud.estado)}</TableCell>
-                <TableCell>{getPriorityBadge(solicitud.prioridad || 'media')}</TableCell>
-                <TableCell>{formatDate(solicitud.fechaCreacion || solicitud.created_at)}</TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end space-x-1">
+                  <div className="flex justify-center items-center space-x-1">
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -162,6 +144,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                             size="icon"
                             onClick={() => onView(solicitud)}
                             aria-label="Ver solicitud"
+                            className="h-8 w-8"
                           >
                             <Eye className="h-4 w-4 text-blue-600" />
                           </Button>
@@ -180,6 +163,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                             size="icon"
                             onClick={() => onEdit(solicitud)}
                             aria-label="Editar solicitud"
+                            className="h-8 w-8"
                           >
                             <Edit className="h-4 w-4 text-green-600" />
                           </Button>
@@ -199,6 +183,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                               size="icon"
                               onClick={() => handleApproveClick(solicitud.id)}
                               aria-label="Aprobar solicitud"
+                              className="h-8 w-8"
                             >
                               <CheckCircle className="h-4 w-4 text-green-600" />
                             </Button>
@@ -213,37 +198,15 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleDeleteClick(solicitud.id)}
-                                aria-label="Eliminar solicitud"
-                              >
-                                <Trash2 className="h-4 w-4 text-red-600" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>¿Eliminar solicitud?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  ¿Estás seguro de que deseas eliminar la solicitud de{" "}
-                                  <strong>{solicitud.nombres} {solicitud.apellidos}</strong>?
-                                  Esta acción no se puede deshacer.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={handleDeleteConfirm}
-                                  className="bg-red-600 hover:bg-red-700"
-                                >
-                                  Eliminar
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteClick(solicitud.id)}
+                            aria-label="Eliminar solicitud"
+                            className="h-8 w-8"
+                          >
+                            <Trash2 className="h-4 w-4 text-red-600" />
+                          </Button>
                         </TooltipTrigger>
                         <TooltipContent>
                           <p>Eliminar</p>
@@ -252,6 +215,39 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                     </TooltipProvider>
                   </div>
                 </TableCell>
+                
+                <TableCell>
+                  <div className="flex flex-col">
+                    <span className="font-medium">
+                      {getDisplayValue(solicitud.candidatos?.primer_nombre, 'Sin nombre')} {getDisplayValue(solicitud.candidatos?.primer_apellido, '')}
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      {getDisplayValue(solicitud.candidatos?.telefono, 'Sin teléfono')}
+                    </span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-col">
+                    <span>
+                      {getDisplayValue(solicitud.candidatos?.tipo_documento, 'Sin tipo')}: {getDisplayValue(solicitud.candidatos?.numero_documento, 'Sin número')}
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      {getDisplayValue(solicitud.lugar_expedicion, 'Sin lugar de expedición')}
+                    </span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-col">
+                    <span>{getDisplayValue(solicitud.empresas?.razon_social, 'Sin empresa')}</span>
+                    <span className="text-sm text-muted-foreground">
+                      {getDisplayValue(solicitud.empresas?.ciudad, 'Sin ciudad')}
+                    </span>
+                  </div>
+                </TableCell>
+                
+                <TableCell>{getStatusBadge(solicitud.estado)}</TableCell>
+                <TableCell>{getPriorityBadge(solicitud.prioridad || 'media')}</TableCell>
+                
               </TableRow>
             ))}
           </TableBody>
@@ -264,7 +260,20 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar solicitud?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. La solicitud será eliminada permanentemente.
+              {selectedSolicitudId && (() => {
+                const solicitud = solicitudes.find(s => s.id === selectedSolicitudId);
+                const nombre = solicitud?.candidatos?.primer_nombre 
+                  ? `${solicitud.candidatos.primer_nombre} ${solicitud.candidatos.primer_apellido || ''}`.trim()
+                  : 'Sin nombre';
+                return (
+                  <>
+                    ¿Estás seguro de que deseas eliminar la solicitud de{" "}
+                    <strong>{nombre}</strong>?
+                    <br />
+                    Esta acción no se puede deshacer.
+                  </>
+                );
+              })()}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

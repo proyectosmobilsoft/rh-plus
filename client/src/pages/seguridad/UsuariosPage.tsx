@@ -30,6 +30,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLoading } from "@/contexts/LoadingContext";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
 import { useForm } from "react-hook-form";
 
 // Esquema de validación para crear usuario
@@ -108,12 +115,30 @@ interface Usuario {
 
 const UsuariosPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("active");
+  const [perfilFilter, setPerfilFilter] = useState<"all" | number>("all");
   const [activeTab, setActiveTab] = useState("usuarios");
   const [editingUser, setEditingUser] = useState<Usuario | null>(null);
   const { toast } = useToast();
   const { startLoading, stopLoading } = useLoading();
   const queryClient = useQueryClient();
+
+  // Función para asignar colores diferentes a cada perfil
+  const getPerfilColor = (perfilId: number) => {
+    const colors = [
+      "bg-blue-50 text-blue-700 border-blue-200",
+      "bg-green-50 text-green-700 border-green-200",
+      "bg-purple-50 text-purple-700 border-purple-200",
+      "bg-orange-50 text-orange-700 border-orange-200",
+      "bg-pink-50 text-pink-700 border-pink-200",
+      "bg-indigo-50 text-indigo-700 border-indigo-200",
+      "bg-teal-50 text-teal-700 border-teal-200",
+      "bg-red-50 text-red-700 border-red-200",
+      "bg-yellow-50 text-yellow-700 border-yellow-200",
+      "bg-cyan-50 text-cyan-700 border-cyan-200",
+    ];
+    return colors[perfilId % colors.length];
+  };
 
   // Query para obtener usuarios desde Supabase
   const { data: usuarios = [], isLoading, refetch } = useQuery<Usuario[]>({
@@ -189,8 +214,14 @@ const UsuariosPage = () => {
     mutationFn: async (data: EditarUsuarioForm) => {
       startLoading();
       try {
-        const { password, ...userData } = data;
-        return await usuariosService.updateUsuario(userData.id, userData);
+        const { password, perfilIds, empresaIds, ...userData } = data;
+        return await usuariosService.updateUsuario(
+          userData.id, 
+          userData, 
+          perfilIds || [], 
+          empresaIds || [], 
+          password
+        );
       } finally {
         stopLoading();
       }
@@ -303,9 +334,13 @@ const UsuariosPage = () => {
           statusFilter === "active" ? usuario.activo :
             !usuario.activo;
 
-      return matchesSearch && matchesStatus;
+      const matchesPerfil =
+        perfilFilter === "all" ? true :
+          usuario.gen_usuario_roles?.some(rol => rol.rol_id === perfilFilter);
+
+      return matchesSearch && matchesStatus && matchesPerfil;
     });
-  }, [usuarios, searchTerm, statusFilter]);
+  }, [usuarios, searchTerm, statusFilter, perfilFilter]);
 
   // Handlers
   const handleEliminarUsuario = async (id: number) => {
@@ -325,12 +360,28 @@ const UsuariosPage = () => {
     const { confirmPassword, perfilIds, empresaIds, ...userData } = data;
     const password = data.password;
 
-    createUserMutation.mutate({
-      ...userData,
-      password,
-      perfilIds,
-      empresaIds
-    });
+    // Decidir si crear o actualizar basado en editingUser
+    if (editingUser) {
+      console.log('🔄 Editando usuario existente, llamando updateUserMutation');
+      // Estamos editando un usuario existente
+      const updateData = {
+        ...userData,
+        id: editingUser.id,
+        password,
+        perfilIds,
+        empresaIds
+      };
+      updateUserMutation.mutate(updateData);
+    } else {
+      console.log('➕ Creando nuevo usuario, llamando createUserMutation');
+      // Estamos creando un nuevo usuario
+      createUserMutation.mutate({
+        ...userData,
+        password,
+        perfilIds,
+        empresaIds
+      });
+    }
   };
 
   const handleActualizarUsuario = (data: EditarUsuarioForm) => {
@@ -394,7 +445,21 @@ const UsuariosPage = () => {
                 <Button
                   onClick={() => {
                     setEditingUser(null);
-                    form.reset();
+                    // Vaciar completamente el formulario con valores por defecto
+                    form.reset({
+                      identificacion: "",
+                      primer_nombre: "",
+                      segundo_nombre: "",
+                      primer_apellido: "",
+                      segundo_apellido: "",
+                      telefono: "",
+                      email: "",
+                      username: "",
+                      password: "",
+                      confirmPassword: "",
+                      perfilIds: [],
+                      empresaIds: []
+                    });
                     setActiveTab("registro");
                   }}
                   className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
@@ -416,15 +481,31 @@ const UsuariosPage = () => {
                 />
               </div>
               <div className="min-w-[180px]">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as "all" | "active" | "inactive")}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-600 focus:border-transparent"
-                >
-                  <option value="all">Todos los estados</option>
-                  <option value="active">Solo activos</option>
-                  <option value="inactive">Solo inactivos</option>
-                </select>
+                <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "all" | "active" | "inactive")}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filtrar por estado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos los estados</SelectItem>
+                    <SelectItem value="active">Solo activos</SelectItem>
+                    <SelectItem value="inactive">Solo inactivos</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="min-w-[180px]">
+                <Select value={perfilFilter === "all" ? "all" : perfilFilter.toString()} onValueChange={(value) => setPerfilFilter(value === "all" ? "all" : parseInt(value))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filtrar por perfil" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos los perfiles</SelectItem>
+                    {perfilesActivos.map(perfil => (
+                      <SelectItem key={perfil.id} value={perfil.id.toString()}>
+                        {perfil.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -444,7 +525,6 @@ const UsuariosPage = () => {
                     <TableHead className="px-2 py-1 text-teal-600">Acciones</TableHead>
                     <TableHead className="px-4 py-3">Identificación</TableHead>
                     <TableHead className="px-4 py-3">Nombre Completo</TableHead>
-                    <TableHead className="px-4 py-3">Email</TableHead>
                     <TableHead className="px-4 py-3">Username</TableHead>
                     <TableHead className="px-4 py-3">Teléfono</TableHead>
                     <TableHead className="px-4 py-3">Perfiles</TableHead>
@@ -454,7 +534,7 @@ const UsuariosPage = () => {
                 <TableBody>
                   {!isLoading && (usuariosFiltrados.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="h-24 text-center">
+                      <TableCell colSpan={7} className="h-24 text-center">
                         No hay usuarios disponibles.
                       </TableCell>
                     </TableRow>
@@ -612,29 +692,27 @@ const UsuariosPage = () => {
                           {`${usuario.primer_nombre} ${usuario.segundo_nombre || ""} ${usuario.primer_apellido} ${usuario.segundo_apellido || ""}`.trim()}
                         </TableCell>
                         <TableCell className="px-3 py-2 text-sm text-gray-900">
-                          {usuario.email}
-                        </TableCell>
-                        <TableCell className="px-3 py-2 text-sm text-gray-900">
                           {usuario.username}
                         </TableCell>
                         <TableCell className="px-3 py-2 text-sm text-gray-900">
                           {usuario.telefono || "-"}
                         </TableCell>
-                        <TableCell className="px-3 py-2">
-                          <div className="flex flex-wrap gap-1">
-                            {usuario.gen_usuario_roles?.map((role) => (
-                              <Badge
-                                key={role.id}
-                                variant="outline"
-                                className="text-xs bg-green-50 text-green-700 border-green-200"
-                              >
-                                {role.gen_roles?.nombre || 'Sin nombre'}
-                              </Badge>
-                            )) || []}
-                            {(!usuario.gen_usuario_roles || usuario.gen_usuario_roles.length === 0) && (
-                              <span className="text-xs text-gray-400">Sin perfiles</span>
-                            )}
-                          </div>
+                        <TableCell className="px-3 py-2 text-sm text-gray-900">
+                          {usuario.gen_usuario_roles && usuario.gen_usuario_roles.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {usuario.gen_usuario_roles.map((rol, index) => (
+                                <Badge 
+                                  key={rol.id} 
+                                  variant="outline" 
+                                  className={`text-xs ${getPerfilColor(rol.rol_id)}`}
+                                >
+                                  {rol.gen_roles.nombre}
+                                </Badge>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
                         </TableCell>
                         <TableCell className="px-3 py-2">
                           <Badge
