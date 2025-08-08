@@ -6,12 +6,12 @@ import { Form } from "@/components/ui/form";
 import { X, Check, ChevronDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { TemplateBasicInfo } from "./form/TemplateBasicInfo";
-import { TemplatePreview } from "./form/TemplatePreview";
+
 import * as React from "react";
 const { useEffect, useState, useRef } = React;
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+
 import FormBuilder from "@/components/FormBuilder";
-import FormPreview from "@/components/FormPreview";
+
 import { useMemo } from "react";
 import { v4 as uuidv4 } from 'uuid';
 import { plantillasService } from '@/services/plantillasService';
@@ -61,7 +61,6 @@ interface TemplateFormProps {
 export function TemplateForm({ initialData, onSaved }: TemplateFormProps) {
   const { toast } = useToast();
   const [templateOption, setTemplateOption] = useState<'new' | 'existing' | 'basic'>('new');
-  const [currentTab, setCurrentTab] = useState('datos-plantilla');
   const [fieldConfig, setFieldConfig] = useState<Record<string, { visible: boolean; required: boolean }>>({});
   const [formBuilderData, setFormBuilderData] = useState<{ nombre: string, descripcion: string, fields: any[] } | null>(null);
   const [plantillasExistentes, setPlantillasExistentes] = useState<any[]>([]);
@@ -263,21 +262,10 @@ export function TemplateForm({ initialData, onSaved }: TemplateFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <Tabs 
-          value={currentTab} 
-          onValueChange={setCurrentTab}
-          className="w-full"
-        >
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="datos-plantilla">Datos de la Plantilla</TabsTrigger>
-            <TabsTrigger value="configuracion">Configuración de Campos</TabsTrigger>
-            <TabsTrigger value="vista-previa">Vista Previa</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="datos-plantilla">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="grid gap-6">
+        <div className="w-full">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="grid gap-6">
                   <TemplateBasicInfo form={form} />
                   
                   <div>
@@ -359,76 +347,10 @@ export function TemplateForm({ initialData, onSaved }: TemplateFormProps) {
                       {initialData ? "Actualizar Plantilla" : "Crear Plantilla"}
                     </Button>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="configuracion">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Configuración de Campos</h3>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Selecciona qué campos estarán disponibles en esta plantilla y cuáles serán obligatorios.
-                  </p>
-                  
-                  <div className="grid gap-4">
-                    {CAMPOS_DISPONIBLES.map((campo) => {
-                      const config = fieldConfig[campo.key] || { visible: false, required: false };
-                      return (
-                        <div key={campo.key} className="flex items-center justify-between p-4 border rounded-lg">
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-3">
-                              <input
-                                type="checkbox"
-                                checked={config.visible}
-                                onChange={(e) => handleFieldConfigChange(campo.key, 'visible', e.target.checked)}
-                                className="h-4 w-4"
-                              />
-                              <div>
-                                <label className="text-sm font-medium">{campo.label}</label>
-                                <p className="text-xs text-gray-500">{campo.description}</p>
-                              </div>
-                            </div>
-                          </div>
-                          {config.visible && (
-                            <div className="flex items-center space-x-2">
-                              <label className="text-xs">Obligatorio</label>
-                              <input
-                                type="checkbox"
-                                checked={config.required}
-                                onChange={(e) => handleFieldConfigChange(campo.key, 'required', e.target.checked)}
-                                className="h-4 w-4"
-                              />
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="vista-previa">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Vista Previa de la Plantilla</h3>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Así se verá el formulario con la configuración actual.
-                  </p>
-                  
-                  <div className="border rounded p-4 bg-gray-50">
-                    <TemplatePreview configuracion={fieldConfig} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </form>
     </Form>
   );
