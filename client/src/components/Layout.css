@@ -312,6 +312,7 @@
 .sidebar-container {
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   height: 100vh;
   overflow: hidden;
   position: fixed;
@@ -326,8 +327,8 @@
 .sidebar-scroll {
   flex: 1;
   min-height: 0;
-  max-height: calc(100vh - 200px);
-  height: calc(100vh - 200px);
+  max-height: calc(100vh - 132px);
+  height: calc(100vh - 132px);
 }
 
 /* Mejoras para dispositivos móviles */
@@ -438,8 +439,8 @@
 .sidebar-scroll {
   flex: 1;
   min-height: 0;
-  max-height: calc(100vh - 200px);
-  height: calc(100vh - 200px);
+  max-height: calc(100vh - 132px);
+  height: calc(100vh - 132px);
   overflow-y: auto;
   overflow-x: hidden;
 }
