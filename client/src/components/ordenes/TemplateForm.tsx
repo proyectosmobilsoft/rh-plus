@@ -63,6 +63,11 @@ export function TemplateForm({ initialData, onSaved }: TemplateFormProps) {
   const [templateOption, setTemplateOption] = useState<'new' | 'existing' | 'basic'>('new');
   const [currentTab, setCurrentTab] = useState('datos-plantilla');
   const [fieldConfig, setFieldConfig] = useState<Record<string, { visible: boolean; required: boolean }>>({});
+  const [formBuilderData, setFormBuilderData] = useState<{ nombre: string, descripcion: string, fields: any[] } | null>(null);
+  const [plantillasExistentes, setPlantillasExistentes] = useState<any[]>([]);
+  const [selectedPlantillaId, setSelectedPlantillaId] = useState<string>('');
+  const [selectedPlantillaData, setSelectedPlantillaData] = useState<any>(null);
+  const [formBuilderFields, setFormBuilderFields] = useState<any[]>([]);
   
   // Estado para plantillas asignadas
   const [plantillasAsignadas, setPlantillasAsignadas] = useState<number[]>(
@@ -95,32 +100,76 @@ export function TemplateForm({ initialData, onSaved }: TemplateFormProps) {
     setFieldConfig(initialConfig);
   }, []);
 
+  // Cargar plantillas existentes
+  useEffect(() => {
+    const cargarPlantillas = async () => {
+      try {
+        const plantillas = await plantillasService.getAll();
+        setPlantillasExistentes(plantillas);
+      } catch (error) {
+        console.error('Error al cargar plantillas:', error);
+      }
+    };
+    cargarPlantillas();
+  }, []);
+
   const form = useForm({
     defaultValues: {
-      nombre: "",
-      descripcion: "",
-      esDefault: false,
-      activo: true,
+      nombre: initialData?.nombre || "",
+      descripcion: initialData?.descripcion || "",
+      esDefault: initialData?.es_default || false,
+      activo: initialData?.activa !== undefined ? initialData.activa : true,
       configuracionCampos: {}
     }
   });
 
   const onSubmit = async (data: any) => {
     try {
+      // Determinar qué estructura usar según el tipo de plantilla
+      let estructuraFormulario;
+      
+      if (templateOption === 'new' && formBuilderFields.length > 0) {
+        // Usar campos del FormBuilder
+        estructuraFormulario = formBuilderFields;
+      } else if (templateOption === 'existing' && selectedPlantillaData) {
+        // Usar campos de la plantilla seleccionada (pueden haber sido editados)
+        estructuraFormulario = formBuilderFields.length > 0 ? formBuilderFields : selectedPlantillaData.estructura_formulario;
+      } else if (templateOption === 'basic') {
+        // Usar configuración de campos básicos
+        estructuraFormulario = fieldConfig;
+      } else {
+        // Fallback a configuración de campos
+        estructuraFormulario = fieldConfig;
+      }
+
+      // Validar que hay campos
+      if (!estructuraFormulario || (Array.isArray(estructuraFormulario) && estructuraFormulario.length === 0)) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Por favor agregue al menos un campo a la plantilla.",
+        });
+        return;
+      }
+
       // Preparar datos para Supabase
       const payload = {
         nombre: data.nombre,
         descripcion: data.descripcion,
         es_default: data.esDefault || false,
-        estructura_formulario: fieldConfig,
+        estructura_formulario: estructuraFormulario,
         activa: true,
-        // usuario_id: ... // Aquí puedes agregar el usuario si lo tienes en contexto
       };
-      if (initialData && initialData.id) {
-        await plantillasService.update(initialData.id, payload);
+
+      // Determinar qué plantilla actualizar
+      const plantillaId = initialData?.id || selectedPlantillaData?.id;
+      
+      if (plantillaId) {
+        await plantillasService.update(plantillaId, payload);
       } else {
         await plantillasService.create(payload);
       }
+
       toast({
         title: "Plantilla guardada exitosamente",
         description: "La plantilla ha sido creada/actualizada correctamente.",
@@ -135,6 +184,69 @@ export function TemplateForm({ initialData, onSaved }: TemplateFormProps) {
         title: "Error",
         description: "Hubo un error al procesar la solicitud. Por favor, intente nuevamente.",
       });
+    }
+  };
+
+  // Callback para recibir datos del FormBuilder
+  const handleFormBuilderSave = async (data: { nombre: string, descripcion: string, fields: any[] }) => {
+    try {
+      const payload = {
+        nombre: data.nombre,
+        descripcion: data.descripcion || undefined,
+        estructura_formulario: data.fields,
+        es_default: false,
+        activa: true,
+      };
+
+      let result;
+      // Determinar qué plantilla actualizar
+      const plantillaId = initialData?.id || selectedPlantillaData?.id;
+      
+      if (plantillaId) {
+        // Actualizar plantilla existente (ya sea de initialData o seleccionada)
+        result = await plantillasService.update(plantillaId, payload);
+      } else {
+        // Crear nueva plantilla
+        result = await plantillasService.create(payload);
+      }
+
+      if (result) {
+        console.log('✅ Plantilla guardada exitosamente:', result);
+        toast({
+          title: "Plantilla guardada exitosamente",
+          description: "La plantilla ha sido creada/actualizada correctamente.",
+        });
+        if (onSaved) onSaved();
+      } else {
+        throw new Error('No se pudo guardar la plantilla');
+      }
+    } catch (error) {
+      console.error('❌ Error al guardar plantilla:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Hubo un error al guardar la plantilla. Por favor, intente nuevamente.",
+      });
+    }
+  };
+
+  // Manejar selección de plantilla existente
+  const handlePlantillaSelection = async (plantillaId: string) => {
+    setSelectedPlantillaId(plantillaId);
+    if (plantillaId) {
+      try {
+        const plantilla = await plantillasService.getById(parseInt(plantillaId));
+        setSelectedPlantillaData(plantilla);
+      } catch (error) {
+        console.error('Error al cargar plantilla:', error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "No se pudo cargar la plantilla seleccionada.",
+        });
+      }
+    } else {
+      setSelectedPlantillaData(null);
     }
   };
 
@@ -183,30 +295,62 @@ export function TemplateForm({ initialData, onSaved }: TemplateFormProps) {
 
                   {templateOption === 'new' && (
                     <div className="border rounded p-4 bg-white">
-                      <FormBuilder key="new-template" />
+                      <FormBuilder 
+                        key="new-template" 
+                        precargados={initialData?.estructura_formulario || []}
+                        onSave={handleFormBuilderSave}
+                        initialName={initialData?.nombre || ''}
+                        initialDescription={initialData?.descripcion || ''}
+                        onFieldsChange={setFormBuilderFields}
+                        hideInternalSaveButton={true}
+                      />
                     </div>
                   )}
 
                   {templateOption === 'existing' && (
                     <div className="space-y-4">
                       <div>
-                        <label className="block font-medium mb-1">Seleccionar Plantilla</label>
-                        <select className="w-full border rounded p-2">
-                          <option value="">-- Seleccione una plantilla --</option>
-                          {PLANTILLAS_MOCK.map(p => (
-                            <option key={p.id} value={p.id}>{p.name} - {p.description}</option>
+                        <label className="block font-medium mb-1">Seleccionar Plantilla para Editar</label>
+                        <select 
+                          className="w-full border rounded p-2"
+                          value={selectedPlantillaId}
+                          onChange={(e) => handlePlantillaSelection(e.target.value)}
+                        >
+                          <option value="">-- Seleccione una plantilla para editar --</option>
+                          {plantillasExistentes.map(plantilla => (
+                            <option key={plantilla.id} value={plantilla.id}>
+                              {plantilla.nombre} {plantilla.descripcion ? `- ${plantilla.descripcion}` : ''}
+                            </option>
                           ))}
                         </select>
                       </div>
-                      <div className="border rounded p-4 bg-white">
-                        <FormPreview fields={[]} />
-                      </div>
+                      {selectedPlantillaData && (
+                        <div className="border rounded p-4 bg-white">
+                          <FormBuilder 
+                            key={`existing-${selectedPlantillaId}`}
+                            precargados={selectedPlantillaData.estructura_formulario || []}
+                            onSave={handleFormBuilderSave}
+                            initialName={selectedPlantillaData.nombre || ''}
+                            initialDescription={selectedPlantillaData.descripcion || ''}
+                            onFieldsChange={setFormBuilderFields}
+                            hideInternalSaveButton={true}
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
 
                   {templateOption === 'basic' && (
                     <div className="border rounded p-4 bg-white">
-                      <FormPreview fields={camposBasicos} />
+                      <FormBuilder 
+                        key="basic-template" 
+                        precargados={camposBasicos}
+                        onSave={handleFormBuilderSave}
+                        initialName=""
+                        initialDescription=""
+                        onFieldsChange={setFormBuilderFields}
+                        hideInternalSaveButton={true}
+                      />
                     </div>
                   )}
 

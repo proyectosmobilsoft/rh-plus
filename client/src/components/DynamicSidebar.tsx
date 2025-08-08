@@ -76,6 +76,7 @@ const menuItems = [
       { title: "Tipos", path: "/maestro/tipos-candidatos", icon: <FileText className="h-4 w-4" /> },
       { title: "Plantillas", path: "/maestro/plantillas", icon: <Layers className="h-4 w-4" /> },
       { title: "Ubicaciones", path: "/maestro/ubicaciones", icon: <MapPin className="h-4 w-4" /> },
+      { title: "Estructura Financiera", path: "/maestro/estructura-financiera", icon: <Building className="h-4 w-4" /> },
       { title: "Correos Masivos", path: "/maestro/correos-masivos", icon: <Mail className="h-4 w-4" /> },
     ],
   },
