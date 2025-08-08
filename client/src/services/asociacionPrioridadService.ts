@@ -5,9 +5,9 @@ export interface AsociacionPrioridad {
   usuario_id: number;
   empresa_id?: number;
   sucursal_id?: number;
-  nivel_prioridad_1: boolean;
-  nivel_prioridad_2: boolean;
-  nivel_prioridad_3: boolean;
+  nivel_prioridad_1: string | null;
+  nivel_prioridad_2: string | null;
+  nivel_prioridad_3: string | null;
   cantidad_solicitudes?: number;
   created_at?: string;
   updated_at?: string;
@@ -21,9 +21,9 @@ export interface AnalistaPrioridad {
   empresa_nombre?: string;
   empresa_nit?: string;
   empresa_direccion?: string;
-  nivel_prioridad_1: boolean;
-  nivel_prioridad_2: boolean;
-  nivel_prioridad_3: boolean;
+  nivel_prioridad_1: string | null;
+  nivel_prioridad_2: string | null;
+  nivel_prioridad_3: string | null;
   cantidad_solicitudes?: number;
   roles?: Array<{ id: number; nombre: string }>; // Agregar información de roles
 }
@@ -246,9 +246,9 @@ export const asociacionPrioridadService = {
             empresa_nombre: '',
             empresa_nit: '',
             empresa_direccion: '',
-            nivel_prioridad_1: false,
-            nivel_prioridad_2: false,
-            nivel_prioridad_3: false,
+            nivel_prioridad_1: null,
+            nivel_prioridad_2: null,
+            nivel_prioridad_3: null,
             cantidad_solicitudes: 0,
             roles: roles
           });

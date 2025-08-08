@@ -42,7 +42,7 @@ const analistaSchema = z.object({
   primer_apellido: z.string().optional(),
   segundo_apellido: z.string().optional(),
   activo: z.boolean().optional(),
-  // Campos para prioridades
+  // Campos para prioridades - todos opcionales
   prioridad_1: z.enum(['empresa', 'solicitudes', 'sucursal']).optional(),
   prioridad_2: z.enum(['empresa', 'solicitudes', 'sucursal']).optional(),
   prioridad_3: z.enum(['empresa', 'solicitudes', 'sucursal']).optional(),
@@ -186,38 +186,47 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
             sucursal_3: '',
           };
           
-                           // Procesar las prioridades cargadas
-                 if (prioridades && prioridades.length > 0) {
-                   prioridades.forEach((prioridad: any) => {
-                     console.log('Procesando prioridad:', prioridad);
-                     
-                     // Determinar el nivel de prioridad basado en los campos booleanos
-                     let nivel = 0;
-                     if (prioridad.nivel_prioridad_1) nivel = 1;
-                     else if (prioridad.nivel_prioridad_2) nivel = 2;
-                     else if (prioridad.nivel_prioridad_3) nivel = 3;
-                     
-                     if (nivel > 0) {
-                       // Determinar el tipo de prioridad basado en los datos
-                       let tipo = '';
-                       if (prioridad.empresa_id && prioridad.empresa_id > 0) {
-                         tipo = 'empresa';
-                         (formValues as any)[`empresa_${nivel}`] = prioridad.empresa_id.toString();
-                       } else if (prioridad.cantidad_solicitudes && prioridad.cantidad_solicitudes > 0) {
-                         tipo = 'solicitudes';
-                         (formValues as any)[`solicitudes_${nivel}`] = prioridad.cantidad_solicitudes;
-                       } else if (prioridad.sucursal_id && prioridad.sucursal_id > 0) {
-                         tipo = 'sucursal';
-                         (formValues as any)[`sucursal_${nivel}`] = prioridad.sucursal_id.toString();
-                       }
-                       
-                       // Asignar el tipo de prioridad
-                       if (tipo) {
-                         (formValues as any)[`prioridad_${nivel}`] = tipo;
+                                                       // Procesar las prioridades cargadas (ahora solo un registro)
+                  if (prioridades && prioridades.length > 0) {
+                    const prioridad = prioridades[0]; // Solo el primer registro
+                    console.log('Procesando prioridad única:', prioridad);
+                    
+                                         // Procesar prioridad 1
+                     if (prioridad.nivel_prioridad_1) {
+                       (formValues as any).prioridad_1 = prioridad.nivel_prioridad_1;
+                       if (prioridad.nivel_prioridad_1 === 'empresa' && prioridad.empresa_id && prioridad.empresa_id > 0) {
+                         (formValues as any).empresa_1 = prioridad.empresa_id.toString();
+                       } else if (prioridad.nivel_prioridad_1 === 'solicitudes' && prioridad.cantidad_solicitudes !== undefined && prioridad.cantidad_solicitudes !== null && prioridad.cantidad_solicitudes > 0) {
+                         (formValues as any).solicitudes_1 = prioridad.cantidad_solicitudes;
+                       } else if (prioridad.nivel_prioridad_1 === 'sucursal' && prioridad.sucursal_id && prioridad.sucursal_id > 0) {
+                         (formValues as any).sucursal_1 = prioridad.sucursal_id.toString();
                        }
                      }
-                   });
-                 }
+                     
+                     // Procesar prioridad 2
+                     if (prioridad.nivel_prioridad_2) {
+                       (formValues as any).prioridad_2 = prioridad.nivel_prioridad_2;
+                       if (prioridad.nivel_prioridad_2 === 'empresa' && prioridad.empresa_id && prioridad.empresa_id > 0) {
+                         (formValues as any).empresa_2 = prioridad.empresa_id.toString();
+                       } else if (prioridad.nivel_prioridad_2 === 'solicitudes' && prioridad.cantidad_solicitudes !== undefined && prioridad.cantidad_solicitudes !== null && prioridad.cantidad_solicitudes > 0) {
+                         (formValues as any).solicitudes_2 = prioridad.cantidad_solicitudes;
+                       } else if (prioridad.nivel_prioridad_2 === 'sucursal' && prioridad.sucursal_id && prioridad.sucursal_id > 0) {
+                         (formValues as any).sucursal_2 = prioridad.sucursal_id.toString();
+                       }
+                     }
+                     
+                     // Procesar prioridad 3
+                     if (prioridad.nivel_prioridad_3) {
+                       (formValues as any).prioridad_3 = prioridad.nivel_prioridad_3;
+                       if (prioridad.nivel_prioridad_3 === 'empresa' && prioridad.empresa_id && prioridad.empresa_id > 0) {
+                         (formValues as any).empresa_3 = prioridad.empresa_id.toString();
+                       } else if (prioridad.nivel_prioridad_3 === 'solicitudes' && prioridad.cantidad_solicitudes !== undefined && prioridad.cantidad_solicitudes !== null && prioridad.cantidad_solicitudes > 0) {
+                         (formValues as any).solicitudes_3 = prioridad.cantidad_solicitudes;
+                       } else if (prioridad.nivel_prioridad_3 === 'sucursal' && prioridad.sucursal_id && prioridad.sucursal_id > 0) {
+                         (formValues as any).sucursal_3 = prioridad.sucursal_id.toString();
+                       }
+                     }
+                  }
           
           console.log('Valores del formulario a cargar:', formValues);
           form.reset(formValues);
@@ -313,127 +322,93 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
     }
   };
 
-  // Función para guardar las prioridades del analista
-  const guardarPrioridadesAnalista = async (usuarioId: number, data: AnalistaFormData) => {
-    try {
-      console.log('=== INICIO guardarPrioridadesAnalista ===');
-      console.log('Usuario ID:', usuarioId);
-      console.log('Datos de prioridades:', {
-        prioridad_1: data.prioridad_1,
-        prioridad_2: data.prioridad_2,
-        prioridad_3: data.prioridad_3,
-        empresa_1: data.empresa_1,
-        empresa_2: data.empresa_2,
-        empresa_3: data.empresa_3,
-        solicitudes_1: data.solicitudes_1,
-        solicitudes_2: data.solicitudes_2,
-        solicitudes_3: data.solicitudes_3,
-        sucursal_1: data.sucursal_1,
-        sucursal_2: data.sucursal_2,
-        sucursal_3: data.sucursal_3,
-      });
-      
-      // Primero eliminar todas las prioridades existentes del analista
-      console.log('Eliminando prioridades existentes...');
-      await asociacionPrioridadService.deleteByUsuarioId(usuarioId);
-      console.log('Prioridades eliminadas');
-      
-      // Procesar cada prioridad individualmente
-      if (data.prioridad_1) {
-        console.log('Procesando prioridad 1:', data.prioridad_1);
-        await procesarPrioridad(usuarioId, 1, data.prioridad_1, data.empresa_1, data.solicitudes_1, data.sucursal_1);
-      } else {
-        console.log('No hay prioridad 1 configurada');
-      }
-      
-      if (data.prioridad_2) {
-        console.log('Procesando prioridad 2:', data.prioridad_2);
-        await procesarPrioridad(usuarioId, 2, data.prioridad_2, data.empresa_2, data.solicitudes_2, data.sucursal_2);
-      } else {
-        console.log('No hay prioridad 2 configurada');
-      }
-      
-      if (data.prioridad_3) {
-        console.log('Procesando prioridad 3:', data.prioridad_3);
-        await procesarPrioridad(usuarioId, 3, data.prioridad_3, data.empresa_3, data.solicitudes_3, data.sucursal_3);
-      } else {
-        console.log('No hay prioridad 3 configurada');
-      }
-      
-      console.log('=== FIN guardarPrioridadesAnalista - ÉXITO ===');
-    } catch (error) {
-      console.error('=== ERROR en guardarPrioridadesAnalista ===');
-      console.error('Error guardando prioridades:', error);
-      throw error;
-    }
-  };
-
-     // Función auxiliar para procesar cada prioridad
-   const procesarPrioridad = async (
-     usuarioId: number, 
-     nivel: number, 
-     tipo: string, 
-     empresaValor?: string, 
-     solicitudesValor?: number, 
-     sucursalValor?: string
-   ) => {
-     console.log(`=== INICIO procesarPrioridad nivel ${nivel} ===`);
-     console.log(`Tipo: ${tipo}, Empresa: ${empresaValor}, Solicitudes: ${solicitudesValor}, Sucursal: ${sucursalValor}`);
-     
-     if (tipo === 'empresa' && empresaValor) {
-       console.log('Procesando prioridad de empresa...');
-       // Buscar la empresa por ID (empresaValor ya es el ID)
-       const empresas = await empresasService.getAll();
-       const empresa = empresas?.find((emp: any) => emp.id.toString() === empresaValor);
+     // Función para guardar las prioridades del analista
+   const guardarPrioridadesAnalista = async (usuarioId: number, data: AnalistaFormData) => {
+     try {
+       console.log('=== INICIO guardarPrioridadesAnalista ===');
+       console.log('Usuario ID:', usuarioId);
+       console.log('Datos de prioridades:', {
+         prioridad_1: data.prioridad_1,
+         prioridad_2: data.prioridad_2,
+         prioridad_3: data.prioridad_3,
+         empresa_1: data.empresa_1,
+         empresa_2: data.empresa_2,
+         empresa_3: data.empresa_3,
+         solicitudes_1: data.solicitudes_1,
+         solicitudes_2: data.solicitudes_2,
+         solicitudes_3: data.solicitudes_3,
+         sucursal_1: data.sucursal_1,
+         sucursal_2: data.sucursal_2,
+         sucursal_3: data.sucursal_3,
+       });
        
-       if (empresa) {
-         console.log('Empresa encontrada:', empresa.razon_social);
-         // Guardar en la tabla analista_prioridades
-         const resultado = await asociacionPrioridadService.upsert({
-           usuario_id: usuarioId,
-           empresa_id: empresa.id,
-           sucursal_id: undefined,
-           nivel_prioridad_1: nivel === 1,
-           nivel_prioridad_2: nivel === 2,
-           nivel_prioridad_3: nivel === 3,
-           cantidad_solicitudes: 0,
-         });
-         console.log('Resultado upsert empresa:', resultado);
-       } else {
-         console.log('Empresa no encontrada para ID:', empresaValor);
-       }
-     } else if (tipo === 'solicitudes' && solicitudesValor) {
-       console.log('Procesando prioridad de solicitudes:', solicitudesValor);
-       // Para prioridades de solicitudes, guardar sin empresa ni sucursal
-       const resultado = await asociacionPrioridadService.upsert({
-         usuario_id: usuarioId,
-         empresa_id: undefined,
-         sucursal_id: undefined,
-         nivel_prioridad_1: nivel === 1,
-         nivel_prioridad_2: nivel === 2,
-         nivel_prioridad_3: nivel === 3,
-         cantidad_solicitudes: solicitudesValor,
-       });
-       console.log('Resultado upsert solicitudes:', resultado);
-     } else if (tipo === 'sucursal' && sucursalValor) {
-       console.log('Procesando prioridad de sucursal:', sucursalValor);
-       // Para prioridades de sucursal, guardar con sucursal_id
-       const resultado = await asociacionPrioridadService.upsert({
-         usuario_id: usuarioId,
-         empresa_id: undefined,
-         sucursal_id: parseInt(sucursalValor),
-         nivel_prioridad_1: nivel === 1,
-         nivel_prioridad_2: nivel === 2,
-         nivel_prioridad_3: nivel === 3,
-         cantidad_solicitudes: 0,
-       });
-       console.log('Resultado upsert sucursal:', resultado);
-     } else {
-       console.log('No se cumplen las condiciones para procesar la prioridad');
+       // Primero eliminar todas las prioridades existentes del analista
+       console.log('Eliminando prioridades existentes...');
+       await asociacionPrioridadService.deleteByUsuarioId(usuarioId);
+       console.log('Prioridades eliminadas');
+       
+               // Crear un solo registro con todas las prioridades
+        const prioridadData: any = {
+          usuario_id: usuarioId,
+          empresa_id: undefined,
+          sucursal_id: undefined,
+          nivel_prioridad_1: null,
+          nivel_prioridad_2: null,
+          nivel_prioridad_3: null,
+          cantidad_solicitudes: 0,
+        };
+        
+        // Procesar prioridad 1
+        if (data.prioridad_1) {
+          prioridadData.nivel_prioridad_1 = data.prioridad_1; // Guardar el string directamente
+          if (data.prioridad_1 === 'empresa' && data.empresa_1) {
+            prioridadData.empresa_id = parseInt(data.empresa_1);
+          } else if (data.prioridad_1 === 'sucursal' && data.sucursal_1) {
+            prioridadData.sucursal_id = parseInt(data.sucursal_1);
+          } else if (data.prioridad_1 === 'solicitudes' && data.solicitudes_1) {
+            prioridadData.cantidad_solicitudes = data.solicitudes_1;
+          }
+        }
+        
+        // Procesar prioridad 2
+        if (data.prioridad_2) {
+          prioridadData.nivel_prioridad_2 = data.prioridad_2; // Guardar el string directamente
+          if (data.prioridad_2 === 'empresa' && data.empresa_2) {
+            prioridadData.empresa_id = parseInt(data.empresa_2);
+          } else if (data.prioridad_2 === 'sucursal' && data.sucursal_2) {
+            prioridadData.sucursal_id = parseInt(data.sucursal_2);
+          } else if (data.prioridad_2 === 'solicitudes' && data.solicitudes_2) {
+            prioridadData.cantidad_solicitudes = data.solicitudes_2;
+          }
+        }
+        
+        // Procesar prioridad 3
+        if (data.prioridad_3) {
+          prioridadData.nivel_prioridad_3 = data.prioridad_3; // Guardar el string directamente
+          if (data.prioridad_3 === 'empresa' && data.empresa_3) {
+            prioridadData.empresa_id = parseInt(data.empresa_3);
+          } else if (data.prioridad_3 === 'sucursal' && data.sucursal_3) {
+            prioridadData.sucursal_id = parseInt(data.sucursal_3);
+          } else if (data.prioridad_3 === 'solicitudes' && data.solicitudes_3) {
+            prioridadData.cantidad_solicitudes = data.solicitudes_3;
+          }
+        }
+       
+       console.log('Datos finales a guardar:', prioridadData);
+       
+       // Guardar el registro único
+       const resultado = await asociacionPrioridadService.upsert(prioridadData);
+       console.log('Resultado upsert:', resultado);
+       
+       console.log('=== FIN guardarPrioridadesAnalista - ÉXITO ===');
+     } catch (error) {
+       console.error('=== ERROR en guardarPrioridadesAnalista ===');
+       console.error('Error guardando prioridades:', error);
+       throw error;
      }
-     
-     console.log(`=== FIN procesarPrioridad nivel ${nivel} ===`);
    };
+
+     
 
   const getPrioridadLabel = (value: string) => {
     return PRIORIDADES_OPTIONS.find(option => option.value === value)?.label || value;
@@ -522,56 +497,50 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
     console.log('Estado del analista actualizado:', analistaActualizado);
   };
 
-  // Función para limpiar campos cuando cambia una prioridad
-  const limpiarCamposDePrioridad = (nivel: 1 | 2 | 3, nuevaPrioridad: string) => {
-    const camposALimpiar = {
-      empresa: `empresa_${nivel}`,
-      solicitudes: `solicitudes_${nivel}`,
-      sucursal: `sucursal_${nivel}`
-    };
+     // Función para limpiar campos cuando cambia una prioridad
+   const limpiarCamposDePrioridad = (nivel: 1 | 2 | 3, nuevaPrioridad: string) => {
+     // Limpiar campos específicos según el tipo
+     form.setValue(`empresa_${nivel}` as any, '');
+     form.setValue(`solicitudes_${nivel}` as any, undefined);
+     form.setValue(`sucursal_${nivel}` as any, '');
 
-    // Limpiar todos los campos del nivel
-    Object.values(camposALimpiar).forEach(campo => {
-      form.setValue(campo as any, '');
-    });
+     // Si la nueva prioridad es diferente, limpiar también los otros niveles
+     if (nivel === 1 && prioridad1 && prioridad1 !== nuevaPrioridad) {
+       form.setValue('empresa_1', '');
+       form.setValue('solicitudes_1', undefined);
+       form.setValue('sucursal_1', '');
+     } else if (nivel === 2 && prioridad2 && prioridad2 !== nuevaPrioridad) {
+       form.setValue('empresa_2', '');
+       form.setValue('solicitudes_2', undefined);
+       form.setValue('sucursal_2', '');
+     } else if (nivel === 3 && prioridad3 && prioridad3 !== nuevaPrioridad) {
+       form.setValue('empresa_3', '');
+       form.setValue('solicitudes_3', undefined);
+       form.setValue('sucursal_3', '');
+     }
+   };
 
-    // Si la nueva prioridad es diferente, limpiar también los otros niveles
-    if (nivel === 1 && prioridad1 && prioridad1 !== nuevaPrioridad) {
-      form.setValue('empresa_1', '');
-      form.setValue('solicitudes_1', undefined);
-      form.setValue('sucursal_1', '');
-    } else if (nivel === 2 && prioridad2 && prioridad2 !== nuevaPrioridad) {
-      form.setValue('empresa_2', '');
-      form.setValue('solicitudes_2', undefined);
-      form.setValue('sucursal_2', '');
-    } else if (nivel === 3 && prioridad3 && prioridad3 !== nuevaPrioridad) {
-      form.setValue('empresa_3', '');
-      form.setValue('solicitudes_3', undefined);
-      form.setValue('sucursal_3', '');
-    }
-  };
+     // Función para quitar una prioridad de un nivel específico
+   const quitarPrioridad = (nivel: 1 | 2 | 3) => {
+     const campoPrioridad = `prioridad_${nivel}` as 'prioridad_1' | 'prioridad_2' | 'prioridad_3';
+     const campoEmpresa = `empresa_${nivel}` as 'empresa_1' | 'empresa_2' | 'empresa_3';
+     const campoSolicitudes = `solicitudes_${nivel}` as 'solicitudes_1' | 'solicitudes_2' | 'solicitudes_3';
+     const campoSucursal = `sucursal_${nivel}` as 'sucursal_1' | 'sucursal_2' | 'sucursal_3';
 
-  // Función para quitar una prioridad de un nivel específico
-  const quitarPrioridad = (nivel: 1 | 2 | 3) => {
-    const campoPrioridad = `prioridad_${nivel}` as 'prioridad_1' | 'prioridad_2' | 'prioridad_3';
-    const campoEmpresa = `empresa_${nivel}` as 'empresa_1' | 'empresa_2' | 'empresa_3';
-    const campoSolicitudes = `solicitudes_${nivel}` as 'solicitudes_1' | 'solicitudes_2' | 'solicitudes_3';
-    const campoSucursal = `sucursal_${nivel}` as 'sucursal_1' | 'sucursal_2' | 'sucursal_3';
-
-    // Limpiar la prioridad y sus campos relacionados
-    form.setValue(campoEmpresa, '');
-    form.setValue(campoSolicitudes, undefined);
-    form.setValue(campoSucursal, '');
-    
-    // Limpiar el campo de prioridad usando un enfoque que funcione con el select
-    if (nivel === 1) {
-      form.setValue('prioridad_1', '' as any);
-    } else if (nivel === 2) {
-      form.setValue('prioridad_2', '' as any);
-    } else if (nivel === 3) {
-      form.setValue('prioridad_3', '' as any);
-    }
-  };
+     // Limpiar la prioridad y sus campos relacionados
+     form.setValue(campoEmpresa, '');
+     form.setValue(campoSolicitudes, undefined);
+     form.setValue(campoSucursal, '');
+     
+     // Limpiar el campo de prioridad usando un enfoque que funcione con el select
+     if (nivel === 1) {
+       form.setValue('prioridad_1', undefined);
+     } else if (nivel === 2) {
+       form.setValue('prioridad_2', undefined);
+     } else if (nivel === 3) {
+       form.setValue('prioridad_3', undefined);
+     }
+   };
 
   return (
     <div className="max-w-4xl mx-auto space-y-4">
@@ -1131,22 +1100,59 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
                   type="button"
                   disabled={isSubmitting}
                   className="bg-blue-600 hover:bg-blue-700"
-                  onClick={async () => {
-                    console.log('=== BOTÓN GUARDAR CLICKEADO ===');
-                    console.log('Estado del formulario:', form.getValues());
-                    console.log('Errores del formulario:', form.formState.errors);
-                    
-                    // Verificar si el formulario es válido
-                    const isValid = await form.trigger();
-                    console.log('Formulario válido:', isValid);
-                    
-                    if (isValid) {
-                      console.log('Ejecutando onSubmit...');
-                      await onSubmit(form.getValues());
-                    } else {
-                      console.log('Formulario no válido, no ejecutando onSubmit');
-                    }
-                  }}
+                                     onClick={async () => {
+                     console.log('=== BOTÓN GUARDAR CLICKEADO ===');
+                     console.log('Estado del formulario:', form.getValues());
+                     console.log('Errores del formulario:', form.formState.errors);
+                     
+                     // Verificar si el formulario es válido
+                     const isValid = await form.trigger();
+                     console.log('Formulario válido:', isValid);
+                     
+                     if (!isValid) {
+                       console.log('=== ERRORES DE VALIDACIÓN ===');
+                       console.log('Errores detallados:', form.formState.errors);
+                       console.log('Campos con errores:', Object.keys(form.formState.errors));
+                       Object.entries(form.formState.errors).forEach(([field, error]) => {
+                         console.log(`Campo ${field}:`, error);
+                       });
+                     }
+                     
+                     if (isValid) {
+                       console.log('Ejecutando onSubmit...');
+                       await onSubmit(form.getValues());
+                     } else {
+                       console.log('Formulario no válido, no ejecutando onSubmit');
+                       
+                       // Corregir campos de solicitudes que están como strings vacíos
+                       const formData = form.getValues();
+                       const formDataCorregido = { ...formData };
+                       
+                       // Convertir strings vacíos de solicitudes a undefined
+                       ['solicitudes_1', 'solicitudes_2', 'solicitudes_3'].forEach(field => {
+                         if (formDataCorregido[field as keyof typeof formDataCorregido] === '') {
+                           (formDataCorregido as any)[field] = undefined;
+                         }
+                       });
+                       
+                       // Verificar si el formulario es válido después de la corrección
+                       const isValidAfterCorrection = await form.trigger();
+                       console.log('Formulario válido después de corrección:', isValidAfterCorrection);
+                       
+                       if (isValidAfterCorrection) {
+                         console.log('Ejecutando onSubmit con datos corregidos...');
+                         await onSubmit(formDataCorregido);
+                       } else {
+                         // Permitir guardar incluso si no hay prioridades configuradas
+                         const tieneAlgunaPrioridad = formDataCorregido.prioridad_1 || formDataCorregido.prioridad_2 || formDataCorregido.prioridad_3;
+                         
+                         if (!tieneAlgunaPrioridad) {
+                           console.log('No hay prioridades configuradas, pero permitiendo guardar...');
+                           await onSubmit(formDataCorregido);
+                         }
+                       }
+                     }
+                   }}
                 >
                   {isSubmitting ? (
                     <>
