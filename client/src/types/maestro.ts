@@ -26,6 +26,8 @@ export interface TipoDocumento {
   nombre: string;
   descripcion?: string;
   requerido: boolean;
+  lleva_fecha_vigencia?: boolean;
+  fecha_vigencia?: string;
   activo: boolean;
   created_at: string;
   updated_at: string;
@@ -35,6 +37,8 @@ export interface CreateTipoDocumentoData {
   nombre: string;
   descripcion?: string;
   requerido?: boolean;
+  lleva_fecha_vigencia?: boolean;
+  fecha_vigencia?: string;
   activo?: boolean;
 }
 
@@ -42,6 +46,8 @@ export interface UpdateTipoDocumentoData {
   nombre?: string;
   descripcion?: string;
   requerido?: boolean;
+  lleva_fecha_vigencia?: boolean;
+  fecha_vigencia?: string;
   activo?: boolean;
 }
 
@@ -89,4 +95,6 @@ export interface DocumentoTipoForm {
   nombre: string;
   descripcion?: string;
   requerido: boolean;
+  lleva_fecha_vigencia: boolean;
+  fecha_vigencia?: string;
 } 

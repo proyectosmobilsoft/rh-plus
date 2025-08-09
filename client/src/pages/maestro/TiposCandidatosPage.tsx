@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Edit, Trash2, Settings } from 'lucide-react';
+import { Plus, Edit, Trash2, Settings, Search, Filter, Eye, FileText, User, Building, CheckCircle, Lock, Save, Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 import { useTiposCandidatos } from '@/hooks/useTiposCandidatos';
 import { useTiposDocumentos } from '@/hooks/useTiposDocumentos';
@@ -21,32 +25,50 @@ import { useTiposCandidatosDocumentos } from '@/hooks/useTiposCandidatosDocument
 import { TipoCandidato, TipoDocumento, TipoCandidatoForm, DocumentoTipoForm } from '@/types/maestro';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/services/supabaseClient';
+import { useToast } from '@/hooks/use-toast';
 
 const tipoCandidatoSchema = z.object({
   nombre: z.string().min(2, 'Nombre requerido'),
   descripcion: z.string().optional(),
 });
 
-const documentoTipoSchema = z.object({
-  nombre: z.string().min(2, 'Nombre requerido'),
-  descripcion: z.string().optional(),
-  requerido: z.boolean().default(false),
-});
+
 
 export default function TiposCandidatosPage() {
-  const [showTipoDialog, setShowTipoDialog] = useState(false);
-  const [showDocumentoDialog, setShowDocumentoDialog] = useState(false);
+  // Estados
+  const [activeTab, setActiveTab] = useState("tipos");
   const [editingTipo, setEditingTipo] = useState<TipoCandidato | null>(null);
   const [editingDocumento, setEditingDocumento] = useState<TipoDocumento | null>(null);
   const [selectedTipo, setSelectedTipo] = useState<TipoCandidato | null>(null);
   const [showDocumentosConfig, setShowDocumentosConfig] = useState(false);
+  const [showTipoDialog, setShowTipoDialog] = useState(false);
+  const [showDocumentoDialog, setShowDocumentoDialog] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("active");
+  const [showInactivateModal, setShowInactivateModal] = useState(false);
+  const [showActivateModal, setShowActivateModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [tipoToAction, setTipoToAction] = useState<TipoCandidato | null>(null);
+  const [loadingDocumentoId, setLoadingDocumentoId] = useState<number | null>(null);
+  const [searchDocumentos, setSearchDocumentos] = useState("");
+  const [documentosCounts, setDocumentosCounts] = useState<Record<number, number>>({});
 
-  // Hooks
+  // Hooks - TODOS LOS HOOKS DEBEN ESTAR AQUÍ AL INICIO
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
   const { 
     tiposCandidatos, 
+    tiposCandidatosActivos,
     isLoading: loadingTipos, 
     createTipoCandidato, 
-    isCreating 
+    updateTipoCandidato,
+    deleteTipoCandidato,
+    activateTipoCandidato,
+    isCreating,
+    isUpdating,
+    isDeleting,
+    isActivating
   } = useTiposCandidatos();
 
   const { 
@@ -54,94 +76,233 @@ export default function TiposCandidatosPage() {
     tiposDocumentosActivos,
     isLoading: loadingDocumentos, 
     createTipoDocumento, 
+    updateTipoDocumento,
+    deleteTipoDocumento,
+    activateTipoDocumento,
     isCreating: isCreatingDocumento,
+    isUpdating: isUpdatingDocumento,
+    isDeleting: isDeletingDocumento,
+    isActivating: isActivatingDocumento,
     forceRefresh: forceRefreshDocumentos
   } = useTiposDocumentos();
 
   const { getDocumentosRequeridos, updateDocumentosForTipoCandidato } = useTiposCandidatosDocumentos();
   
+  // Función para cargar los contadores de documentos asociados
+  const loadDocumentosCounts = async () => {
+    if (!tiposCandidatos.length) return;
+    
+    try {
+      const tiposCandidatosIds = tiposCandidatos.map(tipo => tipo.id);
+      const { tiposCandidatosDocumentosService } = await import('@/services/tiposCandidatosDocumentosService');
+      const counts = await tiposCandidatosDocumentosService.getDocumentosCounts(tiposCandidatosIds);
+      setDocumentosCounts(counts);
+    } catch (error) {
+      console.error('Error al cargar contadores de documentos:', error);
+      // En caso de error, establecer contadores en 0
+      const counts: Record<number, number> = {};
+      tiposCandidatos.forEach(tipo => {
+        counts[tipo.id] = 0;
+      });
+      setDocumentosCounts(counts);
+    }
+  };
+  
+  // Usar un ID fijo para evitar cambios en el hook
+  const selectedTipoId = selectedTipo?.id || 0;
   const { 
     data: documentosRequeridos = [], 
     isLoading: loadingRequeridos 
-  } = getDocumentosRequeridos(selectedTipo?.id || 0);
+  } = getDocumentosRequeridos(selectedTipoId);
 
-  // Debug: mostrar información de tipos de documentos
-  console.log('🔍 TiposCandidatosPage - Tipos de documentos cargados:', tiposDocumentos);
-  console.log('🔍 TiposCandidatosPage - Tipos de documentos activos:', tiposDocumentosActivos);
-  console.log('🔍 TiposCandidatosPage - Estado de carga de documentos:', loadingDocumentos);
-
-  // Función para limpiar completamente el cache
-  const queryClient = useQueryClient();
-  const handleClearCache = () => {
-    console.log('🔍 TiposCandidatosPage - Limpiando cache completamente...');
-    // Limpiar todas las queries relacionadas con tipos de documentos
-    queryClient.removeQueries({ queryKey: ['tipos-documentos'] });
-    queryClient.removeQueries({ queryKey: ['tipos-documentos-activos'] });
-    queryClient.removeQueries({ queryKey: ['tipos-documentos-requeridos'] });
-    // Forzar recarga inmediata
-    forceRefreshDocumentos();
-  };
-
-  // Función para verificar datos directamente desde la BD
-  const handleVerifyDatabase = async () => {
-    console.log('🔍 TiposCandidatosPage - Verificando datos directamente desde la BD...');
-    try {
-      const { data, error } = await supabase
-        .from('tipos_documentos')
-        .select('*')
-        .eq('activo', true)
-        .order('nombre');
-      
-      if (error) {
-        console.error('🔍 TiposCandidatosPage - Error al consultar BD:', error);
-        return;
-      }
-      
-      console.log('🔍 TiposCandidatosPage - Datos directos de BD:', data);
-      console.log('🔍 TiposCandidatosPage - Total en BD:', data?.length || 0);
-      console.log('🔍 TiposCandidatosPage - Total en cache:', tiposDocumentosActivos.length);
-      
-      if (data && data.length !== tiposDocumentosActivos.length) {
-        console.warn('🔍 TiposCandidatosPage - ¡DIFERENCIA DETECTADA!');
-        console.warn('🔍 TiposCandidatosPage - BD tiene:', data.length, 'elementos');
-        console.warn('🔍 TiposCandidatosPage - Cache tiene:', tiposDocumentosActivos.length, 'elementos');
-      }
-    } catch (error) {
-      console.error('🔍 TiposCandidatosPage - Error en verificación:', error);
-    }
-  };
-
-  // Forms
+  // Forms - DESPUÉS DE TODOS LOS HOOKS
   const tipoForm = useForm<TipoCandidatoForm>({
     resolver: zodResolver(tipoCandidatoSchema),
     defaultValues: { nombre: '', descripcion: '' },
   });
 
-  const documentoForm = useForm<DocumentoTipoForm>({
-    resolver: zodResolver(documentoTipoSchema),
-    defaultValues: { nombre: '', descripcion: '', requerido: false },
-  });
+  // Cargar contadores cuando se cargan los tipos de candidatos
+  useEffect(() => {
+    loadDocumentosCounts();
+  }, [tiposCandidatos]);
 
-  const handleTipoSubmit = (data: TipoCandidatoForm) => {
-    createTipoCandidato(data);
-    setShowTipoDialog(false);
-    tipoForm.reset();
+
+
+  // Filtrar tipos de candidatos - mostrar solo activos por defecto
+  const filteredTiposCandidatos = tiposCandidatos
+    .filter(tipo => {
+      const matchesSearch = 
+        tipo.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        tipo.descripcion?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesStatus = statusFilter === "all" ? true :
+        statusFilter === "active" ? tipo.activo : !tipo.activo;
+
+      return matchesSearch && matchesStatus;
+    })
+    .sort((a, b) => {
+      // Mostrar tipos activos primero
+      if (a.activo !== b.activo) {
+        return a.activo ? -1 : 1;
+      }
+      // Luego ordenar por nombre
+      return (a.nombre || "").localeCompare(b.nombre || "");
+    });
+
+  // Handlers
+  const handleEdit = (tipo: TipoCandidato) => {
+    setEditingTipo(tipo);
+    setSelectedTipo(tipo);
+    tipoForm.reset({
+      nombre: tipo.nombre || '',
+      descripcion: tipo.descripcion || '',
+    });
+    setActiveTab("registro");
   };
 
-  const handleDocumentoSubmit = (data: DocumentoTipoForm) => {
-    createTipoDocumento(data);
-    setShowDocumentoDialog(false);
-    documentoForm.reset();
+  const handleInactivate = (tipo: TipoCandidato) => {
+    setTipoToAction(tipo);
+    setShowInactivateModal(true);
+  };
+
+  const handleActivate = (tipo: TipoCandidato) => {
+    setTipoToAction(tipo);
+    setShowActivateModal(true);
+  };
+
+  const handleDelete = (tipo: TipoCandidato) => {
+    setTipoToAction(tipo);
+    setShowDeleteModal(true);
+  };
+
+  const confirmInactivate = async () => {
+    if (!tipoToAction?.id) return;
+
+    try {
+      await deleteTipoCandidato(tipoToAction.id);
+      toast({
+        title: "✅ Éxito",
+        description: "Tipo de cargo inactivado correctamente",
+        variant: "default"
+      });
+    } catch (error) {
+      toast({
+        title: "❌ Error",
+        description: "Error al inactivar el tipo de cargo",
+        variant: "destructive"
+      });
+    } finally {
+      setShowInactivateModal(false);
+      setTipoToAction(null);
+    }
+  };
+
+  const confirmActivate = async () => {
+    if (!tipoToAction?.id) return;
+
+    try {
+      await activateTipoCandidato(tipoToAction.id);
+      toast({
+        title: "✅ Éxito",
+        description: "Tipo de cargo activado correctamente",
+        variant: "default"
+      });
+    } catch (error) {
+      toast({
+        title: "❌ Error",
+        description: "Error al activar el tipo de cargo",
+        variant: "destructive"
+      });
+    } finally {
+      setShowActivateModal(false);
+      setTipoToAction(null);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!tipoToAction?.id) return;
+
+    try {
+      await deleteTipoCandidato(tipoToAction.id);
+      toast({
+        title: "✅ Éxito",
+        description: "Tipo de cargo eliminado correctamente",
+        variant: "default"
+      });
+    } catch (error) {
+      toast({
+        title: "❌ Error",
+        description: "Error al eliminar el tipo de cargo",
+        variant: "destructive"
+      });
+    } finally {
+      setShowDeleteModal(false);
+      setTipoToAction(null);
+    }
+  };
+
+  const handleDeleteDocumento = async (documento: TipoDocumento) => {
+    if (!documento.id) return;
+
+    try {
+      await deleteTipoDocumento(documento.id);
+      toast({
+        title: "✅ Éxito",
+        description: "Tipo de documento eliminado correctamente",
+        variant: "default"
+      });
+    } catch (error) {
+      toast({
+        title: "❌ Error",
+        description: "Error al eliminar el tipo de documento",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleActivateDocumento = async (documento: TipoDocumento) => {
+    if (!documento.id) return;
+
+    try {
+      await activateTipoDocumento(documento.id);
+      toast({
+        title: "✅ Éxito",
+        description: "Tipo de documento activado correctamente",
+        variant: "default"
+      });
+    } catch (error) {
+      toast({
+        title: "❌ Error",
+        description: "Error al activar el tipo de documento",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleSaved = () => {
+    setActiveTab("tipos");
+    setEditingTipo(null);
+  };
+
+  const handleNewTipo = () => {
+    setEditingTipo(null);
+    setSelectedTipo(null);
+    tipoForm.reset({ nombre: '', descripcion: '' });
+    setActiveTab("registro");
   };
 
   const handleConfigureTipo = (tipo: TipoCandidato) => {
     setSelectedTipo(tipo);
+    setSearchDocumentos(""); // Limpiar búsqueda al abrir modal
     setShowDocumentosConfig(true);
   };
 
-  const handleToggleDocumento = (documentoId: number, obligatorio: boolean) => {
+  const handleToggleDocumento = async (documentoId: number, obligatorio: boolean) => {
     if (!selectedTipo) return;
     
+    setLoadingDocumentoId(documentoId);
+    
+    try {
     const updatedDocumentos = [...documentosRequeridos];
     const index = updatedDocumentos.findIndex(d => d.tipo_documento_id === documentoId);
     
@@ -157,10 +318,10 @@ export default function TiposCandidatosPage() {
         tipo_documento_id: documentoId,
         obligatorio: true,
         orden: updatedDocumentos.length,
-      } as any); // Usar any temporalmente para evitar conflictos de tipos
+        } as any);
     }
 
-    updateDocumentosForTipoCandidato.mutate({
+      await updateDocumentosForTipoCandidato.mutateAsync({
       tipoCandidatoId: selectedTipo.id,
       documentos: updatedDocumentos.map(doc => ({
         tipo_documento_id: doc.tipo_documento_id,
@@ -168,53 +329,292 @@ export default function TiposCandidatosPage() {
         orden: doc.orden
       })),
     });
+      
+      // Actualizar el contador de documentos
+      setDocumentosCounts(prev => ({
+        ...prev,
+        [selectedTipo.id]: updatedDocumentos.length
+      }));
+    } finally {
+      setLoadingDocumentoId(null);
+    }
   };
 
+  const handleTipoSubmit = (data: TipoCandidatoForm) => {
+    if (editingTipo) {
+      updateTipoCandidato({ id: editingTipo.id!, data });
+    } else {
+      createTipoCandidato(data);
+    }
+    tipoForm.reset();
+    setEditingTipo(null);
+    setSelectedTipo(null);
+    setActiveTab("tipos");
+  };
+
+
+
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Maestro de Candidatos</h1>
-          <p className="text-muted-foreground">
-            Configura los tipos de candidatos y documentos requeridos
-          </p>
-        </div>
+    <div className="p-4 max-w-full mx-auto">
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-3xl font-extrabold text-cyan-800 flex items-center gap-2 mb-2">
+          <User className="w-8 h-8 text-cyan-600" />
+          Gestión de Tipos de Cargos
+        </h1>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Tipos de Candidatos */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <div>
-              <CardTitle>Tipos de Candidatos</CardTitle>
-              <CardDescription>
-                Define los diferentes tipos de candidatos (Ingeniero, Diseñador, etc.)
-              </CardDescription>
-            </div>
-            <Dialog open={showTipoDialog} onOpenChange={setShowTipoDialog}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="bg-brand-lime hover:bg-brand-lime/90">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nuevo Tipo
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2 bg-cyan-100/60 p-1 rounded-lg">
+          <TabsTrigger
+            value="tipos"
+            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+          >
+            Listado de Cargos
+          </TabsTrigger>
+          <TabsTrigger
+            value="registro"
+            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+          >
+            Registro de Cargos
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="tipos" className="mt-6">
+          {/* Header similar al diseño de empresas */}
+          <div className="bg-white rounded-lg border">
+            <div className="flex items-center justify-between p-4 border-b">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-orange-100 rounded flex items-center justify-center">
+                  <User className="w-5 h-5 text-orange-600" />
+                </div>
+                <span className="text-lg font-semibold text-gray-700">TIPOS DE CARGOS</span>
+              </div>
+              <div className="flex space-x-2">
+                <Button
+                  onClick={handleNewTipo}
+                  className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
+                  size="sm"
+                >
+                  Adicionar Registro
                 </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Crear Tipo de Candidato</DialogTitle>
-                  <DialogDescription>
-                    Define un nuevo tipo de candidato para el sistema
-                  </DialogDescription>
-                </DialogHeader>
+              </div>
+            </div>
+
+            {/* Filtros */}
+            <div className="p-4 border-b bg-gray-50">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="relative md:col-span-2">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    placeholder="Buscar por nombre, descripción..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filtrar por estado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos los estados</SelectItem>
+                    <SelectItem value="active">Solo activos</SelectItem>
+                    <SelectItem value="inactive">Solo inactivos</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setStatusFilter("active");
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <Filter className="w-4 h-4" />
+                  Limpiar filtros
+                </Button>
+              </div>
+            </div>
+
+            {/* Tabla de tipos de candidatos */}
+            <div className="overflow-x-auto rounded-lg shadow-sm">
+              <Table className="min-w-[800px] w-full text-xs">
+                <TableHeader className="bg-cyan-50">
+                  <TableRow className="text-left font-semibold text-gray-700">
+                    <TableHead className="px-2 py-1 text-teal-600 w-32">Acciones</TableHead>
+                    <TableHead className="px-4 py-3 w-1/3">Nombre</TableHead>
+                    <TableHead className="px-4 py-3 w-1/3">Descripción</TableHead>
+                    <TableHead className="px-4 py-3 w-40 whitespace-nowrap">Documentos Asociados</TableHead>
+                    <TableHead className="px-4 py-3 w-24">Estado</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loadingTipos ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="h-24 text-center">
+                        Cargando tipos de cargos...
+                      </TableCell>
+                    </TableRow>
+                  ) : filteredTiposCandidatos.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="h-24 text-center">
+                        No hay tipos de cargos disponibles.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredTiposCandidatos.map((tipo) => (
+                      <TableRow key={tipo.id} className="hover:bg-gray-50">
+                        <TableCell className="px-2 py-1">
+                          <div className="flex flex-row gap-1 items-center">
+                                                         {tipo.activo && (
+                               <>
+                                 <TooltipProvider>
+                                   <Tooltip>
+                                     <TooltipTrigger asChild>
+                                       <Button
+                                         variant="ghost"
+                                         size="icon"
+                                         onClick={() => handleEdit(tipo)}
+                                         aria-label="Editar tipo"
+                                         className="h-8 w-8"
+                                       >
+                                         <Edit className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
+                                       </Button>
+                                     </TooltipTrigger>
+                                     <TooltipContent>
+                                       <p>Editar</p>
+                                     </TooltipContent>
+                                   </Tooltip>
+                                 </TooltipProvider>
+
+                                 <TooltipProvider>
+                                   <Tooltip>
+                                     <TooltipTrigger asChild>
+                                       <Button
+                                         variant="ghost"
+                                         size="icon"
+                                         onClick={() => handleConfigureTipo(tipo)}
+                                         aria-label="Configurar documentos"
+                                         className="h-8 w-8"
+                                       >
+                                         <Settings className="h-4 w-4 text-blue-600 hover:text-blue-800 transition-colors" />
+                                       </Button>
+                                     </TooltipTrigger>
+                                     <TooltipContent>
+                                       <p>Configurar documentos</p>
+                                     </TooltipContent>
+                                   </Tooltip>
+                                 </TooltipProvider>
+                               </>
+                             )}
+
+                            {tipo.activo ? (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleInactivate(tipo)}
+                                      aria-label="Inactivar tipo"
+                                      className="h-8 w-8"
+                                    >
+                                      <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Inactivar</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            ) : (
+                              <>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleDelete(tipo)}
+                                        aria-label="Eliminar tipo"
+                                        className="h-8 w-8"
+                                      >
+                                        <Trash2 className="h-4 w-4 text-red-600 hover:text-red-800 transition-colors" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Eliminar</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleActivate(tipo)}
+                                        aria-label="Activar tipo"
+                                        className="h-8 w-8"
+                                      >
+                                        <CheckCircle className="h-4 w-4 text-green-600 hover:text-green-800 transition-colors" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Activar</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-sm text-gray-900 font-medium">{tipo.nombre}</TableCell>
+                        <TableCell className="px-4 py-3 text-sm text-gray-500">{tipo.descripcion || '-'}</TableCell>
+                        <TableCell className="px-4 py-3 text-sm text-gray-500">
+                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                            {documentosCounts[tipo.id] || 0} documentos
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="px-4 py-3">
+                          <Badge variant={tipo.activo ? "default" : "secondary"} className={tipo.activo ? "bg-brand-lime/10 text-brand-lime border-brand-lime/20" : "bg-gray-200 text-gray-600 border-gray-300"}>
+                            {tipo.activo ? "Activo" : "Inactivo"}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="registro" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="w-5 h-5" />
+                                 {selectedTipo ? "Editar tipo de cargo" : "Crear nuevo tipo de cargo"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
                 <Form {...tipoForm}>
                   <form onSubmit={tipoForm.handleSubmit(handleTipoSubmit)} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={tipoForm.control}
                       name="nombre"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Nombre</FormLabel>
+                          <FormLabel>Nombre del Cargo</FormLabel>
                           <FormControl>
-                            <Input placeholder="Ej: Ingeniero de Sistemas" {...field} />
+                            <Input 
+                              autoComplete="off"
+                              {...field} 
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -227,199 +627,32 @@ export default function TiposCandidatosPage() {
                         <FormItem>
                           <FormLabel>Descripción</FormLabel>
                           <FormControl>
-                            <Textarea placeholder="Descripción del tipo de candidato" {...field} />
+                            <Textarea 
+                              autoComplete="off"
+                              {...field} 
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                    <DialogFooter>
-                      <Button type="submit" disabled={isCreating}>
-                        {isCreating ? 'Creando...' : 'Crear Tipo'}
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </Form>
-              </DialogContent>
-            </Dialog>
-          </CardHeader>
-          <CardContent>
-            {loadingTipos ? (
-              <div className="text-center py-4">Cargando...</div>
-            ) : (
-              <div className="space-y-2">
-                {tiposCandidatos.map((tipo: TipoCandidato) => (
-                  <div key={tipo.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <h4 className="font-medium">{tipo.nombre}</h4>
-                      {tipo.descripcion && (
-                        <p className="text-sm text-muted-foreground">{tipo.descripcion}</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={tipo.activo ? "default" : "secondary"}>
-                        {tipo.activo ? "Activo" : "Inactivo"}
-                      </Badge>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleConfigureTipo(tipo)}
-                      >
-                        <Settings className="h-4 w-4" />
-                      </Button>
-                    </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Tipos de Documentos */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <div>
-              <CardTitle>Tipos de Documentos</CardTitle>
-              <CardDescription>
-                Define los documentos disponibles en el sistema
-              </CardDescription>
-            </div>
-            <div className="flex items-center gap-2">
+                  <div className="flex justify-end">
               <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleClearCache}
-                disabled={loadingDocumentos}
-              >
-                🔄
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleVerifyDatabase}
-                disabled={loadingDocumentos}
-              >
-                🔍
-              </Button>
-              <Dialog open={showDocumentoDialog} onOpenChange={setShowDocumentoDialog}>
-                <DialogTrigger asChild>
-                  <Button size="sm">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Nuevo Documento
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Crear Nuevo Tipo de Documento</DialogTitle>
-                    <DialogDescription>
-                      Agrega un nuevo tipo de documento al sistema
-                    </DialogDescription>
-                  </DialogHeader>
-                  <Form {...documentoForm}>
-                    <form onSubmit={documentoForm.handleSubmit(handleDocumentoSubmit)} className="space-y-4">
-                      <FormField
-                        control={documentoForm.control}
-                        name="nombre"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Nombre</FormLabel>
-                            <FormControl>
-                              <Input {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={documentoForm.control}
-                        name="descripcion"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Descripción</FormLabel>
-                            <FormControl>
-                              <Textarea {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={documentoForm.control}
-                        name="requerido"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                            <FormControl>
-                              <Checkbox
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                            <div className="space-y-1 leading-none">
-                              <FormLabel>
-                                Requerido por defecto
-                              </FormLabel>
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-                      <DialogFooter>
-                        <Button type="submit" disabled={isCreatingDocumento}>
-                          {isCreatingDocumento ? 'Creando...' : 'Crear Documento'}
+                      type="submit" 
+                      disabled={isCreating || isUpdating}
+                      className="bg-cyan-600 hover:bg-cyan-700 text-white"
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      Guardar
                         </Button>
-                      </DialogFooter>
-                    </form>
-                  </Form>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {loadingDocumentos ? (
-              <div className="text-center py-4">Cargando...</div>
-            ) : (
-              <div className="space-y-2">
-                {tiposDocumentosActivos.map((documento: TipoDocumento) => (
-                  <div key={documento.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <h4 className="font-medium">{documento.nombre}</h4>
-                      {documento.descripcion && (
-                        <p className="text-sm text-muted-foreground">{documento.descripcion}</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {documento.requerido && (
-                        <Badge variant="default">Por defecto</Badge>
-                      )}
-                      <Badge variant={documento.activo ? "default" : "secondary"}>
-                        {documento.activo ? "Activo" : "Inactivo"}
-                      </Badge>
-                    </div>
                   </div>
-                ))}
-                
-                {/* Debug info */}
-                <div className="text-xs text-gray-500 bg-gray-100 p-2 rounded mt-4">
-                  <p>Total tipos de documentos: {tiposDocumentos.length}</p>
-                  <p>Tipos activos: {tiposDocumentosActivos.length}</p>
-                  <p>Estado de carga: {loadingDocumentos ? 'Cargando...' : 'Completado'}</p>
-                  <p>Última actualización: {new Date().toLocaleTimeString()}</p>
-                  <details className="mt-2">
-                    <summary className="cursor-pointer">Ver datos completos</summary>
-                    <div className="mt-2 space-y-1">
-                      <p><strong>Tipos activos:</strong></p>
-                      <pre className="text-xs overflow-auto max-h-20 bg-white p-1 rounded">
-                        {JSON.stringify(tiposDocumentosActivos.map(d => ({ id: d.id, nombre: d.nombre, activo: d.activo })), null, 2)}
-                      </pre>
-                      <p><strong>Total en BD:</strong> 7 (según consulta directa)</p>
-                      <p><strong>Diferencia:</strong> {7 - tiposDocumentosActivos.length} faltantes</p>
-                    </div>
-                  </details>
-                </div>
-              </div>
-            )}
+                </form>
+              </Form>
           </CardContent>
         </Card>
-      </div>
+        </TabsContent>
+      </Tabs>
 
       {/* Configuración de Documentos por Tipo */}
       <Dialog open={showDocumentosConfig} onOpenChange={setShowDocumentosConfig}>
@@ -429,7 +662,7 @@ export default function TiposCandidatosPage() {
               Configurar Documentos - {selectedTipo?.nombre}
             </DialogTitle>
             <DialogDescription>
-              Selecciona qué documentos son requeridos para este tipo de candidato
+              Selecciona qué documentos son requeridos para este tipo de cargo
             </DialogDescription>
           </DialogHeader>
           {selectedTipo && (
@@ -437,42 +670,140 @@ export default function TiposCandidatosPage() {
               {loadingRequeridos ? (
                 <div className="text-center py-4">Cargando documentos requeridos...</div>
               ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Documento</TableHead>
-                    <TableHead>Descripción</TableHead>
-                    <TableHead>Requerido</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {tiposDocumentosActivos.map((documento: TipoDocumento) => {
+                <div className="space-y-4">
+                  <div className="text-sm text-gray-600 mb-4">
+                    Selecciona los documentos que serán requeridos para este tipo de cargo:
+                  </div>
+                  
+                  {/* Filtro de búsqueda */}
+                  <div className="relative mb-4">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      placeholder="Buscar documentos..."
+                      value={searchDocumentos}
+                      onChange={(e) => setSearchDocumentos(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {(() => {
+                      const filteredDocumentos = tiposDocumentosActivos.filter(documento => 
+                        documento.nombre?.toLowerCase().includes(searchDocumentos.toLowerCase()) ||
+                        documento.descripcion?.toLowerCase().includes(searchDocumentos.toLowerCase())
+                      );
+                      
+                      if (filteredDocumentos.length === 0 && searchDocumentos) {
+                        return (
+                          <div className="col-span-full text-center py-8 text-gray-500">
+                            No se encontraron documentos que coincidan con "{searchDocumentos}"
+                          </div>
+                        );
+                      }
+                      
+                      return filteredDocumentos.map((documento: TipoDocumento) => {
                     const isRequerido = documentosRequeridos?.some(
                       (dr: any) => dr.tipo_documento_id === documento.id
                     ) || false;
+                      const isLoading = loadingDocumentoId === documento.id;
                     return (
-                      <TableRow key={documento.id}>
-                        <TableCell className="font-medium">{documento.nombre}</TableCell>
-                        <TableCell>{documento.descripcion || '-'}</TableCell>
-                        <TableCell>
-                          <Switch
-                            checked={isRequerido}
+                        <div 
+                          key={documento.id} 
+                          className={`flex items-center space-x-3 p-3 border rounded-lg cursor-pointer transition-all duration-200 ${
+                            isRequerido 
+                              ? 'bg-cyan-50 border-cyan-200 hover:bg-cyan-100' 
+                              : 'hover:bg-gray-50 border-gray-200'
+                          } ${isLoading ? 'opacity-70' : ''}`}
+                          onClick={() => !isLoading && handleToggleDocumento(documento.id, !isRequerido)}
+                        >
+                          {isLoading ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-cyan-600" />
+                          ) : (
+                            <Checkbox
+                              checked={Boolean(isRequerido)}
                             onCheckedChange={(checked) => 
-                              handleToggleDocumento(documento.id, checked)
-                            }
-                            disabled={updateDocumentosForTipoCandidato.isPending}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                                handleToggleDocumento(documento.id, checked === true)
+                              }
+                              disabled={isLoading}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          )}
+                          <div className="flex-1">
+                            <div className="font-medium text-sm">{documento.nombre}</div>
+                            {documento.descripcion && (
+                              <div className="text-xs text-gray-500">{documento.descripcion}</div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                      });
+                    })()}
+                  </div>
+                  {tiposDocumentosActivos.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      No hay tipos de documentos disponibles. Crea algunos en el tab de registro.
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Modal de confirmación para inactivar */}
+      <AlertDialog open={showInactivateModal} onOpenChange={setShowInactivateModal}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Inactivar tipo de cargo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción inactivará el tipo de cargo "{tipoToAction?.nombre}" y no podrá ser usado hasta que se reactive. ¿Estás seguro?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmInactivate}>
+              Sí, inactivar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Modal de confirmación para activar */}
+      <AlertDialog open={showActivateModal} onOpenChange={setShowActivateModal}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Activar tipo de cargo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción reactivará el tipo de cargo "{tipoToAction?.nombre}" y estará disponible para su uso. ¿Estás seguro?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmActivate}>
+              Sí, activar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Modal de confirmación para eliminar */}
+      <AlertDialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar tipo de cargo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará el tipo de cargo "{tipoToAction?.nombre}" de forma permanente. ¿Estás seguro?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>
+              Sí, eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

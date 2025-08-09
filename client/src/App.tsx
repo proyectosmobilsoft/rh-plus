@@ -88,6 +88,7 @@ import EditarAnalistaPage from './pages/analistas/EditarAnalistaPage';
 
 // Páginas de maestro
 import TiposCandidatosPage from './pages/maestro/TiposCandidatosPage';
+import TiposDocumentosPage from './pages/maestro/TiposDocumentosPage';
 
 // Páginas de admin
 import TemplatesPage from './pages/admin/ordenes/TemplatesPage';
@@ -484,6 +485,17 @@ function App() {
             <Route path="/maestro/tipos-candidatos" element={
               <ProtectedRoute>
                 <TiposCandidatosPage />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/tipos-documentos" element={
+              <ProtectedRoute>
+                <TiposDocumentosPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/maestro/tipos-documentos" element={
+              <ProtectedRoute>
+                <TiposDocumentosPage />
               </ProtectedRoute>
             } />
 

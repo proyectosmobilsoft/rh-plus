@@ -157,6 +157,46 @@ export const tiposCandidatosDocumentosService = {
     }
 
     return data && data.length > 0 ? (data[0].orden + 1) : 0;
+  },
+
+  // Obtener el conteo de documentos asociados a un tipo de candidato
+  async getDocumentosCount(tipoCandidatoId: number): Promise<number> {
+    const { count, error } = await supabase
+      .from('tipos_candidatos_documentos')
+      .select('*', { count: 'exact', head: true })
+      .eq('tipo_candidato_id', tipoCandidatoId);
+
+    if (error) {
+      throw new Error(`Error al obtener conteo de documentos: ${error.message}`);
+    }
+
+    return count || 0;
+  },
+
+  // Obtener conteos para múltiples tipos de candidatos
+  async getDocumentosCounts(tiposCandidatosIds: number[]): Promise<Record<number, number>> {
+    if (tiposCandidatosIds.length === 0) return {};
+
+    const { data, error } = await supabase
+      .from('tipos_candidatos_documentos')
+      .select('tipo_candidato_id')
+      .in('tipo_candidato_id', tiposCandidatosIds);
+
+    if (error) {
+      throw new Error(`Error al obtener conteos de documentos: ${error.message}`);
+    }
+
+    // Contar manualmente los documentos por tipo de candidato
+    const counts: Record<number, number> = {};
+    tiposCandidatosIds.forEach(id => {
+      counts[id] = 0;
+    });
+
+    data?.forEach(item => {
+      counts[item.tipo_candidato_id] = (counts[item.tipo_candidato_id] || 0) + 1;
+    });
+
+    return counts;
   }
 };
 
