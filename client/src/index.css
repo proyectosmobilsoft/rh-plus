@@ -280,14 +280,14 @@
 }
 
 .login-button {
-  @apply bg-brand-lime text-white border-2 border-brand-lime transition-all duration-200;
+  @apply bg-brand-turquoise text-white border-2 border-brand-turquoise transition-all duration-200;
 }
 
 .login-button:hover {
-  @apply shadow-lg border-brand-lime/80;
-  background-color: hsl(70 85% 41%) !important;
-  /* Mantener color base */
-  box-shadow: 0 4px 12px rgba(193, 208, 9, 0.3);
+  @apply shadow-lg border-brand-turquoise/80;
+  background-color: hsl(186 73% 45%) !important;
+  /* Mantener color base azul turquesa */
+  box-shadow: 0 4px 12px rgba(31, 181, 202, 0.3);
 }
 
 .forgot-password-link {
