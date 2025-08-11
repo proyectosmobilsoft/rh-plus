@@ -7,15 +7,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { 
   Mail, 
   Users, 
   FileText, 
   Send, 
   Plus, 
-  Edit3, 
-  Eye, 
-  Trash2,
+  Eye,
   CheckCircle,
   AlertCircle,
   Clock,
@@ -92,6 +91,22 @@ interface EmailRecipient {
   updated_at: string;
 }
 
+// Función para convertir HTML a texto plano
+const htmlToPlainText = (html: string): string => {
+  // Crear un elemento temporal para decodificar HTML
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = html;
+  
+  // Obtener solo el texto
+  const text = tempDiv.textContent || tempDiv.innerText || '';
+  
+  // Limpiar espacios extra y saltos de línea
+  return text
+    .replace(/\s+/g, ' ') // Reemplazar múltiples espacios por uno solo
+    .replace(/\n\s*\n/g, '\n\n') // Mantener saltos de línea dobles
+    .trim();
+};
+
 export default function EmailMasivoPage() {
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [gmailTemplates, setGmailTemplates] = useState<GmailTemplate[]>([]);
@@ -100,6 +115,9 @@ export default function EmailMasivoPage() {
   const [loading, setLoading] = useState(true);
   const [loadingDestinatarios, setLoadingDestinatarios] = useState(false);
   const [enviandoCorreos, setEnviandoCorreos] = useState(false);
+  const [showCampaignModal, setShowCampaignModal] = useState(false);
+  const [campaignInfo, setCampaignInfo] = useState<any>(null);
+  const [campaignRecipients, setCampaignRecipients] = useState<any[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | GmailTemplate | null>(null);
   const [previewMode, setPreviewMode] = useState(false);
   const [showHtmlPreview, setShowHtmlPreview] = useState(false);
@@ -486,6 +504,8 @@ export default function EmailMasivoPage() {
     }
   };
 
+
+
   const handleTemplateSelect = (templateId: string) => {
     const template = templates.find(t => t.id.toString() === templateId);
     if (template) {
@@ -785,6 +805,55 @@ export default function EmailMasivoPage() {
       toast.error('Error al enviar los correos');
     } finally {
       setEnviandoCorreos(false);
+    }
+  };
+
+  // Función para ver qué se envió y a quién
+  const handleViewCampaignSentInfo = async (campaign: EmailCampaign | GmailCampaign, type: 'email' | 'gmail') => {
+    try {
+      // Obtener información de la campaña
+      const campaignInfo = {
+        nombre: campaign.nombre,
+        asunto: campaign.asunto_personalizado,
+        contenido: campaign.contenido_personalizado,
+        estado: campaign.estado,
+        tipo: type === 'gmail' ? 'Gmail' : 'Email Regular',
+        total_destinatarios: campaign.destinatarios_count,
+        enviados: campaign.enviados_count,
+        fecha_creacion: new Date(campaign.created_at).toLocaleDateString('es-ES'),
+        fecha_envio: new Date(campaign.updated_at).toLocaleDateString('es-ES')
+      };
+
+      // Obtener destinatarios de la campaña
+      const tableName = type === 'gmail' ? 'gmail_campaign_recipients' : 'email_campaign_recipients';
+      const { data: recipients, error } = await supabase
+        .from(tableName)
+        .select('*')
+        .eq('campaign_id', campaign.id);
+
+      if (error) {
+        console.error('Error obteniendo destinatarios:', error);
+        toast.error('Error al obtener información de destinatarios');
+        return;
+      }
+
+      // Preparar información de destinatarios
+      const destinatariosInfo = recipients?.map(r => ({
+        email: r.email,
+        nombre: r.nombre,
+        empresa: r.empresa,
+        estado_envio: r.estado_envio || 'enviado',
+        fecha_envio: r.fecha_envio ? new Date(r.fecha_envio).toLocaleDateString('es-ES') : 'N/A'
+      })) || [];
+
+      // Guardar información para el modal
+      setCampaignInfo(campaignInfo);
+      setCampaignRecipients(destinatariosInfo);
+      setShowCampaignModal(true);
+
+    } catch (error) {
+      console.error('Error obteniendo información de envío:', error);
+      toast.error('Error al obtener información de la campaña');
     }
   };
 
@@ -1664,18 +1733,13 @@ export default function EmailMasivoPage() {
                            </div>
                          </div>
                          <div className="flex items-center space-x-2">
-                           <Button variant="ghost" size="sm">
-                             <Eye className="h-4 w-4" />
-                           </Button>
-                           <Button variant="ghost" size="sm">
-                             <Edit3 className="h-4 w-4" />
-                           </Button>
                            <Button 
                              variant="ghost" 
                              size="sm"
-                             onClick={() => handleDeleteGmailCampaign(campaign.id)}
+                             onClick={() => handleViewCampaignSentInfo(campaign, 'gmail')}
+                             title="Ver qué se envió y a quién"
                            >
-                             <Trash2 className="h-4 w-4" />
+                             <Eye className="h-4 w-4" />
                            </Button>
                          </div>
                        </div>
@@ -1712,18 +1776,13 @@ export default function EmailMasivoPage() {
                            </div>
                          </div>
                          <div className="flex items-center space-x-2">
-                           <Button variant="ghost" size="sm">
-                             <Eye className="h-4 w-4" />
-                           </Button>
-                           <Button variant="ghost" size="sm">
-                             <Edit3 className="h-4 w-4" />
-                           </Button>
                            <Button 
                              variant="ghost" 
                              size="sm"
-                             onClick={() => handleDeleteCampaign(campaign.id)}
+                             onClick={() => handleViewCampaignSentInfo(campaign, 'email')}
+                             title="Ver qué se envió y a quién"
                            >
-                             <Trash2 className="h-4 w-4" />
+                             <Eye className="h-4 w-4" />
                            </Button>
                          </div>
                        </div>
@@ -1793,6 +1852,121 @@ export default function EmailMasivoPage() {
         </div>
       </div>
     )}
+
+    {/* Modal para ver información de campaña enviada */}
+    <Dialog open={showCampaignModal} onOpenChange={setShowCampaignModal}>
+      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5 text-blue-600" />
+            Información de Campaña Enviada
+          </DialogTitle>
+          <DialogDescription>
+            Detalles del mensaje enviado y lista de destinatarios
+          </DialogDescription>
+        </DialogHeader>
+        
+        {campaignInfo && (
+          <div className="space-y-6">
+            {/* Información de la campaña */}
+            <div className="bg-slate-50 p-4 rounded-lg">
+              <h3 className="font-semibold text-lg text-slate-900 mb-3">
+                {campaignInfo.nombre}
+              </h3>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="font-medium text-slate-700">Asunto:</span>
+                  <p className="text-slate-600 mt-1">{campaignInfo.asunto}</p>
+                </div>
+                <div>
+                  <span className="font-medium text-slate-700">Estado:</span>
+                  <Badge className={`mt-1 ${getEstadoColor(campaignInfo.estado)}`}>
+                    {campaignInfo.estado}
+                  </Badge>
+                </div>
+                <div>
+                  <span className="font-medium text-slate-700">Enviados:</span>
+                  <p className="text-slate-600 mt-1">
+                    {campaignInfo.enviados} de {campaignInfo.total_destinatarios}
+                  </p>
+                </div>
+                <div>
+                  <span className="font-medium text-slate-700">Fecha de envío:</span>
+                  <p className="text-slate-600 mt-1">{campaignInfo.fecha_envio}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Contenido del mensaje */}
+            <div>
+              <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Mensaje Enviado
+              </h4>
+              <div className="bg-white border border-slate-200 rounded-lg p-4">
+                <div className="whitespace-pre-wrap text-slate-700 leading-relaxed">
+                  {htmlToPlainText(campaignInfo.contenido)}
+                </div>
+              </div>
+            </div>
+
+            {/* Lista de destinatarios */}
+            <div>
+              <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Destinatarios ({campaignRecipients.length})
+              </h4>
+              <div className="bg-white border border-slate-200 rounded-lg max-h-60 overflow-y-auto">
+                {campaignRecipients.length > 0 ? (
+                  <div className="divide-y divide-slate-200">
+                    {campaignRecipients.map((recipient, index) => (
+                      <div key={index} className="p-3 hover:bg-slate-50">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <p className="font-medium text-slate-900">
+                              {recipient.nombre}
+                            </p>
+                            <p className="text-sm text-slate-600">
+                              {recipient.email}
+                            </p>
+                            {recipient.empresa && (
+                              <p className="text-xs text-slate-500 mt-1">
+                                {recipient.empresa}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="text-xs">
+                              {recipient.estado_envio}
+                            </Badge>
+                            <span className="text-xs text-slate-500">
+                              {recipient.fecha_envio}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-4 text-center text-slate-500">
+                    No hay destinatarios registrados para esta campaña
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="flex justify-end pt-4">
+          <Button
+            onClick={() => setShowCampaignModal(false)}
+            className="bg-slate-800 hover:bg-slate-900 text-white"
+          >
+            Cerrar
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
     </>
   );
 } 

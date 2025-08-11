@@ -17,16 +17,16 @@ const FIELD_TYPES = [
   { value: 'percent', label: 'Porcentaje (%)' },
 ];
 
-const defaultField = {
+const createDefaultField = () => ({
   id: uuidv4(), // Siempre inicializar con un ID único
   type: 'text',
   label: '',
-  name: '',
+  placeholder: '',
   required: false,
   order: 1,
   dimension: 12,
   options: '',
-};
+});
 
 function reorder(list: any[], startIndex: number, endIndex: number) {
   const result = Array.from(list);
@@ -35,11 +35,19 @@ function reorder(list: any[], startIndex: number, endIndex: number) {
   return result.map((f, i) => ({ ...f, order: i + 1 }));
 }
 
-const FormBuilder: React.FC<{ precargados?: any[], readOnly?: boolean }> = ({ precargados, readOnly = false }) => {
-  const [formName, setFormName] = useState('');
-  const [formDesc, setFormDesc] = useState('');
+const FormBuilder: React.FC<{ 
+  precargados?: any[], 
+  readOnly?: boolean,
+  onSave?: (data: { nombre: string, descripcion: string, fields: any[] }) => Promise<void>,
+  initialName?: string,
+  initialDescription?: string,
+  onFieldsChange?: (fields: any[]) => void,
+  hideInternalSaveButton?: boolean
+}> = ({ precargados, readOnly = false, onSave, initialName = '', initialDescription = '', onFieldsChange, hideInternalSaveButton = false }) => {
+  const [formName, setFormName] = useState(initialName);
+  const [formDesc, setFormDesc] = useState(initialDescription);
   const [fields, setFields] = useState<any[]>([]);
-  const [field, setField] = useState({ ...defaultField });
+  const [field, setField] = useState(createDefaultField());
   const [showJson, setShowJson] = useState(false);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
@@ -49,13 +57,30 @@ const FormBuilder: React.FC<{ precargados?: any[], readOnly?: boolean }> = ({ pr
 
   // Inicializar campos precargados con IDs únicos
   useEffect(() => {
-    if (precargados) {
+    if (precargados && precargados.length > 0) {
       setFields(precargados.map(f => ({
         ...f,
-        id: f.id || uuidv4()
+        id: f.id || uuidv4(),
+        // Migración: si tiene 'name' pero no 'placeholder', usar 'name' como 'placeholder'
+        placeholder: f.placeholder || f.name || '',
+        // Mantener retrocompatibilidad
+        name: f.name || f.placeholder || ''
       })));
     }
   }, [precargados]);
+
+  // Inicializar nombre y descripción cuando cambien las props
+  useEffect(() => {
+    setFormName(initialName);
+    setFormDesc(initialDescription);
+  }, [initialName, initialDescription]);
+
+  // Notificar cambios en los campos
+  useEffect(() => {
+    if (onFieldsChange) {
+      onFieldsChange(fields);
+    }
+  }, [fields, onFieldsChange]);
 
   const handleFieldChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -72,7 +97,7 @@ const FormBuilder: React.FC<{ precargados?: any[], readOnly?: boolean }> = ({ pr
   const addField = (e: React.FormEvent) => {
     e.preventDefault();
     setFields(prev => [...prev, { ...field, id: uuidv4(), order: fields.length + 1 }]);
-    setField({ ...defaultField, id: '' });
+    setField(createDefaultField());
   };
 
   const selectField = (idx: number) => {
@@ -87,14 +112,14 @@ const FormBuilder: React.FC<{ precargados?: any[], readOnly?: boolean }> = ({ pr
       updated[selectedIdx] = { ...field };
       setFields(updated);
       setSelectedIdx(null);
-      setField({ ...defaultField, id: '' });
+      setField(createDefaultField());
     }
   };
 
   const removeField = (idx: number) => {
     setFields(fields.filter((_, i) => i !== idx).map((f, i) => ({ ...f, order: i + 1 })));
     setSelectedIdx(null);
-    setField({ ...defaultField, id: '' });
+    setField(createDefaultField());
   };
 
   const onDragStart = (idx: number) => setDraggedIdx(idx);
@@ -115,14 +140,31 @@ const FormBuilder: React.FC<{ precargados?: any[], readOnly?: boolean }> = ({ pr
         return (
           <div key={f.id} style={{ width, padding: 8 }}>
             <label style={{ fontWeight: 500 }}>{f.label}{f.required && ' *'}</label>
-            <input type={f.type} name={f.name} required={f.required} style={{ width: '100%', padding: 8, borderRadius: 8, border: '1px solid #e0e7ef', fontSize: 16 }} />
+            <input 
+              type={f.type} 
+              placeholder={f.placeholder} 
+              required={f.required} 
+              className="form-builder-input"
+              style={{ 
+                width: '100%', 
+                padding: 8, 
+                borderRadius: 8, 
+                border: '1px solid #e0e7ef', 
+                fontSize: 16
+              }} 
+            />
           </div>
         );
       case 'textarea':
         return (
           <div key={f.id} style={{ width, padding: 8 }}>
             <label style={{ fontWeight: 500 }}>{f.label}{f.required && ' *'}</label>
-            <textarea name={f.name} required={f.required} style={{ width: '100%', padding: 8, borderRadius: 8, border: '1px solid #e0e7ef', fontSize: 16 }} />
+            <textarea 
+              placeholder={f.placeholder} 
+              required={f.required} 
+              className="form-builder-input"
+              style={{ width: '100%', padding: 8, borderRadius: 8, border: '1px solid #e0e7ef', fontSize: 16 }} 
+            />
           </div>
         );
       case 'select':
@@ -211,7 +253,7 @@ const FormBuilder: React.FC<{ precargados?: any[], readOnly?: boolean }> = ({ pr
     fields: fields.map(f => ({
       type: f.type,
       label: f.label,
-      name: f.name,
+      placeholder: f.placeholder,
       required: f.required,
       order: f.order,
       dimension: f.dimension,
@@ -220,7 +262,28 @@ const FormBuilder: React.FC<{ precargados?: any[], readOnly?: boolean }> = ({ pr
   };
 
   return (
-    <div style={{ background: '#f8fafc', display: 'flex', height: '100%' }}>
+    <>
+      <style>
+        {`
+          .form-builder-input::placeholder {
+            color: #9d9d9d !important;
+            opacity: 1 !important;
+          }
+          .form-builder-input::-webkit-input-placeholder {
+            color: #9d9d9d !important;
+            opacity: 1 !important;
+          }
+          .form-builder-input::-moz-placeholder {
+            color: #9d9d9d !important;
+            opacity: 1 !important;
+          }
+          .form-builder-input:-ms-input-placeholder {
+            color: #9d9d9d !important;
+            opacity: 1 !important;
+          }
+        `}
+      </style>
+      <div style={{ background: '#f8fafc', display: 'flex', height: '100%' }}>
       {!readOnly && (
         <div style={{ width: 260, background: '#fff', borderRight: '1px solid #e0e7ef', padding: '2rem 1rem', borderRadius: '0 24px 24px 0', boxShadow: '2px 0 12px 0 rgba(0,0,0,0.03)' }}>
           <h3 style={{ color: '#000', fontWeight: 700, fontSize: 20, marginBottom: 18 }}>Campos</h3>
@@ -261,13 +324,7 @@ const FormBuilder: React.FC<{ precargados?: any[], readOnly?: boolean }> = ({ pr
           <>
             <h2 style={{ textAlign: 'center', color: '#000', fontWeight: 700, fontSize: 28, marginBottom: 24 }}>Generador de campos del formulario</h2>
             <form style={{ display: 'flex', gap: 24, marginBottom: 32, flexWrap: 'wrap' }}>
-              <div style={{ flex: 1, minWidth: 220 }}>
-                <label>Nombre de la plantilla</label>
-                <input value={formName} onChange={e => setFormName(e.target.value)} style={{ width: '100%', padding: 8, borderRadius: 8, border: '1px solid #e0e7ef', fontSize: 16, marginBottom: 8 }} />
-                <label>Descripción</label>
-                <textarea value={formDesc} onChange={e => setFormDesc(e.target.value)} style={{ width: '100%', padding: 8, borderRadius: 8, border: '1px solid #e0e7ef', fontSize: 16 }} />
-              </div>
-              <div style={{ flex: 2, minWidth: 320 }}>
+              <div style={{ flex: 1, minWidth: 320 }}>
                 <fieldset style={{ border: '1px solid #e0e7ef', borderRadius: 12, padding: 16, marginBottom: 8 }}>
                   <legend>{selectedIdx === null ? 'Agregar campo' : 'Editar campo'}</legend>
                   <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', width: '100%' }}>
@@ -307,17 +364,26 @@ const FormBuilder: React.FC<{ precargados?: any[], readOnly?: boolean }> = ({ pr
                       />
                     </div>
                     {field.type !== 'title' && (
-                      <input 
-                        className="borde-input" 
-                        name="name" 
-                        placeholder="Name" 
-                        value={field.name} 
-                        onChange={handleFieldChange} 
-                        style={{ fontSize: 16, borderRadius: 8, padding: 8, border: '1px solid #c1c1c1' }} 
-                      />
+                      <div style={{ display: 'flex', flexDirection: 'column', flex: '1 1 calc(50% - 6px)', minWidth: '120px' }}>
+                        <label style={{ fontSize: 12, marginBottom: 4, color: '#666' }}>Placeholder</label>
+                        <input 
+                          className="borde-input" 
+                          name="placeholder" 
+                          placeholder="Texto de ejemplo" 
+                          value={field.placeholder} 
+                          onChange={handleFieldChange} 
+                          style={{ fontSize: 16, borderRadius: 8, padding: 8, border: '1px solid #c1c1c1' }} 
+                        />
+                      </div>
                     )}
-                    <input className="borde-input" name="order" type="number" min={1} max={99} value={field.order} onChange={handleFieldChange} style={{ width: 60, fontSize: 16, borderRadius: 8, padding: 8, border: '1px solid #c1c1c1' }} />
-                    <input className="borde-input" name="dimension" type="number" min={1} max={12} value={field.dimension} onChange={handleFieldChange} style={{ width: 60, fontSize: 16, borderRadius: 8, padding: 8, border: '1px solid #c1c1c1' }} />
+                    <div style={{ display: 'flex', flexDirection: 'column', width: 60 }}>
+                      <label style={{ fontSize: 12, marginBottom: 4, color: '#666' }}>Orden</label>
+                      <input className="borde-input" name="order" type="number" min={1} max={99} value={field.order} onChange={handleFieldChange} style={{ width: 60, fontSize: 16, borderRadius: 8, padding: 8, border: '1px solid #c1c1c1' }} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', width: 60 }}>
+                      <label style={{ fontSize: 12, marginBottom: 4, color: '#666' }}>Tamaño (1-12)</label>
+                      <input className="borde-input" name="dimension" type="number" min={1} max={12} value={field.dimension} onChange={handleFieldChange} style={{ width: 60, fontSize: 16, borderRadius: 8, padding: 8, border: '1px solid #c1c1c1' }} />
+                    </div>
                     {(field.type === 'select' || field.type === 'radio' || field.type === 'foreignKey') && (
                       <input className="borde-input" name="options" placeholder="Opciones (separadas por coma)" value={field.options} onChange={handleFieldChange} style={{ fontSize: 16, borderRadius: 8, padding: 8, minWidth: 180, border: '1px solid #c1c1c1' }} />
                     )}
@@ -359,7 +425,7 @@ const FormBuilder: React.FC<{ precargados?: any[], readOnly?: boolean }> = ({ pr
                         <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
                           <button onClick={saveField} style={{ fontSize: 16, borderRadius: 8, padding: '8px 16px', background: '#b6e2d3', border: 'none', color: '#2d3142', fontWeight: 600, cursor: 'pointer' }}>Guardar</button>
                           <button type="button" onClick={() => removeField(selectedIdx)} style={{ fontSize: 16, borderRadius: 8, padding: '8px 16px', background: '#ffd6e0', border: 'none', color: '#2d3142', fontWeight: 600, cursor: 'pointer' }}>Eliminar</button>
-                          <button type="button" onClick={() => { setSelectedIdx(null); setField({ ...defaultField, id: '' }); }} style={{ fontSize: 16, borderRadius: 8, padding: '8px 16px', background: '#f0f4f8', border: 'none', color: '#2d3142', fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>
+                          <button type="button" onClick={() => { setSelectedIdx(null); setField(createDefaultField()); }} style={{ fontSize: 16, borderRadius: 8, padding: '8px 16px', background: '#f0f4f8', border: 'none', color: '#2d3142', fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>
                         </div>
                       )}
                     </div>
@@ -367,39 +433,50 @@ const FormBuilder: React.FC<{ precargados?: any[], readOnly?: boolean }> = ({ pr
                 </fieldset>
               </div>
             </form>
-            <button
-              onClick={async () => {
-                try {
-                  if (formName.trim() && fields.length > 0) {
-                    await plantillasService.create({
-                      nombre: formName,
-                      descripcion: formDesc,
-                      estructura_formulario: fields,
-                      es_default: false,
-                      activa: true,
-                    });
-                    if (navigate) {
-                      navigate("/maestro/plantillas");
+            {!hideInternalSaveButton && (
+              <button
+                onClick={async () => {
+                  try {
+                    if (formName.trim() && fields.length > 0) {
+                      if (onSave) {
+                        // Usar callback personalizado
+                        await onSave({
+                          nombre: formName,
+                          descripcion: formDesc,
+                          fields: fields
+                        });
+                      } else {
+                        // Comportamiento original
+                        await plantillasService.create({
+                          nombre: formName,
+                          descripcion: formDesc,
+                          estructura_formulario: fields,
+                          es_default: false,
+                          activa: true,
+                        });
+                        if (navigate) {
+                          navigate("/maestro/plantillas");
+                        } else {
+                          alert('Plantilla guardada exitosamente');
+                        }
+                      }
                     } else {
-                      alert('Plantilla guardada exitosamente');
+                      alert('Por favor complete el nombre de la plantilla y agregue al menos un campo');
                     }
-                  } else {
-                    alert('Por favor complete el nombre de la plantilla y agregue al menos un campo');
+                  } catch (error) {
+                    console.error('Error al guardar la plantilla:', error);
+                    alert('Error al guardar la plantilla');
                   }
-                } catch (error) {
-                  console.error('Error al guardar la plantilla:', error);
-                  alert('Error al guardar la plantilla');
-                }
-              }}
-              style={{ fontSize: 16, borderRadius: 8, padding: '10px 18px', background: '#339af0', border: 'none', color: '#fff', fontWeight: 600, cursor: 'pointer', marginBottom: 16 }}
-            >
-              Guardar plantilla
-            </button>
+                }}
+                style={{ fontSize: 16, borderRadius: 8, padding: '10px 18px', background: '#339af0', border: 'none', color: '#fff', fontWeight: 600, cursor: 'pointer', marginBottom: 16 }}
+              >
+                Guardar plantilla
+              </button>
+            )}
           </>
         )}
         
-        {/* Eliminar Preview y botón Mostrar estructura JSON */}
-        {/*
+        {/* Vista previa del formulario */}
         <h3 style={{ color: '#000', fontWeight: 600, fontSize: 22, margin: '24px 0 12px' }}>{readOnly ? 'Vista previa' : 'Preview'}</h3>
         <form style={{ background: '#f8fafc', borderRadius: 16, padding: 16, marginBottom: 24 }}>
           {(() => {
@@ -435,9 +512,9 @@ const FormBuilder: React.FC<{ precargados?: any[], readOnly?: boolean }> = ({ pr
             )}
           </>
         )}
-        */}
       </div>
     </div>
+    </>
   );
 };
 
