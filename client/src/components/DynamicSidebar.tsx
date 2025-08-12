@@ -39,6 +39,7 @@ const menuItems = [
     subItems: [
       { title: "Usuarios", path: "/seguridad/usuarios", icon: <Users className="h-4 w-4" /> },
       { title: "Perfiles", path: "/seguridad/perfiles", icon: <Settings className="h-4 w-4" /> },
+      { title: "Logs del Sistema", path: "/seguridad/logs-sistema", icon: <Activity className="h-4 w-4" /> },
     ],
   },
   {

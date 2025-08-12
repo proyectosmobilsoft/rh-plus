@@ -1,5 +1,12 @@
 import { supabase } from '@/services/supabaseClient';
 import { analistaAsignacionService } from './analistaAsignacionService';
+import { solicitudesLogsService, ACCIONES_SISTEMA, getUsuarioActual } from './solicitudesLogsService';
+
+// Función helper para convertir null a undefined
+const getUsuarioId = (): number | undefined => {
+  const usuarioId = getUsuarioActual();
+  return usuarioId || undefined;
+};
 
 export interface Solicitud {
   id?: number;
@@ -7,6 +14,7 @@ export interface Solicitud {
   candidato_id?: number;
   plantilla_id?: number;
   estado: string;
+  previous_state?: string; // Estado anterior antes de Stand By
   fecha_solicitud?: string;
   fecha_programada?: string;
   created_by?: number;
@@ -381,6 +389,31 @@ export const solicitudesService = {
         analista
       };
 
+      // Crear log de la acción
+      try {
+        await solicitudesLogsService.crearLog({
+          solicitud_id: solicitudTransformada.id!,
+          usuario_id: getUsuarioId(),
+          accion: ACCIONES_SISTEMA.CREAR_SOLICITUD,
+          estado_nuevo: solicitudTransformada.estado,
+          observacion: `Solicitud creada para empresa ${solicitud.empresa_id}`
+        });
+
+        // Si se asignó analista automáticamente, crear log adicional
+        if (analistaId && !solicitud.analista_id) {
+          await solicitudesLogsService.crearLog({
+            solicitud_id: solicitudTransformada.id!,
+            usuario_id: getUsuarioId(),
+            accion: ACCIONES_SISTEMA.ASIGNAR_ANALISTA,
+            estado_anterior: solicitud.estado,
+            estado_nuevo: 'ASIGNADO',
+            observacion: `Analista ${analista?.nombre || analistaId} asignado automáticamente`
+          });
+        }
+      } catch (logError) {
+        console.warn('No se pudo crear el log de la acción:', logError);
+      }
+
       console.log('✅ Solicitud creada exitosamente con analista:', solicitudTransformada.analista?.nombre || 'Sin asignar');
       console.log('📊 Estado final de la solicitud:', solicitudTransformada.estado);
       return solicitudTransformada;
@@ -392,6 +425,13 @@ export const solicitudesService = {
 
   update: async (id: number, updates: Partial<Solicitud>): Promise<Solicitud> => {
     try {
+      // Obtener el estado anterior para el log
+      const solicitudAnterior = await supabase
+        .from('hum_solicitudes')
+        .select('estado, observaciones')
+        .eq('id', id)
+        .single();
+
       const { data, error } = await supabase
         .from('hum_solicitudes')
         .update(updates)
@@ -404,6 +444,20 @@ export const solicitudesService = {
         throw error;
       }
 
+      // Crear log de la acción
+      try {
+        await solicitudesLogsService.crearLog({
+          solicitud_id: id,
+          usuario_id: getUsuarioId(),
+          accion: ACCIONES_SISTEMA.EDITAR_SOLICITUD,
+          estado_anterior: solicitudAnterior.data?.estado,
+          estado_nuevo: data.estado,
+          observacion: 'Solicitud actualizada'
+        });
+      } catch (logError) {
+        console.warn('No se pudo crear el log de la acción:', logError);
+      }
+
       return data;
     } catch (error) {
       console.error('Error in solicitudesService.update:', error);
@@ -413,6 +467,13 @@ export const solicitudesService = {
 
   delete: async (id: number): Promise<void> => {
     try {
+      // Obtener información de la solicitud antes de eliminar para el log
+      const solicitudAnterior = await supabase
+        .from('hum_solicitudes')
+        .select('estado, empresa_id, candidato_id')
+        .eq('id', id)
+        .single();
+
       const { error } = await supabase
         .from('hum_solicitudes')
         .delete()
@@ -421,6 +482,19 @@ export const solicitudesService = {
       if (error) {
         console.error('Error deleting solicitud:', error);
         throw error;
+      }
+
+      // Crear log de la acción
+      try {
+        await solicitudesLogsService.crearLog({
+          solicitud_id: id,
+          usuario_id: getUsuarioId(),
+          accion: ACCIONES_SISTEMA.ELIMINAR_SOLICITUD,
+          estado_anterior: solicitudAnterior.data?.estado,
+          observacion: 'Solicitud eliminada del sistema'
+        });
+      } catch (logError) {
+        console.warn('No se pudo crear el log de la acción:', logError);
       }
     } catch (error) {
       console.error('Error in solicitudesService.delete:', error);
@@ -602,6 +676,31 @@ export const solicitudesService = {
         analista
       };
 
+      // Crear log de la acción
+      try {
+        await solicitudesLogsService.crearLog({
+          solicitud_id: solicitudTransformada.id!,
+          usuario_id: getUsuarioActual(),
+          accion: ACCIONES_SISTEMA.CREAR_SOLICITUD,
+          estado_nuevo: solicitudTransformada.estado,
+          observacion: `Solicitud creada con plantilla "${plantillaNombre}" para empresa ${empresaId}`
+        });
+
+        // Si se asignó analista automáticamente, crear log adicional
+        if (analistaId) {
+          await solicitudesLogsService.crearLog({
+            solicitud_id: solicitudTransformada.id!,
+            usuario_id: getUsuarioActual(),
+            accion: ACCIONES_SISTEMA.ASIGNAR_ANALISTA,
+            estado_anterior: 'PENDIENTE',
+            estado_nuevo: 'ASIGNADO',
+            observacion: `Analista ${analista?.nombre || analistaId} asignado automáticamente`
+          });
+        }
+      } catch (logError) {
+        console.warn('No se pudo crear el log de la acción:', logError);
+      }
+
       console.log('✅ Solicitud con plantilla creada exitosamente con analista:', solicitudTransformada.analista?.nombre || 'Sin asignar');
       console.log('📊 Estado final de la solicitud:', solicitudTransformada.estado);
       return solicitudTransformada;
@@ -617,6 +716,13 @@ export const solicitudesService = {
     estructuraDatos: Record<string, any>
   ): Promise<Solicitud> => {
     try {
+      // Obtener el estado anterior para el log
+      const solicitudAnterior = await supabase
+        .from('hum_solicitudes')
+        .select('estado, estructura_datos')
+        .eq('id', id)
+        .single();
+
       const { data, error } = await supabase
         .from('hum_solicitudes')
         .update({
@@ -632,10 +738,382 @@ export const solicitudesService = {
         throw error;
       }
 
+      // Crear log de la acción
+      try {
+        await solicitudesLogsService.crearLog({
+          solicitud_id: id,
+          usuario_id: getUsuarioActual(),
+          accion: ACCIONES_SISTEMA.EDITAR_SOLICITUD,
+          estado_anterior: solicitudAnterior.data?.estado,
+          estado_nuevo: data.estado,
+          observacion: 'Estructura de plantilla actualizada'
+        });
+      } catch (logError) {
+        console.warn('No se pudo crear el log de la acción:', logError);
+      }
+
       return data;
     } catch (error) {
       console.error('Error in solicitudesService.updateWithTemplate:', error);
       throw error;
+    }
+  },
+
+  updateStatus: async function(id: number, newStatus: string, observacion?: string): Promise<boolean> {
+    console.log('🔍 updateStatus llamado con:', id, newStatus, observacion);
+    try {
+      // Obtener el estado anterior para el log
+      console.log('🔍 Obteniendo estado anterior...');
+      const solicitudAnterior = await supabase
+        .from('hum_solicitudes')
+        .select('estado, observaciones')
+        .eq('id', id)
+        .single();
+
+      console.log('🔍 Solicitud anterior:', solicitudAnterior);
+
+      const updateData: any = { 
+        estado: newStatus,
+        updated_at: new Date().toISOString()
+      };
+
+      // Si se proporciona una observación, agregarla a la columna observaciones
+      if (observacion) {
+        updateData.observaciones = observacion;
+      }
+
+      console.log('🔍 Datos a actualizar:', updateData);
+      console.log('🔍 Ejecutando update en base de datos...');
+
+      const { error } = await supabase
+        .from('hum_solicitudes')
+        .update(updateData)
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error updating solicitud status:', error);
+        return false;
+      }
+
+      console.log('🔍 Update exitoso en base de datos');
+
+      // Crear log de la acción
+      try {
+        console.log('🔍 Creando log de cambio de estado...');
+        await solicitudesLogsService.crearLog({
+          solicitud_id: id,
+          usuario_id: getUsuarioActual(),
+          accion: ACCIONES_SISTEMA.CAMBIAR_ESTADO,
+          estado_anterior: solicitudAnterior.data?.estado,
+          estado_nuevo: newStatus,
+          observacion: observacion || `Estado cambiado a ${newStatus}`
+        });
+        console.log('🔍 Log de cambio de estado creado exitosamente');
+      } catch (logError) {
+        console.warn('No se pudo crear el log de la acción:', logError);
+      }
+
+      console.log('🔍 updateStatus completado exitosamente');
+      return true;
+    } catch (error) {
+      console.error('Error updating solicitud status:', error);
+      return false;
+    }
+  },
+
+  // Nuevos métodos para acciones específicas con logs automáticos
+
+  // Poner en Stand By
+  async putStandBy(id: number, observacion: string): Promise<boolean> {
+    try {
+      // Obtener el estado actual antes de cambiarlo
+      const { data: solicitudActual, error: fetchError } = await supabase
+        .from('hum_solicitudes')
+        .select('estado')
+        .eq('id', id)
+        .single();
+
+      if (fetchError || !solicitudActual) {
+        console.error('Error obteniendo estado actual de la solicitud:', fetchError);
+        return false;
+      }
+
+      const estadoAnterior = solicitudActual.estado;
+      console.log('🔍 Estado anterior de la solicitud:', estadoAnterior);
+
+      // Actualizar estado a STAND BY y guardar el estado anterior
+      const { error } = await supabase
+        .from('hum_solicitudes')
+        .update({
+          estado: 'STAND BY',
+          previous_state: estadoAnterior,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error putting solicitud in Stand By:', error);
+        return false;
+      }
+
+      // Crear log de la acción
+      try {
+        await solicitudesLogsService.crearLog({
+          solicitud_id: id,
+          usuario_id: getUsuarioId(),
+          accion: ACCIONES_SISTEMA.PUT_STANDBY,
+          estado_anterior: estadoAnterior,
+          estado_nuevo: 'STAND BY',
+          observacion: `Solicitud puesta en Stand By: ${observacion}`
+        });
+      } catch (logError) {
+        console.warn('No se pudo crear el log adicional de Stand By:', logError);
+      }
+
+      console.log('✅ Solicitud puesta en Stand By exitosamente. Estado anterior guardado:', estadoAnterior);
+      return true;
+    } catch (error) {
+      console.error('Error putting solicitud in Stand By:', error);
+      return false;
+    }
+  },
+
+  // Reactivar solicitud
+  async reactivate(id: number): Promise<boolean> {
+    console.log('🔍 solicitudesService.reactivate llamado con ID:', id);
+    try {
+      // Obtener el estado anterior desde la base de datos
+      const { data: solicitud, error: fetchError } = await supabase
+        .from('hum_solicitudes')
+        .select('previous_state, estado')
+        .eq('id', id)
+        .single();
+
+      if (fetchError || !solicitud) {
+        console.error('Error obteniendo solicitud para reactivar:', fetchError);
+        return false;
+      }
+
+      if (!solicitud.previous_state) {
+        console.error('No hay estado anterior guardado para reactivar la solicitud');
+        return false;
+      }
+
+      const estadoAnterior = solicitud.previous_state;
+      console.log('🔍 Estado anterior encontrado en BD:', estadoAnterior);
+
+      // Actualizar estado al estado anterior y limpiar previous_state
+      const { error } = await supabase
+        .from('hum_solicitudes')
+        .update({
+          estado: estadoAnterior,
+          previous_state: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error reactivando solicitud:', error);
+        return false;
+      }
+
+      // Crear log de la acción
+      try {
+        console.log('🔍 Creando log de reactivación...');
+        await solicitudesLogsService.crearLog({
+          solicitud_id: id,
+          usuario_id: getUsuarioId(),
+          accion: ACCIONES_SISTEMA.REACTIVAR,
+          estado_anterior: 'STAND BY',
+          estado_nuevo: estadoAnterior,
+          observacion: `Solicitud reactivada al estado: ${estadoAnterior}`
+        });
+        console.log('🔍 Log de reactivación creado exitosamente');
+      } catch (logError) {
+        console.warn('No se pudo crear el log adicional de reactivación:', logError);
+      }
+
+      console.log('✅ Solicitud reactivada exitosamente al estado:', estadoAnterior);
+      return true;
+    } catch (error) {
+      console.error('Error reactivating solicitud:', error);
+      return false;
+    }
+  },
+
+  // Contactar solicitud
+  async contact(id: number, observacion?: string): Promise<boolean> {
+    try {
+      const success = await this.updateStatus(id, 'PENDIENTE DOCUMENTOS', observacion);
+      
+      if (success) {
+        // Log adicional específico para contacto
+        try {
+          await solicitudesLogsService.crearLog({
+            solicitud_id: id,
+            usuario_id: getUsuarioActual(),
+            accion: ACCIONES_SISTEMA.CONTACTAR,
+            estado_nuevo: 'PENDIENTE DOCUMENTOS',
+            observacion: observacion || 'Solicitud contactada'
+          });
+        } catch (logError) {
+          console.warn('No se pudo crear el log adicional de contacto:', logError);
+        }
+      }
+
+      return success;
+    } catch (error) {
+      console.error('Error contacting solicitud:', error);
+      return false;
+    }
+  },
+
+  // Aprobar solicitud
+  async approve(id: number, observacion?: string): Promise<boolean> {
+    try {
+      const success = await this.updateStatus(id, 'APROBADA', observacion);
+      
+      if (success) {
+        return success;
+      } else {
+        return false;
+      }
+    } catch (error) {
+      console.error('Error approving solicitud:', error);
+      return false;
+    }
+  },
+
+  // Rechazar solicitud
+  async reject(id: number, observacion?: string): Promise<boolean> {
+    try {
+      const success = await this.updateStatus(id, 'RECHAZADA', observacion);
+      
+      if (success) {
+        // Log adicional específico para rechazo
+        try {
+          await solicitudesLogsService.crearLog({
+            solicitud_id: id,
+            usuario_id: getUsuarioActual(),
+            accion: ACCIONES_SISTEMA.RECHAZAR_SOLICITUD,
+            estado_nuevo: 'RECHAZADA',
+            observacion: observacion || 'Solicitud rechazada'
+          });
+        } catch (logError) {
+          console.warn('No se pudo crear el log adicional de rechazo:', logError);
+        }
+      }
+
+      return success;
+    } catch (error) {
+      console.error('Error rejecting solicitud:', error);
+      return false;
+    }
+  },
+
+  // Asignar analista manualmente
+  async assignAnalyst(id: number, analistaId: number, observacion?: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('hum_solicitudes')
+        .update({
+          analista_id: analistaId,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error assigning analyst:', error);
+        return false;
+      }
+
+      // Crear log de la acción
+      try {
+        await solicitudesLogsService.crearLog({
+          solicitud_id: id,
+          usuario_id: getUsuarioActual(),
+          accion: ACCIONES_SISTEMA.ASIGNAR_ANALISTA,
+          estado_nuevo: 'ASIGNADO',
+          observacion: observacion || `Analista ${analistaId} asignado manualmente`
+        });
+      } catch (logError) {
+        console.warn('No se pudo crear el log de la asignación:', logError);
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error in assignAnalyst:', error);
+      return false;
+    }
+  },
+
+  // Asignar prioridad
+  async assignPriority(id: number, prioridad: string, observacion?: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('hum_solicitudes')
+        .update({
+          prioridad: prioridad,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error assigning priority:', error);
+        return false;
+      }
+
+      // Crear log de la acción
+      try {
+        await solicitudesLogsService.crearLog({
+          solicitud_id: id,
+          usuario_id: getUsuarioActual(),
+          accion: ACCIONES_SISTEMA.ASIGNAR_PRIORIDAD,
+          observacion: observacion || `Prioridad asignada: ${prioridad}`
+        });
+      } catch (logError) {
+        console.warn('No se pudo crear el log de la prioridad:', logError);
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error in assignPriority:', error);
+      return false;
+    }
+  },
+
+  // Actualizar observaciones
+  async updateObservations(id: number, observaciones: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('hum_solicitudes')
+        .update({
+          observaciones: observaciones,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error updating observations:', error);
+        return false;
+      }
+
+      // Crear log de la acción
+      try {
+        await solicitudesLogsService.crearLog({
+          solicitud_id: id,
+          usuario_id: getUsuarioActual(),
+          accion: ACCIONES_SISTEMA.ACTUALIZAR_OBSERVACIONES,
+          observacion: `Observaciones actualizadas: ${observaciones}`
+        });
+      } catch (logError) {
+        console.warn('No se pudo crear el log de las observaciones:', logError);
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error in updateObservations:', error);
+      return false;
     }
   }
 }; 

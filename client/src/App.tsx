@@ -35,6 +35,7 @@ import UsuariosPage from './pages/seguridad/UsuariosPage';
 import CrearUsuarioPage from './pages/seguridad/CrearUsuarioPage';
 import EditarUsuarioPage from './pages/seguridad/EditarUsuarioPage';
 import PerfilesPage from './pages/seguridad/PerfilesPage';
+import LogsSistemaPage from './pages/seguridad/LogsSistemaPage';
 import GestionPermisosPage from './pages/seguridad/GestionPermisosPage';
 import MenuPage from './pages/seguridad/MenuPage';
 import CrearCandidatoAdmin from './pages/admin/CrearCandidatoAdmin';
@@ -379,6 +380,16 @@ function App() {
             <Route path="/seguridad/menu" element={
               <ProtectedRoute>
                 <MenuPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/logs-sistema" element={
+              <ProtectedRoute>
+                <LogsSistemaPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/seguridad/logs-sistema" element={
+              <ProtectedRoute>
+                <LogsSistemaPage />
               </ProtectedRoute>
             } />
 

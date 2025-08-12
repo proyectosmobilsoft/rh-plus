@@ -8,6 +8,7 @@ import { solicitudesService, Solicitud } from '@/services/solicitudesService';
 import { useToast } from '@/hooks/use-toast';
 import FormRenderer from '@/components/FormRenderer';
 import { toast } from 'sonner';
+import { useLoading } from '@/contexts/LoadingContext';
 
 interface PlantillasSelectorProps {
   empresaId: number;
@@ -24,6 +25,7 @@ export default function PlantillasSelector({
   onSave, 
   onCancel 
 }: PlantillasSelectorProps) {
+  const { startLoading, stopLoading } = useLoading();
   const [plantillas, setPlantillas] = useState<Plantilla[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -167,12 +169,17 @@ export default function PlantillasSelector({
       return;
     }
 
+    // Activar loading global
+    startLoading();
+    console.log('🔍 PlantillasSelector - Loading global activado');
+
     try {
       if (selectedSolicitud?.id) {
         // Actualizar solicitud existente
         console.log('🔍 PlantillasSelector - Actualizando solicitud ID:', selectedSolicitud.id);
         await solicitudesService.updateWithTemplate(selectedSolicitud.id, formData);
         toast.success('Solicitud actualizada correctamente');
+        console.log('🔍 PlantillasSelector - Solicitud actualizada exitosamente');
       } else {
         // Crear nueva solicitud
         console.log('🔍 PlantillasSelector - Creando nueva solicitud');
@@ -183,6 +190,7 @@ export default function PlantillasSelector({
           formData
         );
         toast.success('Solicitud creada correctamente');
+        console.log('🔍 PlantillasSelector - Solicitud creada exitosamente');
       }
       
       // Llamar callback de éxito
@@ -192,6 +200,10 @@ export default function PlantillasSelector({
     } catch (error) {
       console.error('Error guardando solicitud:', error);
       toast.error('Error al guardar la solicitud');
+    } finally {
+      // Detener loading global siempre
+      stopLoading();
+      console.log('🔍 PlantillasSelector - Loading global detenido');
     }
   };
 
