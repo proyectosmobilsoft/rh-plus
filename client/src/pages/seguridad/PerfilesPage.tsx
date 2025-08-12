@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Plus, Edit, Trash2, X, ChevronDown, Eye, Settings, Building, Users, FileText, Award, BarChart, UserCheck, QrCode, Crown, Shield, Loader2, Lock, CheckCircle, PackageOpen } from "lucide-react";
+import { Plus, Edit, Trash2, X, ChevronDown, Eye, Settings, Building, Users, FileText, Award, BarChart, UserCheck, QrCode, Crown, Shield, Lock, CheckCircle, PackageOpen, Search, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -17,6 +17,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useLoading } from "@/contexts/LoadingContext";
 import { apiRequest } from "@/lib/queryClient";
 import { AdvancedProfileManager } from "@/components/profiles/AdvancedProfileManager";
 import { PermissionsForm } from "@/components/profiles/PermissionsForm";
@@ -268,14 +269,17 @@ const PerfilesPage = () => {
   const [isAdvancedModalOpen, setIsAdvancedModalOpen] = useState(false);
   const [editingPerfil, setEditingPerfil] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("perfiles");
-  const [search, setSearch] = useState("");
-  const [estadoFilter, setEstadoFilter] = useState<string | null>("activo");
   const [isModulesModalOpen, setIsModulesModalOpen] = useState(false);
   const [viewingModules, setViewingModules] = useState<{ modulo_nombre: string }[] | null>(null);
   const [selectedProfileForModules, setSelectedProfileForModules] = useState<Perfil | null>(null);
 
+  // Estados para filtros
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("active");
+
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { startLoading, stopLoading } = useLoading();
 
   // Funciones auxiliares para las vistas
   const getModuleColor = (modulo: string) => {
@@ -360,22 +364,27 @@ const PerfilesPage = () => {
   // Create/Update perfil mutation
   const savePerfilMutation = useMutation({
     mutationFn: async (data: PerfilForm) => {
-      // Mapear los permisos del formulario a la estructura esperada por setAccionesToRol
-      const modulosParaGuardar = data.permisos.map(p => ({
-        modulo_id: Number(p.viewId), // viewId del formulario es ahora el modulo_id
-        acciones: p.actions // actions del formulario ya contiene los codes
-      }));
+      startLoading();
+      try {
+        // Mapear los permisos del formulario a la estructura esperada por setAccionesToRol
+        const modulosParaGuardar = data.permisos.map(p => ({
+          modulo_id: Number(p.viewId), // viewId del formulario es ahora el modulo_id
+          acciones: p.actions // actions del formulario ya contiene los codes
+        }));
 
-      if (editingPerfil) {
-        // Editar
-        const updated = await rolesService.updateRole(editingPerfil.id, { nombre: data.nombre, descripcion: data.descripcion });
-        await rolesService.setAccionesToRol(editingPerfil.id, modulosParaGuardar);
-        return updated;
-      } else {
-        // Crear
-        const created = await rolesService.createRole({ nombre: data.nombre, descripcion: data.descripcion });
-        await rolesService.setAccionesToRol(created.id, modulosParaGuardar);
-        return created;
+        if (editingPerfil) {
+          // Editar
+          const updated = await rolesService.updateRole(editingPerfil.id, { nombre: data.nombre, descripcion: data.descripcion });
+          await rolesService.setAccionesToRol(editingPerfil.id, modulosParaGuardar);
+          return updated;
+        } else {
+          // Crear
+          const created = await rolesService.createRole({ nombre: data.nombre, descripcion: data.descripcion });
+          await rolesService.setAccionesToRol(created.id, modulosParaGuardar);
+          return created;
+        }
+      } finally {
+        stopLoading();
       }
     },
     onSuccess: async () => {
@@ -395,7 +404,12 @@ const PerfilesPage = () => {
   // Delete perfil mutation
   const deletePerfilMutation = useMutation({
     mutationFn: async (id: number) => {
-      return await rolesService.deleteRole(id);
+      startLoading();
+      try {
+        return await rolesService.deleteRole(id);
+      } finally {
+        stopLoading();
+      }
     },
     onSuccess: async () => {
       queryClient.removeQueries({ queryKey: ['roles'] });
@@ -410,7 +424,12 @@ const PerfilesPage = () => {
   // Mutaciones para eliminar permanente y activar
   const deletePerfilPermanentMutation = useMutation({
     mutationFn: async (id: number) => {
-      return await rolesService.deleteRolePermanent(id);
+      startLoading();
+      try {
+        return await rolesService.deleteRolePermanent(id);
+      } finally {
+        stopLoading();
+      }
     },
     onSuccess: async () => {
       queryClient.removeQueries({ queryKey: ['roles'] });
@@ -424,7 +443,12 @@ const PerfilesPage = () => {
 
   const activatePerfilMutation = useMutation({
     mutationFn: async (id: number) => {
-      return await rolesService.activateRole(id);
+      startLoading();
+      try {
+        return await rolesService.activateRole(id);
+      } finally {
+        stopLoading();
+      }
     },
     onSuccess: async () => {
       queryClient.removeQueries({ queryKey: ['roles'] });
@@ -442,8 +466,9 @@ const PerfilesPage = () => {
 
   // handleEdit debe cargar los permisos del rol desde Supabase y mostrarlos en la tabla para editar
   const handleEdit = async (perfil: any) => {
-    setEditingPerfil(perfil);
+    startLoading();
     try {
+      setEditingPerfil(perfil);
       const accionesCompletas = await rolesService.getAccionesCompletasPorRol(perfil.id);
       // console.log("Acciones completas fetched:", accionesCompletas); // Comentado para limpiar consola
 
@@ -484,6 +509,8 @@ const PerfilesPage = () => {
       toast({ title: 'Error', description: 'No se pudieron cargar los permisos del perfil', variant: 'destructive' });
       form.reset({ codigo: perfil.id, nombre: perfil.nombre, descripcion: perfil.descripcion || '', permisos: [] });
       setActiveTab('vistas');
+    } finally {
+      stopLoading();
     }
   };
 
@@ -493,35 +520,43 @@ const PerfilesPage = () => {
   };
 
   const handleAdvancedProfileCreated = async (profile: any) => {
-    // Invalidar cache para actualizar la lista y refrescar
-    await queryClient.invalidateQueries({ queryKey: ['/api/perfiles'] });
-    await refetch();
+    startLoading();
+    try {
+      // Invalidar cache para actualizar la lista y refrescar
+      await queryClient.invalidateQueries({ queryKey: ['/api/perfiles'] });
+      await refetch();
 
-    // Mostrar notificación de éxito
-    toast({
-      title: "Perfil Avanzado Creado",
-      description: `El perfil "${profile.name}" ha sido creado exitosamente con permisos granulares.`,
-      variant: "default",
-    });
+      // Mostrar notificación de éxito
+      toast({
+        title: "Perfil Avanzado Creado",
+        description: `El perfil "${profile.name}" ha sido creado exitosamente con permisos granulares.`,
+        variant: "default",
+      });
+    } finally {
+      stopLoading();
+    }
   };
 
   const handleViewModules = async (perfil: Perfil) => {
-    setSelectedProfileForModules(perfil);
+    startLoading();
     try {
+      setSelectedProfileForModules(perfil);
       const acciones = await rolesService.getAccionesCompletasPorRol(perfil.id);
       const uniqueModules = [...new Map(acciones.map(item => [item.modulo_nombre, item])).values()];
       setViewingModules(uniqueModules);
       setIsModulesModalOpen(true);
     } catch (error) {
       toast({ title: 'Error', description: 'No se pudieron cargar los módulos del perfil', variant: 'destructive' });
+    } finally {
+      stopLoading();
     }
   };
 
   // Filtrado de perfiles
   const filteredPerfiles = perfiles.filter(perfil => {
-    const matchesSearch = perfil.nombre.toLowerCase().includes(search.toLowerCase()) || (perfil.descripcion || '').toLowerCase().includes(search.toLowerCase());
-    const matchesEstado = estadoFilter === null ? true : (estadoFilter === 'activo' ? perfil.activo : !perfil.activo);
-    return matchesSearch && matchesEstado;
+    const matchesSearch = perfil.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || (perfil.descripcion || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === "all" ? true : (statusFilter === "active" ? perfil.activo : !perfil.activo);
+    return matchesSearch && matchesStatus;
   });
 
 
@@ -580,6 +615,44 @@ const PerfilesPage = () => {
                   size="sm"
                 >
                   Adicionar Registro
+                </Button>
+              </div>
+            </div>
+
+            {/* Filtros */}
+            <div className="p-4 border-b bg-gray-50">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    placeholder="Buscar por nombre o descripción..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filtrar por estado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos los estados</SelectItem>
+                    <SelectItem value="active">Solo activos</SelectItem>
+                    <SelectItem value="inactive">Solo inactivos</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setStatusFilter("active");
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <Filter className="w-4 h-4" />
+                  Limpiar filtros
                 </Button>
               </div>
             </div>

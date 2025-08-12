@@ -14,16 +14,28 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Plantilla } from '@/services/plantillasService';
+import { empresasService, Empresa } from '@/services/empresasService';
 
 const ExpedicionOrdenPage = () => {
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [estadoFilter, setEstadoFilter] = useState<string | undefined>(undefined);
+  const [empresaFilter, setEmpresaFilter] = useState<string | undefined>(undefined);
   const [activeTab, setActiveTab] = useState("listado");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSolicitud, setSelectedSolicitud] = useState<Solicitud | undefined>(undefined);
   const [empresaData, setEmpresaData] = useState<any>(null);
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
+
+  // Estados disponibles para el filtro
+  const estadosDisponibles = [
+    { value: 'PENDIENTE', label: 'Pendiente' },
+    { value: 'ASIGNADO', label: 'Asignado' },
+    { value: 'EN_PROCESO', label: 'En Proceso' },
+    { value: 'APROBADA', label: 'Aprobada' },
+    { value: 'RECHAZADA', label: 'Rechazada' }
+  ];
 
   // Obtener datos de la empresa del localStorage
   useEffect(() => {
@@ -39,10 +51,25 @@ const ExpedicionOrdenPage = () => {
     }
   }, []);
 
+  // Cargar lista de empresas para el filtro
+  useEffect(() => {
+    const fetchEmpresas = async () => {
+      try {
+        const empresasData = await empresasService.getAll();
+        setEmpresas(empresasData);
+      } catch (error) {
+        console.error('Error al cargar empresas:', error);
+        toast.error('Error al cargar la lista de empresas');
+      }
+    };
+    
+    fetchEmpresas();
+  }, []);
+
   // Fetch solicitudes when component mounts or filter changes
   useEffect(() => {
     fetchSolicitudes();
-  }, [estadoFilter]);
+  }, [estadoFilter, empresaFilter]);
 
   const fetchSolicitudes = async () => {
     setIsLoading(true);
@@ -112,10 +139,13 @@ const ExpedicionOrdenPage = () => {
       (solicitud.nombres?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
       (solicitud.apellidos?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
       (solicitud.cargo?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      (solicitud.empresaUsuaria?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      (solicitud.numeroDocumento?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+      (solicitud.empresa_usuaria?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (solicitud.numero_documento?.toLowerCase() || '').includes(searchTerm.toLowerCase());
 
-    return matchesSearch;
+    const matchesEmpresa = !empresaFilter || empresaFilter === 'all' || 
+      solicitud.empresas?.id?.toString() === empresaFilter;
+
+    return matchesSearch && matchesEmpresa;
   });
 
   return (
@@ -185,9 +215,27 @@ const ExpedicionOrdenPage = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos</SelectItem>
-                    <SelectItem value="PENDIENTE">Pendiente</SelectItem>
-                    <SelectItem value="APROBADA">Aprobada</SelectItem>
-                    <SelectItem value="RECHAZADA">Rechazada</SelectItem>
+                    {estadosDisponibles.map((estado) => (
+                      <SelectItem key={estado.value} value={estado.value}>
+                        {estado.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select 
+                  value={empresaFilter || 'all'} 
+                  onValueChange={(value) => setEmpresaFilter(value === 'all' ? undefined : value)}
+                >
+                  <SelectTrigger className="w-[200px] h-9">
+                    <SelectValue placeholder="Filtrar por empresa" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas las empresas</SelectItem>
+                    {empresas.map((empresa) => (
+                      <SelectItem key={empresa.id} value={empresa.id.toString()}>
+                        {empresa.razon_social}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Edit, Trash2, Settings, Search, Filter, Eye, FileText, User, Building, CheckCircle, Lock, Save, Loader2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Settings, Search, Filter, Eye, FileText, User, Building, CheckCircle, Lock, Save } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +26,7 @@ import { TipoCandidato, TipoDocumento, TipoCandidatoForm, DocumentoTipoForm } fr
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/services/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
+import { useLoading } from '@/contexts/LoadingContext';
 
 const tipoCandidatoSchema = z.object({
   nombre: z.string().min(2, 'Nombre requerido'),
@@ -56,6 +57,7 @@ export default function TiposCandidatosPage() {
   // Hooks - TODOS LOS HOOKS DEBEN ESTAR AQUÍ AL INICIO
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { startLoading, stopLoading, isLoading } = useLoading();
 
   const { 
     tiposCandidatos, 
@@ -178,6 +180,7 @@ export default function TiposCandidatosPage() {
   const confirmInactivate = async () => {
     if (!tipoToAction?.id) return;
 
+    startLoading();
     try {
       await deleteTipoCandidato(tipoToAction.id);
       toast({
@@ -192,6 +195,7 @@ export default function TiposCandidatosPage() {
         variant: "destructive"
       });
     } finally {
+      stopLoading();
       setShowInactivateModal(false);
       setTipoToAction(null);
     }
@@ -200,6 +204,7 @@ export default function TiposCandidatosPage() {
   const confirmActivate = async () => {
     if (!tipoToAction?.id) return;
 
+    startLoading();
     try {
       await activateTipoCandidato(tipoToAction.id);
       toast({
@@ -214,6 +219,7 @@ export default function TiposCandidatosPage() {
         variant: "destructive"
       });
     } finally {
+      stopLoading();
       setShowActivateModal(false);
       setTipoToAction(null);
     }
@@ -222,6 +228,7 @@ export default function TiposCandidatosPage() {
   const confirmDelete = async () => {
     if (!tipoToAction?.id) return;
 
+    startLoading();
     try {
       await deleteTipoCandidato(tipoToAction.id);
       toast({
@@ -236,6 +243,7 @@ export default function TiposCandidatosPage() {
         variant: "destructive"
       });
     } finally {
+      stopLoading();
       setShowDeleteModal(false);
       setTipoToAction(null);
     }
@@ -244,6 +252,7 @@ export default function TiposCandidatosPage() {
   const handleDeleteDocumento = async (documento: TipoDocumento) => {
     if (!documento.id) return;
 
+    startLoading();
     try {
       await deleteTipoDocumento(documento.id);
       toast({
@@ -257,12 +266,15 @@ export default function TiposCandidatosPage() {
         description: "Error al eliminar el tipo de documento",
         variant: "destructive"
       });
+    } finally {
+      stopLoading();
     }
   };
 
   const handleActivateDocumento = async (documento: TipoDocumento) => {
     if (!documento.id) return;
 
+    startLoading();
     try {
       await activateTipoDocumento(documento.id);
       toast({
@@ -276,6 +288,8 @@ export default function TiposCandidatosPage() {
         description: "Error al activar el tipo de documento",
         variant: "destructive"
       });
+    } finally {
+      stopLoading();
     }
   };
 
@@ -301,6 +315,7 @@ export default function TiposCandidatosPage() {
     if (!selectedTipo) return;
     
     setLoadingDocumentoId(documentoId);
+    startLoading();
     
     try {
     const updatedDocumentos = [...documentosRequeridos];
@@ -336,20 +351,26 @@ export default function TiposCandidatosPage() {
         [selectedTipo.id]: updatedDocumentos.length
       }));
     } finally {
+      stopLoading();
       setLoadingDocumentoId(null);
     }
   };
 
-  const handleTipoSubmit = (data: TipoCandidatoForm) => {
-    if (editingTipo) {
-      updateTipoCandidato({ id: editingTipo.id!, data });
-    } else {
-      createTipoCandidato(data);
+  const handleTipoSubmit = async (data: TipoCandidatoForm) => {
+    startLoading();
+    try {
+      if (editingTipo) {
+        await updateTipoCandidato({ id: editingTipo.id!, data });
+      } else {
+        await createTipoCandidato(data);
+      }
+      tipoForm.reset();
+      setEditingTipo(null);
+      setSelectedTipo(null);
+      setActiveTab("tipos");
+    } finally {
+      stopLoading();
     }
-    tipoForm.reset();
-    setEditingTipo(null);
-    setSelectedTipo(null);
-    setActiveTab("tipos");
   };
 
 
@@ -397,8 +418,8 @@ export default function TiposCandidatosPage() {
                 >
                   Adicionar Registro
                 </Button>
-              </div>
-            </div>
+        </div>
+      </div>
 
             {/* Filtros */}
             <div className="p-4 border-b bg-gray-50">
@@ -451,140 +472,142 @@ export default function TiposCandidatosPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {loadingTipos ? (
+                  {!isLoading ? (
+                    filteredTiposCandidatos.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="h-24 text-center">
+                          No hay tipos de cargos disponibles.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredTiposCandidatos.map((tipo) => (
+                        <TableRow key={tipo.id} className="hover:bg-gray-50">
+                          <TableCell className="px-2 py-1">
+                            <div className="flex flex-row gap-1 items-center">
+                              {tipo.activo && (
+                                <>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => handleEdit(tipo)}
+                                          aria-label="Editar tipo"
+                                          className="h-8 w-8"
+                                        >
+                                          <Edit className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Editar</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => handleConfigureTipo(tipo)}
+                                          aria-label="Configurar documentos"
+                                          className="h-8 w-8"
+                                        >
+                                          <Settings className="h-4 w-4 text-blue-600 hover:text-blue-800 transition-colors" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Configurar documentos</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </>
+                              )}
+
+                              {tipo.activo ? (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleInactivate(tipo)}
+                                        aria-label="Inactivar tipo"
+                                        className="h-8 w-8"
+                                      >
+                                        <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Inactivar</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              ) : (
+                                <>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => handleDelete(tipo)}
+                                          aria-label="Eliminar tipo"
+                                          className="h-8 w-8"
+                                        >
+                                          <Trash2 className="h-4 w-4 text-red-600 hover:text-red-800 transition-colors" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Eliminar</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => handleActivate(tipo)}
+                                          aria-label="Activar tipo"
+                                          className="h-8 w-8"
+                                        >
+                                          <CheckCircle className="h-4 w-4 text-green-600 hover:text-green-800 transition-colors" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Activar</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="px-4 py-3 text-sm text-gray-900 font-medium">{tipo.nombre}</TableCell>
+                          <TableCell className="px-4 py-3 text-sm text-gray-500">{tipo.descripcion || '-'}</TableCell>
+                          <TableCell className="px-4 py-3 text-sm text-gray-500">
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                              {documentosCounts[tipo.id] || 0} documentos
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="px-4 py-3">
+                            <Badge variant={tipo.activo ? "default" : "secondary"} className={tipo.activo ? "bg-brand-lime/10 text-brand-lime border-brand-lime/20" : "bg-gray-200 text-gray-600 border-gray-300"}>
+                              {tipo.activo ? "Activo" : "Inactivo"}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )
+                  ) : (
                     <TableRow>
                       <TableCell colSpan={5} className="h-24 text-center">
                         Cargando tipos de cargos...
                       </TableCell>
                     </TableRow>
-                  ) : filteredTiposCandidatos.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="h-24 text-center">
-                        No hay tipos de cargos disponibles.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredTiposCandidatos.map((tipo) => (
-                      <TableRow key={tipo.id} className="hover:bg-gray-50">
-                        <TableCell className="px-2 py-1">
-                          <div className="flex flex-row gap-1 items-center">
-                                                         {tipo.activo && (
-                               <>
-                                 <TooltipProvider>
-                                   <Tooltip>
-                                     <TooltipTrigger asChild>
-                                       <Button
-                                         variant="ghost"
-                                         size="icon"
-                                         onClick={() => handleEdit(tipo)}
-                                         aria-label="Editar tipo"
-                                         className="h-8 w-8"
-                                       >
-                                         <Edit className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
-                                       </Button>
-                                     </TooltipTrigger>
-                                     <TooltipContent>
-                                       <p>Editar</p>
-                                     </TooltipContent>
-                                   </Tooltip>
-                                 </TooltipProvider>
-
-                                 <TooltipProvider>
-                                   <Tooltip>
-                                     <TooltipTrigger asChild>
-                                       <Button
-                                         variant="ghost"
-                                         size="icon"
-                                         onClick={() => handleConfigureTipo(tipo)}
-                                         aria-label="Configurar documentos"
-                                         className="h-8 w-8"
-                                       >
-                                         <Settings className="h-4 w-4 text-blue-600 hover:text-blue-800 transition-colors" />
-                                       </Button>
-                                     </TooltipTrigger>
-                                     <TooltipContent>
-                                       <p>Configurar documentos</p>
-                                     </TooltipContent>
-                                   </Tooltip>
-                                 </TooltipProvider>
-                               </>
-                             )}
-
-                            {tipo.activo ? (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => handleInactivate(tipo)}
-                                      aria-label="Inactivar tipo"
-                                      className="h-8 w-8"
-                                    >
-                                      <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Inactivar</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            ) : (
-                              <>
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => handleDelete(tipo)}
-                                        aria-label="Eliminar tipo"
-                                        className="h-8 w-8"
-                                      >
-                                        <Trash2 className="h-4 w-4 text-red-600 hover:text-red-800 transition-colors" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Eliminar</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => handleActivate(tipo)}
-                                        aria-label="Activar tipo"
-                                        className="h-8 w-8"
-                                      >
-                                        <CheckCircle className="h-4 w-4 text-green-600 hover:text-green-800 transition-colors" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Activar</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                              </>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="px-4 py-3 text-sm text-gray-900 font-medium">{tipo.nombre}</TableCell>
-                        <TableCell className="px-4 py-3 text-sm text-gray-500">{tipo.descripcion || '-'}</TableCell>
-                        <TableCell className="px-4 py-3 text-sm text-gray-500">
-                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                            {documentosCounts[tipo.id] || 0} documentos
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="px-4 py-3">
-                          <Badge variant={tipo.activo ? "default" : "secondary"} className={tipo.activo ? "bg-brand-lime/10 text-brand-lime border-brand-lime/20" : "bg-gray-200 text-gray-600 border-gray-300"}>
-                            {tipo.activo ? "Activo" : "Inactivo"}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))
                   )}
                 </TableBody>
               </Table>
@@ -636,19 +659,19 @@ export default function TiposCandidatosPage() {
                         </FormItem>
                       )}
                     />
-                  </div>
+                    </div>
                   <div className="flex justify-end">
-              <Button 
+                      <Button
                       type="submit" 
                       disabled={isCreating || isUpdating}
                       className="bg-cyan-600 hover:bg-cyan-700 text-white"
                     >
                       <Save className="h-4 w-4 mr-2" />
                       Guardar
-                        </Button>
-                  </div>
-                </form>
-              </Form>
+                      </Button>
+                    </div>
+                    </form>
+                  </Form>
           </CardContent>
         </Card>
         </TabsContent>
@@ -717,7 +740,7 @@ export default function TiposCandidatosPage() {
                           onClick={() => !isLoading && handleToggleDocumento(documento.id, !isRequerido)}
                         >
                           {isLoading ? (
-                            <Loader2 className="h-4 w-4 animate-spin text-cyan-600" />
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent" />
                           ) : (
                             <Checkbox
                               checked={Boolean(isRequerido)}

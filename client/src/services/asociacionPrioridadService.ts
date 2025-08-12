@@ -227,6 +227,16 @@ export const asociacionPrioridadService = {
         // Si el analista tiene prioridades, agregar cada una
         if (prioridades && prioridades.length > 0) {
           for (const prioridad of prioridades) {
+            // Contar solicitudes reales asignadas a este analista
+            const { count: solicitudesReales, error: countError } = await supabase
+              .from('hum_solicitudes')
+              .select('*', { count: 'exact', head: true })
+              .eq('analista_id', analista.id);
+
+            if (countError) {
+              console.warn(`Error contando solicitudes para analista ${analista.id}:`, countError);
+            }
+
             analistasConPrioridades.push({
               usuario_id: analista.id,
               usuario_nombre: `${analista.primer_nombre || ''} ${analista.primer_apellido || ''}`.trim() || analista.username,
@@ -240,11 +250,21 @@ export const asociacionPrioridadService = {
               nivel_prioridad_1: prioridad.nivel_prioridad_1,
               nivel_prioridad_2: prioridad.nivel_prioridad_2,
               nivel_prioridad_3: prioridad.nivel_prioridad_3,
-              cantidad_solicitudes: prioridad.cantidad_solicitudes || 0,
+              cantidad_solicitudes: solicitudesReales || 0, // Usar conteo real en lugar del campo manual
               roles: roles
             });
           }
         } else {
+          // Si no tiene prioridades, contar solicitudes reales asignadas
+          const { count: solicitudesReales, error: countError } = await supabase
+            .from('hum_solicitudes')
+            .select('*', { count: 'exact', head: true })
+            .eq('analista_id', analista.id);
+
+          if (countError) {
+            console.warn(`Error contando solicitudes para analista ${analista.id}:`, countError);
+          }
+
           // Si no tiene prioridades, agregar con valores por defecto
           analistasConPrioridades.push({
             usuario_id: analista.id,
@@ -259,7 +279,7 @@ export const asociacionPrioridadService = {
             nivel_prioridad_1: null,
             nivel_prioridad_2: null,
             nivel_prioridad_3: null,
-            cantidad_solicitudes: 0,
+            cantidad_solicitudes: solicitudesReales || 0, // Usar conteo real
             roles: roles
           });
         }
@@ -269,14 +289,14 @@ export const asociacionPrioridadService = {
       console.log('Total de analistas retornados:', analistasConPrioridades.length);
       console.log('Analistas con prioridades:', analistasConPrioridades);
       
-      // Ordenar por cantidad de solicitudes en orden descendente
+      // Ordenar por cantidad de solicitudes reales en orden descendente
       const analistasOrdenados = analistasConPrioridades.sort((a, b) => {
         const solicitudesA = a.cantidad_solicitudes || 0;
         const solicitudesB = b.cantidad_solicitudes || 0;
         return solicitudesB - solicitudesA; // Orden descendente
       });
       
-      console.log('Analistas ordenados por solicitudes (descendente):', analistasOrdenados);
+      console.log('Analistas ordenados por solicitudes reales (descendente):', analistasOrdenados);
       return analistasOrdenados;
     } catch (error) {
       console.error('Error en getAnalistasWithPriorities:', error);

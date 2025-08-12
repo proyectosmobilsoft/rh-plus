@@ -42,6 +42,18 @@ const menuItems = [
     ],
   },
   {
+    title: "Maestro",
+    icon: <Settings className="h-5 w-5" />,
+    subItems: [
+      { title: "Tipos de Cargos", path: "/maestro/tipos-candidatos", icon: <FileText className="h-4 w-4" /> },
+      { title: "Tipos de Documentos", path: "/maestro/tipos-documentos", icon: <FileText className="h-4 w-4" /> },
+      { title: "Plantillas", path: "/maestro/plantillas", icon: <Layers className="h-4 w-4" /> },
+      { title: "Ubicaciones", path: "/maestro/ubicaciones", icon: <MapPin className="h-4 w-4" /> },
+      { title: "Estructura Financiera", path: "/maestro/estructura-financiera", icon: <Building className="h-4 w-4" /> },
+      { title: "Correos Masivos", path: "/maestro/correos-masivos", icon: <Mail className="h-4 w-4" /> },
+    ],
+  },
+  {
     title: "Registros",
     icon: <Users className="h-5 w-5" />,
     subItems: [
@@ -68,18 +80,6 @@ const menuItems = [
     icon: <UserCheck className="h-5 w-5" />,
     path: "/analistas",
     subItems: [],
-  },
-  {
-    title: "Maestro",
-    icon: <Settings className="h-5 w-5" />,
-    subItems: [
-      { title: "Tipos de Cargos", path: "/maestro/tipos-candidatos", icon: <FileText className="h-4 w-4" /> },
-      { title: "Tipos de Documentos", path: "/maestro/tipos-documentos", icon: <FileText className="h-4 w-4" /> },
-      { title: "Plantillas", path: "/maestro/plantillas", icon: <Layers className="h-4 w-4" /> },
-      { title: "Ubicaciones", path: "/maestro/ubicaciones", icon: <MapPin className="h-4 w-4" /> },
-      { title: "Estructura Financiera", path: "/maestro/estructura-financiera", icon: <Building className="h-4 w-4" /> },
-      { title: "Correos Masivos", path: "/maestro/correos-masivos", icon: <Mail className="h-4 w-4" /> },
-    ],
   },
   {
     title: "Acerca de la Empresa",

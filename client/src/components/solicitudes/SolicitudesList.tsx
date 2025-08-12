@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Edit, Trash2, Eye, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { Edit, Trash2, Eye, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
@@ -32,6 +32,8 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     switch (estado?.toUpperCase()) {
       case 'PENDIENTE':
         return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">Pendiente</Badge>;
+      case 'ASIGNADO':
+        return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300">Asignado</Badge>;
       case 'APROBADA':
         return <Badge variant="default" className="bg-green-100 text-green-800">Aprobada</Badge>;
       case 'RECHAZADA':
@@ -40,19 +42,6 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
         return <Badge variant="outline" className="bg-blue-100 text-blue-800">En Proceso</Badge>;
       default:
         return <Badge variant="outline">{estado || 'Sin estado'}</Badge>;
-    }
-  };
-
-  const getPriorityBadge = (prioridad: string) => {
-    switch (prioridad?.toLowerCase()) {
-      case 'alta':
-        return <Badge className="bg-red-100 text-red-800 border-red-200">Alta</Badge>;
-      case 'media':
-        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Media</Badge>;
-      case 'baja':
-        return <Badge className="bg-green-100 text-green-800 border-green-200">Baja</Badge>;
-      default:
-        return <Badge variant="outline">Sin prioridad</Badge>;
     }
   };
 
@@ -67,6 +56,19 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
       });
     } catch (error) {
       return 'Fecha inválida';
+    }
+  };
+
+  const formatDateTime = (dateString: string | undefined) => {
+    if (!dateString) return 'No especificada';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleTimeString('es-ES', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      return 'Hora inválida';
     }
   };
 
@@ -122,12 +124,12 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
             <TableRow>
               <TableHead className="text-center">Acciones</TableHead>
               
-              <TableHead>Trabajador</TableHead>
               <TableHead>Documento</TableHead>
               <TableHead>Empresa</TableHead>
+              <TableHead>Analista Asignado</TableHead>
               
               <TableHead>Estado</TableHead>
-              <TableHead>Prioridad</TableHead>
+              <TableHead>Modificación</TableHead>
               
             </TableRow>
           </TableHeader>
@@ -218,16 +220,6 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                 
                 <TableCell>
                   <div className="flex flex-col">
-                    <span className="font-medium">
-                      {getDisplayValue(solicitud.candidatos?.primer_nombre, 'Sin nombre')} {getDisplayValue(solicitud.candidatos?.primer_apellido, '')}
-                    </span>
-                    <span className="text-sm text-muted-foreground">
-                      {getDisplayValue(solicitud.candidatos?.telefono, 'Sin teléfono')}
-                    </span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-col">
                     <span>
                       {getDisplayValue(solicitud.candidatos?.tipo_documento, 'Sin tipo')}: {getDisplayValue(solicitud.candidatos?.numero_documento, 'Sin número')}
                     </span>
@@ -245,8 +237,36 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                   </div>
                 </TableCell>
                 
+                <TableCell>
+                  <div className="flex flex-col">
+                    {solicitud.analista ? (
+                      <>
+                        <span className="font-medium text-blue-600">
+                          {solicitud.analista.nombre}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {solicitud.analista.email || 'Sin email'}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-sm text-muted-foreground italic">
+                        Sin asignar
+                      </span>
+                    )}
+                  </div>
+                </TableCell>
+                
                 <TableCell>{getStatusBadge(solicitud.estado)}</TableCell>
-                <TableCell>{getPriorityBadge(solicitud.prioridad || 'media')}</TableCell>
+                <TableCell>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium">
+                      {formatDateTime(solicitud.updated_at)}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {formatDate(solicitud.updated_at)}
+                    </span>
+                  </div>
+                </TableCell>
                 
               </TableRow>
             ))}

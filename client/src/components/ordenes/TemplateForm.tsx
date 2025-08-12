@@ -41,16 +41,27 @@ const PLANTILLAS_MOCK = [
 
 // Definir los campos precargados para la plantilla básica
 const camposBasicos = [
+  // Primera fila: campos de identificación (6 columnas cada uno)
   { id: uuidv4(), type: 'text', label: 'Nombre del Trabajador', name: 'nombreTrabajador', required: true, order: 1, dimension: 6 },
   { id: uuidv4(), type: 'text', label: 'Cédula del Trabajador', name: 'cedulaTrabajador', required: true, order: 2, dimension: 6 },
+  
+  // Segunda fila: cargo y fecha (6 columnas cada uno)
   { id: uuidv4(), type: 'text', label: 'Cargo', name: 'cargoTrabajador', required: true, order: 3, dimension: 6 },
   { id: uuidv4(), type: 'date', label: 'Fecha de Ingreso', name: 'fechaIngreso', required: true, order: 4, dimension: 6 },
+  
+  // Tercera fila: salario y celular (6 columnas cada uno)
   { id: uuidv4(), type: 'text', label: 'Salario', name: 'salario', required: true, order: 5, dimension: 6 },
   { id: uuidv4(), type: 'text', label: 'Celular', name: 'celular', required: true, order: 6, dimension: 6 },
+  
+  // Cuarta fila: correo (12 columnas - ancho completo)
   { id: uuidv4(), type: 'email', label: 'Correo Electrónico', name: 'correo', required: true, order: 7, dimension: 12 },
+  
+  // Quinta fila: dirección (12 columnas - ancho completo)
   { id: uuidv4(), type: 'textarea', label: 'Dirección', name: 'direccion', required: true, order: 8, dimension: 12 },
+  
+  // Sexta fila: tipo examen y observaciones (6 columnas cada uno)
   { id: uuidv4(), type: 'select', label: 'Tipo de Examen', name: 'tipoExamen', required: true, order: 9, dimension: 6, options: 'Preocupacional, Periódico, Retiro, Especial' },
-  { id: uuidv4(), type: 'textarea', label: 'Observaciones', name: 'observaciones', required: false, order: 10, dimension: 12 },
+  { id: uuidv4(), type: 'textarea', label: 'Observaciones', name: 'observaciones', required: false, order: 10, dimension: 6 },
 ];
 
 interface TemplateFormProps {
@@ -67,6 +78,11 @@ export function TemplateForm({ initialData, onSaved }: TemplateFormProps) {
   const [selectedPlantillaId, setSelectedPlantillaId] = useState<string>('');
   const [selectedPlantillaData, setSelectedPlantillaData] = useState<any>(null);
   const [formBuilderFields, setFormBuilderFields] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Estado para el nombre y descripción de la plantilla
+  const [plantillaNombre, setPlantillaNombre] = useState(initialData?.nombre || '');
+  const [plantillaDescripcion, setPlantillaDescripcion] = useState(initialData?.descripcion || '');
   
   // Estado para plantillas asignadas
   const [plantillasAsignadas, setPlantillasAsignadas] = useState<number[]>(
@@ -74,22 +90,18 @@ export function TemplateForm({ initialData, onSaved }: TemplateFormProps) {
   );
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   
+  // Callbacks para actualizar nombre y descripción desde FormBuilder
+  const handleNombreChange = (nombre: string) => {
+    setPlantillaNombre(nombre);
+  };
+
+  const handleDescripcionChange = (descripcion: string) => {
+    setPlantillaDescripcion(descripcion);
+  };
+  
   // Cerrar el dropdown al hacer clic fuera de él
   const dropdownRef = useRef<HTMLDivElement>(null);
   
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsDropdownOpen(false);
-      }
-    };
-    
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
   // Inicializar configuración de campos
   useEffect(() => {
     const initialConfig: Record<string, { visible: boolean; required: boolean }> = {};
@@ -122,41 +134,54 @@ export function TemplateForm({ initialData, onSaved }: TemplateFormProps) {
     }
   });
 
+  // Sincronizar valores del formulario con el estado
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === 'nombre') {
+        setPlantillaNombre(value.nombre || '');
+      }
+      if (name === 'descripcion') {
+        setPlantillaDescripcion(value.descripcion || '');
+      }
+    });
+    
+    return () => subscription.unsubscribe();
+  }, [form]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   const onSubmit = async (data: any) => {
     try {
-      // Determinar qué estructura usar según el tipo de plantilla
-      let estructuraFormulario;
+      setIsLoading(true);
       
-      if (templateOption === 'new' && formBuilderFields.length > 0) {
-        // Usar campos del FormBuilder
-        estructuraFormulario = formBuilderFields;
-      } else if (templateOption === 'existing' && selectedPlantillaData) {
-        // Usar campos de la plantilla seleccionada (pueden haber sido editados)
-        estructuraFormulario = formBuilderFields.length > 0 ? formBuilderFields : selectedPlantillaData.estructura_formulario;
-      } else if (templateOption === 'basic') {
-        // Usar configuración de campos básicos
-        estructuraFormulario = fieldConfig;
-      } else {
-        // Fallback a configuración de campos
-        estructuraFormulario = fieldConfig;
-      }
-
-      // Validar que hay campos
-      if (!estructuraFormulario || (Array.isArray(estructuraFormulario) && estructuraFormulario.length === 0)) {
+      // Si estamos usando el FormBuilder, no usar esta función
+      // El FormBuilder maneja su propio guardado a través del callback
+      if (templateOption === 'new' || templateOption === 'existing' || templateOption === 'basic') {
         toast({
           variant: "destructive",
           title: "Error",
-          description: "Por favor agregue al menos un campo a la plantilla.",
+          description: "Por favor use el botón 'Guardar plantilla' del FormBuilder para guardar la plantilla.",
         });
         return;
       }
 
-      // Preparar datos para Supabase
+      // Solo para plantillas que no usan FormBuilder (si las hay)
       const payload = {
         nombre: data.nombre,
         descripcion: data.descripcion,
         es_default: data.esDefault || false,
-        estructura_formulario: estructuraFormulario,
+        estructura_formulario: fieldConfig,
         activa: true,
       };
 
@@ -183,16 +208,20 @@ export function TemplateForm({ initialData, onSaved }: TemplateFormProps) {
         title: "Error",
         description: "Hubo un error al procesar la solicitud. Por favor, intente nuevamente.",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   // Callback para recibir datos del FormBuilder
-  const handleFormBuilderSave = async (data: { nombre: string, descripcion: string, fields: any[] }) => {
+  const handleFormBuilderSave = async (data: { nombre: string, descripcion: string, fields: any[], estructura_formulario?: string }) => {
     try {
+      setIsLoading(true);
+      
       const payload = {
-        nombre: data.nombre,
-        descripcion: data.descripcion || undefined,
-        estructura_formulario: data.fields,
+        nombre: plantillaNombre || data.nombre,
+        descripcion: plantillaDescripcion || data.descripcion || undefined,
+        estructura_formulario: data.estructura_formulario || JSON.stringify(data.fields, null, 2),
         es_default: false,
         activa: true,
       };
@@ -226,6 +255,8 @@ export function TemplateForm({ initialData, onSaved }: TemplateFormProps) {
         title: "Error",
         description: "Hubo un error al guardar la plantilla. Por favor, intente nuevamente.",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -236,6 +267,11 @@ export function TemplateForm({ initialData, onSaved }: TemplateFormProps) {
       try {
         const plantilla = await plantillasService.getById(parseInt(plantillaId));
         setSelectedPlantillaData(plantilla);
+        // Actualizar el nombre y descripción en el estado
+        if (plantilla) {
+          setPlantillaNombre(plantilla.nombre || '');
+          setPlantillaDescripcion(plantilla.descripcion || '');
+        }
       } catch (error) {
         console.error('Error al cargar plantilla:', error);
         toast({
@@ -246,6 +282,9 @@ export function TemplateForm({ initialData, onSaved }: TemplateFormProps) {
       }
     } else {
       setSelectedPlantillaData(null);
+      // Limpiar el nombre y descripción
+      setPlantillaNombre('');
+      setPlantillaDescripcion('');
     }
   };
 
@@ -261,46 +300,42 @@ export function TemplateForm({ initialData, onSaved }: TemplateFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <div className="w-full">
           <Card>
-            <CardContent className="pt-6">
-              <div className="grid gap-6">
-                  <TemplateBasicInfo form={form} />
+            <CardContent className="pt-4">
+              <div className="space-y-4">
+                  <TemplateBasicInfo 
+                    form={form} 
+                    templateOption={templateOption}
+                    onTemplateOptionChange={(value) => setTemplateOption(value as 'new' | 'existing' | 'basic')}
+                  />
                   
-                  <div>
-                    <label className="block font-medium mb-1">Tipo de Plantilla</label>
-                    <select
-                      value={templateOption}
-                      onChange={(e) => setTemplateOption(e.target.value as 'new' | 'existing' | 'basic')}
-                      className="w-full border rounded p-2"
-                    >
-                      <option value="new">Crear Nueva Plantilla</option>
-                      <option value="existing">Seleccionar Plantilla Existente</option>
-                      <option value="basic">Plantilla Básica</option>
-                    </select>
-                  </div>
+                  {/* Campo de Tipo de Plantilla movido a TemplateBasicInfo */}
+                  {/* Eliminado el campo duplicado */}
 
                   {templateOption === 'new' && (
-                    <div className="border rounded p-4 bg-white">
+                    <div className="border rounded p-3 bg-gray-50">
                       <FormBuilder 
                         key="new-template" 
                         precargados={initialData?.estructura_formulario || []}
                         onSave={handleFormBuilderSave}
-                        initialName={initialData?.nombre || ''}
-                        initialDescription={initialData?.descripcion || ''}
+                        initialName={plantillaNombre}
+                        initialDescription={plantillaDescripcion}
                         onFieldsChange={setFormBuilderFields}
-                        hideInternalSaveButton={true}
+                        isEditing={!!initialData?.id}
+                        onNameChange={handleNombreChange}
+                        onDescriptionChange={handleDescripcionChange}
                       />
                     </div>
                   )}
 
                   {templateOption === 'existing' && (
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       <div>
-                        <label className="block font-medium mb-1">Seleccionar Plantilla para Editar</label>
+                        <label className="block font-medium mb-2 text-sm">Seleccionar Plantilla para Editar</label>
                         <select 
-                          className="w-full border rounded p-2"
+                          className="w-full border rounded p-2 text-sm"
                           value={selectedPlantillaId}
                           onChange={(e) => handlePlantillaSelection(e.target.value)}
                         >
@@ -313,15 +348,17 @@ export function TemplateForm({ initialData, onSaved }: TemplateFormProps) {
                         </select>
                       </div>
                       {selectedPlantillaData && (
-                        <div className="border rounded p-4 bg-white">
+                        <div className="border rounded p-3 bg-gray-50">
                           <FormBuilder 
                             key={`existing-${selectedPlantillaId}`}
                             precargados={selectedPlantillaData.estructura_formulario || []}
                             onSave={handleFormBuilderSave}
-                            initialName={selectedPlantillaData.nombre || ''}
-                            initialDescription={selectedPlantillaData.descripcion || ''}
+                            initialName={plantillaNombre}
+                            initialDescription={plantillaDescripcion}
                             onFieldsChange={setFormBuilderFields}
-                            hideInternalSaveButton={true}
+                            isEditing={true}
+                            onNameChange={handleNombreChange}
+                            onDescriptionChange={handleDescripcionChange}
                           />
                         </div>
                       )}
@@ -329,24 +366,23 @@ export function TemplateForm({ initialData, onSaved }: TemplateFormProps) {
                   )}
 
                   {templateOption === 'basic' && (
-                    <div className="border rounded p-4 bg-white">
+                    <div className="border rounded p-3 bg-gray-50">
                       <FormBuilder 
                         key="basic-template" 
                         precargados={camposBasicos}
                         onSave={handleFormBuilderSave}
-                        initialName=""
-                        initialDescription=""
+                        initialName={plantillaNombre}
+                        initialDescription={plantillaDescripcion}
                         onFieldsChange={setFormBuilderFields}
-                        hideInternalSaveButton={true}
+                        isEditing={false}
+                        onNameChange={handleNombreChange}
+                        onDescriptionChange={handleDescripcionChange}
                       />
                     </div>
                   )}
 
-                  <div className="flex justify-end">
-                    <Button type="submit">
-                      {initialData ? "Actualizar Plantilla" : "Crear Plantilla"}
-                    </Button>
-                  </div>
+                  {/* El botón de submit del formulario principal no se usa cuando se trabaja con FormBuilder */}
+                  {/* Se quita para evitar confusión */}
               </div>
             </CardContent>
           </Card>

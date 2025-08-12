@@ -13,7 +13,9 @@ import {
   Users,
   Eye,
   CheckCircle,
-  Lock
+  Lock,
+  User,
+  Settings
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -622,21 +624,15 @@ export default function AnalistasPage() {
                   </div>
                 </div>
               ) : (
-                <Table className="min-w-[1200px] w-full text-xs">
+                <Table className="min-w-[1000px] w-full text-xs">
                   <TableHeader>
-                    <TableRow className="bg-gray-100 border-b border-gray-200 h-12">
-                      <TableHead colSpan={5} className="text-center text-xs font-semibold text-gray-700 py-1 px-2 border-r-2 border-gray-400"></TableHead>
-                      <TableHead colSpan={3} className="text-center text-xs font-semibold text-gray-700 py-1 px-2">Prioridades Configuradas</TableHead>
-                    </TableRow>
                     <TableRow className="bg-gray-100 border-b border-gray-200 h-12">
                       <TableHead className="text-left text-xs font-semibold text-gray-700 py-1 px-2 border-r border-gray-200 w-20">Acciones</TableHead>
                       <TableHead className="text-left text-xs font-semibold text-gray-700 py-1 px-2 border-r border-gray-200">Analista</TableHead>
+                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-1 px-2 border-r border-gray-200">Solicitudes</TableHead>
                       <TableHead className="text-left text-xs font-semibold text-gray-700 py-1 px-2 border-r border-gray-200">Prioridad 1</TableHead>
                       <TableHead className="text-left text-xs font-semibold text-gray-700 py-1 px-2 border-r border-gray-200">Prioridad 2</TableHead>
-                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-1 px-2 border-r-2 border-gray-400">Prioridad 3</TableHead>
-                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-1 px-2 border-r border-gray-200">Solicitudes</TableHead>
-                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-1 px-2 border-r border-gray-200">Empresa</TableHead>
-                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-1 px-2">Sucursal</TableHead>
+                      <TableHead className="text-left text-xs font-semibold text-gray-700 py-1 px-2 border-r border-gray-200">Prioridad 3</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -666,60 +662,95 @@ export default function AnalistasPage() {
                         </TableCell>
                         
                         <TableCell className="py-1 px-2 font-medium text-gray-900 border-r border-gray-200">
-                          {analista.usuario_nombre || 'No especificado'}
+                          <div className="flex flex-col">
+                            <span className="font-medium">
+                              {analista.usuario_nombre || 'No especificado'}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {analista.usuario_email || 'Sin email'}
+                            </span>
+                          </div>
                         </TableCell>
                         
                         <TableCell className="py-1 px-2 text-center border-r border-gray-200">
-                          {analista.nivel_prioridad_1 ? (
-                            <Badge variant="outline" className={getPrioridadBadgeClass(analista.nivel_prioridad_1)}>
-                              {analista.nivel_prioridad_1 === 'empresa' ? 'Empresa' : 
-                               analista.nivel_prioridad_1 === 'sucursal' ? 'Sucursal' : 
-                               analista.nivel_prioridad_1 === 'solicitudes' ? 'Solicitudes' : 
-                               analista.nivel_prioridad_1}
+                          <div className="flex flex-col items-center">
+                            <Badge variant="outline" className="bg-cyan-50 text-cyan-700 border-cyan-200">
+                              {analista.cantidad_solicitudes || 0}
                             </Badge>
-                          ) : (
-                            <span className="text-gray-400">-</span>
-                          )}
+                            <span className="text-xs text-gray-500 mt-1">asignadas</span>
+                          </div>
                         </TableCell>
                         
                         <TableCell className="py-1 px-2 text-center border-r border-gray-200">
-                          {analista.nivel_prioridad_2 ? (
-                            <Badge variant="outline" className={getPrioridadBadgeClass(analista.nivel_prioridad_2)}>
-                              {analista.nivel_prioridad_2 === 'empresa' ? 'Empresa' : 
-                               analista.nivel_prioridad_2 === 'sucursal' ? 'Sucursal' : 
-                               analista.nivel_prioridad_2 === 'solicitudes' ? 'Solicitudes' : 
-                               analista.nivel_prioridad_2}
-                            </Badge>
-                          ) : (
-                            <span className="text-gray-400">-</span>
-                          )}
+                          <div className="space-y-1">
+                            {analista.nivel_prioridad_1 ? (
+                              <Badge variant="outline" className={getPrioridadBadgeClass(analista.nivel_prioridad_1)}>
+                                {analista.nivel_prioridad_1 === 'empresa' ? 'Empresa' : 
+                                 analista.nivel_prioridad_1 === 'sucursal' ? 'Sucursal' : 
+                                 analista.nivel_prioridad_1 === 'solicitudes' ? 'Solicitudes' : 
+                                 analista.nivel_prioridad_1}
+                              </Badge>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                            {analista.nivel_prioridad_1 === 'empresa' && analista.empresa_nombre && (
+                              <div className="text-xs text-gray-500">{analista.empresa_nombre}</div>
+                            )}
+                            {analista.nivel_prioridad_1 === 'sucursal' && analista.sucursal_nombre && (
+                              <div className="text-xs text-gray-500">{analista.sucursal_nombre}</div>
+                            )}
+                            {analista.nivel_prioridad_1 === 'solicitudes' && (
+                              <div className="text-xs text-gray-500">{analista.cantidad_solicitudes || 0} solicitudes</div>
+                            )}
+                          </div>
                         </TableCell>
                         
-                        <TableCell className="py-1 px-2 text-center border-r-2 border-gray-400">
-                          {analista.nivel_prioridad_3 ? (
-                            <Badge variant="outline" className={getPrioridadBadgeClass(analista.nivel_prioridad_3)}>
-                              {analista.nivel_prioridad_3 === 'empresa' ? 'Empresa' : 
-                               analista.nivel_prioridad_3 === 'sucursal' ? 'Sucursal' : 
-                               analista.nivel_prioridad_3 === 'solicitudes' ? 'Solicitudes' : 
-                               analista.nivel_prioridad_3}
-                            </Badge>
-                          ) : (
-                            <span className="text-gray-400">-</span>
-                          )}
+                        <TableCell className="py-1 px-2 text-center border-r border-gray-200">
+                          <div className="space-y-1">
+                            {analista.nivel_prioridad_2 ? (
+                              <Badge variant="outline" className={getPrioridadBadgeClass(analista.nivel_prioridad_2)}>
+                                {analista.nivel_prioridad_2 === 'empresa' ? 'Empresa' : 
+                                 analista.nivel_prioridad_2 === 'sucursal' ? 'Sucursal' : 
+                                 analista.nivel_prioridad_2 === 'solicitudes' ? 'Solicitudes' : 
+                                 analista.nivel_prioridad_2}
+                              </Badge>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                            {analista.nivel_prioridad_2 === 'empresa' && analista.empresa_nombre && (
+                              <div className="text-xs text-gray-500">{analista.empresa_nombre}</div>
+                            )}
+                            {analista.nivel_prioridad_2 === 'sucursal' && analista.sucursal_nombre && (
+                              <div className="text-xs text-gray-500">{analista.sucursal_nombre}</div>
+                            )}
+                            {analista.nivel_prioridad_2 === 'solicitudes' && (
+                              <div className="text-xs text-gray-500">{analista.cantidad_solicitudes || 0} solicitudes</div>
+                            )}
+                          </div>
                         </TableCell>
                         
-                        <TableCell className="py-1 px-2 text-center font-medium border-r border-gray-200">
-                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                            {analista.cantidad_solicitudes || 0}
-                          </Badge>
-                        </TableCell>
-                        
-                        <TableCell className="py-1 px-2 text-gray-700 border-r border-gray-200">
-                          {analista.empresa_nombre || 'Sin asignar'}
-                        </TableCell>
-                        
-                        <TableCell className="py-1 px-2 text-gray-700">
-                          {analista.sucursal_nombre || analista.empresa_direccion || '-'}
+                        <TableCell className="py-1 px-2 text-center border-r border-gray-200">
+                          <div className="space-y-1">
+                            {analista.nivel_prioridad_3 ? (
+                              <Badge variant="outline" className={getPrioridadBadgeClass(analista.nivel_prioridad_3)}>
+                                {analista.nivel_prioridad_3 === 'empresa' ? 'Empresa' : 
+                                 analista.nivel_prioridad_3 === 'sucursal' ? 'Sucursal' : 
+                                 analista.nivel_prioridad_3 === 'solicitudes' ? 'Solicitudes' : 
+                                 analista.nivel_prioridad_3}
+                              </Badge>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                            {analista.nivel_prioridad_3 === 'empresa' && analista.empresa_nombre && (
+                              <div className="text-xs text-gray-500">{analista.empresa_nombre}</div>
+                            )}
+                            {analista.nivel_prioridad_3 === 'sucursal' && analista.sucursal_nombre && (
+                              <div className="text-xs text-gray-500">{analista.sucursal_nombre}</div>
+                            )}
+                            {analista.nivel_prioridad_3 === 'solicitudes' && (
+                              <div className="text-xs text-gray-500">{analista.cantidad_solicitudes || 0} solicitudes</div>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}

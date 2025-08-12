@@ -23,6 +23,7 @@ import { useTiposDocumentos } from '@/hooks/useTiposDocumentos';
 import { TipoDocumento, DocumentoTipoForm } from '@/types/maestro';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
+import { useLoading } from '@/contexts/LoadingContext';
 
 const documentoTipoSchema = z.object({
   nombre: z.string().min(2, 'Nombre requerido'),
@@ -49,6 +50,7 @@ export default function TiposDocumentosPage() {
   // Hooks
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { startLoading, stopLoading, isLoading } = useLoading();
 
   const { 
     tiposDocumentos, 
@@ -146,6 +148,7 @@ export default function TiposDocumentosPage() {
   const confirmInactivate = async () => {
     if (!documentoToAction?.id) return;
 
+    startLoading();
     try {
       await deleteTipoDocumento(documentoToAction.id);
       toast({
@@ -160,6 +163,7 @@ export default function TiposDocumentosPage() {
         variant: "destructive"
       });
     } finally {
+      stopLoading();
       setShowInactivateModal(false);
       setDocumentoToAction(null);
     }
@@ -168,6 +172,7 @@ export default function TiposDocumentosPage() {
   const confirmActivate = async () => {
     if (!documentoToAction?.id) return;
 
+    startLoading();
     try {
       await activateTipoDocumento(documentoToAction.id);
       toast({
@@ -182,6 +187,7 @@ export default function TiposDocumentosPage() {
         variant: "destructive"
       });
     } finally {
+      stopLoading();
       setShowActivateModal(false);
       setDocumentoToAction(null);
     }
@@ -190,6 +196,7 @@ export default function TiposDocumentosPage() {
   const confirmDelete = async () => {
     if (!documentoToAction?.id) return;
 
+    startLoading();
     try {
       deleteTipoDocumento(documentoToAction.id);
       toast({
@@ -204,6 +211,7 @@ export default function TiposDocumentosPage() {
         variant: "destructive"
       });
     } finally {
+      stopLoading();
       setShowDeleteModal(false);
       setDocumentoToAction(null);
     }
@@ -229,6 +237,7 @@ export default function TiposDocumentosPage() {
 
 
   const onSubmit = async (data: DocumentoTipoFormData) => {
+    startLoading();
     try {
       if (editingDocumento) {
         await updateTipoDocumento({ id: editingDocumento.id!, data });
@@ -256,6 +265,8 @@ export default function TiposDocumentosPage() {
         description: "Error al guardar el tipo de documento",
         variant: "destructive",
       });
+    } finally {
+      stopLoading();
     }
   };
 
@@ -357,128 +368,130 @@ export default function TiposDocumentosPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {loadingDocumentos ? (
+                  {!isLoading ? (
+                    filteredTiposDocumentos.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="h-24 text-center">
+                          No hay tipos de documentos disponibles.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredTiposDocumentos.map((documento) => (
+                        <TableRow key={documento.id} className="hover:bg-gray-50">
+                          <TableCell className="px-2 py-1">
+                            <div className="flex flex-row gap-1 items-center">
+                              {documento.activo && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleEdit(documento)}
+                                        aria-label="Editar documento"
+                                        className="h-8 w-8"
+                                      >
+                                        <Edit className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Editar</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
+
+                              {documento.activo ? (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleInactivate(documento)}
+                                        aria-label="Inactivar documento"
+                                        className="h-8 w-8"
+                                      >
+                                        <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Inactivar</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              ) : (
+                                <>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => handleDelete(documento)}
+                                          aria-label="Eliminar documento"
+                                          className="h-8 w-8"
+                                        >
+                                          <Trash2 className="h-4 w-4 text-red-600 hover:text-red-800 transition-colors" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Eliminar</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => handleActivate(documento)}
+                                          aria-label="Activar documento"
+                                          className="h-8 w-8"
+                                        >
+                                          <CheckCircle className="h-4 w-4 text-green-600 hover:text-green-800 transition-colors" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Activar</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="px-4 py-3 text-sm text-gray-900 font-medium">{documento.nombre}</TableCell>
+                          <TableCell className="px-4 py-3 text-sm text-gray-500">{documento.descripcion || '-'}</TableCell>
+                          <TableCell className="px-4 py-3 text-sm text-gray-500">
+                            <Badge variant={documento.requerido ? "default" : "secondary"} className={documento.requerido ? "bg-green-100 text-green-800 border-green-200" : "bg-gray-100 text-gray-600 border-gray-200"}>
+                              {documento.requerido ? "Sí" : "No"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="px-4 py-3 text-sm text-gray-500">
+                            {documento.lleva_fecha_vigencia ? (
+                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                {documento.fecha_vigencia ? new Date(documento.fecha_vigencia).toLocaleDateString('es-ES') : 'Configurar'}
+                              </Badge>
+                            ) : (
+                              <span className="text-gray-400">No aplica</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="px-4 py-3">
+                            <Badge variant={documento.activo ? "default" : "secondary"} className={documento.activo ? "bg-brand-lime/10 text-brand-lime border-brand-lime/20" : "bg-gray-200 text-gray-600 border-gray-300"}>
+                              {documento.activo ? "Activo" : "Inactivo"}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )
+                  ) : (
                     <TableRow>
                       <TableCell colSpan={6} className="h-24 text-center">
                         Cargando tipos de documentos...
                       </TableCell>
                     </TableRow>
-                  ) : filteredTiposDocumentos.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="h-24 text-center">
-                        No hay tipos de documentos disponibles.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredTiposDocumentos.map((documento) => (
-                      <TableRow key={documento.id} className="hover:bg-gray-50">
-                        <TableCell className="px-2 py-1">
-                          <div className="flex flex-row gap-1 items-center">
-                            {documento.activo && (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => handleEdit(documento)}
-                                      aria-label="Editar documento"
-                                      className="h-8 w-8"
-                                    >
-                                      <Edit className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Editar</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            )}
-
-                            {documento.activo ? (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => handleInactivate(documento)}
-                                      aria-label="Inactivar documento"
-                                      className="h-8 w-8"
-                                    >
-                                      <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Inactivar</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            ) : (
-                              <>
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => handleDelete(documento)}
-                                        aria-label="Eliminar documento"
-                                        className="h-8 w-8"
-                                      >
-                                        <Trash2 className="h-4 w-4 text-red-600 hover:text-red-800 transition-colors" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Eliminar</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => handleActivate(documento)}
-                                        aria-label="Activar documento"
-                                        className="h-8 w-8"
-                                      >
-                                        <CheckCircle className="h-4 w-4 text-green-600 hover:text-green-800 transition-colors" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Activar</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                              </>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="px-4 py-3 text-sm text-gray-900 font-medium">{documento.nombre}</TableCell>
-                        <TableCell className="px-4 py-3 text-sm text-gray-500">{documento.descripcion || '-'}</TableCell>
-                        <TableCell className="px-4 py-3 text-sm text-gray-500">
-                          <Badge variant={documento.requerido ? "default" : "secondary"} className={documento.requerido ? "bg-green-100 text-green-800 border-green-200" : "bg-gray-100 text-gray-600 border-gray-200"}>
-                            {documento.requerido ? "Sí" : "No"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="px-4 py-3 text-sm text-gray-500">
-                          {documento.lleva_fecha_vigencia ? (
-                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                              {documento.fecha_vigencia ? new Date(documento.fecha_vigencia).toLocaleDateString('es-ES') : 'Configurar'}
-                            </Badge>
-                          ) : (
-                            <span className="text-gray-400">No aplica</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="px-4 py-3">
-                          <Badge variant={documento.activo ? "default" : "secondary"} className={documento.activo ? "bg-brand-lime/10 text-brand-lime border-brand-lime/20" : "bg-gray-200 text-gray-600 border-gray-300"}>
-                            {documento.activo ? "Activo" : "Inactivo"}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))
                   )}
                 </TableBody>
               </Table>
@@ -496,131 +509,131 @@ export default function TiposDocumentosPage() {
             </CardHeader>
             <CardContent>
               <Form {...documentoForm}>
-                                 <form onSubmit={documentoForm.handleSubmit(onSubmit)} className="space-y-4">
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     <FormField
-                       control={documentoForm.control}
-                       name="nombre"
-                       render={({ field }) => (
-                         <FormItem className="flex flex-col items-start">
-                           <FormLabel className="ml-2">Nombre</FormLabel>
-                           <FormControl>
-                             <Input 
-                               autoComplete="off"
-                               {...field} 
-                             />
-                           </FormControl>
-                           <FormMessage />
-                         </FormItem>
-                       )}
-                     />
-                     
-                     <FormField
-                       control={documentoForm.control}
-                       name="descripcion"
-                       render={({ field }) => (
-                         <FormItem className="flex flex-col items-start">
-                           <FormLabel className="ml-2">Descripción</FormLabel>
-                           <FormControl>
-                             <Textarea 
-                               autoComplete="off"
-                               {...field} 
-                             />
-                           </FormControl>
-                           <FormMessage />
-                         </FormItem>
-                       )}
-                     />
-                   </div>
-                   
-                   <div className="space-y-4">
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                       <div className="flex flex-row gap-6 flex-wrap">
-                         <FormField
-                           control={documentoForm.control}
-                           name="requerido"
-                           render={({ field }) => (
-                             <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                               <FormControl>
-                                 <Checkbox
-                                   checked={Boolean(field.value)}
-                                   onCheckedChange={(checked) => field.onChange(checked)}
-                                 />
-                               </FormControl>
-                               <div className="space-y-1 leading-none">
-                                 <FormLabel 
-                                   className="cursor-pointer"
-                                   onClick={() => field.onChange(!Boolean(field.value))}
-                                 >
-                                   Requerido por defecto
-                                 </FormLabel>
-                               </div>
-                             </FormItem>
-                           )}
-                         />
-                         
-                         <FormField
-                           control={documentoForm.control}
-                           name="lleva_fecha_vigencia"
-                           render={({ field }) => (
-                             <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                               <FormControl>
-                                 <Checkbox
-                                   checked={Boolean(field.value)}
-                                   onCheckedChange={(checked) => field.onChange(checked)}
-                                 />
-                               </FormControl>
-                               <div className="space-y-1 leading-none">
-                                 <FormLabel 
-                                   className="cursor-pointer"
-                                   onClick={() => field.onChange(!Boolean(field.value))}
-                                 >
-                                   Lleva fecha de vigencia
-                                 </FormLabel>
-                               </div>
-                             </FormItem>
-                           )}
-                         />
-                       </div>
-                       
-                       <FormField
-                         control={documentoForm.control}
-                         name="fecha_vigencia"
-                         render={({ field }) => (
-                           <FormItem className="min-h-[68px] flex flex-col items-start">
-                             {documentoForm.watch('lleva_fecha_vigencia') ? (
-                               <>
-                                 <FormLabel className="ml-2">Fecha de vigencia</FormLabel>
-                                 <FormControl>
-                                   <div className="relative">
-                                     <Input 
-                                       type="date"
-                                       autoComplete="off"
-                                       className="cursor-pointer w-48"
-                                       onClick={(e) => {
-                                         try {
-                                           e.currentTarget.showPicker?.();
-                                         } catch (error) {
-                                           // Fallback silencioso si showPicker no está disponible o falla
-                                         }
-                                       }}
-                                       {...field}
-                                     />
-                                   </div>
-                                 </FormControl>
-                                 <FormMessage />
-                               </>
-                             ) : (
-                               <div className="invisible">
-                                 <FormLabel className="ml-2">Placeholder</FormLabel>
-                                 <div className="h-10"></div>
-                               </div>
-                             )}
-                           </FormItem>
-                         )}
-                       />
-                     </div>
-                   </div>
+                <form onSubmit={documentoForm.handleSubmit(onSubmit)} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={documentoForm.control}
+                      name="nombre"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col items-start">
+                          <FormLabel className="ml-2">Nombre</FormLabel>
+                          <FormControl>
+                            <Input 
+                              autoComplete="off"
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={documentoForm.control}
+                      name="descripcion"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col items-start">
+                          <FormLabel className="ml-2">Descripción</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              autoComplete="off"
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="flex flex-row gap-6 flex-wrap">
+                        <FormField
+                          control={documentoForm.control}
+                          name="requerido"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                              <FormControl>
+                                <Checkbox
+                                  checked={Boolean(field.value)}
+                                  onCheckedChange={(checked) => field.onChange(checked)}
+                                />
+                              </FormControl>
+                              <div className="space-y-1 leading-none">
+                                <FormLabel 
+                                  className="cursor-pointer"
+                                  onClick={() => field.onChange(!Boolean(field.value))}
+                                >
+                                  Requerido por defecto
+                                </FormLabel>
+                              </div>
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={documentoForm.control}
+                          name="lleva_fecha_vigencia"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                              <FormControl>
+                                <Checkbox
+                                  checked={Boolean(field.value)}
+                                  onCheckedChange={(checked) => field.onChange(checked)}
+                                />
+                              </FormControl>
+                              <div className="space-y-1 leading-none">
+                                <FormLabel 
+                                  className="cursor-pointer"
+                                  onClick={() => field.onChange(!Boolean(field.value))}
+                                >
+                                  Lleva fecha de vigencia
+                                </FormLabel>
+                              </div>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      
+                      <FormField
+                        control={documentoForm.control}
+                        name="fecha_vigencia"
+                        render={({ field }) => (
+                          <FormItem className="min-h-[68px] flex flex-col items-start">
+                            {documentoForm.watch('lleva_fecha_vigencia') ? (
+                              <>
+                                <FormLabel className="ml-2">Fecha de vigencia</FormLabel>
+                                <FormControl>
+                                  <div className="relative">
+                                    <Input 
+                                      type="date"
+                                      autoComplete="off"
+                                      className="cursor-pointer w-48"
+                                      onClick={(e) => {
+                                        try {
+                                          e.currentTarget.showPicker?.();
+                                        } catch (error) {
+                                          // Fallback silencioso si showPicker no está disponible o falla
+                                        }
+                                      }}
+                                      {...field}
+                                    />
+                                  </div>
+                                </FormControl>
+                                <FormMessage />
+                              </>
+                            ) : (
+                              <div className="invisible">
+                                <FormLabel className="ml-2">Placeholder</FormLabel>
+                                <div className="h-10"></div>
+                              </div>
+                            )}
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
                   
                   <div className="flex justify-end">
                     <Button 
