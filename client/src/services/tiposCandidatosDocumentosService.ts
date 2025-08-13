@@ -32,7 +32,6 @@ export const tiposCandidatosDocumentosService = {
           id,
           nombre,
           descripcion,
-          requerido,
           activo
         )
       `)
@@ -104,7 +103,7 @@ export const tiposCandidatosDocumentosService = {
   // Actualizar múltiples documentos para un tipo de candidato
   async updateDocumentosForTipoCandidato(
     tipoCandidatoId: number, 
-    documentos: Array<{ tipo_documento_id: number; obligatorio: boolean; orden: number }>
+    documentos: Array<{ tipo_documento_id: number; obligatorio: boolean; requerido: boolean; orden: number }>
   ): Promise<void> {
     // Primero eliminar todas las relaciones existentes
     await this.deleteByTipoCandidato(tipoCandidatoId);
@@ -115,6 +114,7 @@ export const tiposCandidatosDocumentosService = {
         tipo_candidato_id: tipoCandidatoId,
         tipo_documento_id: doc.tipo_documento_id,
         obligatorio: doc.obligatorio,
+        requerido: doc.requerido,
         orden: doc.orden
       }));
 
@@ -126,6 +126,21 @@ export const tiposCandidatosDocumentosService = {
         throw new Error(`Error al actualizar documentos del tipo de candidato: ${error.message}`);
       }
     }
+  },
+
+  // Obtener una relación específica por ID
+  async getById(id: number): Promise<TipoCandidatoDocumento | null> {
+    const { data, error } = await supabase
+      .from('tipos_candidatos_documentos')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      throw new Error(`Error al obtener relación: ${error.message}`);
+    }
+
+    return data;
   },
 
   // Verificar si existe una relación

@@ -88,7 +88,7 @@ export default function TiposCandidatosPage() {
     forceRefresh: forceRefreshDocumentos
   } = useTiposDocumentos();
 
-  const { getDocumentosRequeridos, updateDocumentosForTipoCandidato } = useTiposCandidatosDocumentos();
+  const { getDocumentosRequeridos, getByTipoCandidatoWithDetails, updateDocumentosForTipoCandidato } = useTiposCandidatosDocumentos();
   
   // Función para cargar los contadores de documentos asociados
   const loadDocumentosCounts = async () => {
@@ -117,6 +117,12 @@ export default function TiposCandidatosPage() {
     isLoading: loadingRequeridos 
   } = getDocumentosRequeridos(selectedTipoId);
 
+  // Obtener todos los documentos asociados (no solo los obligatorios) para mostrar el estado completo
+  const { 
+    data: documentosAsociados = [], 
+    isLoading: loadingAsociados 
+  } = getByTipoCandidatoWithDetails(selectedTipoId);
+
   // Forms - DESPUÉS DE TODOS LOS HOOKS
   const tipoForm = useForm<TipoCandidatoForm>({
     resolver: zodResolver(tipoCandidatoSchema),
@@ -127,6 +133,14 @@ export default function TiposCandidatosPage() {
   useEffect(() => {
     loadDocumentosCounts();
   }, [tiposCandidatos]);
+
+  // Invalidar consultas cuando se abre el diálogo de configuración para cargar datos frescos
+  useEffect(() => {
+    if (showDocumentosConfig && selectedTipo?.id) {
+      queryClient.invalidateQueries({ queryKey: ['documentos-requeridos', selectedTipo.id] });
+      queryClient.invalidateQueries({ queryKey: ['tipos-candidatos-documentos-detalles', selectedTipo.id] });
+    }
+  }, [showDocumentosConfig, selectedTipo?.id, queryClient]);
 
 
 
@@ -311,45 +325,86 @@ export default function TiposCandidatosPage() {
     setShowDocumentosConfig(true);
   };
 
-  const handleToggleDocumento = async (documentoId: number, obligatorio: boolean) => {
+  const handleToggleDocumento = async (documentoId: number, selected: boolean) => {
     if (!selectedTipo) return;
     
     setLoadingDocumentoId(documentoId);
     startLoading();
     
     try {
-    const updatedDocumentos = [...documentosRequeridos];
-    const index = updatedDocumentos.findIndex(d => d.tipo_documento_id === documentoId);
-    
-    if (index >= 0) {
-      if (obligatorio) {
-        updatedDocumentos[index].obligatorio = true;
-      } else {
-        updatedDocumentos.splice(index, 1);
-      }
-    } else if (obligatorio) {
-      updatedDocumentos.push({
-        tipo_candidato_id: selectedTipo.id,
-        tipo_documento_id: documentoId,
-        obligatorio: true,
-        orden: updatedDocumentos.length,
+      // Crear una copia de los documentos asociados actuales
+      const updatedDocumentos = [...documentosAsociados];
+      const existingIndex = updatedDocumentos.findIndex(d => d.tipo_documento_id === documentoId);
+      
+      if (existingIndex >= 0) {
+        if (!selected) {
+          // Si se desmarca, eliminar el documento
+          updatedDocumentos.splice(existingIndex, 1);
+        }
+        // Si ya existe y se mantiene marcado, no hacer nada
+      } else if (selected) {
+        // Si no existe y se marca, agregarlo con requerido = false por defecto
+        updatedDocumentos.push({
+          tipo_candidato_id: selectedTipo.id,
+          tipo_documento_id: documentoId,
+          obligatorio: true, // Este campo ahora solo indica si está seleccionado
+          requerido: false,  // Nuevo campo: requerido = false por defecto
+          orden: updatedDocumentos.length,
         } as any);
-    }
+      }
 
-      await updateDocumentosForTipoCandidato.mutateAsync({
-      tipoCandidatoId: selectedTipo.id,
-      documentos: updatedDocumentos.map(doc => ({
+      // Preparar la lista para la actualización
+      const documentosParaActualizar = updatedDocumentos.map(doc => ({
         tipo_documento_id: doc.tipo_documento_id,
         obligatorio: doc.obligatorio,
+        requerido: doc.requerido || false,
         orden: doc.orden
-      })),
-    });
+      }));
+
+      await updateDocumentosForTipoCandidato.mutateAsync({
+        tipoCandidatoId: selectedTipo.id,
+        documentos: documentosParaActualizar,
+      });
       
       // Actualizar el contador de documentos
       setDocumentosCounts(prev => ({
         ...prev,
         [selectedTipo.id]: updatedDocumentos.length
       }));
+    } finally {
+      stopLoading();
+      setLoadingDocumentoId(null);
+    }
+  };
+
+  const handleToggleRequerido = async (documentoId: number, requerido: boolean) => {
+    if (!selectedTipo) return;
+    
+    setLoadingDocumentoId(documentoId);
+    startLoading();
+    
+    try {
+      // Crear una copia de los documentos asociados actuales
+      const updatedDocumentos = [...documentosAsociados];
+      const existingIndex = updatedDocumentos.findIndex(d => d.tipo_documento_id === documentoId);
+      
+      if (existingIndex >= 0) {
+        // Actualizar solo el campo requerido
+        updatedDocumentos[existingIndex].requerido = requerido;
+      }
+
+      // Preparar la lista para la actualización
+      const documentosParaActualizar = updatedDocumentos.map(doc => ({
+        tipo_documento_id: doc.tipo_documento_id,
+        obligatorio: doc.obligatorio,
+        requerido: doc.requerido || false,
+        orden: doc.orden
+      }));
+
+      await updateDocumentosForTipoCandidato.mutateAsync({
+        tipoCandidatoId: selectedTipo.id,
+        documentos: documentosParaActualizar,
+      });
     } finally {
       stopLoading();
       setLoadingDocumentoId(null);
@@ -685,17 +740,18 @@ export default function TiposCandidatosPage() {
               Configurar Documentos - {selectedTipo?.nombre}
             </DialogTitle>
             <DialogDescription>
-              Selecciona qué documentos son requeridos para este tipo de cargo
+              Selecciona qué documentos están asociados a este tipo de cargo y marca cuáles son requeridos
             </DialogDescription>
           </DialogHeader>
           {selectedTipo && (
             <div className="space-y-4">
-              {loadingRequeridos ? (
-                <div className="text-center py-4">Cargando documentos requeridos...</div>
+              {loadingAsociados ? (
+                <div className="text-center py-4">Cargando documentos asociados...</div>
               ) : (
                 <div className="space-y-4">
                   <div className="text-sm text-gray-600 mb-4">
-                    Selecciona los documentos que serán requeridos para este tipo de cargo:
+                    <p className="mb-2">• <strong>Checkbox principal:</strong> Selecciona los documentos asociados a este tipo de cargo</p>
+                    <p>• <strong>Checkbox "Requerido":</strong> Marca si el documento es obligatorio (aparece solo cuando el documento está seleccionado)</p>
                   </div>
                   
                   {/* Filtro de búsqueda */}
@@ -725,40 +781,59 @@ export default function TiposCandidatosPage() {
                       }
                       
                       return filteredDocumentos.map((documento: TipoDocumento) => {
-                    const isRequerido = documentosRequeridos?.some(
-                      (dr: any) => dr.tipo_documento_id === documento.id
-                    ) || false;
-                      const isLoading = loadingDocumentoId === documento.id;
-                    return (
-                        <div 
-                          key={documento.id} 
-                          className={`flex items-center space-x-3 p-3 border rounded-lg cursor-pointer transition-all duration-200 ${
-                            isRequerido 
-                              ? 'bg-cyan-50 border-cyan-200 hover:bg-cyan-100' 
-                              : 'hover:bg-gray-50 border-gray-200'
-                          } ${isLoading ? 'opacity-70' : ''}`}
-                          onClick={() => !isLoading && handleToggleDocumento(documento.id, !isRequerido)}
-                        >
-                          {isLoading ? (
-                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent" />
-                          ) : (
-                            <Checkbox
-                              checked={Boolean(isRequerido)}
-                            onCheckedChange={(checked) => 
-                                handleToggleDocumento(documento.id, checked === true)
-                              }
-                              disabled={isLoading}
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          )}
-                          <div className="flex-1">
-                            <div className="font-medium text-sm">{documento.nombre}</div>
-                            {documento.descripcion && (
-                              <div className="text-xs text-gray-500">{documento.descripcion}</div>
+                        const documentoAsociado = documentosAsociados?.find(
+                          (dr: any) => dr.tipo_documento_id === documento.id
+                        );
+                        const isSelected = documentoAsociado ? true : false;
+                        const isRequerido = documentoAsociado?.requerido || false;
+                        const isLoading = loadingDocumentoId === documento.id;
+                        
+                        return (
+                          <div 
+                            key={documento.id} 
+                            className={`flex items-center space-x-3 p-3 border rounded-lg transition-all duration-200 ${
+                              isSelected 
+                                ? 'bg-cyan-50 border-cyan-200' 
+                                : 'border-gray-200'
+                            } ${isLoading ? 'opacity-70' : ''}`}
+                          >
+                            {/* Checkbox principal para seleccionar el documento */}
+                            {isLoading ? (
+                              <div className="h-4 w-4 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent" />
+                            ) : (
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={(checked) => 
+                                  handleToggleDocumento(documento.id, checked === true)
+                                }
+                                disabled={isLoading}
+                              />
+                            )}
+                            
+                            {/* Información del documento */}
+                            <div className="flex-1">
+                              <div className="font-medium text-sm">{documento.nombre}</div>
+                              {documento.descripcion && (
+                                <div className="text-xs text-gray-500">{documento.descripcion}</div>
+                              )}
+                            </div>
+                            
+                            {/* Checkbox de "Requerido" solo cuando el documento está seleccionado */}
+                            {isSelected && (
+                              <div className="flex items-center space-x-2">
+                                <Checkbox
+                                  checked={isRequerido}
+                                  onCheckedChange={(checked) => 
+                                    handleToggleRequerido(documento.id, checked === true)
+                                  }
+                                  disabled={isLoading}
+                                  className="border-cyan-600"
+                                />
+                                <span className="text-xs text-cyan-600 font-medium">Requerido</span>
+                              </div>
                             )}
                           </div>
-                        </div>
-                      );
+                        );
                       });
                     })()}
                   </div>

@@ -104,18 +104,32 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
       const solicitud = solicitudes.find(s => s.id === reactivatingSolicitudId);
       console.log('🔍 Solicitud encontrada:', solicitud?.id, 'Estado:', solicitud?.estado);
       
+      // Verificar si la solicitud ya no está en STAND BY (reactivación completada)
       if (solicitud && !isStandBy(solicitud.estado)) {
         console.log('🔍 Reactivación completada, limpiando estado...');
         setReactivatingSolicitudId(null);
         stopLoading(); // Detener loading global cuando se complete la reactivación
-        console.log('🔍 Loading global detenido');
+        console.log('🔍 Loading global detenido por reactivación');
       } else if (solicitud) {
-        console.log('🔍 Solicitud aún en Stand By, esperando...');
+        console.log('🔍 Solicitud aún en Stand By, esperando reactivación...');
       } else {
         console.log('🔍 Solicitud no encontrada, puede que se haya recargado la lista');
       }
     }
   }, [solicitudes, reactivatingSolicitudId, stopLoading]);
+
+  // Timeout de seguridad para detener loading global en reactivación si no se completa en 10 segundos
+  useEffect(() => {
+    if (reactivatingSolicitudId) {
+      const timeoutId = setTimeout(() => {
+        console.log('⚠️ Timeout de seguridad: Deteniendo loading global por operación de Reactivación');
+        setReactivatingSolicitudId(null);
+        stopLoading();
+      }, 10000); // 10 segundos
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [reactivatingSolicitudId, stopLoading]);
 
   // Limpiar estados de solicitudes que ya no están en STAND BY
   useEffect(() => {
@@ -163,23 +177,47 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
     switch (estado?.toUpperCase()) {
       case 'PENDIENTE':
-        return <Badge className="bg-yellow-500 hover:bg-yellow-600 text-white border-0">Pendiente</Badge>;
+        return <Badge className="bg-yellow-300 hover:bg-yellow-400 text-yellow-900 border-yellow-500">Pendiente</Badge>;
       case 'ASIGNADO':
-        return <Badge className="bg-blue-500 hover:bg-blue-600 text-white border-0">Asignado</Badge>;
+        return <Badge className="bg-blue-300 hover:bg-blue-400 text-blue-900 border-blue-500">Asignado</Badge>;
       case 'PENDIENTE DOCUMENTOS':
-        return <Badge className="bg-orange-500 hover:bg-orange-600 text-white border-0">Pendiente Documentos</Badge>;
+        return <Badge className="bg-yellow-300 hover:bg-yellow-400 text-yellow-900 border-yellow-500">Pendiente Documentos</Badge>;
       case 'STAND BY':
-        return <Badge className="bg-gray-500 hover:bg-gray-600 text-white border-0">Stand By</Badge>;
+        return <Badge className="bg-gray-300 hover:bg-gray-400 text-gray-900 border-gray-500">Stand By</Badge>;
       case 'APROBADA':
-        return <Badge className="bg-green-500 hover:bg-green-600 text-white border-0">Aprobada</Badge>;
+        return <Badge className="bg-green-300 hover:bg-green-400 text-green-900 border-green-500">Aprobada</Badge>;
       case 'RECHAZADA':
-        return <Badge className="bg-red-500 hover:bg-red-600 text-white border-0">Rechazada</Badge>;
+        return <Badge className="bg-red-300 hover:bg-red-400 text-red-900 border-red-500">Rechazada</Badge>;
       case 'EN_PROCESO':
-        return <Badge className="bg-indigo-500 hover:bg-indigo-600 text-white border-0">En Proceso</Badge>;
+        return <Badge className="bg-indigo-300 hover:bg-indigo-400 text-indigo-900 border-indigo-500">En Proceso</Badge>;
       case 'DESERTO':
-        return <Badge className="bg-red-400 hover:bg-red-500 text-white border-0">Deserto</Badge>;
+        return <Badge className="bg-red-300 hover:bg-red-400 text-red-900 border-red-500">Deserto</Badge>;
       default:
         return <Badge variant="outline">{formatEstado(estado || 'Sin estado')}</Badge>;
+    }
+  };
+
+  // Función para obtener el color de fondo pálido de la fila según el estado
+  const getRowBackgroundColor = (estado: string) => {
+    switch (estado?.toUpperCase()) {
+      case 'PENDIENTE':
+        return 'bg-yellow-100';
+      case 'ASIGNADO':
+        return 'bg-blue-100';
+      case 'PENDIENTE DOCUMENTOS':
+        return 'bg-yellow-100';
+      case 'STAND BY':
+        return 'bg-gray-100';
+      case 'APROBADA':
+        return 'bg-green-100';
+      case 'RECHAZADA':
+        return 'bg-red-100';
+      case 'EN_PROCESO':
+        return 'bg-indigo-100';
+      case 'DESERTO':
+        return 'bg-red-100';
+      default:
+        return '';
     }
   };
 
@@ -330,9 +368,12 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
       
       setConfirmReactivateOpen(false);
       // NO limpiar reactivatingSolicitudId aquí, se limpiará cuando se complete la operación
-      // El loading se detendrá cuando se complete la operación en el componente padre
+      // El loading se detendrá cuando se complete la operación en el useEffect
+      console.log('🔍 reactivatingSolicitudId mantenido para monitoreo:', reactivatingSolicitudId);
     } else {
       console.log('❌ reactivatingSolicitudId es null o undefined');
+      // Si no hay ID válido, detener el loading para evitar que se quede colgado
+      stopLoading();
     }
   };
 
@@ -351,7 +392,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="text-center">Acciones</TableHead>
+                             <TableHead className="text-left w-32">Acciones</TableHead>
               <TableHead>Documento</TableHead>
               <TableHead>Empresa</TableHead>
               <TableHead>Analista Asignado</TableHead>
@@ -361,12 +402,14 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
           </TableHeader>
           <TableBody>
                          {solicitudes.map((solicitud) => (
-               <TableRow 
-                 key={solicitud.id}
-                 className={isDeserto(solicitud.estado) ? 'bg-red-50' : ''}
-               >
+                                                           <TableRow 
+                key={solicitud.id}
+                className={`${getRowBackgroundColor(solicitud.estado)}`}
+              >
                                    <TableCell>
-                   <div className="flex justify-center items-center space-x-1">
+                                                                           <div className="flex justify-start items-center space-x-1">
+                    {/* Botón Editar - solo visible cuando NO esté en Stand By o Deserto */}
+                    {!isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && (
                                           <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -375,25 +418,19 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                               size="icon"
                               onClick={() => onEdit(solicitud)}
                               aria-label="Editar solicitud"
-                              className={`h-8 w-8 ${(isStandBy(solicitud.estado) || isDeserto(solicitud.estado)) ? 'opacity-30 cursor-not-allowed' : ''}`}
-                              disabled={isStandBy(solicitud.estado) || isDeserto(solicitud.estado)}
+                              className="h-8 w-8"
                             >
-                              <Edit className="h-4 w-4 text-green-600" />
+                                                             <Edit className="h-4 w-4 text-purple-600" />
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>
-                              {isDeserto(solicitud.estado) 
-                                ? 'No disponible en Deserto' 
-                                : isStandBy(solicitud.estado) 
-                                  ? 'No disponible en Stand By' 
-                                  : 'Editar'
-                              }
-                            </p>
+                            <p>Editar</p>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
+                    )}
 
+                    {/* Botón Aprobar - solo visible en estado PENDIENTE */}
                                           {solicitud.estado === 'PENDIENTE' && !isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && (
                         <TooltipProvider>
                           <Tooltip>
@@ -415,7 +452,8 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                         </TooltipProvider>
                       )}
 
-                                          {/* Botón de Contactado - visible en todos los estados pero solo habilitado en ASIGNADO */}
+                    {/* Botón Contactado - solo visible en estado ASIGNADO */}
+                    {solicitud.estado === 'ASIGNADO' && !isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && (
                                           <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -424,8 +462,8 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                               size="icon"
                               onClick={() => handleContactClick(solicitud.id)}
                               aria-label="Marcar como contactado"
-                              className={`h-8 w-8 ${contactingSolicitudId === solicitud.id ? 'opacity-50 cursor-not-allowed' : ''} ${(solicitud.estado !== 'ASIGNADO' || isStandBy(solicitud.estado) || isDeserto(solicitud.estado)) ? 'opacity-30 cursor-not-allowed' : ''}`}
-                              disabled={contactingSolicitudId === solicitud.id || solicitud.estado !== 'ASIGNADO' || isStandBy(solicitud.estado) || isDeserto(solicitud.estado)}
+                              className={`h-8 w-8 ${contactingSolicitudId === solicitud.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                              disabled={contactingSolicitudId === solicitud.id}
                             >
                               <Phone className="h-4 w-4 text-blue-600" />
                             </Button>
@@ -434,19 +472,16 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                             <p>
                               {contactingSolicitudId === solicitud.id 
                                 ? 'Procesando...' 
-                                : isDeserto(solicitud.estado)
-                                  ? 'No disponible en Deserto'
-                                  : isStandBy(solicitud.estado)
-                                    ? 'No disponible en Stand By'
-                                    : solicitud.estado === 'ASIGNADO' 
-                                      ? 'Contactado' 
-                                      : 'Solo disponible para solicitudes asignadas'
+                                : 'Contactado'
                               }
                             </p>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
+                    )}
 
+                    {/* Botón Stand By / Reactivar - solo visible cuando NO esté en Deserto */}
+                    {!isDeserto(solicitud.estado) && (
                                          <TooltipProvider>
                        <Tooltip>
                          <TooltipTrigger asChild>
@@ -457,7 +492,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                                onClick={() => handleReactivate(solicitud.id!)}
                                aria-label="Reactivar solicitud"
                                className={`h-8 w-8 ${reactivatingSolicitudId === solicitud.id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                               disabled={reactivatingSolicitudId === solicitud.id || isDeserto(solicitud.estado)}
+                                disabled={reactivatingSolicitudId === solicitud.id}
                              >
                                <Play className="h-4 w-4 text-green-600" />
                              </Button>
@@ -468,7 +503,6 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                                onClick={() => handleStandByClick(solicitud.id)}
                                aria-label="Marcar como Stand By"
                                className="h-8 w-8"
-                               disabled={isDeserto(solicitud.estado)}
                              >
                                <Pause className="h-4 w-4 text-gray-600" />
                              </Button>
@@ -476,9 +510,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                          </TooltipTrigger>
                          <TooltipContent>
                            <p>
-                             {isDeserto(solicitud.estado)
-                               ? 'No disponible en Deserto'
-                               : isStandBy(solicitud.estado) 
+                              {isStandBy(solicitud.estado) 
                                  ? reactivatingSolicitudId === solicitud.id
                                    ? 'Procesando...'
                                    : 'Reactivar solicitud'
@@ -488,8 +520,9 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                          </TooltipContent>
                        </Tooltip>
                      </TooltipProvider>
+                    )}
 
-                     {/* Botón de Deserto - solo visible cuando NO esté en estado Deserto */}
+                    {/* Botón Deserto - solo visible cuando NO esté en estado Deserto */}
                      {!isDeserto(solicitud.estado) && (
                        <TooltipProvider>
                          <Tooltip>

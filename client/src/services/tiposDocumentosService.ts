@@ -41,24 +41,7 @@ export const tiposDocumentosService = {
     return data || [];
   },
 
-  // Obtener tipos de documentos requeridos por defecto
-  async getRequired(): Promise<TipoDocumento[]> {
-    console.log('🔍 tiposDocumentosService.getRequired - Ejecutando query...');
-    const { data, error } = await supabase
-      .from('tipos_documentos')
-      .select('*')
-      .eq('requerido', true)
-      .eq('activo', true)
-      .order('nombre');
 
-    if (error) {
-      console.error('🔍 tiposDocumentosService.getRequired - Error:', error);
-      throw new Error(`Error al obtener tipos de documentos requeridos: ${error.message}`);
-    }
-
-    console.log('🔍 tiposDocumentosService.getRequired - Datos obtenidos:', data);
-    return data || [];
-  },
 
   // Obtener un tipo de documento por ID
   async getById(id: number): Promise<TipoDocumento | null> {

@@ -28,7 +28,6 @@ import { useLoading } from '@/contexts/LoadingContext';
 const documentoTipoSchema = z.object({
   nombre: z.string().min(2, 'Nombre requerido'),
   descripcion: z.string().optional(),
-  requerido: z.boolean(),
   lleva_fecha_vigencia: z.boolean(),
   fecha_vigencia: z.string().optional(),
 });
@@ -73,7 +72,6 @@ export default function TiposDocumentosPage() {
     defaultValues: { 
       nombre: '', 
       descripcion: '', 
-      requerido: false,
       lleva_fecha_vigencia: false,
       fecha_vigencia: ''
     },
@@ -123,7 +121,6 @@ export default function TiposDocumentosPage() {
     documentoForm.reset({
       nombre: documento.nombre || '',
       descripcion: documento.descripcion || '',
-      requerido: Boolean(documento.requerido),
       lleva_fecha_vigencia: Boolean(documento.lleva_fecha_vigencia),
       fecha_vigencia: fechaVigencia,
     });
@@ -227,7 +224,6 @@ export default function TiposDocumentosPage() {
     documentoForm.reset({ 
       nombre: '', 
       descripcion: '', 
-      requerido: false,
       lleva_fecha_vigencia: false,
       fecha_vigencia: ''
     });
@@ -362,7 +358,6 @@ export default function TiposDocumentosPage() {
                     <TableHead className="px-2 py-1 text-teal-600">Acciones</TableHead>
                     <TableHead className="px-4 py-3">Nombre</TableHead>
                     <TableHead className="px-4 py-3">Descripción</TableHead>
-                    <TableHead className="px-4 py-3">Requerido</TableHead>
                     <TableHead className="px-4 py-3">Fecha de Vigencia</TableHead>
                     <TableHead className="px-4 py-3">Estado</TableHead>
                   </TableRow>
@@ -371,7 +366,7 @@ export default function TiposDocumentosPage() {
                   {!isLoading ? (
                     filteredTiposDocumentos.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="h-24 text-center">
+                        <TableCell colSpan={5} className="h-24 text-center">
                           No hay tipos de documentos disponibles.
                         </TableCell>
                       </TableRow>
@@ -465,11 +460,6 @@ export default function TiposDocumentosPage() {
                           <TableCell className="px-4 py-3 text-sm text-gray-900 font-medium">{documento.nombre}</TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-500">{documento.descripcion || '-'}</TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-500">
-                            <Badge variant={documento.requerido ? "default" : "secondary"} className={documento.requerido ? "bg-green-100 text-green-800 border-green-200" : "bg-gray-100 text-gray-600 border-gray-200"}>
-                              {documento.requerido ? "Sí" : "No"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="px-4 py-3 text-sm text-gray-500">
                             {documento.lleva_fecha_vigencia ? (
                               <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
                                 {documento.fecha_vigencia ? new Date(documento.fecha_vigencia).toLocaleDateString('es-ES') : 'Configurar'}
@@ -488,7 +478,7 @@ export default function TiposDocumentosPage() {
                     )
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={6} className="h-24 text-center">
+                      <TableCell colSpan={5} className="h-24 text-center">
                         Cargando tipos de documentos...
                       </TableCell>
                     </TableRow>
@@ -549,29 +539,6 @@ export default function TiposDocumentosPage() {
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="flex flex-row gap-6 flex-wrap">
-                        <FormField
-                          control={documentoForm.control}
-                          name="requerido"
-                          render={({ field }) => (
-                            <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                              <FormControl>
-                                <Checkbox
-                                  checked={Boolean(field.value)}
-                                  onCheckedChange={(checked) => field.onChange(checked)}
-                                />
-                              </FormControl>
-                              <div className="space-y-1 leading-none">
-                                <FormLabel 
-                                  className="cursor-pointer"
-                                  onClick={() => field.onChange(!Boolean(field.value))}
-                                >
-                                  Requerido por defecto
-                                </FormLabel>
-                              </div>
-                            </FormItem>
-                          )}
-                        />
-                        
                         <FormField
                           control={documentoForm.control}
                           name="lleva_fecha_vigencia"

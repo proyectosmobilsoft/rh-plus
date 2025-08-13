@@ -711,3 +711,8 @@ main *, .border-input {
   height: 2rem;
   border-color: hsl(var(--brand-gray));
 }
+
+/* Clase para deshabilitar el efecto hover en filas de tabla */
+.no-hover-effect:hover {
+  background-color: transparent !important;
+}

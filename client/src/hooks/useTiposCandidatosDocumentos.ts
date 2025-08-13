@@ -47,9 +47,12 @@ export const useTiposCandidatosDocumentos = () => {
   const createMutation = useMutation({
     mutationFn: (data: CreateTipoCandidatoDocumentoData) => 
       tiposCandidatosDocumentosService.create(data),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
+      const { tipo_candidato_id } = variables;
       queryClient.invalidateQueries({ queryKey: ['tipos-candidatos-documentos'] });
       queryClient.invalidateQueries({ queryKey: ['documentos-requeridos'] });
+      queryClient.invalidateQueries({ queryKey: ['tipos-candidatos-documentos-detalles', tipo_candidato_id] });
+      queryClient.invalidateQueries({ queryKey: ['documentos-requeridos', tipo_candidato_id] });
     },
   });
 
@@ -60,6 +63,7 @@ export const useTiposCandidatosDocumentos = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tipos-candidatos-documentos'] });
       queryClient.invalidateQueries({ queryKey: ['documentos-requeridos'] });
+      queryClient.invalidateQueries({ queryKey: ['tipos-candidatos-documentos-detalles'] });
     },
   });
 
@@ -69,6 +73,7 @@ export const useTiposCandidatosDocumentos = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tipos-candidatos-documentos'] });
       queryClient.invalidateQueries({ queryKey: ['documentos-requeridos'] });
+      queryClient.invalidateQueries({ queryKey: ['tipos-candidatos-documentos-detalles'] });
     },
   });
 
@@ -76,11 +81,14 @@ export const useTiposCandidatosDocumentos = () => {
   const updateDocumentosForTipoCandidato = useMutation({
     mutationFn: ({ tipoCandidatoId, documentos }: { 
       tipoCandidatoId: number; 
-      documentos: Array<{ tipo_documento_id: number; obligatorio: boolean; orden: number }> 
+      documentos: Array<{ tipo_documento_id: number; obligatorio: boolean; requerido: boolean; orden: number }> 
     }) => tiposCandidatosDocumentosService.updateDocumentosForTipoCandidato(tipoCandidatoId, documentos),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
+      const { tipoCandidatoId } = variables;
       queryClient.invalidateQueries({ queryKey: ['tipos-candidatos-documentos'] });
       queryClient.invalidateQueries({ queryKey: ['documentos-requeridos'] });
+      queryClient.invalidateQueries({ queryKey: ['tipos-candidatos-documentos-detalles', tipoCandidatoId] });
+      queryClient.invalidateQueries({ queryKey: ['documentos-requeridos', tipoCandidatoId] });
     },
   });
 
