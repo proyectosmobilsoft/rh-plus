@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Building2, User, CheckCircle } from 'lucide-react';
-import logo from '/logo2.svg';
+// import logo from '/logo2.svg'; // Archivo no encontrado
 
 export default function SelectEmpresa() {
   const { user, selectEmpresa } = useAuth();
@@ -42,9 +42,11 @@ export default function SelectEmpresa() {
             <div className="min-h-screen bg-gradient-to-br from-cyan-50 to-teal-100 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <img src={logo} alt="Logo" className="h-12" />
-          </div>
+                     <div className="flex justify-center mb-4">
+             <div className="w-12 h-12 bg-brand-turquoise rounded-full flex items-center justify-center">
+               <Building2 className="w-6 h-6 text-white" />
+             </div>
+           </div>
           <CardTitle className="text-2xl font-bold text-gray-800">
             Selecciona tu Empresa
           </CardTitle>
