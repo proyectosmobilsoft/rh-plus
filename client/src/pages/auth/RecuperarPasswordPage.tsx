@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ArrowLeft, Mail, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { authService } from '@/services/authService';
-import logo from '/logo2.svg';
+// import logo from '/logo2.svg'; // Archivo no encontrado
 
 export default function RecuperarPasswordPage() {
   const [email, setEmail] = useState('');
@@ -61,11 +61,9 @@ export default function RecuperarPasswordPage() {
       <div className="w-full max-w-md animate-slide-in">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="logo-login"
-            style={{
-              backgroundImage: `url(${logo})`
-            }}
-          ></div>
+                     <div className="logo-login-placeholder flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-brand-turquoise rounded-full">
+             <Building2 className="w-8 h-8 text-white" />
+           </div>
           <p className="text-gray-600 animate-slide-in mt-[-15px] mb-[-15px] pt-[-14px] pb-[-14px]">Sistema de Gestión de Contratación</p>
         </div>
 

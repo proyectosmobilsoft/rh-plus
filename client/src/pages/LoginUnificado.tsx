@@ -9,7 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { authService } from '@/services/authService';
 import { guardarEmpresaSeleccionadaConConsulta } from '@/utils/empresaUtils';
 import { Eye, EyeOff, LogIn, Building2 } from 'lucide-react';
-import logo from '/logo2.svg';
+// import logo from '/logo2.svg'; // Archivo no encontrado
 
 export default function LoginUnificado() {
   const [username, setUsername] = useState('');
@@ -280,11 +280,9 @@ export default function LoginUnificado() {
         {/* Header */}
         <div className="text-center mb-8">
 
-          <div className="logo-login"
-            style={{
-              backgroundImage: `url(${logo})`
-            }}
-          ></div>
+                     <div className="logo-login-placeholder flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-brand-turquoise rounded-full">
+             <Building2 className="w-8 h-8 text-white" />
+           </div>
           <p className="text-gray-600 animate-slide-in mt-[-15px] mb-[-15px] pt-[-14px] pb-[-14px]">Sistema de Gestión de Contratación</p>
         </div>
 
