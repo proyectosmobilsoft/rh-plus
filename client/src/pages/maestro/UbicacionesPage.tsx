@@ -1,862 +1,1314 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
-import { Plus, Globe, MapPin, Building2, Loader2, Edit, Trash2 } from "lucide-react";
-import { ubicacionesService, Pais, Departamento, Ciudad } from "@/services/ubicacionesService";
-import { setupUbicaciones } from "@/services/setupUbicaciones";
+import { useNavigate } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { 
+  Plus, 
+  Search, 
+  Filter, 
+  Edit3, 
+  Trash2, 
+  Download,
+  Globe,
+  MapPin,
+  Building2,
+  Eye,
+  CheckCircle,
+  Lock,
+  Users,
+  Settings,
+  Info
+} from 'lucide-react';
+import { toast } from 'sonner';
+
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { ubicacionesService, Pais, Departamento, Ciudad } from '@/services/ubicacionesService';
+import { setupUbicaciones } from '@/services/setupUbicaciones';
+import { useLoading } from '@/contexts/LoadingContext';
+import { PaisForm } from '@/components/ubicaciones/PaisForm';
+import { DepartamentoForm } from '@/components/ubicaciones/DepartamentoForm';
+import { CiudadForm } from '@/components/ubicaciones/CiudadForm';
 
 export default function UbicacionesPage() {
-  const { toast } = useToast();
-  
-  // Estados para los datos
-  const [paises, setPaises] = useState<Pais[]>([]);
-  const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
-  const [ciudades, setCiudades] = useState<Ciudad[]>([]);
-  const [loading, setLoading] = useState(true);
-  
-  // Estados para los formularios
-  const [nuevoPais, setNuevoPais] = useState('');
-  const [codigoIsoPais, setCodigoIsoPais] = useState('');
-  const [paisSeleccionado, setPaisSeleccionado] = useState<string>('');
-  const [nuevoDepartamento, setNuevoDepartamento] = useState('');
-  const [codigoDaneDepartamento, setCodigoDaneDepartamento] = useState('');
-  const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState<string>('');
-  const [nuevoCiudad, setNuevoCiudad] = useState('');
-  const [codigoDaneCiudad, setCodigoDaneCiudad] = useState('');
-  const [ciudadPaisSeleccionado, setCiudadPaisSeleccionado] = useState<string>('');
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState("paises");
+  const [activeSubTab, setActiveSubTab] = useState("listado");
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterPais, setFilterPais] = useState('todos');
+  const [filterDepartamento, setFilterDepartamento] = useState('todos');
+  const [filterCiudad, setFilterCiudad] = useState('todos');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showDeactivateModal, setShowDeactivateModal] = useState(false);
+  const [showActivateModal, setShowActivateModal] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [editingItem, setEditingItem] = useState<any>(null);
+  // Estado para eliminación forzada por referencias (FK 23503)
+  const [forceDeleteOpen, setForceDeleteOpen] = useState(false);
+  const [forceDeleteType, setForceDeleteType] = useState<'pais' | 'departamento' | 'ciudad' | null>(null);
+  const [forceDeleteItem, setForceDeleteItem] = useState<any>(null);
+  const queryClient = useQueryClient();
+  const { startLoading, stopLoading } = useLoading();
 
-  // Estados para edición
-  const [editandoPais, setEditandoPais] = useState<number | null>(null);
-  const [editandoDepartamento, setEditandoDepartamento] = useState<number | null>(null);
-  const [editandoCiudad, setEditandoCiudad] = useState<number | null>(null);
+  // Estados para filtros específicos
+  const [filterPaisDepartamento, setFilterPaisDepartamento] = useState('todos');
+  const [filterDepartamentoCiudad, setFilterDepartamentoCiudad] = useState('todos');
 
-  // Cargar datos al montar el componente
-  useEffect(() => {
-    const cargarDatos = async () => {
+  // Cargar datos usando React Query
+  const { data: paises = [], isLoading: paisesLoading, error: paisesError } = useQuery({
+    queryKey: ['paises'],
+    queryFn: async () => {
       try {
-        setLoading(true);
-        
-        // Configurar tablas si no existen
+        console.log('🔄 Ejecutando query de países...');
+        const data = await ubicacionesService.getPaises();
+        console.log('📊 Países obtenidos:', data?.length || 0, 'registros');
+        return data || [];
+      } catch (error) {
+        console.error('Error cargando países:', error);
+        throw error;
+      }
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutos
+  });
+
+  const { data: departamentos = [], isLoading: departamentosLoading, error: departamentosError } = useQuery({
+    queryKey: ['departamentos'],
+    queryFn: async () => {
+      try {
+        const data = await ubicacionesService.getDepartamentos();
+        return data || [];
+      } catch (error) {
+        console.error('Error cargando departamentos:', error);
+        throw error;
+      }
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutos
+  });
+
+  const { data: ciudades = [], isLoading: ciudadesLoading, error: ciudadesError } = useQuery({
+    queryKey: ['ciudades'],
+    queryFn: async () => {
+      try {
+        const data = await ubicacionesService.getCiudades();
+        return data || [];
+      } catch (error) {
+        console.error('Error cargando ciudades:', error);
+        throw error;
+      }
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutos
+  });
+
+  // Configuración inicial de tablas (solo una vez)
+  useEffect(() => {
+    const initializeTables = async () => {
+      try {
         console.log('🔧 Configurando tablas de ubicaciones...');
         const setupResult = await setupUbicaciones();
         if (!setupResult.success) {
           console.warn('⚠️ Advertencia: No se pudo configurar las tablas completamente');
         }
-        
-        // Cargar países
-        const paisesData = await ubicacionesService.getPaises();
-        setPaises(paisesData);
-
-        // Cargar departamentos
-        const departamentosData = await ubicacionesService.getDepartamentos();
-        setDepartamentos(departamentosData);
-
-        // Cargar ciudades
-        const ciudadesData = await ubicacionesService.getCiudades();
-        setCiudades(ciudadesData);
       } catch (error) {
-        console.error('Error cargando datos:', error);
-        toast({
-          title: "Error",
-          description: "No se pudieron cargar los datos",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
+        console.error('Error configurando tablas:', error);
       }
     };
 
-    cargarDatos();
-  }, []);
+    initializeTables();
+  }, []); // Solo se ejecuta una vez al montar el componente
 
-  // Obtener departamentos filtrados por país
-  const departamentosFiltrados = departamentos.filter(
-    dept => dept.pais_id === parseInt(ciudadPaisSeleccionado)
+  // Filtrar datos
+  const filteredPaises = paises.filter(pais =>
+    pais.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (pais.codigo_iso && pais.codigo_iso?.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  // Función para agregar país
-  const agregarPais = async () => {
-    if (!nuevoPais.trim()) {
-      toast({
-        title: "Error",
-        description: "Por favor ingrese el nombre del país",
-        variant: "destructive",
-      });
+  const filteredDepartamentos = departamentos.filter(dept => {
+    const matchesSearch = dept.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (dept.codigo_dane && dept.codigo_dane?.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    const matchesPais = filterPaisDepartamento === 'todos' ? true : 
+      dept.pais_id === parseInt(filterPaisDepartamento);
+    
+    // Solo mostrar departamentos de países activos
+    const pais = paises.find(p => p.id === dept.pais_id);
+    const paisActivo = pais?.estado === true;
+    
+    return matchesSearch && matchesPais && paisActivo;
+  });
+
+  const filteredCiudades = ciudades.filter(ciudad => {
+    const matchesSearch = ciudad.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (ciudad.codigo_dane && ciudad.codigo_dane?.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    const departamento = departamentos.find(d => d.id === ciudad.departamento_id);
+    const matchesDepartamento = filterDepartamentoCiudad === 'todos' ? true : 
+      ciudad.departamento_id === parseInt(filterDepartamentoCiudad);
+    
+    const matchesPais = filterPaisDepartamento === 'todos' ? true : 
+      departamento?.pais_id === parseInt(filterPaisDepartamento);
+    
+    // Solo mostrar ciudades de departamentos activos y países activos
+    const pais = paises.find(p => p.id === departamento?.pais_id);
+    const departamentoActivo = departamento?.estado === true;
+    const paisActivo = pais?.estado === true;
+    
+    return matchesSearch && matchesDepartamento && matchesPais && departamentoActivo && paisActivo;
+  });
+
+  // Obtener países únicos para filtros
+  const uniquePaises = [...new Set(paises.map(p => p.id))];
+  const uniqueDepartamentos = [...new Set(departamentos.map(d => d.id))];
+
+  const handleEdit = async (item: any, type: 'pais' | 'departamento' | 'ciudad') => {
+    try {
+      startLoading();
+      setEditingItem(item);
+      setActiveSubTab("formulario");
+    } catch (error) {
+      console.error('Error al editar:', error);
+              toast.error("Error al cargar los datos para editar");
+    } finally {
+      stopLoading();
+    }
+  };
+
+    const handleDelete = async (item: any, type: 'pais' | 'departamento' | 'ciudad') => {
+    if (!item.id) {
+      console.error('❌ handleDelete: No se encontró ID del item:', item);
       return;
     }
 
     try {
-      const nuevoPaisData = await ubicacionesService.createPais({
-        nombre: nuevoPais.trim(),
-        codigo_iso: codigoIsoPais.trim() || null
-      });
+      startLoading();
+      let success = false;
       
-      if (nuevoPaisData) {
-        setPaises(prev => [...prev, nuevoPaisData]);
-        setNuevoPais('');
-        setCodigoIsoPais('');
-        toast({
-          title: "Éxito",
-          description: "País agregado correctamente",
-        });
+      switch (type) {
+        case 'pais':
+          await ubicacionesService.deletePais(item.id);
+          success = true;
+          break;
+        case 'departamento':
+          await ubicacionesService.deleteDepartamento(item.id);
+          success = true;
+          break;
+        case 'ciudad':
+          await ubicacionesService.deleteCiudad(item.id);
+          success = true;
+          break;
+        default:
+          console.error('❌ Tipo no reconocido:', type);
+          return;
       }
-    } catch (error) {
-      console.error('Error al agregar país:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo agregar el país",
-        variant: "destructive",
-      });
-    }
-  };
 
-  // Función para editar país
-  const editarPais = async (id: number, nombre: string, codigoIso?: string) => {
-    try {
-      const paisActualizado = await ubicacionesService.updatePais(id, {
-        nombre: nombre.trim(),
-        codigo_iso: codigoIso?.trim() || null
-      });
-      
-      if (paisActualizado) {
-        setPaises(prev => prev.map(p => p.id === id ? paisActualizado : p));
-        setEditandoPais(null);
-        toast({
-          title: "Éxito",
-          description: "País actualizado correctamente",
-        });
+      if (success) {
+        const message = `${type === 'pais' ? 'País' : type === 'departamento' ? 'Departamento' : 'Ciudad'} eliminado correctamente`;
+        toast.success(message);
+        
+        // Invalidar queries para refrescar datos
+        queryClient.invalidateQueries({ queryKey: ['paises'] });
+        queryClient.invalidateQueries({ queryKey: ['departamentos'] });
+        queryClient.invalidateQueries({ queryKey: ['ciudades'] });
       }
-    } catch (error) {
-      console.error('Error al editar país:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo editar el país",
-        variant: "destructive",
-      });
+    } catch (error: any) {
+      console.error(`❌ Error al eliminar ${type}:`, error);
+      if (error?.code === '23503') {
+        // Mostrar confirmación de eliminación forzada
+        setForceDeleteType(type);
+        setForceDeleteItem(item);
+        setForceDeleteOpen(true);
+      } else {
+        toast.error(`Error al eliminar ${type === 'pais' ? 'el país' : type === 'departamento' ? 'el departamento' : 'la ciudad'}`);
+      }
+    } finally {
+      stopLoading();
     }
   };
 
-  // Función para eliminar país
-  const eliminarPais = async (id: number) => {
-    if (!confirm('¿Está seguro de que desea eliminar este país?')) return;
-    
+  const handleForceDelete = async () => {
+    if (!forceDeleteItem?.id || !forceDeleteType) {
+      setForceDeleteOpen(false);
+      return;
+    }
     try {
-      await ubicacionesService.deletePais(id);
-      setPaises(prev => prev.filter(p => p.id !== id));
-      toast({
-        title: "Éxito",
-        description: "País eliminado correctamente",
-      });
-    } catch (error) {
-      console.error('Error al eliminar país:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo eliminar el país",
-        variant: "destructive",
-      });
+      startLoading();
+      switch (forceDeleteType) {
+        case 'pais':
+          await ubicacionesService.nullifyPrestadoresByPais(forceDeleteItem.id);
+          await ubicacionesService.deletePais(forceDeleteItem.id);
+          break;
+        case 'departamento':
+          await ubicacionesService.nullifyPrestadoresByDepartamento(forceDeleteItem.id);
+          await ubicacionesService.deleteDepartamento(forceDeleteItem.id);
+          break;
+        case 'ciudad':
+          await ubicacionesService.nullifyPrestadoresByCiudad(forceDeleteItem.id);
+          await ubicacionesService.deleteCiudad(forceDeleteItem.id);
+          break;
+      }
+      toast.success(
+        `${forceDeleteType === 'pais' ? 'País' : forceDeleteType === 'departamento' ? 'Departamento' : 'Ciudad'} eliminado correctamente`
+      );
+      // Refrescar datos
+      queryClient.invalidateQueries({ queryKey: ['paises'] });
+      queryClient.invalidateQueries({ queryKey: ['departamentos'] });
+      queryClient.invalidateQueries({ queryKey: ['ciudades'] });
+    } catch (e) {
+      console.error('❌ Error en eliminación forzada:', e);
+      toast.error('No fue posible eliminar el registro por relaciones adicionales.');
+    } finally {
+      setForceDeleteOpen(false);
+      setForceDeleteType(null);
+      setForceDeleteItem(null);
+      stopLoading();
     }
   };
 
-  // Función para agregar departamento
-  const agregarDepartamento = async () => {
-    if (!paisSeleccionado || !nuevoDepartamento.trim()) {
-      toast({
-        title: "Error",
-        description: "Por favor seleccione un país e ingrese el nombre del departamento",
-        variant: "destructive",
-      });
+  const handleActivate = async (item: any, type: 'pais' | 'departamento' | 'ciudad') => {
+    if (!item.id) {
+      console.error('❌ handleActivate: No se encontró ID del item:', item);
       return;
     }
 
+    console.log(`🔍 handleActivate llamado para ${type} con ID:`, item.id, 'Item completo:', item);
+
     try {
-      const nuevoDepartamentoData = await ubicacionesService.createDepartamento({
-        nombre: nuevoDepartamento.trim(),
-        pais_id: parseInt(paisSeleccionado),
-        codigo_dane: codigoDaneDepartamento.trim() || null
-      });
+      startLoading();
+      let success = false;
       
-      if (nuevoDepartamentoData) {
-        setDepartamentos(prev => [...prev, nuevoDepartamentoData]);
-        setNuevoDepartamento('');
-        setCodigoDaneDepartamento('');
-        setPaisSeleccionado('');
-        toast({
-          title: "Éxito",
-          description: "Departamento agregado correctamente",
-        });
+      switch (type) {
+        case 'pais':
+          console.log('🔄 Activando país con ID:', item.id);
+          await ubicacionesService.activatePais(item.id);
+          success = true;
+          console.log('✅ País activado exitosamente');
+          break;
+        case 'departamento':
+          console.log('🔄 Activando departamento con ID:', item.id);
+          await ubicacionesService.activateDepartamento(item.id);
+          success = true;
+          console.log('✅ Departamento activado exitosamente');
+          break;
+        case 'ciudad':
+          console.log('🔄 Activando ciudad con ID:', item.id);
+          await ubicacionesService.activateCiudad(item.id);
+          success = true;
+          console.log('✅ Ciudad activada exitosamente');
+          break;
+        default:
+          console.error('❌ Tipo no reconocido:', type);
+          return;
+      }
+
+      if (success) {
+        const message = `${type === 'pais' ? 'País' : type === 'departamento' ? 'Departamento' : 'Ciudad'} activado correctamente`;
+        console.log('🎉 Éxito:', message);
+        toast.success(message);
+        
+        // Invalidar queries para refrescar datos
+        console.log('🔄 Invalidando queries...');
+        queryClient.invalidateQueries({ queryKey: ['paises'] });
+        queryClient.invalidateQueries({ queryKey: ['departamentos'] });
+        queryClient.invalidateQueries({ queryKey: ['ciudades'] });
+        console.log('✅ Queries invalidados');
       }
     } catch (error) {
-      console.error('Error al agregar departamento:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo agregar el departamento",
-        variant: "destructive",
-      });
+      console.error(`❌ Error al activar ${type}:`, error);
+      toast.error(`Error al activar ${type === 'pais' ? 'el país' : type === 'departamento' ? 'el departamento' : 'la ciudad'}`);
+    } finally {
+      stopLoading();
+      console.log('🔄 Loading detenido');
     }
   };
 
-  // Función para editar departamento
-  const editarDepartamento = async (id: number, nombre: string, codigoDane?: string) => {
-    try {
-      const departamentoActualizado = await ubicacionesService.updateDepartamento(id, {
-        nombre: nombre.trim(),
-        codigo_dane: codigoDane?.trim() || null
-      });
-      
-      if (departamentoActualizado) {
-        setDepartamentos(prev => prev.map(d => d.id === id ? departamentoActualizado : d));
-        setEditandoDepartamento(null);
-        toast({
-          title: "Éxito",
-          description: "Departamento actualizado correctamente",
-        });
-      }
-    } catch (error) {
-      console.error('Error al editar departamento:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo editar el departamento",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Función para eliminar departamento
-  const eliminarDepartamento = async (id: number) => {
-    if (!confirm('¿Está seguro de que desea eliminar este departamento?')) return;
-    
-    try {
-      await ubicacionesService.deleteDepartamento(id);
-      setDepartamentos(prev => prev.filter(d => d.id !== id));
-      toast({
-        title: "Éxito",
-        description: "Departamento eliminado correctamente",
-      });
-    } catch (error) {
-      console.error('Error al eliminar departamento:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo eliminar el departamento",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Función para agregar ciudad
-  const agregarCiudad = async () => {
-    if (!ciudadPaisSeleccionado || !departamentoSeleccionado || !nuevoCiudad.trim()) {
-      toast({
-        title: "Error",
-        description: "Por favor complete todos los campos",
-        variant: "destructive",
-      });
+  const handleDeactivate = async (item: any, type: 'pais' | 'departamento' | 'ciudad') => {
+    if (!item.id) {
+      console.error('❌ handleDeactivate: No se encontró ID del item:', item);
       return;
     }
 
+    console.log(`🔍 handleDeactivate llamado para ${type} con ID:`, item.id, 'Item completo:', item);
+
     try {
-      const nuevaCiudadData = await ubicacionesService.createCiudad({
-        nombre: nuevoCiudad.trim(),
-        departamento_id: parseInt(departamentoSeleccionado),
-        codigo_dane: codigoDaneCiudad.trim() || null
-      });
+      startLoading();
+      let success = false;
       
-      if (nuevaCiudadData) {
-        setCiudades(prev => [...prev, nuevaCiudadData]);
-        setNuevoCiudad('');
-        setCodigoDaneCiudad('');
-        setCiudadPaisSeleccionado('');
-        setDepartamentoSeleccionado('');
-        toast({
-          title: "Éxito",
-          description: "Ciudad agregada correctamente",
-        });
+      switch (type) {
+        case 'pais':
+          console.log('🔄 Desactivando país con ID:', item.id);
+          await ubicacionesService.deactivatePais(item.id);
+          success = true;
+          console.log('✅ País desactivado exitosamente');
+          break;
+        case 'departamento':
+          console.log('🔄 Desactivando departamento con ID:', item.id);
+          await ubicacionesService.deactivateDepartamento(item.id);
+          success = true;
+          console.log('✅ Departamento desactivado exitosamente');
+          break;
+        case 'ciudad':
+          console.log('🔄 Desactivando ciudad con ID:', item.id);
+          await ubicacionesService.deactivateCiudad(item.id);
+          success = true;
+          console.log('✅ Ciudad desactivada exitosamente');
+          break;
+        default:
+          console.error('❌ Tipo no reconocido:', type);
+          return;
+      }
+
+      if (success) {
+        const message = `${type === 'pais' ? 'País' : type === 'departamento' ? 'Departamento' : 'Ciudad'} inactivado correctamente`;
+        console.log('🎉 Éxito:', message);
+        toast.success(message);
+        
+        // Invalidar queries para refrescar datos
+        console.log('🔄 Invalidando queries...');
+        queryClient.invalidateQueries({ queryKey: ['paises'] });
+        queryClient.invalidateQueries({ queryKey: ['departamentos'] });
+        queryClient.invalidateQueries({ queryKey: ['ciudades'] });
+        console.log('✅ Queries invalidados');
       }
     } catch (error) {
-      console.error('Error al agregar ciudad:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo agregar la ciudad",
-        variant: "destructive",
-      });
+      console.error(`❌ Error al inactivar ${type}:`, error);
+      toast.error(`Error al inactivar ${type === 'pais' ? 'el país' : type === 'departamento' ? 'el departamento' : 'la ciudad'}`);
+    } finally {
+      stopLoading();
+      console.log('🔄 Loading detenido');
     }
   };
 
-  // Función para editar ciudad
-  const editarCiudad = async (id: number, nombre: string, codigoDane?: string) => {
-    try {
-      const ciudadActualizada = await ubicacionesService.updateCiudad(id, {
-        nombre: nombre.trim(),
-        codigo_dane: codigoDane?.trim() || null
-      });
-      
-      if (ciudadActualizada) {
-        setCiudades(prev => prev.map(c => c.id === id ? ciudadActualizada : c));
-        setEditandoCiudad(null);
-        toast({
-          title: "Éxito",
-          description: "Ciudad actualizada correctamente",
-        });
-      }
-    } catch (error) {
-      console.error('Error al editar ciudad:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo editar la ciudad",
-        variant: "destructive",
-      });
+  const handleNewItem = () => {
+    setEditingItem(null);
+    setActiveSubTab("formulario");
+  };
+
+  const handleSaved = () => {
+    setActiveSubTab("listado");
+    setEditingItem(null);
+    // Invalidar queries para refrescar datos
+    queryClient.invalidateQueries({ queryKey: ['paises'] });
+    queryClient.invalidateQueries({ queryKey: ['departamentos'] });
+    queryClient.invalidateQueries({ queryKey: ['ciudades'] });
+  };
+
+  const getLoadingState = () => {
+    switch (activeTab) {
+      case 'paises':
+        return paisesLoading;
+      case 'departamentos':
+        return departamentosLoading;
+      case 'ciudades':
+        return ciudadesLoading;
+      default:
+        return false;
     }
   };
 
-  // Función para eliminar ciudad
-  const eliminarCiudad = async (id: number) => {
-    if (!confirm('¿Está seguro de que desea eliminar esta ciudad?')) return;
-    
-    try {
-      await ubicacionesService.deleteCiudad(id);
-      setCiudades(prev => prev.filter(c => c.id !== id));
-      toast({
-        title: "Éxito",
-        description: "Ciudad eliminada correctamente",
-      });
-    } catch (error) {
-      console.error('Error al eliminar ciudad:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo eliminar la ciudad",
-        variant: "destructive",
-      });
+  const getErrorState = () => {
+    switch (activeTab) {
+      case 'paises':
+        return paisesError;
+      case 'departamentos':
+        return departamentosError;
+      case 'ciudades':
+        return ciudadesError;
+      default:
+        return null;
+    }
+  };
+
+  const getFilteredData = () => {
+    switch (activeTab) {
+      case 'paises':
+        return filteredPaises;
+      case 'departamentos':
+        return filteredDepartamentos;
+      case 'ciudades':
+        return filteredCiudades;
+      default:
+        return [];
+    }
+  };
+
+  const getTableHeaders = () => {
+    switch (activeTab) {
+      case 'paises':
+        return ['Acciones', 'Nombre', 'Código ISO', 'Estado'];
+      case 'departamentos':
+        return ['Acciones', 'Nombre', 'Código DANE', 'País', 'Estado'];
+      case 'ciudades':
+        return ['Acciones', 'Nombre', 'Código DANE', 'Departamento', 'País', 'Estado'];
+      default:
+        return [];
+    }
+  };
+
+  const renderTableRow = (item: any, index: number) => {
+    switch (activeTab) {
+             case 'paises':
+         return (
+           <TableRow key={item.id} className="hover:bg-gray-50">
+             <TableCell className="px-2 py-1">
+               <div className="flex flex-row gap-1 items-center">
+                 <TooltipProvider>
+                   <Tooltip>
+                     <TooltipTrigger asChild>
+                       <Button
+                         variant="ghost"
+                         size="icon"
+                         onClick={() => handleEdit(item, 'pais')}
+                         aria-label="Editar país"
+                         className="h-8 w-8"
+                       >
+                         <Edit3 className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
+                       </Button>
+                     </TooltipTrigger>
+                     <TooltipContent>
+                       <p>Editar</p>
+                     </TooltipContent>
+                   </Tooltip>
+                 </TooltipProvider>
+                 
+                 {item.estado ? (
+                   <TooltipProvider>
+                     <Tooltip>
+                       <TooltipTrigger asChild>
+                         <AlertDialog>
+                           <AlertDialogTrigger asChild>
+                             <Button
+                               variant="ghost"
+                               size="icon"
+                               aria-label="Inactivar país"
+                               className="h-8 w-8"
+                             >
+                               <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
+                             </Button>
+                           </AlertDialogTrigger>
+                           <AlertDialogContent>
+                             <AlertDialogHeader>
+                               <AlertDialogTitle>¿Inactivar país?</AlertDialogTitle>
+                               <AlertDialogDescription>
+                                Esta acción inactivará el país "{item.nombre}" y no podrá ser usado hasta que se reactive. ¿Estás seguro?
+                               </AlertDialogDescription>
+                             </AlertDialogHeader>
+                             <AlertDialogFooter>
+                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                               <AlertDialogAction onClick={() => handleDeactivate(item, 'pais')}>
+                                 Sí, inactivar
+                               </AlertDialogAction>
+                             </AlertDialogFooter>
+                           </AlertDialogContent>
+                         </AlertDialog>
+                       </TooltipTrigger>
+                       <TooltipContent>
+                         <p>Inactivar</p>
+                       </TooltipContent>
+                     </Tooltip>
+                   </TooltipProvider>
+                 ) : (
+                   <TooltipProvider>
+                     <Tooltip>
+                       <TooltipTrigger asChild>
+                         <AlertDialog>
+                           <AlertDialogTrigger asChild>
+                             <Button
+                               variant="ghost"
+                               size="icon"
+                               aria-label="Activar país"
+                               className="h-8 w-8"
+                             >
+                               <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
+                             </Button>
+                           </AlertDialogTrigger>
+                           <AlertDialogContent>
+                             <AlertDialogHeader>
+                               <AlertDialogTitle>¿Activar país?</AlertDialogTitle>
+                               <AlertDialogDescription>
+                                 ¿Estás seguro de que deseas activar el país "{item.nombre}"? 
+                                 Una vez activado, aparecerá en las listas de selección.
+                               </AlertDialogDescription>
+                             </AlertDialogHeader>
+                             <AlertDialogFooter>
+                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                               <AlertDialogAction onClick={() => handleActivate(item, 'pais')}>
+                                 Sí, activar
+                               </AlertDialogAction>
+                             </AlertDialogFooter>
+                           </AlertDialogContent>
+                         </AlertDialog>
+                       </TooltipTrigger>
+                       <TooltipContent>
+                         <p>Activar</p>
+                       </TooltipContent>
+                     </Tooltip>
+                   </TooltipProvider>
+                 )}
+                 
+                 {!item.estado && (
+                   <TooltipProvider>
+                     <Tooltip>
+                       <TooltipTrigger asChild>
+                         <AlertDialog>
+                           <AlertDialogTrigger asChild>
+                             <Button
+                               variant="ghost"
+                               size="icon"
+                               aria-label="Eliminar país"
+                               className="h-8 w-8"
+                             >
+                               <Trash2 className="h-4 w-4 text-rose-600 hover:text-rose-800 transition-colors" />
+                             </Button>
+                           </AlertDialogTrigger>
+                           <AlertDialogContent>
+                             <AlertDialogHeader>
+                               <AlertDialogTitle>¿Eliminar país?</AlertDialogTitle>
+                               <AlertDialogDescription>
+                                 Esta acción eliminará el país "{item.nombre}" de forma permanente.
+                                 También se eliminarán sus departamentos y ciudades relacionadas.
+                                 Esta acción no se puede deshacer. ¿Estás seguro?
+                               </AlertDialogDescription>
+                             </AlertDialogHeader>
+                             <AlertDialogFooter>
+                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                               <AlertDialogAction onClick={() => handleDelete(item, 'pais')}>
+                                 Sí, eliminar
+                               </AlertDialogAction>
+                             </AlertDialogFooter>
+                           </AlertDialogContent>
+                         </AlertDialog>
+                       </TooltipTrigger>
+                       <TooltipContent>
+                         <p>Eliminar</p>
+                       </TooltipContent>
+                     </Tooltip>
+                   </TooltipProvider>
+                 )}
+               </div>
+             </TableCell>
+             <TableCell className="px-4 py-3 text-sm text-gray-900 font-medium">{item.nombre}</TableCell>
+             <TableCell className="px-4 py-3 text-sm text-gray-500">{item.codigo_iso ?? '-'}</TableCell>
+             <TableCell className="px-4 py-3 text-sm">
+               <Badge variant={item.estado ? "default" : "secondary"} className={item.estado ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
+                 {item.estado ? "Activo" : "Inactivo"}
+               </Badge>
+             </TableCell>
+           </TableRow>
+         );
+
+             case 'departamentos':
+         const pais = paises.find(p => p.id === item.pais_id);
+         return (
+           <TableRow key={item.id} className="hover:bg-gray-50">
+             <TableCell className="px-2 py-1">
+               <div className="flex flex-row gap-1 items-center">
+                 <TooltipProvider>
+                   <Tooltip>
+                     <TooltipTrigger asChild>
+                       <Button
+                         variant="ghost"
+                         size="icon"
+                         onClick={() => handleEdit(item, 'departamento')}
+                         aria-label="Editar departamento"
+                         className="h-8 w-8"
+                       >
+                         <Edit3 className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
+                       </Button>
+                     </TooltipTrigger>
+                     <TooltipContent>
+                       <p>Editar</p>
+                     </TooltipContent>
+                   </Tooltip>
+                 </TooltipProvider>
+                 
+                 {item.estado ? (
+                   <TooltipProvider>
+                     <Tooltip>
+                       <TooltipTrigger asChild>
+                         <AlertDialog>
+                           <AlertDialogTrigger asChild>
+                             <Button
+                               variant="ghost"
+                               size="icon"
+                               aria-label="Inactivar departamento"
+                               className="h-8 w-8"
+                             >
+                               <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
+                             </Button>
+                           </AlertDialogTrigger>
+                           <AlertDialogContent>
+                             <AlertDialogHeader>
+                               <AlertDialogTitle>¿Inactivar departamento?</AlertDialogTitle>
+                               <AlertDialogDescription>
+                                Esta acción inactivará el departamento "{item.nombre}" y no podrá ser usado hasta que se reactive. ¿Estás seguro?
+                               </AlertDialogDescription>
+                             </AlertDialogHeader>
+                             <AlertDialogFooter>
+                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                               <AlertDialogAction onClick={() => handleDeactivate(item, 'departamento')}>
+                                 Sí, inactivar
+                               </AlertDialogAction>
+                             </AlertDialogFooter>
+                           </AlertDialogContent>
+                         </AlertDialog>
+                       </TooltipTrigger>
+                       <TooltipContent>
+                         <p>Inactivar</p>
+                       </TooltipContent>
+                     </Tooltip>
+                   </TooltipProvider>
+                 ) : (
+                   <TooltipProvider>
+                     <Tooltip>
+                       <TooltipTrigger asChild>
+                         <AlertDialog>
+                           <AlertDialogTrigger asChild>
+                             <Button
+                               variant="ghost"
+                               size="icon"
+                               aria-label="Activar departamento"
+                               className="h-8 w-8"
+                             >
+                               <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
+                             </Button>
+                           </AlertDialogTrigger>
+                           <AlertDialogContent>
+                             <AlertDialogHeader>
+                               <AlertDialogTitle>¿Activar departamento?</AlertDialogTitle>
+                               <AlertDialogDescription>
+                                 ¿Estás seguro de que deseas activar el departamento "{item.nombre}"? 
+                                 Una vez activado, aparecerá en las listas de selección.
+                               </AlertDialogDescription>
+                             </AlertDialogHeader>
+                             <AlertDialogFooter>
+                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                               <AlertDialogAction onClick={() => handleActivate(item, 'departamento')}>
+                                 Sí, activar
+                               </AlertDialogAction>
+                             </AlertDialogFooter>
+                           </AlertDialogContent>
+                         </AlertDialog>
+                       </TooltipTrigger>
+                       <TooltipContent>
+                         <p>Activar</p>
+                       </TooltipContent>
+                     </Tooltip>
+                   </TooltipProvider>
+                 )}
+                 
+                 {!item.estado && (
+                   <TooltipProvider>
+                     <Tooltip>
+                       <TooltipTrigger asChild>
+                         <AlertDialog>
+                           <AlertDialogTrigger asChild>
+                             <Button
+                               variant="ghost"
+                               size="icon"
+                               aria-label="Eliminar departamento"
+                               className="h-8 w-8"
+                             >
+                               <Trash2 className="h-4 w-4 text-rose-600 hover:text-rose-800 transition-colors" />
+                             </Button>
+                           </AlertDialogTrigger>
+                           <AlertDialogContent>
+                             <AlertDialogHeader>
+                               <AlertDialogTitle>¿Eliminar departamento?</AlertDialogTitle>
+                               <AlertDialogDescription>
+                                 Esta acción eliminará el departamento "{item.nombre}" de forma permanente.
+                                 También se eliminarán sus ciudades relacionadas.
+                                 Esta acción no se puede deshacer. ¿Estás seguro?
+                               </AlertDialogDescription>
+                             </AlertDialogHeader>
+                             <AlertDialogFooter>
+                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                               <AlertDialogAction onClick={() => handleDelete(item, 'departamento')}>
+                                 Sí, eliminar
+                               </AlertDialogAction>
+                             </AlertDialogFooter>
+                           </AlertDialogContent>
+                         </AlertDialog>
+                       </TooltipTrigger>
+                       <TooltipContent>
+                         <p>Eliminar</p>
+                       </TooltipContent>
+                     </Tooltip>
+                   </TooltipProvider>
+                 )}
+               </div>
+             </TableCell>
+             <TableCell className="px-4 py-3 text-sm text-gray-900 font-medium">{item.nombre}</TableCell>
+             <TableCell className="px-4 py-3 text-sm text-gray-500">{item.codigo_dane ?? '-'}</TableCell>
+             <TableCell className="px-4 py-3 text-sm text-gray-500">{pais?.nombre ?? '-'}</TableCell>
+             <TableCell className="px-4 py-3 text-sm">
+               <Badge variant={item.estado ? "default" : "secondary"} className={item.estado ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
+                 {item.estado ? "Activo" : "Inactivo"}
+               </Badge>
+             </TableCell>
+           </TableRow>
+         );
+
+             case 'ciudades':
+         const departamento = departamentos.find(d => d.id === item.departamento_id);
+         const paisCiudad = paises.find(p => p.id === departamento?.pais_id);
+         return (
+           <TableRow key={item.id} className="hover:bg-gray-50">
+             <TableCell className="px-2 py-1">
+               <div className="flex flex-row gap-1 items-center">
+                 <TooltipProvider>
+                   <Tooltip>
+                     <TooltipTrigger asChild>
+                       <Button
+                         variant="ghost"
+                         size="icon"
+                         onClick={() => handleEdit(item, 'ciudad')}
+                         aria-label="Editar ciudad"
+                         className="h-8 w-8"
+                       >
+                         <Edit3 className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
+                       </Button>
+                     </TooltipTrigger>
+                     <TooltipContent>
+                       <p>Editar</p>
+                     </TooltipContent>
+                   </Tooltip>
+                 </TooltipProvider>
+                 
+                 {item.estado ? (
+                   <TooltipProvider>
+                     <Tooltip>
+                       <TooltipTrigger asChild>
+                         <AlertDialog>
+                           <AlertDialogTrigger asChild>
+                             <Button
+                               variant="ghost"
+                               size="icon"
+                               aria-label="Inactivar ciudad"
+                               className="h-8 w-8"
+                             >
+                               <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
+                             </Button>
+                           </AlertDialogTrigger>
+                           <AlertDialogContent>
+                             <AlertDialogHeader>
+                               <AlertDialogTitle>¿Inactivar ciudad?</AlertDialogTitle>
+                               <AlertDialogDescription>
+                                Esta acción inactivará la ciudad "{item.nombre}" y no podrá ser usada hasta que se reactive. ¿Estás seguro?
+                               </AlertDialogDescription>
+                             </AlertDialogHeader>
+                             <AlertDialogFooter>
+                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                               <AlertDialogAction onClick={() => handleDeactivate(item, 'ciudad')}>
+                                 Sí, inactivar
+                               </AlertDialogAction>
+                             </AlertDialogFooter>
+                           </AlertDialogContent>
+                         </AlertDialog>
+                       </TooltipTrigger>
+                       <TooltipContent>
+                         <p>Inactivar</p>
+                       </TooltipContent>
+                     </Tooltip>
+                   </TooltipProvider>
+                 ) : (
+                   <TooltipProvider>
+                     <Tooltip>
+                       <TooltipTrigger asChild>
+                         <AlertDialog>
+                           <AlertDialogTrigger asChild>
+                             <Button
+                               variant="ghost"
+                               size="icon"
+                               aria-label="Activar ciudad"
+                               className="h-8 w-8"
+                             >
+                               <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
+                             </Button>
+                           </AlertDialogTrigger>
+                           <AlertDialogContent>
+                             <AlertDialogHeader>
+                               <AlertDialogTitle>¿Activar ciudad?</AlertDialogTitle>
+                               <AlertDialogDescription>
+                                 ¿Estás seguro de que deseas activar la ciudad "{item.nombre}"? 
+                                 Una vez activada, aparecerá en las listas de selección.
+                               </AlertDialogDescription>
+                             </AlertDialogHeader>
+                             <AlertDialogFooter>
+                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                               <AlertDialogAction onClick={() => handleActivate(item, 'ciudad')}>
+                                 Sí, activar
+                               </AlertDialogAction>
+                             </AlertDialogFooter>
+                           </AlertDialogContent>
+                         </AlertDialog>
+                       </TooltipTrigger>
+                       <TooltipContent>
+                         <p>Activar</p>
+                       </TooltipContent>
+                     </Tooltip>
+                   </TooltipProvider>
+                 )}
+                 
+                 {!item.estado && (
+                   <TooltipProvider>
+                     <Tooltip>
+                       <TooltipTrigger asChild>
+                         <AlertDialog>
+                           <AlertDialogTrigger asChild>
+                             <Button
+                               variant="ghost"
+                               size="icon"
+                               aria-label="Eliminar ciudad"
+                               className="h-8 w-8"
+                             >
+                               <Trash2 className="h-4 w-4 text-rose-600 hover:text-rose-800 transition-colors" />
+                             </Button>
+                           </AlertDialogTrigger>
+                           <AlertDialogContent>
+                             <AlertDialogHeader>
+                               <AlertDialogTitle>¿Eliminar ciudad?</AlertDialogTitle>
+                               <AlertDialogDescription>
+                                 Esta acción eliminará la ciudad "{item.nombre}" de forma permanente. 
+                                 Esta acción no se puede deshacer. ¿Estás seguro?
+                               </AlertDialogDescription>
+                             </AlertDialogHeader>
+                             <AlertDialogFooter>
+                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                               <AlertDialogAction onClick={() => handleDelete(item, 'ciudad')}>
+                                 Sí, eliminar
+                               </AlertDialogAction>
+                             </AlertDialogFooter>
+                           </AlertDialogContent>
+                         </AlertDialog>
+                       </TooltipTrigger>
+                       <TooltipContent>
+                         <p>Eliminar</p>
+                       </TooltipContent>
+                     </Tooltip>
+                   </TooltipProvider>
+                 )}
+               </div>
+             </TableCell>
+             <TableCell className="px-4 py-3 text-sm text-gray-900 font-medium">{item.nombre}</TableCell>
+             <TableCell className="px-4 py-3 text-sm text-gray-500">{item.codigo_dane ?? '-'}</TableCell>
+             <TableCell className="px-4 py-3 text-sm text-gray-500">{departamento?.nombre ?? '-'}</TableCell>
+             <TableCell className="px-4 py-3 text-sm text-gray-500">{paisCiudad?.nombre ?? '-'}</TableCell>
+             <TableCell className="px-4 py-3 text-sm">
+               <Badge variant={item.estado ? "default" : "secondary"} className={item.estado ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
+                 {item.estado ? "Activo" : "Inactivo"}
+               </Badge>
+             </TableCell>
+           </TableRow>
+         );
+
+      default:
+        return null;
+    }
+  };
+
+  const renderFilters = () => {
+    switch (activeTab) {
+             case 'paises':
+         return (
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+             <div className="relative">
+               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+               <Input
+                 placeholder="Buscar por nombre o código ISO..."
+                 value={searchTerm}
+                 onChange={(e) => setSearchTerm(e.target.value)}
+                 className="pl-10 md:col-span-2"
+               />
+             </div>
+             <Button
+               variant="outline"
+               onClick={() => setSearchTerm("")}
+               className="flex items-center gap-2"
+             >
+               <Filter className="w-4 h-4" />
+               Limpiar filtros
+             </Button>
+           </div>
+         );
+
+      case 'departamentos':
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                placeholder="Buscar por nombre o código DANE..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={filterPaisDepartamento} onValueChange={setFilterPaisDepartamento}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filtrar por país" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos los países</SelectItem>
+                {paises.filter(p => p.estado).map(pais => (
+                  <SelectItem key={pais.id} value={pais.id.toString()}>
+                    {pais.nombre}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSearchTerm("");
+                setFilterPaisDepartamento("todos");
+              }}
+              className="flex items-center gap-2"
+            >
+              <Filter className="w-4 h-4" />
+              Limpiar filtros
+            </Button>
+          </div>
+        );
+
+             case 'ciudades':
+         return (
+           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+             <div className="relative">
+               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+               <Input
+                 placeholder="Buscar por nombre o código DANE..."
+                 value={searchTerm}
+                 onChange={(e) => setSearchTerm(e.target.value)}
+                 className="pl-10"
+               />
+             </div>
+             <Select value={filterPaisDepartamento} onValueChange={setFilterPaisDepartamento}>
+               <SelectTrigger>
+                 <SelectValue placeholder="Filtrar por país" />
+               </SelectTrigger>
+               <SelectContent>
+                 <SelectItem value="todos">Todos los países</SelectItem>
+                 {paises.filter(p => p.estado).map(pais => (
+                   <SelectItem key={pais.id} value={pais.id.toString()}>
+                     {pais.nombre}
+                   </SelectItem>
+                 ))}
+               </SelectContent>
+             </Select>
+             <Select value={filterDepartamentoCiudad} onValueChange={setFilterDepartamentoCiudad}>
+               <SelectTrigger>
+                 <SelectValue placeholder="Filtrar por departamento" />
+               </SelectTrigger>
+               <SelectContent>
+                 <SelectItem value="todos">Todos los departamentos</SelectItem>
+                 {departamentos
+                   .filter(dept => {
+                     // Solo mostrar departamentos activos
+                     if (!dept.estado) return false;
+                     // Si hay filtro de país, verificar que coincida
+                     if (filterPaisDepartamento !== 'todos') {
+                       return dept.pais_id === parseInt(filterPaisDepartamento);
+                     }
+                     return true;
+                   })
+                   .map(dept => (
+                     <SelectItem key={dept.id} value={dept.id.toString()}>
+                       {dept.nombre}
+                     </SelectItem>
+                   ))}
+               </SelectContent>
+             </Select>
+             <Button
+               variant="outline"
+               onClick={() => {
+                 setSearchTerm("");
+                 setFilterPaisDepartamento("todos");
+                 setFilterDepartamentoCiudad("todos");
+               }}
+               className="flex items-center gap-2"
+             >
+               <Filter className="w-4 h-4" />
+               Limpiar filtros
+             </Button>
+           </div>
+         );
+
+      default:
+        return null;
+    }
+  };
+
+  const renderForm = () => {
+    switch (activeTab) {
+      case 'paises':
+        return <PaisForm initialData={editingItem} onSaved={handleSaved} />;
+      case 'departamentos':
+        return <DepartamentoForm initialData={editingItem} paises={paises} onSaved={handleSaved} />;
+      case 'ciudades':
+        return <CiudadForm initialData={editingItem} departamentos={departamentos} paises={paises} onSaved={handleSaved} />;
+      default:
+        return null;
+    }
+  };
+
+  const getTabIcon = () => {
+    switch (activeTab) {
+      case 'paises':
+        return <Globe className="w-8 h-8 text-cyan-600" />;
+      case 'departamentos':
+        return <MapPin className="w-8 h-8 text-cyan-600" />;
+      case 'ciudades':
+        return <Building2 className="w-8 h-8 text-cyan-600" />;
+      default:
+        return <Globe className="w-8 h-8 text-cyan-600" />;
+    }
+  };
+
+  const getTabTitle = () => {
+    switch (activeTab) {
+      case 'paises':
+        return 'Gestión de Países';
+      case 'departamentos':
+        return 'Gestión de Departamentos';
+      case 'ciudades':
+        return 'Gestión de Ciudades';
+      default:
+        return 'Gestión de Ubicaciones';
+    }
+  };
+
+  const getHeaderTitle = () => {
+    switch (activeTab) {
+      case 'paises':
+        return 'PAÍSES DEL SISTEMA';
+      case 'departamentos':
+        return 'DEPARTAMENTOS DEL SISTEMA';
+      case 'ciudades':
+        return 'CIUDADES DEL SISTEMA';
+      default:
+        return 'UBICACIONES DEL SISTEMA';
+    }
+  };
+
+  const getHeaderIcon = () => {
+    switch (activeTab) {
+      case 'paises':
+        return <Globe className="w-5 h-5 text-orange-600" />;
+      case 'departamentos':
+        return <MapPin className="w-5 h-5 text-orange-600" />;
+      case 'ciudades':
+        return <Building2 className="w-5 h-5 text-orange-600" />;
+      default:
+        return <Globe className="w-5 h-5 text-orange-600" />;
     }
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Gestión de Ubicaciones</h1>
-        <p className="text-muted-foreground">
-          Administra países, departamentos y ciudades del sistema
-        </p>
+    <div className="p-4 max-w-full mx-auto">
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-3xl font-extrabold text-cyan-800 flex items-center gap-2 mb-2">
+          {getTabIcon()}
+          {getTabTitle()}
+        </h1>
       </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="flex items-center space-x-2">
-            <Loader2 className="h-6 w-6 animate-spin" />
-            <span>Cargando datos...</span>
-          </div>
-        </div>
-      ) : (
-        <Tabs defaultValue="paises" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="paises" className="flex items-center gap-2">
-            <Globe className="h-4 w-4" />
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-3 bg-cyan-100/60 p-1 rounded-lg">
+          <TabsTrigger
+            value="paises"
+            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+          >
+            <Globe className="w-4 h-4 mr-2" />
             Países
           </TabsTrigger>
-          <TabsTrigger value="departamentos" className="flex items-center gap-2">
-            <MapPin className="h-4 w-4" />
+          <TabsTrigger
+            value="departamentos"
+            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+          >
+            <MapPin className="w-4 h-4 mr-2" />
             Departamentos
           </TabsTrigger>
-          <TabsTrigger value="ciudades" className="flex items-center gap-2">
-            <Building2 className="h-4 w-4" />
+          <TabsTrigger
+            value="ciudades"
+            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+          >
+            <Building2 className="w-4 h-4 mr-2" />
             Ciudades
           </TabsTrigger>
         </TabsList>
 
-        {/* Sección Países */}
-        <TabsContent value="paises" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Globe className="h-5 w-5" />
-                Agregar País
-              </CardTitle>
-              <CardDescription>
-                Ingresa la información del nuevo país
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="codigo-pais">Código</Label>
-                  <Input
-                    id="codigo-pais"
-                    value="Auto-incrementable"
-                    disabled
-                    className="bg-muted"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="nombre-pais">Nombre del País *</Label>
-                  <Input
-                    id="nombre-pais"
-                    value={nuevoPais}
-                    onChange={(e) => setNuevoPais(e.target.value)}
-                    placeholder="Ej: Colombia"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="codigo-iso-pais">Código ISO</Label>
-                  <Input
-                    id="codigo-iso-pais"
-                    value={codigoIsoPais}
-                    onChange={(e) => setCodigoIsoPais(e.target.value)}
-                    placeholder="Ej: CO"
-                  />
-                </div>
-              </div>
-              <Button onClick={agregarPais} className="w-full md:w-auto">
-                <Plus className="h-4 w-4 mr-2" />
-                Guardar País
-              </Button>
-            </CardContent>
-          </Card>
+        <TabsContent value={activeTab} className="mt-6">
+          <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 bg-cyan-100/60 p-1 rounded-lg">
+              <TabsTrigger
+                value="listado"
+                className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+              >
+                Listado de {activeTab === 'paises' ? 'Países' : activeTab === 'departamentos' ? 'Departamentos' : 'Ciudades'}
+              </TabsTrigger>
+              <TabsTrigger
+                value="formulario"
+                className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+              >
+                {editingItem ? 'Editar' : 'Nuevo'} {activeTab === 'paises' ? 'País' : activeTab === 'departamentos' ? 'Departamento' : 'Ciudad'}
+              </TabsTrigger>
+            </TabsList>
 
-          {/* Lista de países */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Países Registrados</CardTitle>
-              <CardDescription>
-                Lista de todos los países en el sistema
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {paises.map((pais) => (
-                  <div key={pais.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex-1">
-                      {editandoPais === pais.id ? (
-                        <div className="flex items-center gap-2">
-                          <Input
-                            value={pais.nombre}
-                            onChange={(e) => {
-                              const nuevosPaises = paises.map(p => 
-                                p.id === pais.id ? { ...p, nombre: e.target.value } : p
-                              );
-                              setPaises(nuevosPaises);
-                            }}
-                            className="w-32"
-                          />
-                          <Input
-                            value={pais.codigo_iso || ''}
-                            onChange={(e) => {
-                              const nuevosPaises = paises.map(p => 
-                                p.id === pais.id ? { ...p, codigo_iso: e.target.value } : p
-                              );
-                              setPaises(nuevosPaises);
-                            }}
-                            placeholder="ISO"
-                            className="w-20"
-                          />
-                          <Button
-                            size="sm"
-                            onClick={() => editarPais(pais.id, pais.nombre, pais.codigo_iso)}
-                          >
-                            Guardar
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setEditandoPais(null)}
-                          >
-                            Cancelar
-                          </Button>
-                        </div>
-                      ) : (
-                        <div>
-                          <span className="font-medium">{pais.nombre}</span>
-                          {pais.codigo_iso && (
-                            <span className="text-sm text-muted-foreground ml-2">
-                              ({pais.codigo_iso})
-                            </span>
-                          )}
-                        </div>
-                      )}
+            <TabsContent value="listado" className="mt-6">
+              {/* Header similar al diseño de empresas */}
+              <div className="bg-white rounded-lg border">
+                <div className="flex items-center justify-between p-4 border-b">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-orange-100 rounded flex items-center justify-center">
+                      {getHeaderIcon()}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">ID: {pais.id}</span>
-                      {editandoPais !== pais.id && (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setEditandoPais(pais.id)}
-                          >
-                            <Edit className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => eliminarPais(pais.id)}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
+                    <span className="text-lg font-semibold text-gray-700">{getHeaderTitle()}</span>
                   </div>
-                ))}
-                {paises.length === 0 && (
-                  <p className="text-muted-foreground text-center py-4">
-                    No hay países registrados
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+                  <div className="flex space-x-2">
+                    <Button
+                      onClick={handleNewItem}
+                      className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
+                      size="sm"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Adicionar Registro
+                    </Button>
+                  </div>
+                </div>
 
-        {/* Sección Departamentos */}
-        <TabsContent value="departamentos" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MapPin className="h-5 w-5" />
-                Agregar Departamento
-              </CardTitle>
-              <CardDescription>
-                Selecciona un país e ingresa la información del departamento
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                  <Label htmlFor="codigo-departamento">Código</Label>
-                  <Input
-                    id="codigo-departamento"
-                    value="Auto-incrementable"
-                    disabled
-                    className="bg-muted"
-                  />
+                {/* Filtros */}
+                <div className="p-4 border-b bg-gray-50">
+                  {renderFilters()}
+                  
+                  {/* Mensaje informativo */}
+                  <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                    <p className="text-sm text-blue-700">
+                      <Info className="w-4 h-4 inline mr-2" />
+                      {activeTab === 'paises' 
+                        ? 'Puedes activar o desactivar países. Los departamentos y ciudades dependen del estado del país.'
+                        : activeTab === 'departamentos'
+                        ? 'Solo se muestran departamentos de países activos.'
+                        : 'Solo se muestran ciudades de departamentos y países activos.'
+                      }
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="pais-departamento">País *</Label>
-                  <Select value={paisSeleccionado} onValueChange={setPaisSeleccionado}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona un país" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {paises.map((pais) => (
-                        <SelectItem key={pais.id} value={pais.id.toString()}>
-                          {pais.nombre}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="nombre-departamento">Nombre del Departamento *</Label>
-                  <Input
-                    id="nombre-departamento"
-                    value={nuevoDepartamento}
-                    onChange={(e) => setNuevoDepartamento(e.target.value)}
-                    placeholder="Ej: Antioquia"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="codigo-dane-departamento">Código DANE</Label>
-                  <Input
-                    id="codigo-dane-departamento"
-                    value={codigoDaneDepartamento}
-                    onChange={(e) => setCodigoDaneDepartamento(e.target.value)}
-                    placeholder="Ej: 05"
-                  />
-                </div>
-              </div>
-              <Button onClick={agregarDepartamento} className="w-full md:w-auto">
-                <Plus className="h-4 w-4 mr-2" />
-                Guardar Departamento
-              </Button>
-            </CardContent>
-          </Card>
 
-          {/* Lista de departamentos */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Departamentos Registrados</CardTitle>
-              <CardDescription>
-                Lista de todos los departamentos en el sistema
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {departamentos.map((departamento) => {
-                  const pais = paises.find(p => p.id === departamento.pais_id);
-                  return (
-                    <div key={departamento.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex-1">
-                        {editandoDepartamento === departamento.id ? (
-                          <div className="flex items-center gap-2">
-                            <Input
-                              value={departamento.nombre}
-                              onChange={(e) => {
-                                const nuevosDepartamentos = departamentos.map(d => 
-                                  d.id === departamento.id ? { ...d, nombre: e.target.value } : d
-                                );
-                                setDepartamentos(nuevosDepartamentos);
-                              }}
-                              className="w-32"
-                            />
-                            <Input
-                              value={departamento.codigo_dane || ''}
-                              onChange={(e) => {
-                                const nuevosDepartamentos = departamentos.map(d => 
-                                  d.id === departamento.id ? { ...d, codigo_dane: e.target.value } : d
-                                );
-                                setDepartamentos(nuevosDepartamentos);
-                              }}
-                              placeholder="DANE"
-                              className="w-20"
-                            />
-                            <Button
-                              size="sm"
-                              onClick={() => editarDepartamento(departamento.id, departamento.nombre, departamento.codigo_dane)}
-                            >
-                              Guardar
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setEditandoDepartamento(null)}
-                            >
-                              Cancelar
-                            </Button>
-                          </div>
-                        ) : (
-                          <div>
-                            <span className="font-medium">{departamento.nombre}</span>
-                            {departamento.codigo_dane && (
-                              <span className="text-sm text-muted-foreground ml-2">
-                                DANE: {departamento.codigo_dane}
-                              </span>
-                            )}
-                            <span className="text-sm text-muted-foreground ml-2">
-                              País: {pais?.nombre || 'N/A'}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">ID: {departamento.id}</span>
-                        {editandoDepartamento !== departamento.id && (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setEditandoDepartamento(departamento.id)}
-                            >
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => eliminarDepartamento(departamento.id)}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </>
-                        )}
+                {/* Tabla */}
+                <div className="overflow-x-auto rounded-lg shadow-sm">
+                  {getLoadingState() ? (
+                    <div className="flex items-center justify-center py-12">
+                      <div className="text-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 mx-auto"></div>
+                        <p className="mt-4 text-gray-600">Cargando {activeTab === 'paises' ? 'países' : activeTab === 'departamentos' ? 'departamentos' : 'ciudades'}...</p>
                       </div>
                     </div>
-                  );
-                })}
-                {departamentos.length === 0 && (
-                  <p className="text-muted-foreground text-center py-4">
-                    No hay departamentos registrados
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Sección Ciudades */}
-        <TabsContent value="ciudades" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building2 className="h-5 w-5" />
-                Agregar Ciudad
-              </CardTitle>
-              <CardDescription>
-                Selecciona país y departamento, luego ingresa la información de la ciudad
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                <div>
-                  <Label htmlFor="codigo-ciudad">Código</Label>
-                  <Input
-                    id="codigo-ciudad"
-                    value="Auto-incrementable"
-                    disabled
-                    className="bg-muted"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="pais-ciudad">País *</Label>
-                  <Select value={ciudadPaisSeleccionado} onValueChange={setCiudadPaisSeleccionado}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona un país" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {paises.map((pais) => (
-                        <SelectItem key={pais.id} value={pais.id.toString()}>
-                          {pais.nombre}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="departamento-ciudad">Departamento *</Label>
-                  <Select 
-                    value={departamentoSeleccionado} 
-                    onValueChange={setDepartamentoSeleccionado}
-                    disabled={!ciudadPaisSeleccionado}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona un departamento" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {departamentosFiltrados.map((departamento) => (
-                        <SelectItem key={departamento.id} value={departamento.id.toString()}>
-                          {departamento.nombre}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="nombre-ciudad">Nombre de la Ciudad *</Label>
-                  <Input
-                    id="nombre-ciudad"
-                    value={nuevoCiudad}
-                    onChange={(e) => setNuevoCiudad(e.target.value)}
-                    placeholder="Ej: Medellín"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="codigo-dane-ciudad">Código DANE</Label>
-                  <Input
-                    id="codigo-dane-ciudad"
-                    value={codigoDaneCiudad}
-                    onChange={(e) => setCodigoDaneCiudad(e.target.value)}
-                    placeholder="Ej: 05001"
-                  />
-                </div>
-              </div>
-              <Button onClick={agregarCiudad} className="w-full md:w-auto">
-                <Plus className="h-4 w-4 mr-2" />
-                Guardar Ciudad
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Lista de ciudades */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Ciudades Registradas</CardTitle>
-              <CardDescription>
-                Lista de todas las ciudades en el sistema
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {ciudades.map((ciudad) => {
-                  const departamento = departamentos.find(d => d.id === ciudad.departamento_id);
-                  return (
-                    <div key={ciudad.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex-1">
-                        {editandoCiudad === ciudad.id ? (
-                          <div className="flex items-center gap-2">
-                            <Input
-                              value={ciudad.nombre}
-                              onChange={(e) => {
-                                const nuevasCiudades = ciudades.map(c => 
-                                  c.id === ciudad.id ? { ...c, nombre: e.target.value } : c
-                                );
-                                setCiudades(nuevasCiudades);
-                              }}
-                              className="w-32"
-                            />
-                            <Input
-                              value={ciudad.codigo_dane || ''}
-                              onChange={(e) => {
-                                const nuevasCiudades = ciudades.map(c => 
-                                  c.id === ciudad.id ? { ...c, codigo_dane: e.target.value } : c
-                                );
-                                setCiudades(nuevasCiudades);
-                              }}
-                              placeholder="DANE"
-                              className="w-20"
-                            />
-                            <Button
-                              size="sm"
-                              onClick={() => editarCiudad(ciudad.id, ciudad.nombre, ciudad.codigo_dane)}
-                            >
-                              Guardar
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setEditandoCiudad(null)}
-                            >
-                              Cancelar
-                            </Button>
-                          </div>
-                        ) : (
-                          <div>
-                            <span className="font-medium">{ciudad.nombre}</span>
-                            {ciudad.codigo_dane && (
-                              <span className="text-sm text-muted-foreground ml-2">
-                                DANE: {ciudad.codigo_dane}
-                              </span>
-                            )}
-                            <span className="text-sm text-muted-foreground ml-2">
-                              {departamento?.nombre}, {departamento?.paises?.nombre}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">ID: {ciudad.id}</span>
-                        {editandoCiudad !== ciudad.id && (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setEditandoCiudad(ciudad.id)}
-                            >
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => eliminarCiudad(ciudad.id)}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
+                  ) : getErrorState() ? (
+                    <div className="text-center py-8 text-red-500">
+                      <p className="font-medium">Error al cargar los datos</p>
                     </div>
-                  );
-                })}
-                {ciudades.length === 0 && (
-                  <p className="text-muted-foreground text-center py-4">
-                    No hay ciudades registradas
-                  </p>
-                )}
+                  ) : (
+                    <Table className="min-w-[800px] w-full text-xs">
+                      <TableHeader className="bg-cyan-50">
+                        <TableRow className="text-left font-semibold text-gray-700">
+                          {getTableHeaders().map((header, index) => (
+                            <TableHead key={index} className="px-4 py-3 text-teal-600">
+                              {header}
+                            </TableHead>
+                          ))}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {getFilteredData().length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={getTableHeaders().length} className="h-24 text-center">
+                              <div className="text-gray-500">
+                                <p className="font-medium mb-2">
+                                  No hay {activeTab === 'paises' ? 'países' : activeTab === 'departamentos' ? 'departamentos' : 'ciudades'} disponibles.
+                                </p>
+                                <p className="text-sm">
+                                  {activeTab === 'paises' 
+                                    ? 'Todos los países están inactivos o no se encontraron coincidencias con los filtros.'
+                                    : activeTab === 'departamentos'
+                                    ? 'No hay departamentos activos o todos los países están inactivos.'
+                                    : 'No hay ciudades activas o todos los departamentos/países están inactivos.'
+                                  }
+                                </p>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          getFilteredData().map((item, index) => renderTableRow(item, index))
+                        )}
+                      </TableBody>
+                    </Table>
+                  )}
+                </div>
               </div>
-            </CardContent>
-          </Card>
+            </TabsContent>
+
+            <TabsContent value="formulario" className="mt-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-800">
+                  {editingItem ? 'Editar' : 'Nuevo'} {activeTab === 'paises' ? 'País' : activeTab === 'departamentos' ? 'Departamento' : 'Ciudad'}
+                </h2>
+              </div>
+
+              {/* Formulario */}
+              {renderForm()}
+            </TabsContent>
+
+            {/* Confirmación de eliminación forzada por referencias (FK 23503) */}
+            <AlertDialog open={forceDeleteOpen} onOpenChange={setForceDeleteOpen}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Eliminar con relaciones asociadas?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {forceDeleteType === 'pais'
+                      ? `Este país tiene departamentos, ciudades o prestadores asociados. Si continúas, se desasociarán los prestadores y se eliminarán en cascada los departamentos y ciudades relacionados.`
+                      : forceDeleteType === 'departamento'
+                      ? `Este departamento tiene ciudades o prestadores asociados. Si continúas, se desasociarán los prestadores y se eliminarán en cascada las ciudades relacionadas.`
+                      : `Esta ciudad está asociada a prestadores. Si continúas, se desasociarán los prestadores y se eliminará la ciudad.`}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleForceDelete}>Sí, eliminar</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
+          </Tabs>
         </TabsContent>
       </Tabs>
-      )}
     </div>
   );
 } 
