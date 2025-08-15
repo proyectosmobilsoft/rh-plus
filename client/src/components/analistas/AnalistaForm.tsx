@@ -43,9 +43,9 @@ const analistaSchema = z.object({
   segundo_apellido: z.string().optional(),
   activo: z.boolean().optional(),
   // Campos para prioridades - todos opcionales
-  prioridad_1: z.enum(['empresa', 'solicitudes', 'sucursal']).optional(),
-  prioridad_2: z.enum(['empresa', 'solicitudes', 'sucursal']).optional(),
-  prioridad_3: z.enum(['empresa', 'solicitudes', 'sucursal']).optional(),
+  prioridad_1: z.enum(['cliente', 'solicitudes', 'sucursal']).optional(),
+  prioridad_2: z.enum(['cliente', 'solicitudes', 'sucursal']).optional(),
+  prioridad_3: z.enum(['cliente', 'solicitudes', 'sucursal']).optional(),
   // Campos dinámicos para valores de prioridad
   empresa_1: z.string().optional(),
   empresa_2: z.string().optional(),
@@ -66,14 +66,14 @@ interface AnalistaFormProps {
 }
 
 type PrioridadOption = {
-  value: 'empresa' | 'solicitudes' | 'sucursal';
+  value: 'cliente' | 'solicitudes' | 'sucursal';
   label: string;
   icon: any;
   description: string;
 };
 
 const PRIORIDADES_OPTIONS: PrioridadOption[] = [
-  { value: 'empresa', label: 'Empresa', icon: Building2, description: 'Priorizar por empresa' },
+  { value: 'cliente', label: 'Cliente', icon: Building2, description: 'Priorizar por cliente' },
   { value: 'solicitudes', label: 'Cantidad de Solicitudes', icon: FileText, description: 'Priorizar por volumen de trabajo' },
   { value: 'sucursal', label: 'Sucursal', icon: MapPin, description: 'Priorizar por ubicación' }
 ];
@@ -93,24 +93,24 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
   console.log('AnalistaForm renderizado con analistaSeleccionado:', analistaSeleccionado);
   console.log('AnalistaForm con datos actualizados:', analistaActualizado);
   
-  // Cargar empresas desde la base de datos
+  // Cargar clientes desde la base de datos
   const { data: empresas = [], isLoading: empresasLoading, error: empresasError } = useQuery({
     queryKey: ['empresas'],
     queryFn: async () => {
       try {
-        console.log('Iniciando carga de empresas...');
+        console.log('Iniciando carga de clientes...');
         const data = await empresasService.getAll();
-        console.log('Empresas cargadas:', data);
+        console.log('Clientes cargados:', data);
         return data || [];
       } catch (error) {
-        console.error('Error cargando empresas:', error);
+        console.error('Error cargando clientes:', error);
         return [];
       }
     },
     staleTime: 5 * 60 * 1000, // 5 minutos
   });
 
-  console.log('Estado de empresas en el componente:', { empresas, empresasLoading, empresasError });
+  console.log('Estado de clientes en el componente:', { empresas, empresasLoading, empresasError });
   
   // Actualizar analistaActualizado cuando cambie analistaSeleccionado
   useEffect(() => {
@@ -195,7 +195,7 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
                                          // Procesar prioridad 1
                      if (prioridad.nivel_prioridad_1) {
                        (formValues as any).prioridad_1 = prioridad.nivel_prioridad_1;
-                       if (prioridad.nivel_prioridad_1 === 'empresa' && prioridad.empresa_id && prioridad.empresa_id > 0) {
+                       if (prioridad.nivel_prioridad_1 === 'cliente' && prioridad.empresa_id && prioridad.empresa_id > 0) {
                          (formValues as any).empresa_1 = prioridad.empresa_id.toString();
                        } else if (prioridad.nivel_prioridad_1 === 'solicitudes' && prioridad.cantidad_solicitudes !== undefined && prioridad.cantidad_solicitudes !== null && prioridad.cantidad_solicitudes > 0) {
                          (formValues as any).solicitudes_1 = prioridad.cantidad_solicitudes;
@@ -207,7 +207,7 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
                      // Procesar prioridad 2
                      if (prioridad.nivel_prioridad_2) {
                        (formValues as any).prioridad_2 = prioridad.nivel_prioridad_2;
-                       if (prioridad.nivel_prioridad_2 === 'empresa' && prioridad.empresa_id && prioridad.empresa_id > 0) {
+                       if (prioridad.nivel_prioridad_2 === 'cliente' && prioridad.empresa_id && prioridad.empresa_id > 0) {
                          (formValues as any).empresa_2 = prioridad.empresa_id.toString();
                        } else if (prioridad.nivel_prioridad_2 === 'solicitudes' && prioridad.cantidad_solicitudes !== undefined && prioridad.cantidad_solicitudes !== null && prioridad.cantidad_solicitudes > 0) {
                          (formValues as any).solicitudes_2 = prioridad.cantidad_solicitudes;
@@ -219,7 +219,7 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
                      // Procesar prioridad 3
                      if (prioridad.nivel_prioridad_3) {
                        (formValues as any).prioridad_3 = prioridad.nivel_prioridad_3;
-                       if (prioridad.nivel_prioridad_3 === 'empresa' && prioridad.empresa_id && prioridad.empresa_id > 0) {
+                       if (prioridad.nivel_prioridad_3 === 'cliente' && prioridad.empresa_id && prioridad.empresa_id > 0) {
                          (formValues as any).empresa_3 = prioridad.empresa_id.toString();
                        } else if (prioridad.nivel_prioridad_3 === 'solicitudes' && prioridad.cantidad_solicitudes !== undefined && prioridad.cantidad_solicitudes !== null && prioridad.cantidad_solicitudes > 0) {
                          (formValues as any).solicitudes_3 = prioridad.cantidad_solicitudes;
@@ -367,7 +367,7 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
         // Procesar prioridad 1
         if (data.prioridad_1) {
           prioridadData.nivel_prioridad_1 = data.prioridad_1; // Guardar el string directamente
-          if (data.prioridad_1 === 'empresa' && data.empresa_1) {
+          if (data.prioridad_1 === 'cliente' && data.empresa_1) {
             prioridadData.empresa_id = parseInt(data.empresa_1);
           } else if (data.prioridad_1 === 'sucursal' && data.sucursal_1) {
             prioridadData.sucursal_id = parseInt(data.sucursal_1);
@@ -379,7 +379,7 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
         // Procesar prioridad 2
         if (data.prioridad_2) {
           prioridadData.nivel_prioridad_2 = data.prioridad_2; // Guardar el string directamente
-          if (data.prioridad_2 === 'empresa' && data.empresa_2) {
+          if (data.prioridad_2 === 'cliente' && data.empresa_2) {
             prioridadData.empresa_id = parseInt(data.empresa_2);
           } else if (data.prioridad_2 === 'sucursal' && data.sucursal_2) {
             prioridadData.sucursal_id = parseInt(data.sucursal_2);
@@ -391,7 +391,7 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
         // Procesar prioridad 3
         if (data.prioridad_3) {
           prioridadData.nivel_prioridad_3 = data.prioridad_3; // Guardar el string directamente
-          if (data.prioridad_3 === 'empresa' && data.empresa_3) {
+          if (data.prioridad_3 === 'cliente' && data.empresa_3) {
             prioridadData.empresa_id = parseInt(data.empresa_3);
           } else if (data.prioridad_3 === 'sucursal' && data.sucursal_3) {
             prioridadData.sucursal_id = parseInt(data.sucursal_3);
@@ -438,7 +438,7 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
 
   // Filtrar opciones disponibles para cada prioridad de forma dinámica
   const getOpcionesDisponibles = (nivelPrioridad: 1 | 2 | 3) => {
-    const prioridadesSeleccionadas = [prioridad1, prioridad2, prioridad3].filter(Boolean) as Array<'empresa' | 'solicitudes' | 'sucursal'>;
+    const prioridadesSeleccionadas = [prioridad1, prioridad2, prioridad3].filter(Boolean) as Array<'cliente' | 'solicitudes' | 'sucursal'>;
     
     // Obtener la prioridad actual del nivel que se está configurando
     const prioridadActual = nivelPrioridad === 1 ? prioridad1 : nivelPrioridad === 2 ? prioridad2 : prioridad3;
@@ -456,7 +456,7 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
 
   // Función para obtener opciones disponibles para el primer nivel (todas las opciones)
   const getOpcionesDisponiblesNivel1 = () => {
-    const prioridadesSeleccionadas = [prioridad2, prioridad3].filter(Boolean) as Array<'empresa' | 'solicitudes' | 'sucursal'>;
+    const prioridadesSeleccionadas = [prioridad2, prioridad3].filter(Boolean) as Array<'cliente' | 'solicitudes' | 'sucursal'>;
     
     return PRIORIDADES_OPTIONS.filter(option => {
       // Si esta opción ya está seleccionada en este nivel, mantenerla disponible
@@ -471,7 +471,7 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
 
   // Función para actualizar el estado del analista con los datos del formulario
   const actualizarEstadoAnalista = (data: AnalistaFormData) => {
-    // Obtener datos de empresa si hay una seleccionada
+    // Obtener datos de cliente si hay uno seleccionado
     let empresaSeleccionada = null;
     const empresaId = data.empresa_1 || data.empresa_2 || data.empresa_3;
     
@@ -677,31 +677,31 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
                         Configuración de {prioridad1 === 'solicitudes' ? 'Solicitudes' : getPrioridadLabel(prioridad1)}
                       </h4>
                       
-                      {prioridad1 === 'empresa' && (
+                      {prioridad1 === 'cliente' && (
                         <FormField
                           control={form.control}
                           name="empresa_1"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="font-normal text-left mb-2">Seleccionar Empresa *</FormLabel>
+                              <FormLabel className="font-normal text-left mb-2">Seleccionar Cliente *</FormLabel>
                               <Select onValueChange={field.onChange} value={field.value}>
                                 <FormControl>
                                   <SelectTrigger>
-                                    <SelectValue placeholder="Seleccione una empresa" />
+                                    <SelectValue placeholder="Seleccione un cliente" />
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
                                   {empresasLoading ? (
                                     <SelectItem value="" disabled>
-                                      Cargando empresas...
+                                      Cargando clientes...
                                     </SelectItem>
                                   ) : empresasError ? (
                                     <SelectItem value="" disabled>
-                                      Error cargando empresas
+                                      Error cargando clientes
                                     </SelectItem>
                                   ) : empresas.length === 0 ? (
                                     <SelectItem value="" disabled>
-                                      No hay empresas disponibles
+                                      No hay clientes disponibles
                                     </SelectItem>
                                   ) : (
                                     empresas.map((empresa) => (
@@ -838,31 +838,31 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
                         Configuración de {prioridad2 === 'solicitudes' ? 'Solicitudes' : getPrioridadLabel(prioridad2)}
                       </h4>
                       
-                      {prioridad2 === 'empresa' && (
+                      {prioridad2 === 'cliente' && (
                         <FormField
                           control={form.control}
                           name="empresa_2"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="font-normal text-left mb-2">Seleccionar Empresa *</FormLabel>
+                              <FormLabel className="font-normal text-left mb-2">Seleccionar Cliente *</FormLabel>
                               <Select onValueChange={field.onChange} value={field.value}>
                                 <FormControl>
                                   <SelectTrigger>
-                                    <SelectValue placeholder="Seleccione una empresa" />
+                                    <SelectValue placeholder="Seleccione un cliente" />
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
                                   {empresasLoading ? (
                                     <SelectItem value="" disabled>
-                                      Cargando empresas...
+                                      Cargando clientes...
                                     </SelectItem>
                                   ) : empresasError ? (
                                     <SelectItem value="" disabled>
-                                      Error cargando empresas
+                                      Error cargando clientes
                                     </SelectItem>
                                   ) : empresas.length === 0 ? (
                                     <SelectItem value="" disabled>
-                                      No hay empresas disponibles
+                                      No hay clientes disponibles
                                     </SelectItem>
                                   ) : (
                                     empresas.map((empresa) => (
@@ -999,31 +999,31 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
                         Configuración de {prioridad3 === 'solicitudes' ? 'Solicitudes' : getPrioridadLabel(prioridad3)}
                       </h4>
                       
-                      {prioridad3 === 'empresa' && (
+                      {prioridad3 === 'cliente' && (
                         <FormField
                           control={form.control}
                           name="empresa_3"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="font-normal text-left mb-2">Seleccionar Empresa *</FormLabel>
+                              <FormLabel className="font-normal text-left mb-2">Seleccionar Cliente *</FormLabel>
                               <Select onValueChange={field.onChange} value={field.value}>
                                 <FormControl>
                                   <SelectTrigger>
-                                    <SelectValue placeholder="Seleccione una empresa" />
+                                    <SelectValue placeholder="Seleccione un cliente" />
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
                                   {empresasLoading ? (
                                     <SelectItem value="" disabled>
-                                      Cargando empresas...
+                                      Cargando clientes...
                                     </SelectItem>
                                   ) : empresasError ? (
                                     <SelectItem value="" disabled>
-                                      Error cargando empresas
+                                      Error cargando clientes
                                     </SelectItem>
                                   ) : empresas.length === 0 ? (
                                     <SelectItem value="" disabled>
-                                      No hay empresas disponibles
+                                      No hay clientes disponibles
                                     </SelectItem>
                                   ) : (
                                     empresas.map((empresa) => (

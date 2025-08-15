@@ -297,7 +297,7 @@ export default function AnalistasPage() {
           'Nivel 2',
           'Nivel 3',
           'Solicitudes',
-          'Empresa',
+          'Cliente',
           'NIT',
           'Sucursal'
         ],
@@ -327,7 +327,7 @@ export default function AnalistasPage() {
         { wch: 10 }, // Nivel 2
         { wch: 10 }, // Nivel 3
         { wch: 12 }, // Solicitudes
-        { wch: 30 }, // Empresa
+        { wch: 30 }, // Cliente
         { wch: 15 }, // NIT
         { wch: 25 }  // Sucursal
       ];
@@ -484,7 +484,7 @@ export default function AnalistasPage() {
   // Función para determinar el color del badge según el valor de la prioridad
   const getPrioridadBadgeClass = (valor: string) => {
     switch (valor) {
-      case 'empresa':
+      case 'cliente':
         return 'bg-blue-50 text-blue-700 border-blue-200';
       case 'sucursal':
         return 'bg-purple-50 text-purple-700 border-purple-200';
@@ -561,10 +561,10 @@ export default function AnalistasPage() {
 
                 <Select value={filterEmpresa} onValueChange={setFilterEmpresa}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Filtrar por empresa" />
+                    <SelectValue placeholder="Filtrar por cliente" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="todas">Todas las empresas</SelectItem>
+                    <SelectItem value="todas">Todos los clientes</SelectItem>
                     {empresas.map(empresa => (
                       <SelectItem key={empresa.id} value={empresa.id.toString()}>
                         {empresa.razon_social || empresa.nombre}
@@ -685,7 +685,7 @@ export default function AnalistasPage() {
                           <div className="space-y-1">
                             {analista.nivel_prioridad_1 ? (
                               <Badge variant="outline" className={getPrioridadBadgeClass(analista.nivel_prioridad_1)}>
-                                {analista.nivel_prioridad_1 === 'empresa' ? 'Empresa' : 
+                                {analista.nivel_prioridad_1 === 'cliente' ? 'Cliente' : 
                                  analista.nivel_prioridad_1 === 'sucursal' ? 'Sucursal' : 
                                  analista.nivel_prioridad_1 === 'solicitudes' ? 'Solicitudes' : 
                                  analista.nivel_prioridad_1}
@@ -693,7 +693,7 @@ export default function AnalistasPage() {
                             ) : (
                               <span className="text-gray-400">-</span>
                             )}
-                            {analista.nivel_prioridad_1 === 'empresa' && analista.empresa_nombre && (
+                            {analista.nivel_prioridad_1 === 'cliente' && analista.empresa_nombre && (
                               <div className="text-xs text-gray-500">{analista.empresa_nombre}</div>
                             )}
                             {analista.nivel_prioridad_1 === 'sucursal' && analista.sucursal_nombre && (
@@ -709,7 +709,7 @@ export default function AnalistasPage() {
                           <div className="space-y-1">
                             {analista.nivel_prioridad_2 ? (
                               <Badge variant="outline" className={getPrioridadBadgeClass(analista.nivel_prioridad_2)}>
-                                {analista.nivel_prioridad_2 === 'empresa' ? 'Empresa' : 
+                                {analista.nivel_prioridad_2 === 'cliente' ? 'Cliente' : 
                                  analista.nivel_prioridad_2 === 'sucursal' ? 'Sucursal' : 
                                  analista.nivel_prioridad_2 === 'solicitudes' ? 'Solicitudes' : 
                                  analista.nivel_prioridad_2}
@@ -717,7 +717,7 @@ export default function AnalistasPage() {
                             ) : (
                               <span className="text-gray-400">-</span>
                             )}
-                            {analista.nivel_prioridad_2 === 'empresa' && analista.empresa_nombre && (
+                            {analista.nivel_prioridad_2 === 'cliente' && analista.empresa_nombre && (
                               <div className="text-xs text-gray-500">{analista.empresa_nombre}</div>
                             )}
                             {analista.nivel_prioridad_2 === 'sucursal' && analista.sucursal_nombre && (
@@ -733,7 +733,7 @@ export default function AnalistasPage() {
                           <div className="space-y-1">
                             {analista.nivel_prioridad_3 ? (
                               <Badge variant="outline" className={getPrioridadBadgeClass(analista.nivel_prioridad_3)}>
-                                {analista.nivel_prioridad_3 === 'empresa' ? 'Empresa' : 
+                                {analista.nivel_prioridad_3 === 'cliente' ? 'Cliente' : 
                                  analista.nivel_prioridad_3 === 'sucursal' ? 'Sucursal' : 
                                  analista.nivel_prioridad_3 === 'solicitudes' ? 'Solicitudes' : 
                                  analista.nivel_prioridad_3}
@@ -741,7 +741,7 @@ export default function AnalistasPage() {
                             ) : (
                               <span className="text-gray-400">-</span>
                             )}
-                            {analista.nivel_prioridad_3 === 'empresa' && analista.empresa_nombre && (
+                            {analista.nivel_prioridad_3 === 'cliente' && analista.empresa_nombre && (
                               <div className="text-xs text-gray-500">{analista.empresa_nombre}</div>
                             )}
                             {analista.nivel_prioridad_3 === 'sucursal' && analista.sucursal_nombre && (
