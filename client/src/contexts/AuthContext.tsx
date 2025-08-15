@@ -80,11 +80,39 @@ export function AuthProvider({ children }: AuthProviderProps) {
           console.log('Token parts:', tokenParts.length);
           
           if (tokenParts.length === 3 && tokenParts[0] === 'simulated') {
-            // Es un token simulado, no verificar con el servidor
-            console.log('✅ Token simulado detectado, saltando verificación del servidor');
-            const user = JSON.parse(userData);
-            setUser(user);
-            console.log('Usuario restaurado desde localStorage:', user);
+            console.log('🔎 Token simulado detectado. Ejecutando validaciones locales...');
+            const [, expStr, userIdStr] = tokenParts;
+            const expMs = Number(expStr);
+            const tokenUserId = Number(userIdStr);
+
+            // Validaciones básicas del token simulado
+            if (!Number.isFinite(expMs)) {
+              console.warn('❌ Token inválido: exp no es numérico. Limpiando sesión.');
+              localStorage.removeItem('authToken');
+              localStorage.removeItem('userData');
+              localStorage.removeItem('empresaData');
+              return;
+            }
+
+            if (expMs <= Date.now()) {
+              console.warn('❌ Token expirado. Limpiando sesión.');
+              localStorage.removeItem('authToken');
+              localStorage.removeItem('userData');
+              localStorage.removeItem('empresaData');
+              return;
+            }
+
+            const parsedUser = JSON.parse(userData);
+            if (!Number.isFinite(tokenUserId) || parsedUser?.id !== tokenUserId) {
+              console.warn('❌ Token inválido: userId no coincide. Limpiando sesión.');
+              localStorage.removeItem('authToken');
+              localStorage.removeItem('userData');
+              localStorage.removeItem('empresaData');
+              return;
+            }
+
+            console.log('✅ Token simulado válido. Restaurando sesión local.');
+            setUser(parsedUser);
             return;
           }
           
@@ -159,12 +187,93 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.log('Contraseña verificada correctamente');
 
       const userData = passwordResult.userData;
-      
-      // Generar token simulado
-      const token = `simulated.${Date.now()}.${userData.id}`;
+
+      // Enriquecer userData con acciones por rol desde gen_roles_modulos
+      try {
+        const accionesPorRol: Record<string, string[]> = {};
+        // Obtener acciones por cada rol asignado
+        const roleIds = (userData.roles || []).map((r: any) => r.id).filter((id: any) => id != null);
+        if (roleIds.length > 0) {
+          const { supabase } = await import('@/services/supabaseClient');
+          const { data, error } = await supabase
+            .from('gen_roles_modulos')
+            .select('rol_id, selected_actions_codes')
+            .in('rol_id', roleIds);
+          if (!error && Array.isArray(data)) {
+            for (const row of data) {
+              const key = String(row.rol_id);
+              const codes = Array.isArray(row.selected_actions_codes) ? row.selected_actions_codes : [];
+              accionesPorRol[key] = codes as string[];
+            }
+            (userData as any).accionesPorRol = accionesPorRol;
+            // También aplanado total por conveniencia
+            const set = new Set<string>();
+            Object.values(accionesPorRol).forEach((arr) => arr.forEach((c) => set.add(c)));
+            (userData as any).acciones = Array.from(set);
+          } else {
+            console.warn('No se pudo obtener gen_roles_modulos:', error);
+            // Asegurar que existan las claves aunque vengan vacías
+            (userData as any).accionesPorRol = accionesPorRol;
+            (userData as any).acciones = [];
+          }
+        } else {
+          // Sin roles, asegurar claves vacías
+          (userData as any).accionesPorRol = accionesPorRol;
+          (userData as any).acciones = [];
+        }
+      } catch (e) {
+        console.warn('No se pudieron cargar las acciones por rol:', e);
+        // Asegurar claves incluso en error
+        if (!(userData as any).accionesPorRol) (userData as any).accionesPorRol = {};
+        if (!(userData as any).acciones) (userData as any).acciones = [];
+      }
+
+      // Generar JWT real vía Edge Function (o fallback a token simulado si falla)
+      let token: string | null = null;
+      try {
+        const res = await fetch('/functions/v1/issue-jwt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userData })
+        });
+        if (res.ok) {
+          const { token: jwt } = await res.json();
+          token = jwt;
+          console.log('JWT emitido correctamente');
+        } else {
+          console.warn('Fallo al emitir JWT, status:', res.status);
+        }
+      } catch (e) {
+        console.warn('Error llamando issue-jwt:', e);
+      }
+
+      if (!token) {
+        const expMs = Date.now() + 1000 * 60 * 60 * 8;
+        token = `simulated.${expMs}.${userData.id}`;
+        console.log('Usando token simulado (fallback)');
+      }
+
       localStorage.setItem('authToken', token);
-      console.log('Token simulado guardado en localStorage');
-        
+      
+      // Si recibimos un JWT real, tomar accionesPorRol/acciones desde su payload
+      try {
+        const parts = token.split('.');
+        if (parts.length === 3 && parts[0] !== 'simulated') {
+          const base64url = parts[1];
+          const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+          const json = decodeURIComponent(Array.prototype.map.call(atob(base64), (c: string) =>
+            '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+          ).join(''));
+          const payload = JSON.parse(json);
+          if (payload && (payload.accionesPorRol || payload.acciones)) {
+            (userData as any).accionesPorRol = payload.accionesPorRol || (userData as any).accionesPorRol || {};
+            (userData as any).acciones = payload.acciones || (userData as any).acciones || [];
+          }
+        }
+      } catch (e) {
+        console.warn('No se pudieron leer acciones desde el JWT:', e);
+      }
+
       // Obtener permisos del usuario
       const userPermissions = await getUserPermissionsFromDB(userData.id, userData.role);
       
