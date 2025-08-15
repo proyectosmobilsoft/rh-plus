@@ -2,13 +2,15 @@ import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { X, Save } from 'lucide-react';
+import { X, Save, ChevronsUpDown, Check } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { cn } from '@/lib/utils';
 import { ubicacionesService } from '@/services/ubicacionesService';
 
 // Schema sin el campo estado
@@ -35,6 +37,8 @@ export function DepartamentoForm({ initialData, paises, onSaved }: DepartamentoF
       pais_id: initialData?.pais_id || undefined,
     },
   });
+
+  const [openPais, setOpenPais] = React.useState(false);
 
   const onSubmit = async (data: DepartamentoFormData) => {
     try {
@@ -84,26 +88,52 @@ export function DepartamentoForm({ initialData, paises, onSaved }: DepartamentoF
           <FormField
             control={form.control}
             name="pais_id"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>País *</FormLabel>
-                <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar país" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {paises.map((pais) => (
-                      <SelectItem key={pais.id} value={pais.id.toString()}>
-                        {pais.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
+            render={({ field }) => {
+              const selected = paises.find(p => p.id === field.value);
+              return (
+                <FormItem>
+                  <FormLabel>País *</FormLabel>
+                  <Popover open={openPais} onOpenChange={setOpenPais}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={openPais}
+                        className="w-full justify-between"
+                      >
+                        {selected ? selected.nombre : 'Seleccionar país'}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                      <Command>
+                        <CommandInput placeholder="Buscar país..." className="h-9 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none" />
+                        <CommandList>
+                          <CommandEmpty>No se encontraron países.</CommandEmpty>
+                          <CommandGroup>
+                            {paises.map((p) => (
+                              <CommandItem
+                                key={p.id}
+                                onSelect={() => {
+                                  form.setValue('pais_id', p.id, { shouldValidate: true, shouldDirty: true });
+                                  setOpenPais(false);
+                                }}
+                                className="cursor-pointer"
+                              >
+                                <Check className={cn('mr-2 h-4 w-4', p.id === field.value ? 'opacity-100' : 'opacity-0')} />
+                                {p.nombre}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
           />
         </div>
 

@@ -408,8 +408,8 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
               >
                                    <TableCell>
                                                                            <div className="flex justify-start items-center space-x-1">
-                    {/* Botón Editar - solo visible cuando NO esté en Stand By o Deserto */}
-                    {!isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && (
+                    {/* Botón Editar - solo visible cuando esté en estado ASIGNADO */}
+                    {solicitud.estado === 'ASIGNADO' && (
                                           <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>

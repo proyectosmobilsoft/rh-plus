@@ -32,6 +32,34 @@ export interface Ciudad {
   departamentos?: Departamento;
 }
 
+export interface Regional {
+  id: number;
+  nombre: string;
+  codigo?: string;
+  activo: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface RegionalDepartamento {
+  regional_id: number;
+  departamento_id: number;
+}
+
+export interface Sucursal {
+  id: number;
+  codigo?: string;
+  nombre: string;
+  direccion?: string;
+  telefono?: string;
+  email?: string;
+  activo: boolean;
+  ciudad_id?: number | null;
+  created_at?: string;
+  updated_at?: string;
+  ciudades?: { id: number; nombre: string; departamento_id: number } | null;
+}
+
 export const ubicacionesService = {
   // Servicios para países
   getPaises: async (): Promise<Pais[]> => {
@@ -269,6 +297,174 @@ export const ubicacionesService = {
       .order('nombre');
     if (error) throw error;
     return data || [];
+  },
+
+  // Sucursales
+  getSucursales: async (): Promise<Sucursal[]> => {
+    const { data, error } = await supabase
+      .from('gen_sucursales')
+      .select(`
+        *,
+        ciudades (
+          id,
+          nombre,
+          departamento_id
+        )
+      `)
+      .order('nombre');
+    if (error) throw error;
+    return (data || []) as unknown as Sucursal[];
+  },
+
+  createSucursal: async (payload: Partial<Sucursal>): Promise<Sucursal | null> => {
+    const { data, error } = await supabase
+      .from('gen_sucursales')
+      .insert([{
+        codigo: payload.codigo,
+        nombre: payload.nombre,
+        direccion: payload.direccion,
+        telefono: payload.telefono,
+        email: payload.email,
+        ciudad_id: payload.ciudad_id ?? null,
+      }])
+      .select(`
+        *,
+        ciudades (
+          id,
+          nombre,
+          departamento_id
+        )
+      `)
+      .single();
+    if (error) throw error;
+    return data as unknown as Sucursal;
+  },
+
+  updateSucursal: async (id: number, payload: Partial<Sucursal>): Promise<Sucursal | null> => {
+    const { data, error } = await supabase
+      .from('gen_sucursales')
+      .update({
+        codigo: payload.codigo,
+        nombre: payload.nombre,
+        direccion: payload.direccion,
+        telefono: payload.telefono,
+        email: payload.email,
+        ciudad_id: payload.ciudad_id ?? null,
+      })
+      .eq('id', id)
+      .select(`
+        *,
+        ciudades (
+          id,
+          nombre,
+          departamento_id
+        )
+      `)
+      .single();
+    if (error) throw error;
+    return data as unknown as Sucursal;
+  },
+
+  deleteSucursal: async (id: number): Promise<void> => {
+    const { error } = await supabase
+      .from('gen_sucursales')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+  },
+
+  activateSucursal: async (id: number): Promise<void> => {
+    const { error } = await supabase
+      .from('gen_sucursales')
+      .update({ activo: true })
+      .eq('id', id);
+    if (error) throw error;
+  },
+
+  deactivateSucursal: async (id: number): Promise<void> => {
+    const { error } = await supabase
+      .from('gen_sucursales')
+      .update({ activo: false })
+      .eq('id', id);
+    if (error) throw error;
+  },
+
+  // Servicios para regionales
+  getRegionales: async (): Promise<Regional[]> => {
+    const { data, error } = await supabase
+      .from('regionales')
+      .select('*')
+      .order('nombre');
+    if (error) throw error;
+    return (data || []) as unknown as Regional[];
+  },
+
+  getRegionalesDepartamentos: async (): Promise<RegionalDepartamento[]> => {
+    const { data, error } = await supabase
+      .from('regionales_departamentos')
+      .select('regional_id, departamento_id');
+    if (error) throw error;
+    return (data || []) as RegionalDepartamento[];
+  },
+
+  createRegional: async (payload: Partial<Regional>): Promise<Regional | null> => {
+    const { data, error } = await supabase
+      .from('regionales')
+      .insert([{ nombre: payload.nombre, codigo: payload.codigo }])
+      .select('*')
+      .single();
+    if (error) throw error;
+    return data as unknown as Regional;
+  },
+
+  updateRegional: async (id: number, payload: Partial<Regional>): Promise<Regional | null> => {
+    const { data, error } = await supabase
+      .from('regionales')
+      .update({ nombre: payload.nombre, codigo: payload.codigo })
+      .eq('id', id)
+      .select('*')
+      .single();
+    if (error) throw error;
+    return data as unknown as Regional;
+  },
+
+  deleteRegional: async (id: number): Promise<void> => {
+    const { error } = await supabase
+      .from('regionales')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+  },
+
+  activateRegional: async (id: number): Promise<void> => {
+    const { error } = await supabase
+      .from('regionales')
+      .update({ activo: true })
+      .eq('id', id);
+    if (error) throw error;
+  },
+
+  deactivateRegional: async (id: number): Promise<void> => {
+    const { error } = await supabase
+      .from('regionales')
+      .update({ activo: false })
+      .eq('id', id);
+    if (error) throw error;
+  },
+
+  setDepartamentosForRegional: async (regionalId: number, departamentoIds: number[]): Promise<void> => {
+    // borrar existentes
+    const { error: delError } = await supabase
+      .from('regionales_departamentos')
+      .delete()
+      .eq('regional_id', regionalId);
+    if (delError) throw delError;
+    if (departamentoIds.length === 0) return;
+    const rows = departamentoIds.map((departamento_id) => ({ regional_id: regionalId, departamento_id }));
+    const { error: insError } = await supabase
+      .from('regionales_departamentos')
+      .insert(rows);
+    if (insError) throw insError;
   },
 
   createCiudad: async (ciudad: Partial<Ciudad>): Promise<Ciudad | null> => {

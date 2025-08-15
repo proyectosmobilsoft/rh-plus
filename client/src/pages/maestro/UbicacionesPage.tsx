@@ -16,8 +16,11 @@ import {
   Lock,
   Users,
   Settings,
-  Info
+  Info,
+  ChevronsUpDown,
+  Check
 } from 'lucide-react';
+import { MultiSelect, Option as MultiSelectOption } from '@/components/ui/multi-select';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -52,12 +55,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ubicacionesService, Pais, Departamento, Ciudad } from '@/services/ubicacionesService';
 import { setupUbicaciones } from '@/services/setupUbicaciones';
 import { useLoading } from '@/contexts/LoadingContext';
 import { PaisForm } from '@/components/ubicaciones/PaisForm';
 import { DepartamentoForm } from '@/components/ubicaciones/DepartamentoForm';
 import { CiudadForm } from '@/components/ubicaciones/CiudadForm';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 
 export default function UbicacionesPage() {
   const navigate = useNavigate();
@@ -74,7 +81,7 @@ export default function UbicacionesPage() {
   const [editingItem, setEditingItem] = useState<any>(null);
   // Estado para eliminación forzada por referencias (FK 23503)
   const [forceDeleteOpen, setForceDeleteOpen] = useState(false);
-  const [forceDeleteType, setForceDeleteType] = useState<'pais' | 'departamento' | 'ciudad' | null>(null);
+  const [forceDeleteType, setForceDeleteType] = useState<'pais' | 'departamento' | 'ciudad' | 'regional' | 'sucursal' | null>(null);
   const [forceDeleteItem, setForceDeleteItem] = useState<any>(null);
   const queryClient = useQueryClient();
   const { startLoading, stopLoading } = useLoading();
@@ -82,6 +89,30 @@ export default function UbicacionesPage() {
   // Estados para filtros específicos
   const [filterPaisDepartamento, setFilterPaisDepartamento] = useState('todos');
   const [filterDepartamentoCiudad, setFilterDepartamentoCiudad] = useState('todos');
+  // Búsquedas independientes por tab
+  const [searchPaises, setSearchPaises] = useState('');
+  const [searchDepartamentos, setSearchDepartamentos] = useState('');
+  const [searchRegionales, setSearchRegionales] = useState('');
+  const [searchCiudades, setSearchCiudades] = useState('');
+  const [searchSucursales, setSearchSucursales] = useState('');
+  // Filtros de estado por tab (activos por defecto)
+  const [statusPaises, setStatusPaises] = useState<string>('active');
+  const [statusDepartamentos, setStatusDepartamentos] = useState<string>('active');
+  const [statusRegionales, setStatusRegionales] = useState<string>('active');
+  const [statusCiudades, setStatusCiudades] = useState<string>('active');
+  const [statusSucursales, setStatusSucursales] = useState<string>('active');
+  // Open states para popovers de filtros
+  const [openStatusPaises, setOpenStatusPaises] = useState(false);
+  const [openPaisDepartamentos, setOpenPaisDepartamentos] = useState(false);
+  const [openStatusDepartamentos, setOpenStatusDepartamentos] = useState(false);
+  const [openPaisCiudades, setOpenPaisCiudades] = useState(false);
+  const [openDeptCiudades, setOpenDeptCiudades] = useState(false);
+  const [openStatusCiudades, setOpenStatusCiudades] = useState(false);
+  const [openStatusRegionales, setOpenStatusRegionales] = useState(false);
+  const [openStatusSucursales, setOpenStatusSucursales] = useState(false);
+  // Estado para formulario de regionales
+  const [selectedDeptosRegional, setSelectedDeptosRegional] = useState<number[]>([]);
+  const [regionalError, setRegionalError] = useState<string | null>(null);
 
   // Cargar datos usando React Query
   const { data: paises = [], isLoading: paisesLoading, error: paisesError } = useQuery({
@@ -128,6 +159,35 @@ export default function UbicacionesPage() {
     staleTime: 5 * 60 * 1000, // 5 minutos
   });
 
+  // Sucursales
+  const { data: sucursales = [], isLoading: sucursalesLoading, error: sucursalesError } = useQuery({
+    queryKey: ['sucursales'],
+    queryFn: async () => {
+      const data = await ubicacionesService.getSucursales();
+      return data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Cargar regionales y sus asociaciones
+  const { data: regionales = [], isLoading: regionalesLoading, error: regionalesError } = useQuery({
+    queryKey: ['regionales'],
+    queryFn: async () => {
+      const data = await ubicacionesService.getRegionales();
+      return data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: regionalesDepartamentos = [], isLoading: regDepLoading } = useQuery({
+    queryKey: ['regionales_departamentos'],
+    queryFn: async () => {
+      const data = await ubicacionesService.getRegionalesDepartamentos();
+      return data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
   // Configuración inicial de tablas (solo una vez)
   useEffect(() => {
     const initializeTables = async () => {
@@ -146,14 +206,18 @@ export default function UbicacionesPage() {
   }, []); // Solo se ejecuta una vez al montar el componente
 
   // Filtrar datos
-  const filteredPaises = paises.filter(pais =>
-    pais.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (pais.codigo_iso && pais.codigo_iso?.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredPaises = paises.filter(pais => {
+    const matchesSearch = pais.nombre.toLowerCase().includes(searchPaises.toLowerCase()) ||
+      (pais.codigo_iso && pais.codigo_iso?.toLowerCase().includes(searchPaises.toLowerCase()));
+    // Tratar undefined/null como activos por defecto para evitar filtrar todo por error
+    const isActive = pais.estado !== false; // true o undefined/null => activo
+    const matchesStatus = statusPaises === 'all' ? true : statusPaises === 'active' ? isActive : pais.estado === false;
+    return matchesSearch && matchesStatus;
+  });
 
   const filteredDepartamentos = departamentos.filter(dept => {
-    const matchesSearch = dept.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (dept.codigo_dane && dept.codigo_dane?.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesSearch = dept.nombre.toLowerCase().includes(searchDepartamentos.toLowerCase()) ||
+      (dept.codigo_dane && dept.codigo_dane?.toLowerCase().includes(searchDepartamentos.toLowerCase()));
     
     const matchesPais = filterPaisDepartamento === 'todos' ? true : 
       dept.pais_id === parseInt(filterPaisDepartamento);
@@ -166,8 +230,8 @@ export default function UbicacionesPage() {
   });
 
   const filteredCiudades = ciudades.filter(ciudad => {
-    const matchesSearch = ciudad.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (ciudad.codigo_dane && ciudad.codigo_dane?.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesSearch = ciudad.nombre.toLowerCase().includes(searchCiudades.toLowerCase()) ||
+      (ciudad.codigo_dane && ciudad.codigo_dane?.toLowerCase().includes(searchCiudades.toLowerCase()));
     
     const departamento = departamentos.find(d => d.id === ciudad.departamento_id);
     const matchesDepartamento = filterDepartamentoCiudad === 'todos' ? true : 
@@ -184,15 +248,43 @@ export default function UbicacionesPage() {
     return matchesSearch && matchesDepartamento && matchesPais && departamentoActivo && paisActivo;
   });
 
+  // Filtrar regionales
+  const filteredRegionales = (regionales || []).filter(reg => {
+    const matchesSearch = (reg.nombre || '').toLowerCase().includes(searchRegionales.toLowerCase());
+    const matchesStatus = statusRegionales === 'all' ? true : statusRegionales === 'active' ? reg.activo === true : reg.activo === false;
+    return matchesSearch && matchesStatus;
+  });
+
+  // Filtrar sucursales
+  const filteredSucursales = (sucursales || []).filter(s => {
+    const q = searchSucursales.toLowerCase();
+    return (
+      ((s.nombre || '').toLowerCase().includes(q) ||
+      (s.codigo || '').toLowerCase().includes(q) ||
+      (s.direccion || '').toLowerCase().includes(q) ||
+      (s.telefono || '').toLowerCase().includes(q) ||
+      (s.email || '').toLowerCase().includes(q) ||
+      (s.ciudades?.nombre || '').toLowerCase().includes(q)) &&
+      (statusSucursales === 'all' ? true : statusSucursales === 'active' ? s.activo === true : s.activo === false)
+    );
+  });
+
   // Obtener países únicos para filtros
   const uniquePaises = [...new Set(paises.map(p => p.id))];
   const uniqueDepartamentos = [...new Set(departamentos.map(d => d.id))];
 
-  const handleEdit = async (item: any, type: 'pais' | 'departamento' | 'ciudad') => {
+  const handleEdit = async (item: any, type: 'pais' | 'departamento' | 'ciudad' | 'regional' | 'sucursal') => {
     try {
       startLoading();
       setEditingItem(item);
       setActiveSubTab("formulario");
+      if (type === 'regional') {
+        // Inicializar multi-select con asociaciones
+        const current = regionalesDepartamentos
+          .filter(rd => rd.regional_id === item.id)
+          .map(rd => rd.departamento_id);
+        setSelectedDeptosRegional(current);
+      }
     } catch (error) {
       console.error('Error al editar:', error);
               toast.error("Error al cargar los datos para editar");
@@ -201,7 +293,7 @@ export default function UbicacionesPage() {
     }
   };
 
-    const handleDelete = async (item: any, type: 'pais' | 'departamento' | 'ciudad') => {
+    const handleDelete = async (item: any, type: 'pais' | 'departamento' | 'ciudad' | 'regional' | 'sucursal') => {
     if (!item.id) {
       console.error('❌ handleDelete: No se encontró ID del item:', item);
       return;
@@ -224,19 +316,30 @@ export default function UbicacionesPage() {
           await ubicacionesService.deleteCiudad(item.id);
           success = true;
           break;
+        case 'regional':
+          await ubicacionesService.deleteRegional(item.id);
+          success = true;
+          break;
+        case 'sucursal':
+          await ubicacionesService.deleteSucursal(item.id);
+          success = true;
+          break;
         default:
           console.error('❌ Tipo no reconocido:', type);
           return;
       }
 
       if (success) {
-        const message = `${type === 'pais' ? 'País' : type === 'departamento' ? 'Departamento' : 'Ciudad'} eliminado correctamente`;
+        const message = `${type === 'pais' ? 'País' : type === 'departamento' ? 'Departamento' : type === 'ciudad' ? 'Ciudad' : type === 'regional' ? 'Regional' : 'Sucursal'} eliminado correctamente`;
         toast.success(message);
         
         // Invalidar queries para refrescar datos
         queryClient.invalidateQueries({ queryKey: ['paises'] });
         queryClient.invalidateQueries({ queryKey: ['departamentos'] });
         queryClient.invalidateQueries({ queryKey: ['ciudades'] });
+        queryClient.invalidateQueries({ queryKey: ['regionales'] });
+        queryClient.invalidateQueries({ queryKey: ['regionales_departamentos'] });
+        queryClient.invalidateQueries({ queryKey: ['sucursales'] });
       }
     } catch (error: any) {
       console.error(`❌ Error al eliminar ${type}:`, error);
@@ -246,7 +349,7 @@ export default function UbicacionesPage() {
         setForceDeleteItem(item);
         setForceDeleteOpen(true);
       } else {
-        toast.error(`Error al eliminar ${type === 'pais' ? 'el país' : type === 'departamento' ? 'el departamento' : 'la ciudad'}`);
+        toast.error(`Error al eliminar ${type === 'pais' ? 'el país' : type === 'departamento' ? 'el departamento' : type === 'ciudad' ? 'la ciudad' : type === 'regional' ? 'la regional' : 'la sucursal'}`);
       }
     } finally {
       stopLoading();
@@ -292,7 +395,7 @@ export default function UbicacionesPage() {
     }
   };
 
-  const handleActivate = async (item: any, type: 'pais' | 'departamento' | 'ciudad') => {
+  const handleActivate = async (item: any, type: 'pais' | 'departamento' | 'ciudad' | 'regional' | 'sucursal') => {
     if (!item.id) {
       console.error('❌ handleActivate: No se encontró ID del item:', item);
       return;
@@ -323,13 +426,25 @@ export default function UbicacionesPage() {
           success = true;
           console.log('✅ Ciudad activada exitosamente');
           break;
+        case 'regional':
+          console.log('🔄 Activando regional con ID:', item.id);
+          await ubicacionesService.activateRegional(item.id);
+          success = true;
+          console.log('✅ Regional activado exitosamente');
+          break;
+        case 'sucursal':
+          console.log('🔄 Activando sucursal con ID:', item.id);
+          await ubicacionesService.activateSucursal(item.id);
+          success = true;
+          console.log('✅ Sucursal activada exitosamente');
+          break;
         default:
           console.error('❌ Tipo no reconocido:', type);
           return;
       }
 
       if (success) {
-        const message = `${type === 'pais' ? 'País' : type === 'departamento' ? 'Departamento' : 'Ciudad'} activado correctamente`;
+        const message = `${type === 'pais' ? 'País' : type === 'departamento' ? 'Departamento' : type === 'ciudad' ? 'Ciudad' : type === 'regional' ? 'Regional' : 'Sucursal'} activado correctamente`;
         console.log('🎉 Éxito:', message);
         toast.success(message);
         
@@ -338,18 +453,20 @@ export default function UbicacionesPage() {
         queryClient.invalidateQueries({ queryKey: ['paises'] });
         queryClient.invalidateQueries({ queryKey: ['departamentos'] });
         queryClient.invalidateQueries({ queryKey: ['ciudades'] });
+        queryClient.invalidateQueries({ queryKey: ['regionales'] });
+        queryClient.invalidateQueries({ queryKey: ['sucursales'] });
         console.log('✅ Queries invalidados');
       }
     } catch (error) {
       console.error(`❌ Error al activar ${type}:`, error);
-      toast.error(`Error al activar ${type === 'pais' ? 'el país' : type === 'departamento' ? 'el departamento' : 'la ciudad'}`);
+      toast.error(`Error al activar ${type === 'pais' ? 'el país' : type === 'departamento' ? 'el departamento' : type === 'ciudad' ? 'la ciudad' : type === 'regional' ? 'la regional' : 'la sucursal'}`);
     } finally {
       stopLoading();
       console.log('🔄 Loading detenido');
     }
   };
 
-  const handleDeactivate = async (item: any, type: 'pais' | 'departamento' | 'ciudad') => {
+  const handleDeactivate = async (item: any, type: 'pais' | 'departamento' | 'ciudad' | 'regional' | 'sucursal') => {
     if (!item.id) {
       console.error('❌ handleDeactivate: No se encontró ID del item:', item);
       return;
@@ -380,13 +497,25 @@ export default function UbicacionesPage() {
           success = true;
           console.log('✅ Ciudad desactivada exitosamente');
           break;
+        case 'regional':
+          console.log('🔄 Desactivando regional con ID:', item.id);
+          await ubicacionesService.deactivateRegional(item.id);
+          success = true;
+          console.log('✅ Regional desactivado exitosamente');
+          break;
+        case 'sucursal':
+          console.log('🔄 Desactivando sucursal con ID:', item.id);
+          await ubicacionesService.deactivateSucursal(item.id);
+          success = true;
+          console.log('✅ Sucursal desactivada exitosamente');
+          break;
         default:
           console.error('❌ Tipo no reconocido:', type);
           return;
       }
 
       if (success) {
-        const message = `${type === 'pais' ? 'País' : type === 'departamento' ? 'Departamento' : 'Ciudad'} inactivado correctamente`;
+        const message = `${type === 'pais' ? 'País' : type === 'departamento' ? 'Departamento' : type === 'ciudad' ? 'Ciudad' : type === 'regional' ? 'Regional' : 'Sucursal'} inactivado correctamente`;
         console.log('🎉 Éxito:', message);
         toast.success(message);
         
@@ -395,11 +524,13 @@ export default function UbicacionesPage() {
         queryClient.invalidateQueries({ queryKey: ['paises'] });
         queryClient.invalidateQueries({ queryKey: ['departamentos'] });
         queryClient.invalidateQueries({ queryKey: ['ciudades'] });
+        queryClient.invalidateQueries({ queryKey: ['regionales'] });
+        queryClient.invalidateQueries({ queryKey: ['sucursales'] });
         console.log('✅ Queries invalidados');
       }
     } catch (error) {
       console.error(`❌ Error al inactivar ${type}:`, error);
-      toast.error(`Error al inactivar ${type === 'pais' ? 'el país' : type === 'departamento' ? 'el departamento' : 'la ciudad'}`);
+      toast.error(`Error al inactivar ${type === 'pais' ? 'el país' : type === 'departamento' ? 'el departamento' : type === 'ciudad' ? 'la ciudad' : type === 'regional' ? 'la regional' : 'la sucursal'}`);
     } finally {
       stopLoading();
       console.log('🔄 Loading detenido');
@@ -418,6 +549,9 @@ export default function UbicacionesPage() {
     queryClient.invalidateQueries({ queryKey: ['paises'] });
     queryClient.invalidateQueries({ queryKey: ['departamentos'] });
     queryClient.invalidateQueries({ queryKey: ['ciudades'] });
+    queryClient.invalidateQueries({ queryKey: ['regionales'] });
+    queryClient.invalidateQueries({ queryKey: ['regionales_departamentos'] });
+    queryClient.invalidateQueries({ queryKey: ['sucursales'] });
   };
 
   const getLoadingState = () => {
@@ -426,8 +560,12 @@ export default function UbicacionesPage() {
         return paisesLoading;
       case 'departamentos':
         return departamentosLoading;
+      case 'regionales':
+        return regionalesLoading || regDepLoading;
       case 'ciudades':
         return ciudadesLoading;
+      case 'sucursales':
+        return sucursalesLoading;
       default:
         return false;
     }
@@ -439,8 +577,12 @@ export default function UbicacionesPage() {
         return paisesError;
       case 'departamentos':
         return departamentosError;
+      case 'regionales':
+        return regionalesError;
       case 'ciudades':
         return ciudadesError;
+      case 'sucursales':
+        return sucursalesError;
       default:
         return null;
     }
@@ -452,8 +594,12 @@ export default function UbicacionesPage() {
         return filteredPaises;
       case 'departamentos':
         return filteredDepartamentos;
+      case 'regionales':
+        return filteredRegionales;
       case 'ciudades':
         return filteredCiudades;
+      case 'sucursales':
+        return filteredSucursales;
       default:
         return [];
     }
@@ -465,8 +611,12 @@ export default function UbicacionesPage() {
         return ['Acciones', 'Nombre', 'Código ISO', 'Estado'];
       case 'departamentos':
         return ['Acciones', 'Nombre', 'Código DANE', 'País', 'Estado'];
+      case 'regionales':
+        return ['Acciones', 'Nombre', 'Departamentos', 'Estado'];
       case 'ciudades':
-        return ['Acciones', 'Nombre', 'Código DANE', 'Departamento', 'País', 'Estado'];
+        return ['Acciones', 'Nombre', 'Código DANE', 'Departamento', 'País', 'Regional', 'Estado'];
+      case 'sucursales':
+        return ['Acciones', 'Código', 'Nombre', 'Dirección', 'Ciudad', 'Teléfono', 'Email', 'Estado'];
       default:
         return [];
     }
@@ -779,6 +929,7 @@ export default function UbicacionesPage() {
              case 'ciudades':
          const departamento = departamentos.find(d => d.id === item.departamento_id);
          const paisCiudad = paises.find(p => p.id === departamento?.pais_id);
+         const regAsoc = (regionales || []).find(r => regionalesDepartamentos.some(rd => rd.departamento_id === departamento?.id && rd.regional_id === r.id));
          return (
            <TableRow key={item.id} className="hover:bg-gray-50">
              <TableCell className="px-2 py-1">
@@ -921,6 +1072,7 @@ export default function UbicacionesPage() {
              <TableCell className="px-4 py-3 text-sm text-gray-500">{item.codigo_dane ?? '-'}</TableCell>
              <TableCell className="px-4 py-3 text-sm text-gray-500">{departamento?.nombre ?? '-'}</TableCell>
              <TableCell className="px-4 py-3 text-sm text-gray-500">{paisCiudad?.nombre ?? '-'}</TableCell>
+             <TableCell className="px-4 py-3 text-sm text-gray-500">{regAsoc?.nombre ?? '-'}</TableCell>
              <TableCell className="px-4 py-3 text-sm">
                <Badge variant={item.estado ? "default" : "secondary"} className={item.estado ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
                  {item.estado ? "Activo" : "Inactivo"}
@@ -928,6 +1080,280 @@ export default function UbicacionesPage() {
              </TableCell>
            </TableRow>
          );
+
+      case 'regionales':
+        const asociados = regionalesDepartamentos.filter(rd => rd.regional_id === item.id).map(rd => rd.departamento_id);
+        const asociadosNombres = departamentos.filter(d => asociados.includes(d.id)).map(d => d.nombre);
+        return (
+          <TableRow key={item.id} className="hover:bg-gray-50">
+            <TableCell className="px-2 py-1">
+              <div className="flex flex-row gap-1 items-center">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEdit(item, 'regional')}
+                        aria-label="Editar regional"
+                        className="h-8 w-8"
+                      >
+                        <Edit3 className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Editar</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+
+                {item.activo ? (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label="Inactivar regional"
+                              className="h-8 w-8"
+                            >
+                              <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>¿Inactivar regional?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta acción inactivará la regional "{item.nombre}" y no podrá ser usada hasta que se reactive. ¿Estás seguro?
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeactivate(item, 'regional')}>
+                                Sí, inactivar
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Inactivar</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label="Activar regional"
+                              className="h-8 w-8"
+                            >
+                              <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>¿Activar regional?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                ¿Estás seguro de que deseas activar la regional "{item.nombre}"?
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleActivate(item, 'regional')}>
+                                Sí, activar
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Activar</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+
+                {!item.activo && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label="Eliminar regional"
+                              className="h-8 w-8"
+                            >
+                              <Trash2 className="h-4 w-4 text-rose-600 hover:text-rose-800 transition-colors" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>¿Eliminar regional?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta acción eliminará la regional "{item.nombre}" y sus asociaciones de forma permanente. ¿Estás seguro?
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDelete(item, 'regional')}>
+                                Sí, eliminar
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Eliminar</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
+            </TableCell>
+            <TableCell className="px-4 py-3 text-sm text-gray-900 font-medium">{item.nombre}</TableCell>
+            <TableCell className="px-4 py-3 text-sm text-gray-500">
+              {asociadosNombres.length === 0 ? '-' : asociadosNombres.join(', ')}
+            </TableCell>
+            <TableCell className="px-4 py-3 text-sm">
+              <Badge variant={item.activo ? "default" : "secondary"} className={item.activo ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
+                {item.activo ? 'Activo' : 'Inactivo'}
+              </Badge>
+            </TableCell>
+          </TableRow>
+        );
+
+      case 'sucursales':
+        return (
+          <TableRow key={item.id} className="hover:bg-gray-50">
+            <TableCell className="px-2 py-1">
+              <div className="flex flex-row gap-1 items-center">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEdit(item, 'sucursal')}
+                        aria-label="Editar sucursal"
+                        className="h-8 w-8"
+                      >
+                        <Edit3 className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Editar</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                {item.activo ? (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" aria-label="Inactivar sucursal" className="h-8 w-8">
+                              <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>¿Inactivar sucursal?</AlertDialogTitle>
+                              <AlertDialogDescription>Esta acción inactivará la sucursal "{item.nombre}". ¿Estás seguro?</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeactivate(item, 'sucursal')}>Sí, inactivar</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Inactivar</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" aria-label="Activar sucursal" className="h-8 w-8">
+                              <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>¿Activar sucursal?</AlertDialogTitle>
+                              <AlertDialogDescription>¿Deseas activar la sucursal "{item.nombre}"?</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleActivate(item, 'sucursal')}>Sí, activar</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Activar</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+
+                {!item.activo && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" aria-label="Eliminar sucursal" className="h-8 w-8">
+                              <Trash2 className="h-4 w-4 text-rose-600 hover:text-rose-800 transition-colors" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>¿Eliminar sucursal?</AlertDialogTitle>
+                              <AlertDialogDescription>Esta acción eliminará la sucursal de forma permanente. ¿Estás seguro?</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDelete(item, 'sucursal')}>Sí, eliminar</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Eliminar</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
+            </TableCell>
+            <TableCell className="px-4 py-3 text-sm text-gray-500">{item.codigo ?? '-'}</TableCell>
+            <TableCell className="px-4 py-3 text-sm text-gray-900 font-medium">{item.nombre}</TableCell>
+            <TableCell className="px-4 py-3 text-sm text-gray-500">{item.direccion ?? '-'}</TableCell>
+            <TableCell className="px-4 py-3 text-sm text-gray-500">{item.ciudades?.nombre ?? '-'}</TableCell>
+            <TableCell className="px-4 py-3 text-sm text-gray-500">{item.telefono ?? '-'}</TableCell>
+            <TableCell className="px-4 py-3 text-sm text-gray-500">{item.email ?? '-'}</TableCell>
+            <TableCell className="px-4 py-3 text-sm">
+              <Badge variant={item.activo ? "default" : "secondary"} className={item.activo ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
+                {item.activo ? 'Activo' : 'Inactivo'}
+              </Badge>
+            </TableCell>
+          </TableRow>
+        );
 
       default:
         return null;
@@ -938,20 +1364,48 @@ export default function UbicacionesPage() {
     switch (activeTab) {
              case 'paises':
          return (
-           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
              <div className="relative">
                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                <Input
                  placeholder="Buscar por nombre o código ISO..."
-                 value={searchTerm}
-                 onChange={(e) => setSearchTerm(e.target.value)}
-                 className="pl-10 md:col-span-2"
+                 value={searchPaises}
+                 onChange={(e) => setSearchPaises(e.target.value)}
+                 className="pl-10 h-9 text-sm"
                />
              </div>
+             <Popover open={openStatusPaises} onOpenChange={setOpenStatusPaises}>
+               <PopoverTrigger asChild>
+                 <Button type="button" variant="outline" role="combobox" className="h-9 justify-between text-sm">
+                   {statusPaises === 'active' ? 'Solo activos' : statusPaises === 'inactive' ? 'Solo inactivos' : 'Todos'}
+                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                 </Button>
+               </PopoverTrigger>
+               <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                 <Command>
+                   <CommandInput placeholder="Buscar estado..." className="h-8 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none" />
+                   <CommandList>
+                     <CommandEmpty>Sin opciones</CommandEmpty>
+                     <CommandGroup>
+                       {[
+                         { key: 'active', label: 'Solo activos' },
+                         { key: 'inactive', label: 'Solo inactivos' },
+                         { key: 'all', label: 'Todos' },
+                       ].map(opt => (
+                         <CommandItem value={opt.key} key={opt.key} onSelect={() => { setStatusPaises(opt.key); setOpenStatusPaises(false); }} className="cursor-pointer">
+                           <Check className={cn('mr-2 h-4 w-4', statusPaises === opt.key ? 'opacity-100' : 'opacity-0')} />
+                           {opt.label}
+                         </CommandItem>
+                       ))}
+                     </CommandGroup>
+                   </CommandList>
+                 </Command>
+               </PopoverContent>
+             </Popover>
              <Button
                variant="outline"
-               onClick={() => setSearchTerm("")}
-               className="flex items-center gap-2"
+               onClick={() => { setSearchPaises(""); setStatusPaises('active'); }}
+               className="flex items-center gap-2 h-9 text-sm"
              >
                <Filter className="w-4 h-4" />
                Limpiar filtros
@@ -961,36 +1415,80 @@ export default function UbicacionesPage() {
 
       case 'departamentos':
         return (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
                 placeholder="Buscar por nombre o código DANE..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                value={searchDepartamentos}
+                onChange={(e) => setSearchDepartamentos(e.target.value)}
+                className="pl-10 h-9 text-sm"
               />
             </div>
-            <Select value={filterPaisDepartamento} onValueChange={setFilterPaisDepartamento}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filtrar por país" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos los países</SelectItem>
-                {paises.filter(p => p.estado).map(pais => (
-                  <SelectItem key={pais.id} value={pais.id.toString()}>
-                    {pais.nombre}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover open={openPaisDepartamentos} onOpenChange={setOpenPaisDepartamentos}>
+              <PopoverTrigger asChild>
+                <Button type="button" variant="outline" role="combobox" className="h-9 justify-between text-sm">
+                  {filterPaisDepartamento === 'todos' ? 'Todos los países' : (paises.find(p => p.id === parseInt(filterPaisDepartamento))?.nombre || 'País')}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                <Command>
+                  <CommandInput placeholder="Buscar país..." className="h-8 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none" />
+                  <CommandList>
+                    <CommandEmpty>Sin opciones</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem value="todos" onSelect={() => { setFilterPaisDepartamento('todos'); setOpenPaisDepartamentos(false); }} className="cursor-pointer">
+                        <Check className={cn('mr-2 h-4 w-4', filterPaisDepartamento === 'todos' ? 'opacity-100' : 'opacity-0')} />
+                        Todos los países
+                      </CommandItem>
+                      {paises.filter(p => p.estado).map(pais => (
+                        <CommandItem value={pais.id.toString()} key={pais.id} onSelect={() => { setFilterPaisDepartamento(pais.id.toString()); setOpenPaisDepartamentos(false); }} className="cursor-pointer">
+                          <Check className={cn('mr-2 h-4 w-4', filterPaisDepartamento === pais.id.toString() ? 'opacity-100' : 'opacity-0')} />
+                          {pais.nombre}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+            <Popover open={openStatusDepartamentos} onOpenChange={setOpenStatusDepartamentos}>
+              <PopoverTrigger asChild>
+                <Button type="button" variant="outline" role="combobox" className="h-9 justify-between text-sm">
+                  {statusDepartamentos === 'active' ? 'Solo activos' : statusDepartamentos === 'inactive' ? 'Solo inactivos' : 'Todos'}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                <Command>
+                  <CommandInput placeholder="Buscar estado..." className="h-8 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none" />
+                  <CommandList>
+                    <CommandEmpty>Sin opciones</CommandEmpty>
+                    <CommandGroup>
+                      {[
+                        { key: 'active', label: 'Solo activos' },
+                        { key: 'inactive', label: 'Solo inactivos' },
+                        { key: 'all', label: 'Todos' },
+                      ].map(opt => (
+                        <CommandItem value={opt.key} key={opt.key} onSelect={() => { setStatusDepartamentos(opt.key); setOpenStatusDepartamentos(false); }} className="cursor-pointer">
+                          <Check className={cn('mr-2 h-4 w-4', statusDepartamentos === opt.key ? 'opacity-100' : 'opacity-0')} />
+                          {opt.label}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
             <Button
               variant="outline"
               onClick={() => {
-                setSearchTerm("");
+                setSearchDepartamentos("");
                 setFilterPaisDepartamento("todos");
+                setStatusDepartamentos('active');
               }}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 h-9 text-sm"
             >
               <Filter className="w-4 h-4" />
               Limpiar filtros
@@ -1000,66 +1498,225 @@ export default function UbicacionesPage() {
 
              case 'ciudades':
          return (
-           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+           <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
              <div className="relative">
                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                <Input
                  placeholder="Buscar por nombre o código DANE..."
-                 value={searchTerm}
-                 onChange={(e) => setSearchTerm(e.target.value)}
-                 className="pl-10"
+                 value={searchCiudades}
+                 onChange={(e) => setSearchCiudades(e.target.value)}
+                 className="pl-10 h-9 text-sm"
                />
              </div>
-             <Select value={filterPaisDepartamento} onValueChange={setFilterPaisDepartamento}>
-               <SelectTrigger>
-                 <SelectValue placeholder="Filtrar por país" />
-               </SelectTrigger>
-               <SelectContent>
-                 <SelectItem value="todos">Todos los países</SelectItem>
-                 {paises.filter(p => p.estado).map(pais => (
-                   <SelectItem key={pais.id} value={pais.id.toString()}>
-                     {pais.nombre}
-                   </SelectItem>
-                 ))}
-               </SelectContent>
-             </Select>
-             <Select value={filterDepartamentoCiudad} onValueChange={setFilterDepartamentoCiudad}>
-               <SelectTrigger>
-                 <SelectValue placeholder="Filtrar por departamento" />
-               </SelectTrigger>
-               <SelectContent>
-                 <SelectItem value="todos">Todos los departamentos</SelectItem>
-                 {departamentos
-                   .filter(dept => {
-                     // Solo mostrar departamentos activos
-                     if (!dept.estado) return false;
-                     // Si hay filtro de país, verificar que coincida
-                     if (filterPaisDepartamento !== 'todos') {
-                       return dept.pais_id === parseInt(filterPaisDepartamento);
-                     }
-                     return true;
-                   })
-                   .map(dept => (
-                     <SelectItem key={dept.id} value={dept.id.toString()}>
-                       {dept.nombre}
-                     </SelectItem>
-                   ))}
-               </SelectContent>
-             </Select>
+             <Popover open={openPaisCiudades} onOpenChange={setOpenPaisCiudades}>
+               <PopoverTrigger asChild>
+                 <Button type="button" variant="outline" role="combobox" className="h-9 justify-between text-sm">
+                   {filterPaisDepartamento === 'todos' ? 'Todos los países' : (paises.find(p => p.id === parseInt(filterPaisDepartamento))?.nombre || 'País')}
+                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                 </Button>
+               </PopoverTrigger>
+               <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                 <Command>
+                   <CommandInput placeholder="Buscar país..." className="h-8 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none" />
+                   <CommandList>
+                     <CommandEmpty>Sin opciones</CommandEmpty>
+                     <CommandGroup>
+                       <CommandItem value="todos" onSelect={() => { setFilterPaisDepartamento('todos'); setOpenPaisCiudades(false); }} className="cursor-pointer">
+                         <Check className={cn('mr-2 h-4 w-4', filterPaisDepartamento === 'todos' ? 'opacity-100' : 'opacity-0')} />
+                         Todos los países
+                       </CommandItem>
+                       {paises.filter(p => p.estado).map(pais => (
+                         <CommandItem value={pais.id.toString()} key={pais.id} onSelect={() => { setFilterPaisDepartamento(pais.id.toString()); setOpenPaisCiudades(false); }} className="cursor-pointer">
+                           <Check className={cn('mr-2 h-4 w-4', filterPaisDepartamento === pais.id.toString() ? 'opacity-100' : 'opacity-0')} />
+                           {pais.nombre}
+                         </CommandItem>
+                       ))}
+                     </CommandGroup>
+                   </CommandList>
+                 </Command>
+               </PopoverContent>
+             </Popover>
+             <Popover open={openDeptCiudades} onOpenChange={setOpenDeptCiudades}>
+               <PopoverTrigger asChild>
+                 <Button type="button" variant="outline" role="combobox" className="h-9 justify-between text-sm">
+                   {filterDepartamentoCiudad === 'todos' ? 'Departamento' : (departamentos.find(d => d.id === parseInt(filterDepartamentoCiudad))?.nombre || 'Departamento')}
+                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                 </Button>
+               </PopoverTrigger>
+               <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                 <Command>
+                   <CommandInput placeholder="Buscar departamento..." className="h-8 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none" />
+                   <CommandList>
+                     <CommandEmpty>Sin opciones</CommandEmpty>
+                     <CommandGroup>
+                       <CommandItem value="todos" onSelect={() => { setFilterDepartamentoCiudad('todos'); setOpenDeptCiudades(false); }} className="cursor-pointer">
+                         <Check className={cn('mr-2 h-4 w-4', filterDepartamentoCiudad === 'todos' ? 'opacity-100' : 'opacity-0')} />
+                         Departamentos
+                       </CommandItem>
+                       {departamentos
+                         .filter(dept => {
+                           if (!dept.estado) return false;
+                           if (filterPaisDepartamento !== 'todos') {
+                             return dept.pais_id === parseInt(filterPaisDepartamento);
+                           }
+                           return true;
+                         })
+                         .map(dept => (
+                           <CommandItem value={dept.id.toString()} key={dept.id} onSelect={() => { setFilterDepartamentoCiudad(dept.id.toString()); setOpenDeptCiudades(false); }} className="cursor-pointer">
+                             <Check className={cn('mr-2 h-4 w-4', filterDepartamentoCiudad === dept.id.toString() ? 'opacity-100' : 'opacity-0')} />
+                             {dept.nombre}
+                           </CommandItem>
+                         ))}
+                     </CommandGroup>
+                   </CommandList>
+                 </Command>
+               </PopoverContent>
+             </Popover>
+             <Popover open={openStatusCiudades} onOpenChange={setOpenStatusCiudades}>
+               <PopoverTrigger asChild>
+                 <Button type="button" variant="outline" role="combobox" className="h-9 justify-between text-sm">
+                   {statusCiudades === 'active' ? 'Solo activos' : statusCiudades === 'inactive' ? 'Solo inactivos' : 'Todos'}
+                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                 </Button>
+               </PopoverTrigger>
+               <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                 <Command>
+                   <CommandInput placeholder="Buscar estado..." className="h-8 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none" />
+                   <CommandList>
+                     <CommandEmpty>Sin opciones</CommandEmpty>
+                     <CommandGroup>
+                       {[
+                         { key: 'active', label: 'Solo activos' },
+                         { key: 'inactive', label: 'Solo inactivos' },
+                         { key: 'all', label: 'Todos' },
+                       ].map(opt => (
+                         <CommandItem value={opt.key} key={opt.key} onSelect={() => { setStatusCiudades(opt.key); setOpenStatusCiudades(false); }} className="cursor-pointer">
+                           <Check className={cn('mr-2 h-4 w-4', statusCiudades === opt.key ? 'opacity-100' : 'opacity-0')} />
+                           {opt.label}
+                         </CommandItem>
+                       ))}
+                     </CommandGroup>
+                   </CommandList>
+                 </Command>
+               </PopoverContent>
+             </Popover>
              <Button
                variant="outline"
                onClick={() => {
-                 setSearchTerm("");
+                 setSearchCiudades("");
                  setFilterPaisDepartamento("todos");
                  setFilterDepartamentoCiudad("todos");
+                 setStatusCiudades('active');
                }}
-               className="flex items-center gap-2"
+               className="flex items-center gap-2 h-9 text-sm"
              >
                <Filter className="w-4 h-4" />
                Limpiar filtros
              </Button>
            </div>
          );
+
+      case 'regionales':
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                placeholder="Buscar por nombre..."
+                value={searchRegionales}
+                onChange={(e) => setSearchRegionales(e.target.value)}
+                className="pl-10 h-9 text-sm"
+              />
+            </div>
+            <Popover open={openStatusRegionales} onOpenChange={setOpenStatusRegionales}>
+              <PopoverTrigger asChild>
+                <Button type="button" variant="outline" role="combobox" className="h-9 justify-between text-sm">
+                  {statusRegionales === 'active' ? 'Solo activos' : statusRegionales === 'inactive' ? 'Solo inactivos' : 'Todos'}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                <Command>
+                  <CommandInput placeholder="Buscar estado..." className="h-8 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none" />
+                  <CommandList>
+                    <CommandEmpty>Sin opciones</CommandEmpty>
+                    <CommandGroup>
+                      {[
+                        { key: 'active', label: 'Solo activos' },
+                        { key: 'inactive', label: 'Solo inactivos' },
+                        { key: 'all', label: 'Todos' },
+                      ].map(opt => (
+                        <CommandItem value={opt.key} key={opt.key} onSelect={() => { setStatusRegionales(opt.key); setOpenStatusRegionales(false); }} className="cursor-pointer">
+                          <Check className={cn('mr-2 h-4 w-4', statusRegionales === opt.key ? 'opacity-100' : 'opacity-0')} />
+                          {opt.label}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+            <Button
+              variant="outline"
+              onClick={() => { setSearchRegionales(""); setStatusRegionales('active'); }}
+              className="flex items-center gap-2 h-9 text-sm"
+            >
+              <Filter className="w-4 h-4" />
+              Limpiar filtros
+            </Button>
+          </div>
+        );
+
+      case 'sucursales':
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                placeholder="Buscar por código, nombre, dirección, teléfono o email..."
+                value={searchSucursales}
+                onChange={(e) => setSearchSucursales(e.target.value)}
+                className="pl-10 h-9 text-sm"
+              />
+            </div>
+            <Popover open={openStatusSucursales} onOpenChange={setOpenStatusSucursales}>
+              <PopoverTrigger asChild>
+                <Button type="button" variant="outline" role="combobox" className="h-9 justify-between text-sm">
+                  {statusSucursales === 'active' ? 'Solo activos' : statusSucursales === 'inactive' ? 'Solo inactivos' : 'Todos'}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                <Command>
+                  <CommandInput placeholder="Buscar estado..." className="h-8 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none" />
+                  <CommandList>
+                    <CommandEmpty>Sin opciones</CommandEmpty>
+                    <CommandGroup>
+                      {[
+                        { key: 'active', label: 'Solo activos' },
+                        { key: 'inactive', label: 'Solo inactivos' },
+                        { key: 'all', label: 'Todos' },
+                      ].map(opt => (
+                        <CommandItem value={opt.key} key={opt.key} onSelect={() => { setStatusSucursales(opt.key); setOpenStatusSucursales(false); }} className="cursor-pointer">
+                          <Check className={cn('mr-2 h-4 w-4', statusSucursales === opt.key ? 'opacity-100' : 'opacity-0')} />
+                          {opt.label}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+            <Button
+              variant="outline"
+              onClick={() => { setSearchSucursales(""); setStatusSucursales('active'); }}
+              className="flex items-center gap-2 h-9 text-sm"
+            >
+              <Filter className="w-4 h-4" />
+              Limpiar filtros
+            </Button>
+          </div>
+        );
 
       default:
         return null;
@@ -1072,8 +1729,187 @@ export default function UbicacionesPage() {
         return <PaisForm initialData={editingItem} onSaved={handleSaved} />;
       case 'departamentos':
         return <DepartamentoForm initialData={editingItem} paises={paises} onSaved={handleSaved} />;
+      case 'regionales': {
+        // Opciones para multiselect
+        const deptOptions: MultiSelectOption[] = departamentos.map(d => ({ id: d.id, value: String(d.id), label: d.nombre }));
+        const onSubmitRegional = async (e: React.FormEvent) => {
+          e.preventDefault();
+          try {
+            startLoading();
+            // Validación: departamentos únicos por regional
+            const ocupados = new Map<number, number>();
+            regionalesDepartamentos.forEach(rd => {
+              ocupados.set(rd.departamento_id, rd.regional_id);
+            });
+            const conflictos = selectedDeptosRegional.filter(depId => ocupados.has(depId) && ocupados.get(depId) !== (editingItem?.id || null));
+            if (conflictos.length > 0) {
+              const nombres = departamentos.filter(d => conflictos.includes(d.id)).map(d => d.nombre).join(', ');
+              toast.error(`Los siguientes departamentos ya están asociados a otra regional: ${nombres}`);
+              setRegionalError(`Los siguientes departamentos ya están asociados a otra regional: ${nombres}`);
+              stopLoading();
+              return;
+            }
+            setRegionalError(null);
+            let regionalId: number | null = null;
+            if (editingItem?.id) {
+              const updated = await ubicacionesService.updateRegional(editingItem.id, { nombre: (document.getElementById('regional-nombre') as HTMLInputElement)?.value });
+              regionalId = updated?.id || editingItem.id;
+            } else {
+              const created = await ubicacionesService.createRegional({ nombre: (document.getElementById('regional-nombre') as HTMLInputElement)?.value });
+              regionalId = created?.id || null;
+            }
+            if (regionalId) {
+              await ubicacionesService.setDepartamentosForRegional(regionalId, selectedDeptosRegional);
+            }
+            toast.success('Regional guardada correctamente');
+            setEditingItem(null);
+            setSelectedDeptosRegional([]);
+            handleSaved();
+          } catch (err: any) {
+            if (err?.code === '23505') {
+              toast.error('Uno o más departamentos ya están asociados a otra regional.');
+              setRegionalError('Uno o más departamentos ya están asociados a otra regional.');
+            } else {
+              console.error('Error guardando regional:', err);
+              toast.error('Error al guardar la regional');
+            }
+          } finally {
+            stopLoading();
+          }
+        };
+        return (
+          <form onSubmit={onSubmitRegional} className="space-y-6">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="col-span-1">
+                <label className="block text-sm font-medium mb-1">Nombre de la Regional *</label>
+                <Input id="regional-nombre" defaultValue={editingItem?.nombre || ''} placeholder="Ej: Región Andina" />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-sm font-medium mb-1">Departamentos asociados</label>
+                <MultiSelect
+                  options={deptOptions}
+                  selected={selectedDeptosRegional}
+                  onSelectionChange={setSelectedDeptosRegional}
+                  placeholder="Seleccionar departamentos..."
+                  emptyText="No hay departamentos"
+                />
+                {regionalError && (
+                  <div className="mt-3">
+                    <Alert variant="destructive">
+                      <AlertTitle>No se puede guardar</AlertTitle>
+                      <AlertDescription>{regionalError}</AlertDescription>
+                    </Alert>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button type="button" variant="outline" onClick={handleSaved}>Cancelar</Button>
+              <Button type="submit">Guardar</Button>
+            </div>
+          </form>
+        );
+      }
       case 'ciudades':
         return <CiudadForm initialData={editingItem} departamentos={departamentos} paises={paises} onSaved={handleSaved} />;
+      case 'sucursales': {
+        const onSubmitSucursal = async (e: React.FormEvent) => {
+          e.preventDefault();
+          try {
+            startLoading();
+            const payload = {
+              codigo: (document.getElementById('suc-codigo') as HTMLInputElement)?.value || undefined,
+              nombre: (document.getElementById('suc-nombre') as HTMLInputElement)?.value || '',
+              direccion: (document.getElementById('suc-direccion') as HTMLInputElement)?.value || undefined,
+              telefono: (document.getElementById('suc-telefono') as HTMLInputElement)?.value || undefined,
+              email: (document.getElementById('suc-email') as HTMLInputElement)?.value || undefined,
+              ciudad_id: (document.getElementById('suc-ciudad') as HTMLInputElement)?.value ? parseInt((document.getElementById('suc-ciudad') as HTMLInputElement).value) : null,
+            };
+            if (editingItem?.id) {
+              await ubicacionesService.updateSucursal(editingItem.id, payload);
+            } else {
+              await ubicacionesService.createSucursal(payload);
+            }
+            toast.success('Sucursal guardada correctamente');
+            setEditingItem(null);
+            handleSaved();
+          } catch (err) {
+            console.error('Error guardando sucursal:', err);
+            toast.error('Error al guardar la sucursal');
+          } finally {
+            stopLoading();
+          }
+        };
+        return (
+          <form onSubmit={onSubmitSucursal} className="space-y-6">
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Código</label>
+                <Input id="suc-codigo" defaultValue={editingItem?.codigo || ''} placeholder="Ej: S001" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Nombre *</label>
+                <Input id="suc-nombre" defaultValue={editingItem?.nombre || ''} placeholder="Ej: Sucursal Norte" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Ciudad</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button type="button" variant="outline" role="combobox" className="w-full justify-between">
+                      {(() => {
+                        const sc = ciudades.find(c => c.id === editingItem?.ciudad_id);
+                        return sc ? sc.nombre : 'Seleccionar ciudad';
+                      })()}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                    <Command>
+                      <CommandInput placeholder="Buscar ciudad..." className="h-9 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none" />
+                      <CommandList>
+                        <CommandEmpty>No se encontraron ciudades.</CommandEmpty>
+                        <CommandGroup>
+                          {/* Campo oculto para almacenar el valor */}
+                          <input id="suc-ciudad" type="hidden" defaultValue={editingItem?.ciudad_id ?? ''} />
+                          {ciudades.map((c) => (
+                            <CommandItem
+                              key={c.id}
+                              onSelect={() => {
+                                const input = document.getElementById('suc-ciudad') as HTMLInputElement;
+                                if (input) input.value = String(c.id);
+                              }}
+                              className="cursor-pointer"
+                            >
+                              <Check className={cn('mr-2 h-4 w-4', editingItem?.ciudad_id === c.id ? 'opacity-100' : 'opacity-0')} />
+                              {c.nombre}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="col-span-2">
+                <label className="block text-sm font-medium mb-1">Dirección</label>
+                <Input id="suc-direccion" defaultValue={editingItem?.direccion || ''} placeholder="Calle 123 #45-67" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Teléfono</label>
+                <Input id="suc-telefono" defaultValue={editingItem?.telefono || ''} placeholder="3001234567" />
+              </div>
+              <div className="col-span-3">
+                <label className="block text-sm font-medium mb-1">Email</label>
+                <Input id="suc-email" defaultValue={editingItem?.email || ''} placeholder="sucursal@dominio.com" />
+              </div>
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button type="button" variant="outline" onClick={handleSaved}>Cancelar</Button>
+              <Button type="submit">Guardar</Button>
+            </div>
+          </form>
+        );
+      }
       default:
         return null;
     }
@@ -1085,7 +1921,11 @@ export default function UbicacionesPage() {
         return <Globe className="w-8 h-8 text-cyan-600" />;
       case 'departamentos':
         return <MapPin className="w-8 h-8 text-cyan-600" />;
+      case 'regionales':
+        return <Users className="w-8 h-8 text-cyan-600" />;
       case 'ciudades':
+        return <Building2 className="w-8 h-8 text-cyan-600" />;
+      case 'sucursales':
         return <Building2 className="w-8 h-8 text-cyan-600" />;
       default:
         return <Globe className="w-8 h-8 text-cyan-600" />;
@@ -1098,8 +1938,12 @@ export default function UbicacionesPage() {
         return 'Gestión de Países';
       case 'departamentos':
         return 'Gestión de Departamentos';
+      case 'regionales':
+        return 'Gestión de Regionales';
       case 'ciudades':
         return 'Gestión de Ciudades';
+      case 'sucursales':
+        return 'Gestión de Sucursales';
       default:
         return 'Gestión de Ubicaciones';
     }
@@ -1111,8 +1955,12 @@ export default function UbicacionesPage() {
         return 'PAÍSES DEL SISTEMA';
       case 'departamentos':
         return 'DEPARTAMENTOS DEL SISTEMA';
+      case 'regionales':
+        return 'REGIONALES DEL SISTEMA';
       case 'ciudades':
         return 'CIUDADES DEL SISTEMA';
+      case 'sucursales':
+        return 'SUCURSALES DEL SISTEMA';
       default:
         return 'UBICACIONES DEL SISTEMA';
     }
@@ -1124,7 +1972,11 @@ export default function UbicacionesPage() {
         return <Globe className="w-5 h-5 text-orange-600" />;
       case 'departamentos':
         return <MapPin className="w-5 h-5 text-orange-600" />;
+      case 'regionales':
+        return <Users className="w-5 h-5 text-orange-600" />;
       case 'ciudades':
+        return <Building2 className="w-5 h-5 text-orange-600" />;
+      case 'sucursales':
         return <Building2 className="w-5 h-5 text-orange-600" />;
       default:
         return <Globe className="w-5 h-5 text-orange-600" />;
@@ -1141,7 +1993,7 @@ export default function UbicacionesPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-cyan-100/60 p-1 rounded-lg">
+        <TabsList className="grid w-full grid-cols-5 bg-cyan-100/60 p-1 rounded-lg">
           <TabsTrigger
             value="paises"
             className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
@@ -1157,11 +2009,25 @@ export default function UbicacionesPage() {
             Departamentos
           </TabsTrigger>
           <TabsTrigger
+            value="regionales"
+            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+          >
+            <Users className="w-4 h-4 mr-2" />
+            Regionales
+          </TabsTrigger>
+          <TabsTrigger
             value="ciudades"
             className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
           >
             <Building2 className="w-4 h-4 mr-2" />
             Ciudades
+          </TabsTrigger>
+          <TabsTrigger
+            value="sucursales"
+            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+          >
+            <Building2 className="w-4 h-4 mr-2" />
+            Sucursales
           </TabsTrigger>
         </TabsList>
 
@@ -1172,13 +2038,13 @@ export default function UbicacionesPage() {
                 value="listado"
                 className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
               >
-                Listado de {activeTab === 'paises' ? 'Países' : activeTab === 'departamentos' ? 'Departamentos' : 'Ciudades'}
+                Listado de {activeTab === 'paises' ? 'Países' : activeTab === 'departamentos' ? 'Departamentos' : activeTab === 'regionales' ? 'Regionales' : activeTab === 'ciudades' ? 'Ciudades' : 'Sucursales'}
               </TabsTrigger>
               <TabsTrigger
                 value="formulario"
                 className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
               >
-                {editingItem ? 'Editar' : 'Nuevo'} {activeTab === 'paises' ? 'País' : activeTab === 'departamentos' ? 'Departamento' : 'Ciudad'}
+                {editingItem ? 'Editar' : 'Nuevo'} {activeTab === 'paises' ? 'País' : activeTab === 'departamentos' ? 'Departamento' : activeTab === 'regionales' ? 'Regional' : activeTab === 'ciudades' ? 'Ciudad' : 'Sucursal'}
               </TabsTrigger>
             </TabsList>
 
@@ -1216,7 +2082,11 @@ export default function UbicacionesPage() {
                         ? 'Puedes activar o desactivar países. Los departamentos y ciudades dependen del estado del país.'
                         : activeTab === 'departamentos'
                         ? 'Solo se muestran departamentos de países activos.'
-                        : 'Solo se muestran ciudades de departamentos y países activos.'
+                        : activeTab === 'regionales'
+                        ? 'Configura regionales y selecciona los departamentos asociados.'
+                        : activeTab === 'ciudades'
+                        ? 'Solo se muestran ciudades de departamentos y países activos.'
+                        : 'Gestiona sucursales y asigna su ciudad correspondiente.'
                       }
                     </p>
                   </div>
@@ -1228,7 +2098,7 @@ export default function UbicacionesPage() {
                     <div className="flex items-center justify-center py-12">
                       <div className="text-center">
                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 mx-auto"></div>
-                        <p className="mt-4 text-gray-600">Cargando {activeTab === 'paises' ? 'países' : activeTab === 'departamentos' ? 'departamentos' : 'ciudades'}...</p>
+                        <p className="mt-4 text-gray-600">Cargando {activeTab === 'paises' ? 'países' : activeTab === 'departamentos' ? 'departamentos' : activeTab === 'regionales' ? 'regionales' : activeTab === 'ciudades' ? 'ciudades' : 'sucursales'}...</p>
                       </div>
                     </div>
                   ) : getErrorState() ? (
@@ -1252,14 +2122,18 @@ export default function UbicacionesPage() {
                             <TableCell colSpan={getTableHeaders().length} className="h-24 text-center">
                               <div className="text-gray-500">
                                 <p className="font-medium mb-2">
-                                  No hay {activeTab === 'paises' ? 'países' : activeTab === 'departamentos' ? 'departamentos' : 'ciudades'} disponibles.
+                                  No hay {activeTab === 'paises' ? 'países' : activeTab === 'departamentos' ? 'departamentos' : activeTab === 'regionales' ? 'regionales' : activeTab === 'ciudades' ? 'ciudades' : 'sucursales'} disponibles.
                                 </p>
                                 <p className="text-sm">
                                   {activeTab === 'paises' 
                                     ? 'Todos los países están inactivos o no se encontraron coincidencias con los filtros.'
                                     : activeTab === 'departamentos'
                                     ? 'No hay departamentos activos o todos los países están inactivos.'
-                                    : 'No hay ciudades activas o todos los departamentos/países están inactivos.'
+                                    : activeTab === 'regionales'
+                                    ? 'No hay regionales activas o todos los departamentos están inactivos.'
+                                    : activeTab === 'ciudades'
+                                    ? 'No hay ciudades activas o todos los departamentos/países están inactivos.'
+                                    : 'No hay sucursales activas o todos los departamentos/países están inactivos.'
                                   }
                                 </p>
                               </div>
@@ -1278,12 +2152,16 @@ export default function UbicacionesPage() {
             <TabsContent value="formulario" className="mt-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-semibold text-gray-800">
-                  {editingItem ? 'Editar' : 'Nuevo'} {activeTab === 'paises' ? 'País' : activeTab === 'departamentos' ? 'Departamento' : 'Ciudad'}
+                  {editingItem ? 'Editar' : 'Nuevo'} {activeTab === 'paises' ? 'País' : activeTab === 'departamentos' ? 'Departamento' : activeTab === 'regionales' ? 'Regional' : activeTab === 'ciudades' ? 'Ciudad' : 'Sucursal'}
                 </h2>
               </div>
 
-              {/* Formulario */}
-              {renderForm()}
+              {/* Formulario envuelto en Card */}
+              <Card>
+                <CardContent className="pt-6">
+                  {renderForm()}
+                </CardContent>
+              </Card>
             </TabsContent>
 
             {/* Confirmación de eliminación forzada por referencias (FK 23503) */}

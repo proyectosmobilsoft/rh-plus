@@ -2,13 +2,15 @@ import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { X, Save } from 'lucide-react';
+import { X, Save, ChevronsUpDown, Check } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { cn } from '@/lib/utils';
 import { ubicacionesService } from '@/services/ubicacionesService';
 
 // Schema sin el campo estado
@@ -36,6 +38,8 @@ export function CiudadForm({ initialData, departamentos, paises, onSaved }: Ciud
       departamento_id: initialData?.departamento_id || undefined,
     },
   });
+
+  const [openDepto, setOpenDepto] = React.useState(false);
 
   const onSubmit = async (data: CiudadFormData) => {
     try {
@@ -85,26 +89,52 @@ export function CiudadForm({ initialData, departamentos, paises, onSaved }: Ciud
           <FormField
             control={form.control}
             name="departamento_id"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Departamento *</FormLabel>
-                <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar departamento" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {departamentos.map((departamento) => (
-                      <SelectItem key={departamento.id} value={departamento.id.toString()}>
-                        {departamento.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
+            render={({ field }) => {
+              const selected = departamentos.find(d => d.id === field.value);
+              return (
+                <FormItem>
+                  <FormLabel>Departamento *</FormLabel>
+                  <Popover open={openDepto} onOpenChange={setOpenDepto}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={openDepto}
+                        className="w-full justify-between"
+                      >
+                        {selected ? selected.nombre : 'Seleccionar departamento'}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                      <Command>
+                        <CommandInput placeholder="Buscar departamento..." className="h-9 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none" />
+                        <CommandList>
+                          <CommandEmpty>No se encontraron departamentos.</CommandEmpty>
+                          <CommandGroup>
+                            {departamentos.map((d) => (
+                              <CommandItem
+                                key={d.id}
+                                onSelect={() => {
+                                  form.setValue('departamento_id', d.id, { shouldValidate: true, shouldDirty: true });
+                                  setOpenDepto(false);
+                                }}
+                                className="cursor-pointer"
+                              >
+                                <Check className={cn('mr-2 h-4 w-4', d.id === field.value ? 'opacity-100' : 'opacity-0')} />
+                                {d.nombre}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
           />
         </div>
 
