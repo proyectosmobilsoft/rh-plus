@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, NavLink, matchPath } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -24,6 +24,7 @@ import {
   Info,
   Globe,
   Mail,
+  Shield,
 } from 'lucide-react';
 
 const menuItems = [
@@ -39,6 +40,7 @@ const menuItems = [
     subItems: [
       { title: "Usuarios", path: "/seguridad/usuarios", icon: <Users className="h-4 w-4" /> },
       { title: "Perfiles", path: "/seguridad/perfiles", icon: <Settings className="h-4 w-4" /> },
+      { title: "Permisos", path: "/seguridad/permisos", icon: <Shield className="h-4 w-4" /> },
       { title: "Logs del Sistema", path: "/seguridad/logs-sistema", icon: <Activity className="h-4 w-4" /> },
     ],
   },
@@ -88,12 +90,12 @@ const menuItems = [
     path: "/empresa/acerca",
     subItems: [],
   },
-     {
-     title: "Configuración",
-     icon: <Globe className="h-5 w-5" />,
-     path: "/configuraciones/globales",
-     subItems: [],
-   },
+   {
+   title: "Configuración",
+   icon: <Globe className="h-5 w-5" />,
+   path: "/configuraciones/globales",
+   subItems: [],
+ },
 ];
 
 interface DynamicSidebarProps {
@@ -103,12 +105,6 @@ interface DynamicSidebarProps {
 export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const [empresaData, setEmpresaData] = useState<any>(null);
-  const [showUserOverlay, setShowUserOverlay] = useState(false);
-  const [userData, setUserData] = useState<any>(null);
-  const sidebarRef = React.useRef<HTMLDivElement>(null);
-  
-  // Verificar si AuthProvider está disponible
   let authContext;
   try {
     authContext = useAuth();
@@ -118,168 +114,89 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
 
   const { user, logout } = authContext || {};
   const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set());
+  const [empresaData, setEmpresaData] = useState<any>(null);
+  const [showUserOverlay, setShowUserOverlay] = useState(false);
+  const [userData, setUserData] = useState<any>(null);
+  const sidebarRef = React.useRef<HTMLDivElement>(null);
 
-  // Obtener información de la empresa desde localStorage
+  // Cargar userData de localStorage
   useEffect(() => {
-    try {
-      console.log('=== INICIO: Cargar empresa en DynamicSidebar ===');
-      
-      // Verificar estado actual de localStorage
-      const currentUserData = localStorage.getItem('userData');
-      const currentAuthToken = localStorage.getItem('authToken');
-      const currentEmpresaData = localStorage.getItem('empresaData');
-      
-      console.log('📊 Estado actual de localStorage en DynamicSidebar:');
-      console.log('- userData existe:', !!currentUserData);
-      console.log('- authToken existe:', !!currentAuthToken);
-      console.log('- empresaData existe:', !!currentEmpresaData);
-      
-      debugLocalStorage();
-      
-      // Cargar datos reales del usuario desde localStorage
-      if (currentUserData) {
-        try {
-          const parsedUserData = JSON.parse(currentUserData);
-          setUserData(parsedUserData);
-          console.log('✅ Datos del usuario cargados desde localStorage:', parsedUserData);
-        } catch (error) {
-          console.error('Error parseando userData:', error);
-        }
-      }
-      
-      // Intentar obtener empresa desde authToken primero
-      if (currentAuthToken) {
-        try {
-          const tokenParts = currentAuthToken.split('.');
-          if (tokenParts.length === 2) {
-            const tokenData = JSON.parse(atob(tokenParts[0]));
-            console.log('🔍 Datos del authToken:', tokenData);
-            
-            if (tokenData.empresaId && tokenData.empresaRazonSocial) {
-              const empresaFromToken = {
-                id: tokenData.empresaId,
-                razon_social: tokenData.empresaRazonSocial
-              };
-              setEmpresaData(empresaFromToken);
-              console.log('✅ Empresa cargada desde authToken:', empresaFromToken);
-              return;
-            }
-          }
-        } catch (error) {
-          console.log('Error parseando authToken:', error);
-        }
-      }
-      
-      // Fallback: obtener empresa desde empresaData
-      const empresaSeleccionada = obtenerEmpresaSeleccionada();
-      if (empresaSeleccionada) {
-        setEmpresaData(empresaSeleccionada);
-        console.log('✅ Empresa cargada desde empresaData:', empresaSeleccionada);
-      } else {
-        console.log('No se encontró empresa seleccionada');
-      }
-      
-      console.log('=== FIN: Cargar empresa en DynamicSidebar ===');
-    } catch (error) {
-      console.error('Error al obtener datos de la empresa:', error);
+    const currentUserData = localStorage.getItem('userData');
+    if (currentUserData) {
+      try {
+        const parsed = JSON.parse(currentUserData);
+        setUserData(parsed);
+      } catch {}
     }
-  }, []);
-
-  // Listener para el evento personalizado de selección de empresa
-  useEffect(() => {
-    const handleEmpresaSelected = (event: CustomEvent) => {
-      const empresa = event.detail;
-      console.log('Evento empresaSelected recibido:', empresa);
-      setEmpresaData(empresa);
-    };
-
-    window.addEventListener('empresaSelected', handleEmpresaSelected as EventListener);
-    return () => window.removeEventListener('empresaSelected', handleEmpresaSelected as EventListener);
-  }, []);
-
-  // Listener para detectar cambios en localStorage
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      console.log('🔄 Cambio detectado en localStorage:');
-      console.log('- Key:', e.key);
-      console.log('- Old value:', e.oldValue);
-      console.log('- New value:', e.newValue);
-      
-      if (e.key === 'empresaData') {
-        try {
-          const newEmpresaData = e.newValue ? JSON.parse(e.newValue) : null;
-          if (newEmpresaData) {
-            setEmpresaData(newEmpresaData);
-            console.log('Empresa actualizada desde localStorage:', newEmpresaData);
-          }
-        } catch (error) {
-          console.error('Error al procesar cambio en localStorage:', error);
-        }
-      }
-      
-      // Detectar cambios en userData
+    const onStorage = (e: StorageEvent) => {
       if (e.key === 'userData') {
         try {
-          const newUserData = e.newValue ? JSON.parse(e.newValue) : null;
-          if (newUserData) {
-            setUserData(newUserData);
-            console.log('✅ Datos del usuario actualizados desde localStorage:', newUserData);
-          }
-        } catch (error) {
-          console.error('Error al procesar cambio en userData:', error);
-        }
-      }
-      
-      // Detectar si se borran datos de autenticación
-      if (e.key === 'userData' || e.key === 'authToken') {
-        console.log('⚠️ ATENCIÓN: Se modificó dato de autenticación:', e.key);
-        console.log('- Valor anterior:', e.oldValue ? 'existe' : 'null');
-        console.log('- Valor nuevo:', e.newValue ? 'existe' : 'null');
+          const parsed = e.newValue ? JSON.parse(e.newValue) : null;
+          setUserData(parsed);
+        } catch {}
       }
     };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   }, []);
 
-  // Verificar periódicamente si se borran datos de autenticación
-  useEffect(() => {
-    const checkAuthData = () => {
-      const userData = localStorage.getItem('userData');
-      const authToken = localStorage.getItem('authToken');
-      
-      if (!userData || !authToken) {
-        console.log('🚨 ALERTA: Datos de autenticación faltantes:');
-        console.log('- userData:', !!userData);
-        console.log('- authToken:', !!authToken);
-        console.log('Stack trace:', new Error().stack);
-      }
-    };
+  const accionesSet = React.useMemo(() => new Set<string>(Array.isArray(userData?.acciones) ? userData.acciones : []), [userData]);
 
-    // Verificar cada 2 segundos
-    const interval = setInterval(checkAuthData, 2000);
-    return () => clearInterval(interval);
-  }, []);
+  // Mapeo dinámico de rutas -> acciones requeridas (OR entre códigos listados)
+  const pathToActions: Record<string, string[]> = React.useMemo(() => ({
+    // Dashboard
+    '/dashboard': ['dashboard_view', 'ver_dashboard'],
 
-  // Función global para manejar la selección de empresa (llamar desde el login)
-  const handleEmpresaSelection = (empresa: any) => {
-    const resultado = guardarEmpresaSeleccionada(empresa);
-    if (resultado) {
-      setEmpresaData(empresa);
-    }
-  };
+    // Seguridad
+    '/seguridad/usuarios': ['usuarios_view', 'gestionar_usuarios'],
+    '/seguridad/perfiles': ['perfiles_view'],
+    '/seguridad/logs-sistema': ['logs_view', 'gestionar_usuarios'],
+    '/seguridad/permisos': ['permisos_view', 'permisos_manage'],
 
-  // Exponer la función globalmente para que se pueda llamar desde el login
-  useEffect(() => {
-    (window as any).handleEmpresaSelection = handleEmpresaSelection;
-    return () => {
-      delete (window as any).handleEmpresaSelection;
-    };
-  }, []);
+    // Registros
+    '/registros/candidatos': ['candidatos_view'],
+    '/candidatos': ['candidatos_view'],
+    '/registros/empresas': ['empresas_view', 'gestionar_empresas'],
+    '/registros/prestadores': ['prestadores_view'],
+    // QR (oculto si no hay permiso específico)
+    '/registros/qr': ['qr_view'],
 
-  // Función para actualizar la empresa seleccionada
-  const updateSelectedEmpresa = (empresa: any) => {
-    handleEmpresaSelection(empresa);
+    // Maestro (subsecciones)
+    '/maestro/tipos-documentos': ['maestro_view', 'maestro_manage'],
+    '/maestro/tipos-candidatos': ['maestro_view', 'maestro_manage'],
+    '/maestro/plantillas': ['maestro_view', 'maestro_manage'],
+    '/maestro/ubicaciones': ['maestro_view', 'maestro_manage'],
+    '/maestro/estructura-financiera': ['maestro_view', 'maestro_manage'],
+    '/maestro/correos-masivos': ['maestro_manage'],
+
+    
+
+    // Órdenes / Solicitudes
+    '/expedicion-orden': ['ordenes_view', 'gestionar_ordenes'],
+
+    // Certificados
+    '/expedicion-certificados': ['certificados_view'],
+
+    // Analistas
+    '/analistas': ['analistas_view'],
+
+    // Acerca de la Empresa
+    '/empresa/acerca': ['empresas_view', 'gestionar_empresas'],
+
+     // Acerca de la Empresa
+     '/configuraciones/globales': ['configuraciones_view'],
+
+    // Reportes
+    '/reportes': ['reportes_view', 'ver_reportes'],
+    '/reportes/dashboard': ['reportes_view', 'ver_reportes'],
+  }), []);
+
+  const isAllowedPath = (path?: string) => {
+    if (!path) return false;
+    const required = pathToActions[path];
+    if (!required) return false; // si no está mapeado, ocultar por defecto
+    // OR: basta con que el usuario tenga uno de los códigos listados
+    return required.some(code => accionesSet.has(code));
   };
 
   const toggleMenu = (index: number) => {
@@ -295,20 +212,35 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
 
   const handleNavigate = (path: string) => {
     if (path && path !== '#') {
-      // Usar navigate para navegar sin recargar la página
+      // Colapsar menús y cerrar overlays para evitar estados pegados
+      setExpandedMenus(new Set());
+      setShowUserOverlay(false);
       navigate(path);
-      
-      // Llamar a onNavigate si está disponible
-      if (onNavigate) {
-        onNavigate(path);
-      }
+      if (onNavigate) onNavigate(path);
     }
   };
 
   const isActive = (path?: string) => {
     if (!path) return false;
-    return location.pathname === path || location.pathname.startsWith(path + '/');
+    // Por defecto, exact match
+    return !!matchPath({ path, end: true }, location.pathname);
   };
+
+  // Filtrado por permisos de acciones
+  const filteredMenus = React.useMemo(() => {
+    return menuItems
+      .map((menu) => {
+        const hasChildren = menu.subItems && menu.subItems.length > 0;
+        if (hasChildren) {
+          const children = (menu.subItems || []).filter((si: any) => isAllowedPath(si.path));
+          if (children.length === 0) return null;
+          return { ...menu, subItems: children };
+        }
+        // Menú directo
+        return isAllowedPath(menu.path) ? menu : null;
+      })
+      .filter(Boolean) as typeof menuItems;
+  }, [accionesSet]);
 
   const getRoleColor = (role: string) => {
     switch (role) {
@@ -493,18 +425,17 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
         </div>
       </div>
 
-      {/* Sistema de navegación con Flexbox perfecto */}
+      {/* Sistema de navegación con filtrado por permisos */}
       <div className="sidebar-scroll">
         <nav className="space-y-1">
-          {menuItems.map((menu, index) => {
+          {filteredMenus.map((menu, index) => {
             const hasChildren = menu.subItems && menu.subItems.length > 0;
             const isExpanded = expandedMenus.has(index.toString());
-            const isMenuActive = isActive(menu.path);
+            const isMenuActive = isActive((menu as any).path);
 
             return (
               <div key={index} className="mb-1">
                 {hasChildren ? (
-                  // Menú con submenús
                   <button
                     onClick={() => toggleMenu(index)}
                     className={`w-full flex items-center justify-between px-3 py-2.5 text-sm text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-700 transition-all duration-200 font-medium menu-item-animation sidebar-menu-item ${
@@ -522,43 +453,39 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
                     )}
                   </button>
                 ) : (
-                  // Menú directo
-                  <button
-                    onClick={() => handleNavigate(menu.path || '#')}
-                    className={`w-full text-left px-3 py-2.5 text-sm rounded-lg transition-all duration-200 font-medium menu-item-animation sidebar-menu-item ${
-                      isMenuActive
-                        ? 'menu-item-active'
-                        : 'text-gray-700 hover:bg-blue-50 hover:text-blue-700'
+                  <NavLink
+                    to={(menu as any).path || '#'}
+                    onClick={() => handleNavigate((menu as any).path || '#')}
+                    className={({ isActive: active }) => `w-full block text-left px-3 py-2.5 text-sm rounded-lg transition-all duration-200 font-medium menu-item-animation sidebar-menu-item ${
+                      active ? 'menu-item-active' : 'text-gray-700 hover:bg-blue-50 hover:text-blue-700'
                     }`}
                   >
                     <div className="flex items-center space-x-3">
                       {menu.icon}
                       <span>{menu.title}</span>
                     </div>
-                  </button>
+                  </NavLink>
                 )}
 
                 {/* Submenús */}
                 {hasChildren && isExpanded && (
                   <div className="ml-6 mt-2 space-y-1 border-l-2 border-gray-200 pl-4">
-                    {menu.subItems?.map((subItem, subIndex) => {
+                    {menu.subItems?.map((subItem: any, subIndex: number) => {
                       const isSubItemActive = isActive(subItem.path);
-
                       return (
-                        <button
+                        <NavLink
                           key={subIndex}
+                          to={subItem.path || '#'}
                           onClick={() => handleNavigate(subItem.path || '#')}
-                          className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-all duration-200 menu-item-animation sidebar-menu-item ${
-                            isSubItemActive
-                              ? 'menu-item-active'
-                              : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'
+                          className={({ isActive: active }) => `w-full block text-left px-3 py-2 text-sm rounded-lg transition-all duration-200 menu-item-animation sidebar-menu-item ${
+                            active ? 'menu-item-active' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'
                           }`}
                         >
                           <div className="flex items-center space-x-3">
                             {subItem.icon}
                             <span>{subItem.title}</span>
                           </div>
-                        </button>
+                        </NavLink>
                       );
                     })}
                   </div>

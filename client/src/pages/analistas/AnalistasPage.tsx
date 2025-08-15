@@ -59,6 +59,8 @@ import { supabase } from '@/services/supabaseClient';
 import { useLoading } from '@/contexts/LoadingContext';
 import { useToast } from '@/hooks/use-toast';
 import { AnalistaForm } from '@/components/analistas/AnalistaForm';
+import { useRegisterView } from '@/hooks/useRegisterView';
+import { Can } from '@/contexts/PermissionsContext';
 
 export default function AnalistasPage() {
   const navigate = useNavigate();
@@ -74,6 +76,22 @@ export default function AnalistasPage() {
   const [analistaParaConfigurar, setAnalistaParaConfigurar] = useState<any>(null);
   const queryClient = useQueryClient();
   const { startLoading, stopLoading } = useLoading();
+  const { addAction: addAnalistasListado } = useRegisterView('Analistas', 'listado', 'Listado de Analistas');
+  const { addAction: addAnalistasForm } = useRegisterView('Analistas', 'formulario', 'Formulario de Analista');
+
+  React.useEffect(() => {
+    // Listado
+    addAnalistasListado('configurar', 'Configurar Prioridades');
+    addAnalistasListado('editar', 'Editar Analista');
+    addAnalistasListado('activar', 'Activar Analista');
+    addAnalistasListado('inactivar', 'Inactivar Analista');
+    addAnalistasListado('eliminar', 'Eliminar Analista');
+    addAnalistasListado('exportar', 'Exportar Analistas');
+
+    // Formulario
+    addAnalistasForm('guardar', 'Guardar Prioridades');
+    addAnalistasForm('cancelar', 'Cancelar');
+  }, [addAnalistasListado, addAnalistasForm]);
   const { toast } = useToast();
 
   // Usar React Query para cargar analistas con prioridades
@@ -534,15 +552,17 @@ export default function AnalistasPage() {
                 <span className="text-lg font-semibold text-gray-700">ANALISTAS DEL SISTEMA</span>
               </div>
                              <div className="flex space-x-2">
-                 <Button
-                   onClick={handleExportarExcel}
-                   variant="outline"
-                   className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200 text-xs px-3 py-1"
-                   size="sm"
-                 >
-                   <Download className="w-4 h-4 mr-1" />
-                   Exportar Excel
-                 </Button>
+                 <Can action="accion-exportar">
+                   <Button
+                     onClick={handleExportarExcel}
+                     variant="outline"
+                     className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200 text-xs px-3 py-1"
+                     size="sm"
+                   >
+                     <Download className="w-4 h-4 mr-1" />
+                     Exportar Excel
+                   </Button>
+                 </Can>
                </div>
             </div>
 
@@ -643,15 +663,17 @@ export default function AnalistasPage() {
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleNewAnalista(analista)}
-                                    aria-label="Configurar prioridades"
-                                    className="h-8 w-8"
-                                  >
-                                    <UserCheck className="h-4 w-4 text-blue-600" />
-                                  </Button>
+                                  <Can action="accion-configurar-analista">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleNewAnalista(analista)}
+                                      aria-label="Configurar prioridades"
+                                      className="h-8 w-8"
+                                    >
+                                      <UserCheck className="h-4 w-4 text-blue-600" />
+                                    </Button>
+                                  </Can>
                                 </TooltipTrigger>
                                 <TooltipContent>
                                   <p>Configurar prioridades</p>

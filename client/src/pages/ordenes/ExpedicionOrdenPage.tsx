@@ -70,6 +70,10 @@ const ExpedicionOrdenPage = () => {
   // Fetch solicitudes when component mounts or filter changes
   useEffect(() => {
     fetchSolicitudes();
+    return () => {
+      // Limpieza al salir de la pantalla
+      try { setIsLoading(false); } catch {}
+    };
   }, [estadoFilter, empresaFilter]);
 
   const fetchSolicitudes = async () => {

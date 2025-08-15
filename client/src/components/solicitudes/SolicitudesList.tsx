@@ -8,6 +8,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Textarea } from '@/components/ui/textarea';
 import { Solicitud } from '@/services/solicitudesService';
 import { useLoading } from '@/contexts/LoadingContext';
+import { Can } from '@/contexts/PermissionsContext';
+import { useRegisterView } from '@/hooks/useRegisterView';
 
 interface SolicitudesListProps {
   solicitudes: Solicitud[];
@@ -33,6 +35,15 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   isLoading = false
 }) => {
   const { startLoading, stopLoading } = useLoading();
+  const { addAction } = useRegisterView('Solicitudes', 'listado', 'Listado de Solicitudes');
+  useEffect(() => {
+    addAction('editar', 'Editar Solicitud');
+    addAction('aprobar', 'Aprobar Solicitud');
+    addAction('contactar', 'Marcar Contactado');
+    addAction('standby', 'Poner en Stand By');
+    addAction('reactivar', 'Reactivar Solicitud');
+    addAction('deserto', 'Marcar Deserto');
+  }, [addAction]);
   const [confirmApproveOpen, setConfirmApproveOpen] = useState(false);
   const [confirmContactOpen, setConfirmContactOpen] = useState(false);
   const [confirmStandByOpen, setConfirmStandByOpen] = useState(false);
@@ -51,7 +62,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
       console.log('🔍 useEffect de contacto ejecutado, contactingSolicitudId:', contactingSolicitudId);
       const solicitud = solicitudes.find(s => s.id === contactingSolicitudId);
       console.log('🔍 Solicitud encontrada:', solicitud?.id, 'Estado:', solicitud?.estado);
-      
+
       if (solicitud && solicitud.estado === 'PENDIENTE DOCUMENTOS') {
         console.log('🔍 Operación de Contacto completada, limpiando estado...');
         setContactingSolicitudId(null);
@@ -64,7 +75,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
         console.log('🔍 Solicitud no encontrada, puede que se haya recargado la lista');
       }
     }
-  }, [solicitudes, contactingSolicitudId, stopLoading]);
+  }, [contactingSolicitudId, stopLoading, solicitudes.length]);
 
   // Timeout de seguridad para detener loading global si no se completa en 10 segundos
   useEffect(() => {
@@ -85,15 +96,15 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     const solicitudesEnStandBy = solicitudes.filter(s => isStandBy(s.estado));
     if (solicitudesEnStandBy.length > 0) {
       // Verificar si alguna solicitud acaba de cambiar a STAND BY
-      const solicitudesNuevasEnStandBy = solicitudesEnStandBy.filter(s => 
+      const solicitudesNuevasEnStandBy = solicitudesEnStandBy.filter(s =>
         !solicitudesStandBy.has(s.id!)
       );
-      
+
       if (solicitudesNuevasEnStandBy.length > 0) {
         stopLoading(); // Detener loading global cuando se complete Stand By
       }
     }
-  }, [solicitudes, solicitudesStandBy, stopLoading]);
+  }, [stopLoading, solicitudes.length]);
 
   // Detener loading global cuando se complete una reactivación
   useEffect(() => {
@@ -103,7 +114,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
       console.log('🔍 useEffect de reactivación ejecutado, reactivatingSolicitudId:', reactivatingSolicitudId);
       const solicitud = solicitudes.find(s => s.id === reactivatingSolicitudId);
       console.log('🔍 Solicitud encontrada:', solicitud?.id, 'Estado:', solicitud?.estado);
-      
+
       // Verificar si la solicitud ya no está en STAND BY (reactivación completada)
       if (solicitud && !isStandBy(solicitud.estado)) {
         console.log('🔍 Reactivación completada, limpiando estado...');
@@ -134,21 +145,27 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   // Limpiar estados de solicitudes que ya no están en STAND BY
   useEffect(() => {
     setSolicitudesStandBy(prev => {
-      const newMap = new Map();
+      const newMap = new Map<number, string>();
       solicitudes.forEach(solicitud => {
         if (isStandBy(solicitud.estado)) {
-          // Si la solicitud está en STAND BY, guardar su estado anterior
           if (prev.has(solicitud.id!)) {
             newMap.set(solicitud.id!, prev.get(solicitud.id!)!);
           } else {
-            // Si es nueva en STAND BY, guardar un estado por defecto
             newMap.set(solicitud.id!, 'PENDIENTE');
           }
         }
       });
+      // Evitar re-renders innecesarios: si el contenido no cambió, retorna prev
+      if (newMap.size === prev.size) {
+        let equal = true;
+        for (const [k, v] of newMap) {
+          if (prev.get(k) !== v) { equal = false; break; }
+        }
+        if (equal) return prev;
+      }
       return newMap;
     });
-  }, [solicitudes, solicitudesStandBy]);
+  }, [solicitudes]);
 
   // Detener loading global cuando se complete una operación de Deserto
   useEffect(() => {
@@ -156,7 +173,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
       console.log('🔍 useEffect de deserto ejecutado, desertoSolicitudId:', desertoSolicitudId);
       const solicitud = solicitudes.find(s => s.id === desertoSolicitudId);
       console.log('🔍 Solicitud encontrada:', solicitud?.id, 'Estado:', solicitud?.estado);
-      
+
       if (solicitud && isDeserto(solicitud.estado)) {
         console.log('🔍 Operación de Deserto completada, limpiando estado...');
         setDesertoSolicitudId(null);
@@ -169,6 +186,18 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
       }
     }
   }, [solicitudes, desertoSolicitudId, stopLoading]);
+
+  // Asegurar que al salir de la pantalla se libere el loading global y se limpien diálogos
+  useEffect(() => {
+    return () => {
+      try { stopLoading(); } catch {}
+      setConfirmApproveOpen(false);
+      setConfirmContactOpen(false);
+      setConfirmStandByOpen(false);
+      setConfirmReactivateOpen(false);
+      setConfirmDesertoOpen(false);
+    };
+  }, [stopLoading]);
 
   const getStatusBadge = (estado: string) => {
     const formatEstado = (estado: string) => {
@@ -250,7 +279,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
   // Función para verificar si la solicitud está en STAND BY
   const isStandBy = (estado: string) => estado?.toUpperCase() === 'STAND BY';
-  
+
   // Función para verificar si la solicitud está en estado DESERTO
   const isDeserto = (estado: string) => estado?.toUpperCase() === 'DESERTO';
 
@@ -297,7 +326,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
       console.log('🔍 Llamando a onContact con ID:', selectedSolicitudId);
       onContact(selectedSolicitudId);
       console.log('🔍 onContact ejecutado');
-      
+
       setConfirmContactOpen(false);
       setSelectedSolicitudId(null);
       // NO limpiar contactingSolicitudId aquí, se limpiará cuando se complete la operación
@@ -334,7 +363,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
       console.log('🔍 Llamando a onDeserto con ID:', selectedSolicitudId);
       onDeserto(selectedSolicitudId);
       console.log('🔍 onDeserto ejecutado');
-      
+
       setConfirmDesertoOpen(false);
       setSelectedSolicitudId(null);
       // NO limpiar desertoSolicitudId aquí, se limpiará cuando se complete la operación
@@ -349,7 +378,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     console.log('🔍 reactivatingSolicitudId establecido a:', id);
     setConfirmReactivateOpen(true);
     console.log('🔍 Diálogo de confirmación abierto');
-    
+
     // Verificar que el estado se estableció correctamente
     setTimeout(() => {
       console.log('🔍 Verificación: reactivatingSolicitudId después de setState:', reactivatingSolicitudId);
@@ -365,7 +394,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
       console.log('🔍 Llamando a onReactivate con ID:', reactivatingSolicitudId);
       onReactivate(reactivatingSolicitudId);
       console.log('🔍 onReactivate ejecutado');
-      
+
       setConfirmReactivateOpen(false);
       // NO limpiar reactivatingSolicitudId aquí, se limpiará cuando se complete la operación
       // El loading se detendrá cuando se complete la operación en el useEffect
@@ -392,7 +421,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
         <Table>
           <TableHeader>
             <TableRow>
-                             <TableHead className="text-left w-32">Acciones</TableHead>
+              <TableHead className="text-left w-32">Acciones</TableHead>
               <TableHead>Documento</TableHead>
               <TableHead>Empresa</TableHead>
               <TableHead>Analista Asignado</TableHead>
@@ -401,37 +430,40 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
             </TableRow>
           </TableHeader>
           <TableBody>
-                         {solicitudes.map((solicitud) => (
-                                                           <TableRow 
+            {solicitudes.map((solicitud) => (
+              <TableRow
                 key={solicitud.id}
                 className={`${getRowBackgroundColor(solicitud.estado)}`}
               >
-                                   <TableCell>
-                                                                           <div className="flex justify-start items-center space-x-1">
+                <TableCell>
+                  <div className="flex justify-start items-center space-x-1">
                     {/* Botón Editar - solo visible cuando esté en estado ASIGNADO */}
                     {solicitud.estado === 'ASIGNADO' && (
-                                          <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => onEdit(solicitud)}
-                              aria-label="Editar solicitud"
-                              className="h-8 w-8"
-                            >
-                                                             <Edit className="h-4 w-4 text-purple-600" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Editar</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                      <Can action="accion-editar-solicitud">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => onEdit(solicitud)}
+                                aria-label="Editar solicitud"
+                                className="h-8 w-8"
+                              >
+                                <Edit className="h-4 w-4 text-purple-600" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Editar</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </Can>
                     )}
 
                     {/* Botón Aprobar - solo visible en estado PENDIENTE */}
-                                          {solicitud.estado === 'PENDIENTE' && !isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && (
+                    {solicitud.estado === 'PENDIENTE' && !isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && (
+                      <Can action="accion-aprobar-solicitud">
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -450,102 +482,115 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
-                      )}
+                      </Can>
+                    )}
 
                     {/* Botón Contactado - solo visible en estado ASIGNADO */}
                     {solicitud.estado === 'ASIGNADO' && !isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && (
-                                          <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleContactClick(solicitud.id)}
-                              aria-label="Marcar como contactado"
-                              className={`h-8 w-8 ${contactingSolicitudId === solicitud.id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                              disabled={contactingSolicitudId === solicitud.id}
-                            >
-                              <Phone className="h-4 w-4 text-blue-600" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>
-                              {contactingSolicitudId === solicitud.id 
-                                ? 'Procesando...' 
-                                : 'Contactado'
-                              }
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                      <Can action="accion-contactar-solicitud">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleContactClick(solicitud.id)}
+                                aria-label="Marcar como contactado"
+                                className={`h-8 w-8 ${contactingSolicitudId === solicitud.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                disabled={contactingSolicitudId === solicitud.id}
+                              >
+                                <Phone className="h-4 w-4 text-blue-600" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>
+                                {contactingSolicitudId === solicitud.id
+                                  ? 'Procesando...'
+                                  : 'Contactado'
+                                }
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </Can>
                     )}
 
                     {/* Botón Stand By / Reactivar - solo visible cuando NO esté en Deserto */}
-                    {!isDeserto(solicitud.estado) && (
-                                         <TooltipProvider>
-                       <Tooltip>
-                         <TooltipTrigger asChild>
-                           {isStandBy(solicitud.estado) ? (
-                             <Button
-                               variant="ghost"
-                               size="icon"
-                               onClick={() => handleReactivate(solicitud.id!)}
-                               aria-label="Reactivar solicitud"
-                               className={`h-8 w-8 ${reactivatingSolicitudId === solicitud.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    {!isDeserto(solicitud.estado) && isStandBy(solicitud.estado) && (
+                      <Can action="accion-reactivar-solicitud">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleReactivate(solicitud.id!)}
+                                aria-label="Reactivar solicitud"
+                                className={`h-8 w-8 ${reactivatingSolicitudId === solicitud.id ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 disabled={reactivatingSolicitudId === solicitud.id}
-                             >
-                               <Play className="h-4 w-4 text-green-600" />
-                             </Button>
-                           ) : (
-                             <Button
-                               variant="ghost"
-                               size="icon"
-                               onClick={() => handleStandByClick(solicitud.id)}
-                               aria-label="Marcar como Stand By"
-                               className="h-8 w-8"
-                             >
-                               <Pause className="h-4 w-4 text-gray-600" />
-                             </Button>
-                           )}
-                         </TooltipTrigger>
-                         <TooltipContent>
-                           <p>
-                              {isStandBy(solicitud.estado) 
-                                 ? reactivatingSolicitudId === solicitud.id
-                                   ? 'Procesando...'
-                                   : 'Reactivar solicitud'
-                                 : 'Stand By'
-                             }
-                           </p>
-                         </TooltipContent>
-                       </Tooltip>
-                     </TooltipProvider>
+                              >
+                                <Play className="h-4 w-4 text-green-600" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>
+                                {reactivatingSolicitudId === solicitud.id ? 'Procesando...' : 'Reactivar solicitud'}
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </Can>
+                    )}
+
+                    {!isDeserto(solicitud.estado) && !isStandBy(solicitud.estado) && (
+                      <Can action="accion-standby-solicitud">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleStandByClick(solicitud.id)}
+                                aria-label="Marcar como Stand By"
+                                className="h-8 w-8"
+                              >
+                                <Pause className="h-4 w-4 text-gray-600" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Stand By</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </Can>
                     )}
 
                     {/* Botón Deserto - solo visible cuando NO esté en estado Deserto */}
-                     {!isDeserto(solicitud.estado) && (
-                       <TooltipProvider>
-                         <Tooltip>
-                           <TooltipTrigger asChild>
-                             <Button
-                               variant="ghost"
-                               size="icon"
-                               onClick={() => handleDesertoClick(solicitud.id)}
-                               aria-label="Marcar como Deserto"
-                               className="h-8 w-8"
-                             >
-                               <XCircle className="h-4 w-4 text-red-600" />
-                             </Button>
-                           </TooltipTrigger>
-                           <TooltipContent>
-                             <p>Marcar como Deserto</p>
-                           </TooltipContent>
-                         </Tooltip>
-                       </TooltipProvider>
-                     )}
+                    {!isDeserto(solicitud.estado) && (
+                      <Can action="accion-deserto-solicitud">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDesertoClick(solicitud.id)}
+                                aria-label="Marcar como Deserto"
+                                className="h-8 w-8"
+                              >
+                                <XCircle className="h-4 w-4 text-red-600" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Marcar como Deserto</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </Can>
+                    )}
                   </div>
                 </TableCell>
-                
+
                 <TableCell>
                   <div className="flex flex-col">
                     <span>
@@ -564,7 +609,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                     </span>
                   </div>
                 </TableCell>
-                
+
                 <TableCell>
                   <div className="flex flex-col">
                     {solicitud.analista ? (
@@ -583,7 +628,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                     )}
                   </div>
                 </TableCell>
-                
+
                 <TableCell>{getStatusBadge(solicitud.estado)}</TableCell>
                 <TableCell>
                   <div className="flex flex-col">
@@ -618,35 +663,35 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
         </AlertDialogContent>
       </AlertDialog>
 
-             {/* Confirmación de contacto */}
-       <AlertDialog open={confirmContactOpen} onOpenChange={setConfirmContactOpen}>
-         <AlertDialogContent>
-           <AlertDialogHeader>
-             <AlertDialogTitle>¿Marcar como contactado?</AlertDialogTitle>
-             <AlertDialogDescription>
-               ¿Estás seguro de que deseas marcar esta solicitud como contactada? 
-               <br />
-               <span className="text-sm text-muted-foreground">
-                 Esta acción cambiará el estado de la solicitud a "PENDIENTE DOCUMENTOS".
-               </span>
-             </AlertDialogDescription>
-           </AlertDialogHeader>
-           <AlertDialogFooter>
-             <AlertDialogCancel onClick={() => {
-               setConfirmContactOpen(false);
-               setContactingSolicitudId(null);
-             }}>
-               Cancelar
-             </AlertDialogCancel>
-             <AlertDialogAction
-               onClick={handleContactConfirm}
-               className="bg-blue-600 hover:bg-blue-700"
-             >
-               Confirmar Contacto
-             </AlertDialogAction>
-           </AlertDialogFooter>
-         </AlertDialogContent>
-       </AlertDialog>
+      {/* Confirmación de contacto */}
+      <AlertDialog open={confirmContactOpen} onOpenChange={setConfirmContactOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Marcar como contactado?</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas marcar esta solicitud como contactada?
+              <br />
+              <span className="text-sm text-muted-foreground">
+                Esta acción cambiará el estado de la solicitud a "PENDIENTE DOCUMENTOS".
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setConfirmContactOpen(false);
+              setContactingSolicitudId(null);
+            }}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleContactConfirm}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Confirmar Contacto
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Confirmación de Stand By */}
       <AlertDialog open={confirmStandByOpen} onOpenChange={setConfirmStandByOpen}>
@@ -661,7 +706,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
               </span>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          
+
           <div className="py-4">
             <label htmlFor="observacion" className="block text-sm font-medium text-gray-700 mb-2">
               Observación (requerida)
@@ -676,7 +721,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
               required
             />
           </div>
-          
+
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
@@ -690,57 +735,57 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
         </AlertDialogContent>
       </AlertDialog>
 
-             {/* Confirmación de Reactivación */}
-       <AlertDialog open={confirmReactivateOpen} onOpenChange={setConfirmReactivateOpen}>
-         <AlertDialogContent>
-           <AlertDialogHeader>
-             <AlertDialogTitle>¿Reactivar solicitud?</AlertDialogTitle>
-             <AlertDialogDescription>
-               ¿Estás seguro de que deseas reactivar esta solicitud? 
-               <br />
-               <span className="text-sm text-muted-foreground">
-                 Esta acción restaurará la solicitud al estado que tenía antes de ponerla en Stand By.
-               </span>
-             </AlertDialogDescription>
-           </AlertDialogHeader>
-           <AlertDialogFooter>
-             <AlertDialogCancel onClick={() => {
-               setConfirmReactivateOpen(false);
-               setReactivatingSolicitudId(null);
-             }}>
-               Cancelar
-             </AlertDialogCancel>
-             <AlertDialogAction onClick={handleReactivateConfirm}>
-               Reactivar
-             </AlertDialogAction>
-           </AlertDialogFooter>
-         </AlertDialogContent>
-       </AlertDialog>
+      {/* Confirmación de Reactivación */}
+      <AlertDialog open={confirmReactivateOpen} onOpenChange={setConfirmReactivateOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Reactivar solicitud?</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas reactivar esta solicitud?
+              <br />
+              <span className="text-sm text-muted-foreground">
+                Esta acción restaurará la solicitud al estado que tenía antes de ponerla en Stand By.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setConfirmReactivateOpen(false);
+              setReactivatingSolicitudId(null);
+            }}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleReactivateConfirm}>
+              Reactivar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
-       {/* Confirmación de Deserto */}
-       <AlertDialog open={confirmDesertoOpen} onOpenChange={setConfirmDesertoOpen}>
-         <AlertDialogContent>
-           <AlertDialogHeader>
-             <AlertDialogTitle>¿Marcar como Deserto?</AlertDialogTitle>
-             <AlertDialogDescription>
-               ¿Estás seguro de que deseas marcar esta solicitud como Deserto? 
-               <br />
-               <span className="text-sm text-muted-foreground">
-                 Esta acción marcará la solicitud como abandonada y deshabilitará todas las acciones futuras.
-               </span>
-             </AlertDialogDescription>
-           </AlertDialogHeader>
-           <AlertDialogFooter>
-             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-             <AlertDialogAction 
-               onClick={handleDesertoConfirm}
-               className="bg-red-600 hover:bg-red-700"
-             >
-               Marcar como Deserto
-             </AlertDialogAction>
-           </AlertDialogFooter>
-         </AlertDialogContent>
-       </AlertDialog>
+      {/* Confirmación de Deserto */}
+      <AlertDialog open={confirmDesertoOpen} onOpenChange={setConfirmDesertoOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Marcar como Deserto?</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas marcar esta solicitud como Deserto?
+              <br />
+              <span className="text-sm text-muted-foreground">
+                Esta acción marcará la solicitud como abandonada y deshabilitará todas las acciones futuras.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDesertoConfirm}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Marcar como Deserto
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };

@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { obtenerEmpresaSeleccionada } from '@/utils/empresaUtils';
 import { supabase } from '@/services/supabaseClient';
+import { useRegisterView } from '@/hooks/useRegisterView';
 
 interface EmpresaInfo {
   id: number;
@@ -47,6 +48,12 @@ interface EmpresaInfo {
 }
 
 export default function AcercaEmpresaPage() {
+  // Registrar vista informativa (sin acciones CRUD)
+  const { addAction } = useRegisterView('AcercaEmpresa', 'listado', 'Acerca de la Empresa');
+  useEffect(() => {
+    addAction('ver', 'Ver Información de la Empresa');
+    addAction('refrescar', 'Refrescar Información');
+  }, [addAction]);
   const [empresa, setEmpresa] = useState<EmpresaInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

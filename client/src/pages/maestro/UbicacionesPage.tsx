@@ -65,6 +65,7 @@ import { CiudadForm } from '@/components/ubicaciones/CiudadForm';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
+import { useRegisterView } from "@/hooks/useRegisterView";
 
 export default function UbicacionesPage() {
   const navigate = useNavigate();
@@ -85,6 +86,72 @@ export default function UbicacionesPage() {
   const [forceDeleteItem, setForceDeleteItem] = useState<any>(null);
   const queryClient = useQueryClient();
   const { startLoading, stopLoading } = useLoading();
+
+  // Registro de vistas/acciones para permisos (listados y formularios)
+  const { addAction: addPaisListado } = useRegisterView('Paises', 'listado', 'Listado de Paises');
+  const { addAction: addPaisForm } = useRegisterView('Paises', 'formulario', 'Formulario de Paises');
+  const { addAction: addDeptoListado } = useRegisterView('Departamentos', 'listado', 'Listado de Departamentos');
+  const { addAction: addDeptoForm } = useRegisterView('Departamentos', 'formulario', 'Formulario de Departamentos');
+  const { addAction: addCiudadListado } = useRegisterView('Ciudades', 'listado', 'Listado de Ciudades');
+  const { addAction: addCiudadForm } = useRegisterView('Ciudades', 'formulario', 'Formulario de Ciudades');
+  const { addAction: addRegionalListado } = useRegisterView('Regionales', 'listado', 'Listado de Regionales');
+  const { addAction: addRegionalForm } = useRegisterView('Regionales', 'formulario', 'Formulario de Regionales');
+  const { addAction: addSucursalListado } = useRegisterView('Sucursales', 'listado', 'Listado de Sucursales');
+  const { addAction: addSucursalForm } = useRegisterView('Sucursales', 'formulario', 'Formulario de Sucursales');
+
+  useEffect(() => {
+    // Paises
+    addPaisListado('editar', 'Editar País');
+    addPaisListado('activar', 'Activar País');
+    addPaisListado('inactivar', 'Inactivar País');
+    addPaisListado('eliminar', 'Eliminar País');
+    addPaisForm('crear', 'Crear País');
+    addPaisForm('actualizar', 'Actualizar País');
+    addPaisForm('cancelar', 'Cancelar');
+
+    // Departamentos
+    addDeptoListado('editar', 'Editar Departamento');
+    addDeptoListado('activar', 'Activar Departamento');
+    addDeptoListado('inactivar', 'Inactivar Departamento');
+    addDeptoListado('eliminar', 'Eliminar Departamento');
+    addDeptoForm('crear', 'Crear Departamento');
+    addDeptoForm('actualizar', 'Actualizar Departamento');
+    addDeptoForm('cancelar', 'Cancelar');
+
+    // Ciudades
+    addCiudadListado('editar', 'Editar Ciudad');
+    addCiudadListado('activar', 'Activar Ciudad');
+    addCiudadListado('inactivar', 'Inactivar Ciudad');
+    addCiudadListado('eliminar', 'Eliminar Ciudad');
+    addCiudadForm('crear', 'Crear Ciudad');
+    addCiudadForm('actualizar', 'Actualizar Ciudad');
+    addCiudadForm('cancelar', 'Cancelar');
+
+    // Regionales
+    addRegionalListado('editar', 'Editar Regional');
+    addRegionalListado('activar', 'Activar Regional');
+    addRegionalListado('inactivar', 'Inactivar Regional');
+    addRegionalListado('eliminar', 'Eliminar Regional');
+    addRegionalForm('crear', 'Crear Regional');
+    addRegionalForm('actualizar', 'Actualizar Regional');
+    addRegionalForm('asociar-departamentos', 'Asociar Departamentos');
+    addRegionalForm('cancelar', 'Cancelar');
+
+    // Sucursales
+    addSucursalListado('editar', 'Editar Sucursal');
+    addSucursalListado('activar', 'Activar Sucursal');
+    addSucursalListado('inactivar', 'Inactivar Sucursal');
+    addSucursalListado('eliminar', 'Eliminar Sucursal');
+    addSucursalForm('crear', 'Crear Sucursal');
+    addSucursalForm('actualizar', 'Actualizar Sucursal');
+    addSucursalForm('cancelar', 'Cancelar');
+  }, [
+    addPaisListado, addPaisForm,
+    addDeptoListado, addDeptoForm,
+    addCiudadListado, addCiudadForm,
+    addRegionalListado, addRegionalForm,
+    addSucursalListado, addSucursalForm
+  ]);
 
   // Estados para filtros específicos
   const [filterPaisDepartamento, setFilterPaisDepartamento] = useState('todos');

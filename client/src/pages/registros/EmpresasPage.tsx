@@ -3,7 +3,7 @@ import { CompanyForm } from "@/components/companies/CompanyForm";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PlusCircle, Building, Edit, Trash2, Lock, CheckCircle, Eye, Search, Filter } from "lucide-react";
 import { Company } from "@/types/company";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,8 @@ import { useToast } from "@/hooks/use-toast";
 import { empresasService } from "@/services/empresasService";
 import { empresaService } from "@/services/empresaService";
 import { useLoading } from "@/contexts/LoadingContext";
+import { useRegisterView } from "@/hooks/useRegisterView";
+import { Can } from "@/contexts/PermissionsContext";
 
 export default function RegistroEmpresas() {
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
@@ -28,6 +30,23 @@ export default function RegistroEmpresas() {
   const { data: cityData = {} } = useCityData();
   const { toast } = useToast();
   const { startLoading, stopLoading } = useLoading();
+  const { addAction: addEmpresasListado } = useRegisterView('Empresas', 'listado', 'Listado de Empresas');
+  const { addAction: addEmpresasForm } = useRegisterView('Empresas', 'formulario', 'Registro de Empresa');
+
+  // Registrar acciones para JSON de permisos
+  useEffect(() => {
+    // Listado
+    addEmpresasListado('editar', 'Editar Empresa');
+    addEmpresasListado('activar', 'Activar Empresa');
+    addEmpresasListado('inactivar', 'Inactivar Empresa');
+    addEmpresasListado('eliminar', 'Eliminar Empresa');
+    addEmpresasListado('exportar', 'Exportar');
+
+    // Formulario
+    addEmpresasForm('crear', 'Crear Empresa');
+    addEmpresasForm('actualizar', 'Actualizar Empresa');
+    addEmpresasForm('cancelar', 'Cancelar');
+  }, [addEmpresasListado, addEmpresasForm]);
 
   // Estados para filtros
   const [searchTerm, setSearchTerm] = useState("");
@@ -234,13 +253,15 @@ export default function RegistroEmpresas() {
                 <span className="text-lg font-semibold text-gray-700">EMPRESAS AFILIADAS</span>
               </div>
               <div className="flex space-x-2">
-                <Button
-                  onClick={handleNewCompany}
-                  className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
-                  size="sm"
-                >
-                  Adicionar Registro
-                </Button>
+                <Can action="accion-crear">
+                  <Button
+                    onClick={handleNewCompany}
+                    className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
+                    size="sm"
+                  >
+                    Adicionar Registro
+                  </Button>
+                </Can>
               </div>
             </div>
 
@@ -327,132 +348,140 @@ export default function RegistroEmpresas() {
                       <TableRow key={company.id} className="hover:bg-gray-50">
                         <TableCell className="px-2 py-1">
                           <div className="flex flex-row gap-1 items-center">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleEdit(company)}
-                                    aria-label="Editar empresa"
-                                    className="h-8 w-8"
-                                  >
-                                    <Edit className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Editar</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                            {company.active ? (
+                            <Can action="accion-editar">
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <AlertDialog>
-                                      <AlertDialogTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          aria-label="Inactivar empresa"
-                                          className="h-8 w-8"
-                                        >
-                                          <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
-                                        </Button>
-                                      </AlertDialogTrigger>
-                                      <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                          <AlertDialogTitle>¿Inactivar empresa?</AlertDialogTitle>
-                                          <AlertDialogDescription>
-                                            Esta acción inactivará la empresa y no podrá ser usada hasta que se reactive. ¿Estás seguro?
-                                          </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                          <AlertDialogAction onClick={() => handleDeactivate(company)}>
-                                            Sí, inactivar
-                                          </AlertDialogAction>
-                                        </AlertDialogFooter>
-                                      </AlertDialogContent>
-                                    </AlertDialog>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleEdit(company)}
+                                      aria-label="Editar empresa"
+                                      className="h-8 w-8"
+                                    >
+                                      <Edit className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
+                                    </Button>
                                   </TooltipTrigger>
                                   <TooltipContent>
-                                    <p>Inactivar</p>
+                                    <p>Editar</p>
                                   </TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
+                            </Can>
+                            {company.active ? (
+                              <Can action="accion-inactivar">
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            aria-label="Inactivar empresa"
+                                            className="h-8 w-8"
+                                          >
+                                            <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
+                                          </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>¿Inactivar empresa?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                              Esta acción inactivará la empresa y no podrá ser usada hasta que se reactive. ¿Estás seguro?
+                                            </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleDeactivate(company)}>
+                                              Sí, inactivar
+                                            </AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Inactivar</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </Can>
                             ) : (
                               <>
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            aria-label="Eliminar empresa"
-                                            className="h-8 w-8"
-                                          >
-                                            <Trash2 className="h-4 w-4 text-rose-600 hover:text-rose-800 transition-colors" />
-                                          </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                          <AlertDialogHeader>
-                                            <AlertDialogTitle>¿Eliminar empresa?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                              Esta acción eliminará la empresa de forma permanente. ¿Estás seguro?
-                                            </AlertDialogDescription>
-                                          </AlertDialogHeader>
-                                          <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleDelete(company)}>
-                                              Sí, eliminar
-                                            </AlertDialogAction>
-                                          </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                      </AlertDialog>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Eliminar</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            aria-label="Activar empresa"
-                                            className="h-8 w-8"
-                                          >
-                                            <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
-                                          </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                          <AlertDialogHeader>
-                                            <AlertDialogTitle>¿Activar empresa?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                              Esta acción reactivará la empresa y estará disponible para su uso. ¿Estás seguro?
-                                            </AlertDialogDescription>
-                                          </AlertDialogHeader>
-                                          <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleActivate(company)}>
-                                              Sí, activar
-                                            </AlertDialogAction>
-                                          </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                      </AlertDialog>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Activar</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
+                                <Can action="accion-eliminar">
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <AlertDialog>
+                                          <AlertDialogTrigger asChild>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              aria-label="Eliminar empresa"
+                                              className="h-8 w-8"
+                                            >
+                                              <Trash2 className="h-4 w-4 text-rose-600 hover:text-rose-800 transition-colors" />
+                                            </Button>
+                                          </AlertDialogTrigger>
+                                          <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                              <AlertDialogTitle>¿Eliminar empresa?</AlertDialogTitle>
+                                              <AlertDialogDescription>
+                                                Esta acción eliminará la empresa de forma permanente. ¿Estás seguro?
+                                              </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                              <AlertDialogAction onClick={() => handleDelete(company)}>
+                                                Sí, eliminar
+                                              </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                          </AlertDialogContent>
+                                        </AlertDialog>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Eliminar</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </Can>
+                                <Can action="accion-activar">
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <AlertDialog>
+                                          <AlertDialogTrigger asChild>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              aria-label="Activar empresa"
+                                              className="h-8 w-8"
+                                            >
+                                              <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
+                                            </Button>
+                                          </AlertDialogTrigger>
+                                          <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                              <AlertDialogTitle>¿Activar empresa?</AlertDialogTitle>
+                                              <AlertDialogDescription>
+                                                Esta acción reactivará la empresa y estará disponible para su uso. ¿Estás seguro?
+                                              </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                              <AlertDialogAction onClick={() => handleActivate(company)}>
+                                                Sí, activar
+                                              </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                          </AlertDialogContent>
+                                        </AlertDialog>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Activar</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </Can>
                               </>
                             )}
                           </div>

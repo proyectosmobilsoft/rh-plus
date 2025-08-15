@@ -37,6 +37,7 @@ import EditarUsuarioPage from './pages/seguridad/EditarUsuarioPage';
 import PerfilesPage from './pages/seguridad/PerfilesPage';
 import LogsSistemaPage from './pages/seguridad/LogsSistemaPage';
 import GestionPermisosPage from './pages/seguridad/GestionPermisosPage';
+import PermisosPage from './pages/seguridad/PermisosPage';
 import MenuPage from './pages/seguridad/MenuPage';
 import CrearCandidatoAdmin from './pages/admin/CrearCandidatoAdmin';
 // Páginas para cada sección
@@ -370,6 +371,16 @@ function App() {
             <Route path="/seguridad/gestion-permisos" element={
               <ProtectedRoute>
                 <GestionPermisosPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/permisos" element={
+              <ProtectedRoute>
+                <PermisosPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/seguridad/permisos" element={
+              <ProtectedRoute>
+                <PermisosPage />
               </ProtectedRoute>
             } />
             <Route path="/menu" element={
