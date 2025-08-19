@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLoading } from "@/contexts/LoadingContext";
 import { empresasService } from "@/services/empresasService";
 import { empresaService } from "@/services/empresaService";
+import { Can } from "@/contexts/PermissionsContext";
 
 const PlantillasPage: React.FC = () => {
   const { toast } = useToast();
@@ -320,23 +321,25 @@ const PlantillasPage: React.FC = () => {
                 <span className="text-lg font-semibold text-gray-700">PLANTILLAS</span>
             </div>
               <div className="flex space-x-2">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        onClick={startCreating}
-                        className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
-                        size="sm"
-                      >
+                <Can action="accion-crear-plantilla">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          onClick={startCreating}
+                          className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
+                          size="sm"
+                        >
               <Plus className="h-4 w-4 mr-2" />
                         Adicionar Registro
             </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Crear nueva plantilla</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Crear nueva plantilla</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </Can>
               </div>
       </div>
 
@@ -386,19 +389,21 @@ const PlantillasPage: React.FC = () => {
                   <p className="text-gray-500 mb-4">
                   Cree la primera plantilla para personalizar los formularios de órdenes
                 </p>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button onClick={startCreating} className="bg-cyan-600 hover:bg-cyan-700">
+                  <Can action="accion-crear-plantilla">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button onClick={startCreating} className="bg-cyan-600 hover:bg-cyan-700">
                   <Plus className="h-4 w-4 mr-2" />
                   Crear Primera Plantilla
                 </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Crear primera plantilla del sistema</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Crear primera plantilla del sistema</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </Can>
                 </div>
               ) : (
                 <Table className="min-w-[800px] w-full text-xs">
@@ -415,64 +420,30 @@ const PlantillasPage: React.FC = () => {
                       <TableRow key={template.id} className="hover:bg-gray-50">
                         <TableCell className="px-2 py-1">
                           <div className="flex flex-row gap-1 items-center">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => startEditing(template)}
-                                    aria-label="Editar plantilla"
-                                    className="h-8 w-8"
-                                  >
-                                    <Edit className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Editar</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
+                            <Can action="accion-editar-plantilla">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => startEditing(template)}
+                                      aria-label="Editar plantilla"
+                                      className="h-8 w-8"
+                                    >
+                                      <Edit className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Editar</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </Can>
 
                             {template.activa ? (
                               <>
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            aria-label="Inactivar plantilla"
-                                            className="h-8 w-8"
-                                          >
-                                            <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
-                                          </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                          <AlertDialogHeader>
-                                            <AlertDialogTitle>¿Inactivar plantilla?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                              Esta acción inactivará la plantilla y no podrá ser usada hasta que se reactive. ¿Estás seguro?
-                                            </AlertDialogDescription>
-                                          </AlertDialogHeader>
-                                          <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => confirmDeactivate(template)}>
-                                              Sí, inactivar
-                                            </AlertDialogAction>
-                                          </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                      </AlertDialog>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Inactivar</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-
-                                {!template.es_default && (
+                                <Can action="accion-inactivar-plantilla">
                                   <TooltipProvider>
                                     <Tooltip>
                                       <TooltipTrigger asChild>
@@ -481,108 +452,152 @@ const PlantillasPage: React.FC = () => {
                                             <Button
                                               variant="ghost"
                                               size="icon"
-                                              aria-label="Establecer como predeterminada"
+                                              aria-label="Inactivar plantilla"
                                               className="h-8 w-8"
                                             >
-                                              <Crown className="h-4 w-4 text-purple-600 hover:text-purple-800 transition-colors" />
+                                              <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
                                             </Button>
                                           </AlertDialogTrigger>
                                           <AlertDialogContent>
                                             <AlertDialogHeader>
-                                              <AlertDialogTitle>¿Establecer como predeterminada?</AlertDialogTitle>
+                                              <AlertDialogTitle>¿Inactivar plantilla?</AlertDialogTitle>
                                               <AlertDialogDescription>
-                                                Esta acción establecerá esta plantilla como predeterminada y removerá el estado de predeterminada de cualquier otra plantilla. ¿Estás seguro?
+                                                Esta acción inactivará la plantilla y no podrá ser usada hasta que se reactive. ¿Estás seguro?
                                               </AlertDialogDescription>
                                             </AlertDialogHeader>
                                             <AlertDialogFooter>
                                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                              <AlertDialogAction onClick={() => confirmSetDefault(template)}>
-                                                Sí, establecer
+                                              <AlertDialogAction onClick={() => confirmDeactivate(template)}>
+                                                Sí, inactivar
                                               </AlertDialogAction>
                                             </AlertDialogFooter>
                                           </AlertDialogContent>
                                         </AlertDialog>
                                       </TooltipTrigger>
                                       <TooltipContent>
-                                        <p>Establecer como predeterminada</p>
+                                        <p>Inactivar</p>
                                       </TooltipContent>
                                     </Tooltip>
                                   </TooltipProvider>
+                                </Can>
+
+                                {!template.es_default && (
+                                  <Can action="accion-establecer-predeterminada-plantilla">
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                              <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                aria-label="Establecer como predeterminada"
+                                                className="h-8 w-8"
+                                              >
+                                                <Crown className="h-4 w-4 text-purple-600 hover:text-purple-800 transition-colors" />
+                                              </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                              <AlertDialogHeader>
+                                                <AlertDialogTitle>¿Establecer como predeterminada?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                  Esta acción establecerá esta plantilla como predeterminada y removerá el estado de predeterminada de cualquier otra plantilla. ¿Estás seguro?
+                                                </AlertDialogDescription>
+                                              </AlertDialogHeader>
+                                              <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => confirmSetDefault(template)}>
+                                                  Sí, establecer
+                                                </AlertDialogAction>
+                                              </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                          </AlertDialog>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>Establecer como predeterminada</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  </Can>
                                 )}
                               </>
                             ) : (
                               <>
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            aria-label="Eliminar plantilla"
-                                            className="h-8 w-8"
-                                          >
-                                            <Trash2 className="h-4 w-4 text-rose-600 hover:text-rose-800 transition-colors" />
-                                          </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                          <AlertDialogHeader>
-                                            <AlertDialogTitle>¿Eliminar plantilla?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                              Esta acción eliminará la plantilla de forma permanente. ¿Estás seguro?
-                                            </AlertDialogDescription>
-                                          </AlertDialogHeader>
-                                          <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => confirmDelete(template)}>
-                                              Sí, eliminar
-                                            </AlertDialogAction>
-                                          </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                      </AlertDialog>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Eliminar</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
+                                <Can action="accion-eliminar-plantilla">
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <AlertDialog>
+                                          <AlertDialogTrigger asChild>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              aria-label="Eliminar plantilla"
+                                              className="h-8 w-8"
+                                            >
+                                              <Trash2 className="h-4 w-4 text-rose-600 hover:text-rose-800 transition-colors" />
+                                            </Button>
+                                          </AlertDialogTrigger>
+                                          <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                              <AlertDialogTitle>¿Eliminar plantilla?</AlertDialogTitle>
+                                              <AlertDialogDescription>
+                                                Esta acción eliminará la plantilla de forma permanente. ¿Estás seguro?
+                                              </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                              <AlertDialogAction onClick={() => confirmDelete(template)}>
+                                                Sí, eliminar
+                                              </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                          </AlertDialogContent>
+                                        </AlertDialog>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Eliminar</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </Can>
 
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            aria-label="Activar plantilla"
-                                            className="h-8 w-8"
-                                          >
-                                            <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
-                                          </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                          <AlertDialogHeader>
-                                            <AlertDialogTitle>¿Activar plantilla?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                              Esta acción reactivará la plantilla y estará disponible para su uso. ¿Estás seguro?
-                                            </AlertDialogDescription>
-                                          </AlertDialogHeader>
-                                          <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => confirmActivate(template)}>
-                                              Sí, activar
-                                            </AlertDialogAction>
-                                          </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                      </AlertDialog>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Activar</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
+                                <Can action="accion-activar-plantilla">
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <AlertDialog>
+                                          <AlertDialogTrigger asChild>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              aria-label="Activar plantilla"
+                                              className="h-8 w-8"
+                                            >
+                                              <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
+                                            </Button>
+                                          </AlertDialogTrigger>
+                                          <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                              <AlertDialogTitle>¿Activar plantilla?</AlertDialogTitle>
+                                              <AlertDialogDescription>
+                                                Esta acción reactivará la plantilla y estará disponible para su uso. ¿Estás seguro?
+                                              </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                              <AlertDialogAction onClick={() => confirmActivate(template)}>
+                                                Sí, activar
+                                              </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                          </AlertDialogContent>
+                                        </AlertDialog>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Activar</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </Can>
                               </>
                             )}
                           </div>
@@ -629,10 +644,12 @@ const PlantillasPage: React.FC = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <TemplateForm 
-                initialData={editingTemplate}
-                onSaved={handleSaved}
-              />
+              <Can action={editingTemplate ? "accion-actualizar-plantilla" : "accion-crear-plantilla"}>
+                <TemplateForm 
+                  initialData={editingTemplate}
+                  onSaved={handleSaved}
+                />
+              </Can>
             </CardContent>
           </Card>
         </TabsContent>

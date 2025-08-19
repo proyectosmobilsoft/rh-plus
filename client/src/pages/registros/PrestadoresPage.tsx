@@ -434,7 +434,7 @@ const PrestadoresPage = () => {
                  <TooltipProvider>
                    <Tooltip>
                      <TooltipTrigger asChild>
-                       <Can action="accion-crear">
+                       <Can action="accion-crear-prestador">
                          <Button
                            onClick={handleNewPrestador}
                            className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
@@ -576,7 +576,7 @@ const PrestadoresPage = () => {
                       <TableRow key={prestador.id} className="hover:bg-gray-50">
                         <TableCell className="px-2 py-1">
                           <div className="flex flex-row gap-1 items-center">
-                               <Can action="accion-editar">
+                               <Can action="accion-editar-prestador">
                                  <TooltipProvider>
                                    <Tooltip>
                                      <TooltipTrigger asChild>
@@ -597,7 +597,7 @@ const PrestadoresPage = () => {
                                  </TooltipProvider>
                                </Can>
                                {prestador.activo ? (
-                                 <Can action="accion-inactivar">
+                                 <Can action="accion-inactivar-prestador">
                                    <TooltipProvider>
                                      <Tooltip>
                                        <TooltipTrigger asChild>
@@ -637,7 +637,7 @@ const PrestadoresPage = () => {
                                  </Can>
                                ) : (
                                  <>
-                                   <Can action="accion-eliminar">
+                                   <Can action="accion-eliminar-prestador">
                                      <TooltipProvider>
                                        <Tooltip>
                                          <TooltipTrigger asChild>
@@ -675,7 +675,7 @@ const PrestadoresPage = () => {
                                        </Tooltip>
                                      </TooltipProvider>
                                    </Can>
-                                   <Can action="accion-activar">
+                                   <Can action="accion-activar-prestador">
                                      <TooltipProvider>
                                        <Tooltip>
                                          <TooltipTrigger asChild>
@@ -744,9 +744,10 @@ const PrestadoresPage = () => {
           </div>
 
           {/* Formulario de prestador en el tab de registro */}
-          <Card>
-            <CardContent className="p-6">
-                             <form onSubmit={handleSubmit} className="space-y-3">
+          <Can action={editingId ? "accion-actualizar-prestador" : "accion-crear-prestador"}>
+            <Card>
+              <CardContent className="p-6">
+                <form onSubmit={handleSubmit} className="space-y-3">
                                  {/* Sección 1: Información Personal */}
                  <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
                    <div className="flex items-center gap-2 pb-2 border-b">
@@ -992,9 +993,10 @@ const PrestadoresPage = () => {
                      </Tooltip>
                    </TooltipProvider>
                  </div>
-              </form>
-            </CardContent>
-          </Card>
+                </form>
+              </CardContent>
+            </Card>
+          </Can>
         </TabsContent>
       </Tabs>
     </div>

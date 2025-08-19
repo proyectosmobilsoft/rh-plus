@@ -253,7 +253,7 @@ export default function RegistroEmpresas() {
                 <span className="text-lg font-semibold text-gray-700">EMPRESAS AFILIADAS</span>
               </div>
               <div className="flex space-x-2">
-                <Can action="accion-crear">
+                <Can action="accion-crear-empresa">
                   <Button
                     onClick={handleNewCompany}
                     className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
@@ -348,7 +348,7 @@ export default function RegistroEmpresas() {
                       <TableRow key={company.id} className="hover:bg-gray-50">
                         <TableCell className="px-2 py-1">
                           <div className="flex flex-row gap-1 items-center">
-                            <Can action="accion-editar">
+                            <Can action="accion-editar-empresa">
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
@@ -369,7 +369,7 @@ export default function RegistroEmpresas() {
                               </TooltipProvider>
                             </Can>
                             {company.active ? (
-                              <Can action="accion-inactivar">
+                              <Can action="accion-inactivar-empresa">
                                 <TooltipProvider>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
@@ -408,7 +408,7 @@ export default function RegistroEmpresas() {
                               </Can>
                             ) : (
                               <>
-                                <Can action="accion-eliminar">
+                                <Can action="accion-eliminar-empresa">
                                   <TooltipProvider>
                                     <Tooltip>
                                       <TooltipTrigger asChild>
@@ -445,7 +445,7 @@ export default function RegistroEmpresas() {
                                     </Tooltip>
                                   </TooltipProvider>
                                 </Can>
-                                <Can action="accion-activar">
+                                <Can action="accion-activar-empresa">
                                   <TooltipProvider>
                                     <Tooltip>
                                       <TooltipTrigger asChild>
@@ -513,13 +513,15 @@ export default function RegistroEmpresas() {
           </div>
 
           {/* Formulario de empresa en el tab de registro */}
-          <Card>
-            <CompanyForm
-              initialData={editingCompany}
-              onSaved={handleSaved}
-              entityType="afiliada"
-            />
-          </Card>
+          <Can action={editingCompany ? "accion-actualizar-empresa" : "accion-crear-empresa"}>
+            <Card>
+              <CompanyForm
+                initialData={editingCompany}
+                onSaved={handleSaved}
+                entityType="afiliada"
+              />
+            </Card>
+          </Can>
         </TabsContent>
       </Tabs>
     </div>

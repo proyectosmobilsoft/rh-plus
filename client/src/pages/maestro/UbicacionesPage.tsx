@@ -66,6 +66,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { useRegisterView } from "@/hooks/useRegisterView";
+import { Can } from "@/contexts/PermissionsContext";
 
 export default function UbicacionesPage() {
   const navigate = useNavigate();
@@ -696,138 +697,146 @@ export default function UbicacionesPage() {
            <TableRow key={item.id} className="hover:bg-gray-50">
              <TableCell className="px-2 py-1">
                <div className="flex flex-row gap-1 items-center">
-                 <TooltipProvider>
-                   <Tooltip>
-                     <TooltipTrigger asChild>
-                       <Button
-                         variant="ghost"
-                         size="icon"
-                         onClick={() => handleEdit(item, 'pais')}
-                         aria-label="Editar país"
-                         className="h-8 w-8"
-                       >
-                         <Edit3 className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
-                       </Button>
-                     </TooltipTrigger>
-                     <TooltipContent>
-                       <p>Editar</p>
-                     </TooltipContent>
-                   </Tooltip>
-                 </TooltipProvider>
+                 <Can action="accion-editar-pais">
+                   <TooltipProvider>
+                     <Tooltip>
+                       <TooltipTrigger asChild>
+                         <Button
+                           variant="ghost"
+                           size="icon"
+                           onClick={() => handleEdit(item, 'pais')}
+                           aria-label="Editar país"
+                           className="h-8 w-8"
+                         >
+                           <Edit3 className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
+                         </Button>
+                       </TooltipTrigger>
+                       <TooltipContent>
+                         <p>Editar</p>
+                       </TooltipContent>
+                     </Tooltip>
+                   </TooltipProvider>
+                 </Can>
                  
                  {item.estado ? (
-                   <TooltipProvider>
-                     <Tooltip>
-                       <TooltipTrigger asChild>
-                         <AlertDialog>
-                           <AlertDialogTrigger asChild>
-                             <Button
-                               variant="ghost"
-                               size="icon"
-                               aria-label="Inactivar país"
-                               className="h-8 w-8"
-                             >
-                               <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
-                             </Button>
-                           </AlertDialogTrigger>
-                           <AlertDialogContent>
-                             <AlertDialogHeader>
-                               <AlertDialogTitle>¿Inactivar país?</AlertDialogTitle>
-                               <AlertDialogDescription>
-                                Esta acción inactivará el país "{item.nombre}" y no podrá ser usado hasta que se reactive. ¿Estás seguro?
-                               </AlertDialogDescription>
-                             </AlertDialogHeader>
-                             <AlertDialogFooter>
-                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                               <AlertDialogAction onClick={() => handleDeactivate(item, 'pais')}>
-                                 Sí, inactivar
-                               </AlertDialogAction>
-                             </AlertDialogFooter>
-                           </AlertDialogContent>
-                         </AlertDialog>
-                       </TooltipTrigger>
-                       <TooltipContent>
-                         <p>Inactivar</p>
-                       </TooltipContent>
-                     </Tooltip>
-                   </TooltipProvider>
+                   <Can action="accion-inactivar-pais">
+                     <TooltipProvider>
+                       <Tooltip>
+                         <TooltipTrigger asChild>
+                           <AlertDialog>
+                             <AlertDialogTrigger asChild>
+                               <Button
+                                 variant="ghost"
+                                 size="icon"
+                                 aria-label="Inactivar país"
+                                 className="h-8 w-8"
+                               >
+                                 <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
+                               </Button>
+                             </AlertDialogTrigger>
+                             <AlertDialogContent>
+                               <AlertDialogHeader>
+                                 <AlertDialogTitle>¿Inactivar país?</AlertDialogTitle>
+                                 <AlertDialogDescription>
+                                  Esta acción inactivará el país "{item.nombre}" y no podrá ser usado hasta que se reactive. ¿Estás seguro?
+                                 </AlertDialogDescription>
+                               </AlertDialogHeader>
+                               <AlertDialogFooter>
+                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                 <AlertDialogAction onClick={() => handleDeactivate(item, 'pais')}>
+                                   Sí, inactivar
+                                 </AlertDialogAction>
+                               </AlertDialogFooter>
+                             </AlertDialogContent>
+                           </AlertDialog>
+                         </TooltipTrigger>
+                         <TooltipContent>
+                           <p>Inactivar</p>
+                         </TooltipContent>
+                       </Tooltip>
+                     </TooltipProvider>
+                   </Can>
                  ) : (
-                   <TooltipProvider>
-                     <Tooltip>
-                       <TooltipTrigger asChild>
-                         <AlertDialog>
-                           <AlertDialogTrigger asChild>
-                             <Button
-                               variant="ghost"
-                               size="icon"
-                               aria-label="Activar país"
-                               className="h-8 w-8"
-                             >
-                               <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
-                             </Button>
-                           </AlertDialogTrigger>
-                           <AlertDialogContent>
-                             <AlertDialogHeader>
-                               <AlertDialogTitle>¿Activar país?</AlertDialogTitle>
-                               <AlertDialogDescription>
-                                 ¿Estás seguro de que deseas activar el país "{item.nombre}"? 
-                                 Una vez activado, aparecerá en las listas de selección.
-                               </AlertDialogDescription>
-                             </AlertDialogHeader>
-                             <AlertDialogFooter>
-                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                               <AlertDialogAction onClick={() => handleActivate(item, 'pais')}>
-                                 Sí, activar
-                               </AlertDialogAction>
-                             </AlertDialogFooter>
-                           </AlertDialogContent>
-                         </AlertDialog>
-                       </TooltipTrigger>
-                       <TooltipContent>
-                         <p>Activar</p>
-                       </TooltipContent>
-                     </Tooltip>
-                   </TooltipProvider>
+                   <Can action="accion-activar-pais">
+                     <TooltipProvider>
+                       <Tooltip>
+                         <TooltipTrigger asChild>
+                           <AlertDialog>
+                             <AlertDialogTrigger asChild>
+                               <Button
+                                 variant="ghost"
+                                 size="icon"
+                                 aria-label="Activar país"
+                                 className="h-8 w-8"
+                               >
+                                 <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
+                               </Button>
+                             </AlertDialogTrigger>
+                             <AlertDialogContent>
+                               <AlertDialogHeader>
+                                 <AlertDialogTitle>¿Activar país?</AlertDialogTitle>
+                                 <AlertDialogDescription>
+                                   ¿Estás seguro de que deseas activar el país "{item.nombre}"? 
+                                   Una vez activado, aparecerá en las listas de selección.
+                                 </AlertDialogDescription>
+                               </AlertDialogHeader>
+                               <AlertDialogFooter>
+                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                 <AlertDialogAction onClick={() => handleActivate(item, 'pais')}>
+                                   Sí, activar
+                                 </AlertDialogAction>
+                               </AlertDialogFooter>
+                             </AlertDialogContent>
+                           </AlertDialog>
+                         </TooltipTrigger>
+                         <TooltipContent>
+                           <p>Activar</p>
+                         </TooltipContent>
+                       </Tooltip>
+                     </TooltipProvider>
+                   </Can>
                  )}
                  
                  {!item.estado && (
-                   <TooltipProvider>
-                     <Tooltip>
-                       <TooltipTrigger asChild>
-                         <AlertDialog>
-                           <AlertDialogTrigger asChild>
-                             <Button
-                               variant="ghost"
-                               size="icon"
-                               aria-label="Eliminar país"
-                               className="h-8 w-8"
-                             >
-                               <Trash2 className="h-4 w-4 text-rose-600 hover:text-rose-800 transition-colors" />
-                             </Button>
-                           </AlertDialogTrigger>
-                           <AlertDialogContent>
-                             <AlertDialogHeader>
-                               <AlertDialogTitle>¿Eliminar país?</AlertDialogTitle>
-                               <AlertDialogDescription>
-                                 Esta acción eliminará el país "{item.nombre}" de forma permanente.
-                                 También se eliminarán sus departamentos y ciudades relacionadas.
-                                 Esta acción no se puede deshacer. ¿Estás seguro?
-                               </AlertDialogDescription>
-                             </AlertDialogHeader>
-                             <AlertDialogFooter>
-                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                               <AlertDialogAction onClick={() => handleDelete(item, 'pais')}>
-                                 Sí, eliminar
-                               </AlertDialogAction>
-                             </AlertDialogFooter>
-                           </AlertDialogContent>
-                         </AlertDialog>
-                       </TooltipTrigger>
-                       <TooltipContent>
-                         <p>Eliminar</p>
-                       </TooltipContent>
-                     </Tooltip>
-                   </TooltipProvider>
+                   <Can action="accion-eliminar-pais">
+                     <TooltipProvider>
+                       <Tooltip>
+                         <TooltipTrigger asChild>
+                           <AlertDialog>
+                             <AlertDialogTrigger asChild>
+                               <Button
+                                 variant="ghost"
+                                 size="icon"
+                                 aria-label="Eliminar país"
+                                 className="h-8 w-8"
+                               >
+                                 <Trash2 className="h-4 w-4 text-rose-600 hover:text-rose-800 transition-colors" />
+                               </Button>
+                             </AlertDialogTrigger>
+                             <AlertDialogContent>
+                               <AlertDialogHeader>
+                                 <AlertDialogTitle>¿Eliminar país?</AlertDialogTitle>
+                                 <AlertDialogDescription>
+                                   Esta acción eliminará el país "{item.nombre}" de forma permanente.
+                                   También se eliminarán sus departamentos y ciudades relacionadas.
+                                   Esta acción no se puede deshacer. ¿Estás seguro?
+                                 </AlertDialogDescription>
+                               </AlertDialogHeader>
+                               <AlertDialogFooter>
+                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                 <AlertDialogAction onClick={() => handleDelete(item, 'pais')}>
+                                   Sí, eliminar
+                                 </AlertDialogAction>
+                               </AlertDialogFooter>
+                             </AlertDialogContent>
+                           </AlertDialog>
+                         </TooltipTrigger>
+                         <TooltipContent>
+                           <p>Eliminar</p>
+                         </TooltipContent>
+                       </Tooltip>
+                     </TooltipProvider>
+                   </Can>
                  )}
                </div>
              </TableCell>
@@ -847,138 +856,146 @@ export default function UbicacionesPage() {
            <TableRow key={item.id} className="hover:bg-gray-50">
              <TableCell className="px-2 py-1">
                <div className="flex flex-row gap-1 items-center">
-                 <TooltipProvider>
-                   <Tooltip>
-                     <TooltipTrigger asChild>
-                       <Button
-                         variant="ghost"
-                         size="icon"
-                         onClick={() => handleEdit(item, 'departamento')}
-                         aria-label="Editar departamento"
-                         className="h-8 w-8"
-                       >
-                         <Edit3 className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
-                       </Button>
-                     </TooltipTrigger>
-                     <TooltipContent>
-                       <p>Editar</p>
-                     </TooltipContent>
-                   </Tooltip>
-                 </TooltipProvider>
+                 <Can action="accion-editar-departamento">
+                   <TooltipProvider>
+                     <Tooltip>
+                       <TooltipTrigger asChild>
+                         <Button
+                           variant="ghost"
+                           size="icon"
+                           onClick={() => handleEdit(item, 'departamento')}
+                           aria-label="Editar departamento"
+                           className="h-8 w-8"
+                         >
+                           <Edit3 className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
+                         </Button>
+                       </TooltipTrigger>
+                       <TooltipContent>
+                         <p>Editar</p>
+                       </TooltipContent>
+                     </Tooltip>
+                   </TooltipProvider>
+                 </Can>
                  
                  {item.estado ? (
-                   <TooltipProvider>
-                     <Tooltip>
-                       <TooltipTrigger asChild>
-                         <AlertDialog>
-                           <AlertDialogTrigger asChild>
-                             <Button
-                               variant="ghost"
-                               size="icon"
-                               aria-label="Inactivar departamento"
-                               className="h-8 w-8"
-                             >
-                               <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
-                             </Button>
-                           </AlertDialogTrigger>
-                           <AlertDialogContent>
-                             <AlertDialogHeader>
-                               <AlertDialogTitle>¿Inactivar departamento?</AlertDialogTitle>
-                               <AlertDialogDescription>
-                                Esta acción inactivará el departamento "{item.nombre}" y no podrá ser usado hasta que se reactive. ¿Estás seguro?
-                               </AlertDialogDescription>
-                             </AlertDialogHeader>
-                             <AlertDialogFooter>
-                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                               <AlertDialogAction onClick={() => handleDeactivate(item, 'departamento')}>
-                                 Sí, inactivar
-                               </AlertDialogAction>
-                             </AlertDialogFooter>
-                           </AlertDialogContent>
-                         </AlertDialog>
-                       </TooltipTrigger>
-                       <TooltipContent>
-                         <p>Inactivar</p>
-                       </TooltipContent>
-                     </Tooltip>
-                   </TooltipProvider>
+                   <Can action="accion-inactivar-departamento">
+                     <TooltipProvider>
+                       <Tooltip>
+                         <TooltipTrigger asChild>
+                           <AlertDialog>
+                             <AlertDialogTrigger asChild>
+                               <Button
+                                 variant="ghost"
+                                 size="icon"
+                                 aria-label="Inactivar departamento"
+                                 className="h-8 w-8"
+                               >
+                                 <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
+                               </Button>
+                             </AlertDialogTrigger>
+                             <AlertDialogContent>
+                               <AlertDialogHeader>
+                                 <AlertDialogTitle>¿Inactivar departamento?</AlertDialogTitle>
+                                 <AlertDialogDescription>
+                                  Esta acción inactivará el departamento "{item.nombre}" y no podrá ser usado hasta que se reactive. ¿Estás seguro?
+                                 </AlertDialogDescription>
+                               </AlertDialogHeader>
+                               <AlertDialogFooter>
+                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                 <AlertDialogAction onClick={() => handleDeactivate(item, 'departamento')}>
+                                   Sí, inactivar
+                                 </AlertDialogAction>
+                               </AlertDialogFooter>
+                             </AlertDialogContent>
+                           </AlertDialog>
+                         </TooltipTrigger>
+                         <TooltipContent>
+                           <p>Inactivar</p>
+                         </TooltipContent>
+                       </Tooltip>
+                     </TooltipProvider>
+                   </Can>
                  ) : (
-                   <TooltipProvider>
-                     <Tooltip>
-                       <TooltipTrigger asChild>
-                         <AlertDialog>
-                           <AlertDialogTrigger asChild>
-                             <Button
-                               variant="ghost"
-                               size="icon"
-                               aria-label="Activar departamento"
-                               className="h-8 w-8"
-                             >
-                               <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
-                             </Button>
-                           </AlertDialogTrigger>
-                           <AlertDialogContent>
-                             <AlertDialogHeader>
-                               <AlertDialogTitle>¿Activar departamento?</AlertDialogTitle>
-                               <AlertDialogDescription>
-                                 ¿Estás seguro de que deseas activar el departamento "{item.nombre}"? 
-                                 Una vez activado, aparecerá en las listas de selección.
-                               </AlertDialogDescription>
-                             </AlertDialogHeader>
-                             <AlertDialogFooter>
-                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                               <AlertDialogAction onClick={() => handleActivate(item, 'departamento')}>
-                                 Sí, activar
-                               </AlertDialogAction>
-                             </AlertDialogFooter>
-                           </AlertDialogContent>
-                         </AlertDialog>
-                       </TooltipTrigger>
-                       <TooltipContent>
-                         <p>Activar</p>
-                       </TooltipContent>
-                     </Tooltip>
-                   </TooltipProvider>
+                   <Can action="accion-activar-departamento">
+                     <TooltipProvider>
+                       <Tooltip>
+                         <TooltipTrigger asChild>
+                           <AlertDialog>
+                             <AlertDialogTrigger asChild>
+                               <Button
+                                 variant="ghost"
+                                 size="icon"
+                                 aria-label="Activar departamento"
+                                 className="h-8 w-8"
+                               >
+                                 <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
+                               </Button>
+                             </AlertDialogTrigger>
+                             <AlertDialogContent>
+                               <AlertDialogHeader>
+                                 <AlertDialogTitle>¿Activar departamento?</AlertDialogTitle>
+                                 <AlertDialogDescription>
+                                   ¿Estás seguro de que deseas activar el departamento "{item.nombre}"? 
+                                   Una vez activado, aparecerá en las listas de selección.
+                                 </AlertDialogDescription>
+                               </AlertDialogHeader>
+                               <AlertDialogFooter>
+                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                 <AlertDialogAction onClick={() => handleActivate(item, 'departamento')}>
+                                   Sí, activar
+                                 </AlertDialogAction>
+                               </AlertDialogFooter>
+                             </AlertDialogContent>
+                           </AlertDialog>
+                         </TooltipTrigger>
+                         <TooltipContent>
+                           <p>Activar</p>
+                         </TooltipContent>
+                       </Tooltip>
+                     </TooltipProvider>
+                   </Can>
                  )}
                  
                  {!item.estado && (
-                   <TooltipProvider>
-                     <Tooltip>
-                       <TooltipTrigger asChild>
-                         <AlertDialog>
-                           <AlertDialogTrigger asChild>
-                             <Button
-                               variant="ghost"
-                               size="icon"
-                               aria-label="Eliminar departamento"
-                               className="h-8 w-8"
-                             >
-                               <Trash2 className="h-4 w-4 text-rose-600 hover:text-rose-800 transition-colors" />
-                             </Button>
-                           </AlertDialogTrigger>
-                           <AlertDialogContent>
-                             <AlertDialogHeader>
-                               <AlertDialogTitle>¿Eliminar departamento?</AlertDialogTitle>
-                               <AlertDialogDescription>
-                                 Esta acción eliminará el departamento "{item.nombre}" de forma permanente.
-                                 También se eliminarán sus ciudades relacionadas.
-                                 Esta acción no se puede deshacer. ¿Estás seguro?
-                               </AlertDialogDescription>
-                             </AlertDialogHeader>
-                             <AlertDialogFooter>
-                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                               <AlertDialogAction onClick={() => handleDelete(item, 'departamento')}>
-                                 Sí, eliminar
-                               </AlertDialogAction>
-                             </AlertDialogFooter>
-                           </AlertDialogContent>
-                         </AlertDialog>
-                       </TooltipTrigger>
-                       <TooltipContent>
-                         <p>Eliminar</p>
-                       </TooltipContent>
-                     </Tooltip>
-                   </TooltipProvider>
+                   <Can action="accion-eliminar-departamento">
+                     <TooltipProvider>
+                       <Tooltip>
+                         <TooltipTrigger asChild>
+                           <AlertDialog>
+                             <AlertDialogTrigger asChild>
+                               <Button
+                                 variant="ghost"
+                                 size="icon"
+                                 aria-label="Eliminar departamento"
+                                 className="h-8 w-8"
+                               >
+                                 <Trash2 className="h-4 w-4 text-rose-600 hover:text-rose-800 transition-colors" />
+                               </Button>
+                             </AlertDialogTrigger>
+                             <AlertDialogContent>
+                               <AlertDialogHeader>
+                                 <AlertDialogTitle>¿Eliminar departamento?</AlertDialogTitle>
+                                 <AlertDialogDescription>
+                                   Esta acción eliminará el departamento "{item.nombre}" de forma permanente.
+                                   También se eliminarán sus ciudades relacionadas.
+                                   Esta acción no se puede deshacer. ¿Estás seguro?
+                                 </AlertDialogDescription>
+                               </AlertDialogHeader>
+                               <AlertDialogFooter>
+                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                 <AlertDialogAction onClick={() => handleDelete(item, 'departamento')}>
+                                   Sí, eliminar
+                                 </AlertDialogAction>
+                               </AlertDialogFooter>
+                             </AlertDialogContent>
+                           </AlertDialog>
+                         </TooltipTrigger>
+                         <TooltipContent>
+                           <p>Eliminar</p>
+                         </TooltipContent>
+                       </Tooltip>
+                     </TooltipProvider>
+                   </Can>
                  )}
                </div>
              </TableCell>
@@ -1001,137 +1018,145 @@ export default function UbicacionesPage() {
            <TableRow key={item.id} className="hover:bg-gray-50">
              <TableCell className="px-2 py-1">
                <div className="flex flex-row gap-1 items-center">
-                 <TooltipProvider>
-                   <Tooltip>
-                     <TooltipTrigger asChild>
-                       <Button
-                         variant="ghost"
-                         size="icon"
-                         onClick={() => handleEdit(item, 'ciudad')}
-                         aria-label="Editar ciudad"
-                         className="h-8 w-8"
-                       >
-                         <Edit3 className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
-                       </Button>
-                     </TooltipTrigger>
-                     <TooltipContent>
-                       <p>Editar</p>
-                     </TooltipContent>
-                   </Tooltip>
-                 </TooltipProvider>
+                 <Can action="accion-editar-ciudad">
+                   <TooltipProvider>
+                     <Tooltip>
+                       <TooltipTrigger asChild>
+                         <Button
+                           variant="ghost"
+                           size="icon"
+                           onClick={() => handleEdit(item, 'ciudad')}
+                           aria-label="Editar ciudad"
+                           className="h-8 w-8"
+                         >
+                           <Edit3 className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
+                         </Button>
+                       </TooltipTrigger>
+                       <TooltipContent>
+                         <p>Editar</p>
+                       </TooltipContent>
+                     </Tooltip>
+                   </TooltipProvider>
+                 </Can>
                  
                  {item.estado ? (
-                   <TooltipProvider>
-                     <Tooltip>
-                       <TooltipTrigger asChild>
-                         <AlertDialog>
-                           <AlertDialogTrigger asChild>
-                             <Button
-                               variant="ghost"
-                               size="icon"
-                               aria-label="Inactivar ciudad"
-                               className="h-8 w-8"
-                             >
-                               <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
-                             </Button>
-                           </AlertDialogTrigger>
-                           <AlertDialogContent>
-                             <AlertDialogHeader>
-                               <AlertDialogTitle>¿Inactivar ciudad?</AlertDialogTitle>
-                               <AlertDialogDescription>
-                                Esta acción inactivará la ciudad "{item.nombre}" y no podrá ser usada hasta que se reactive. ¿Estás seguro?
-                               </AlertDialogDescription>
-                             </AlertDialogHeader>
-                             <AlertDialogFooter>
-                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                               <AlertDialogAction onClick={() => handleDeactivate(item, 'ciudad')}>
-                                 Sí, inactivar
-                               </AlertDialogAction>
-                             </AlertDialogFooter>
-                           </AlertDialogContent>
-                         </AlertDialog>
-                       </TooltipTrigger>
-                       <TooltipContent>
-                         <p>Inactivar</p>
-                       </TooltipContent>
-                     </Tooltip>
-                   </TooltipProvider>
+                   <Can action="accion-inactivar-ciudad">
+                     <TooltipProvider>
+                       <Tooltip>
+                         <TooltipTrigger asChild>
+                           <AlertDialog>
+                             <AlertDialogTrigger asChild>
+                               <Button
+                                 variant="ghost"
+                                 size="icon"
+                                 aria-label="Inactivar ciudad"
+                                 className="h-8 w-8"
+                               >
+                                 <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
+                               </Button>
+                             </AlertDialogTrigger>
+                             <AlertDialogContent>
+                               <AlertDialogHeader>
+                                 <AlertDialogTitle>¿Inactivar ciudad?</AlertDialogTitle>
+                                 <AlertDialogDescription>
+                                  Esta acción inactivará la ciudad "{item.nombre}" y no podrá ser usada hasta que se reactive. ¿Estás seguro?
+                                 </AlertDialogDescription>
+                               </AlertDialogHeader>
+                               <AlertDialogFooter>
+                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                 <AlertDialogAction onClick={() => handleDeactivate(item, 'ciudad')}>
+                                   Sí, inactivar
+                                 </AlertDialogAction>
+                               </AlertDialogFooter>
+                             </AlertDialogContent>
+                           </AlertDialog>
+                         </TooltipTrigger>
+                         <TooltipContent>
+                           <p>Inactivar</p>
+                         </TooltipContent>
+                       </Tooltip>
+                     </TooltipProvider>
+                   </Can>
                  ) : (
-                   <TooltipProvider>
-                     <Tooltip>
-                       <TooltipTrigger asChild>
-                         <AlertDialog>
-                           <AlertDialogTrigger asChild>
-                             <Button
-                               variant="ghost"
-                               size="icon"
-                               aria-label="Activar ciudad"
-                               className="h-8 w-8"
-                             >
-                               <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
-                             </Button>
-                           </AlertDialogTrigger>
-                           <AlertDialogContent>
-                             <AlertDialogHeader>
-                               <AlertDialogTitle>¿Activar ciudad?</AlertDialogTitle>
-                               <AlertDialogDescription>
-                                 ¿Estás seguro de que deseas activar la ciudad "{item.nombre}"? 
-                                 Una vez activada, aparecerá en las listas de selección.
-                               </AlertDialogDescription>
-                             </AlertDialogHeader>
-                             <AlertDialogFooter>
-                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                               <AlertDialogAction onClick={() => handleActivate(item, 'ciudad')}>
-                                 Sí, activar
-                               </AlertDialogAction>
-                             </AlertDialogFooter>
-                           </AlertDialogContent>
-                         </AlertDialog>
-                       </TooltipTrigger>
-                       <TooltipContent>
-                         <p>Activar</p>
-                       </TooltipContent>
-                     </Tooltip>
-                   </TooltipProvider>
+                   <Can action="accion-activar-ciudad">
+                     <TooltipProvider>
+                       <Tooltip>
+                         <TooltipTrigger asChild>
+                           <AlertDialog>
+                             <AlertDialogTrigger asChild>
+                               <Button
+                                 variant="ghost"
+                                 size="icon"
+                                 aria-label="Activar ciudad"
+                                 className="h-8 w-8"
+                               >
+                                 <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
+                               </Button>
+                             </AlertDialogTrigger>
+                             <AlertDialogContent>
+                               <AlertDialogHeader>
+                                 <AlertDialogTitle>¿Activar ciudad?</AlertDialogTitle>
+                                 <AlertDialogDescription>
+                                   ¿Estás seguro de que deseas activar la ciudad "{item.nombre}"? 
+                                   Una vez activada, aparecerá en las listas de selección.
+                                 </AlertDialogDescription>
+                               </AlertDialogHeader>
+                               <AlertDialogFooter>
+                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                 <AlertDialogAction onClick={() => handleActivate(item, 'ciudad')}>
+                                   Sí, activar
+                                 </AlertDialogAction>
+                               </AlertDialogFooter>
+                             </AlertDialogContent>
+                           </AlertDialog>
+                         </TooltipTrigger>
+                         <TooltipContent>
+                           <p>Activar</p>
+                         </TooltipContent>
+                       </Tooltip>
+                     </TooltipProvider>
+                   </Can>
                  )}
                  
                  {!item.estado && (
-                   <TooltipProvider>
-                     <Tooltip>
-                       <TooltipTrigger asChild>
-                         <AlertDialog>
-                           <AlertDialogTrigger asChild>
-                             <Button
-                               variant="ghost"
-                               size="icon"
-                               aria-label="Eliminar ciudad"
-                               className="h-8 w-8"
-                             >
-                               <Trash2 className="h-4 w-4 text-rose-600 hover:text-rose-800 transition-colors" />
-                             </Button>
-                           </AlertDialogTrigger>
-                           <AlertDialogContent>
-                             <AlertDialogHeader>
-                               <AlertDialogTitle>¿Eliminar ciudad?</AlertDialogTitle>
-                               <AlertDialogDescription>
-                                 Esta acción eliminará la ciudad "{item.nombre}" de forma permanente. 
-                                 Esta acción no se puede deshacer. ¿Estás seguro?
-                               </AlertDialogDescription>
-                             </AlertDialogHeader>
-                             <AlertDialogFooter>
-                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                               <AlertDialogAction onClick={() => handleDelete(item, 'ciudad')}>
-                                 Sí, eliminar
-                               </AlertDialogAction>
-                             </AlertDialogFooter>
-                           </AlertDialogContent>
-                         </AlertDialog>
-                       </TooltipTrigger>
-                       <TooltipContent>
-                         <p>Eliminar</p>
-                       </TooltipContent>
-                     </Tooltip>
-                   </TooltipProvider>
+                   <Can action="accion-eliminar-ciudad">
+                     <TooltipProvider>
+                       <Tooltip>
+                         <TooltipTrigger asChild>
+                           <AlertDialog>
+                             <AlertDialogTrigger asChild>
+                               <Button
+                                 variant="ghost"
+                                 size="icon"
+                                 aria-label="Eliminar ciudad"
+                                 className="h-8 w-8"
+                               >
+                                 <Trash2 className="h-4 w-4 text-rose-600 hover:text-rose-800 transition-colors" />
+                               </Button>
+                             </AlertDialogTrigger>
+                             <AlertDialogContent>
+                               <AlertDialogHeader>
+                                 <AlertDialogTitle>¿Eliminar ciudad?</AlertDialogTitle>
+                                 <AlertDialogDescription>
+                                   Esta acción eliminará la ciudad "{item.nombre}" de forma permanente. 
+                                   Esta acción no se puede deshacer. ¿Estás seguro?
+                                 </AlertDialogDescription>
+                               </AlertDialogHeader>
+                               <AlertDialogFooter>
+                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                 <AlertDialogAction onClick={() => handleDelete(item, 'ciudad')}>
+                                   Sí, eliminar
+                                 </AlertDialogAction>
+                               </AlertDialogFooter>
+                             </AlertDialogContent>
+                           </AlertDialog>
+                         </TooltipTrigger>
+                         <TooltipContent>
+                           <p>Eliminar</p>
+                         </TooltipContent>
+                       </Tooltip>
+                     </TooltipProvider>
+                   </Can>
                  )}
                </div>
              </TableCell>
@@ -1155,97 +1180,103 @@ export default function UbicacionesPage() {
           <TableRow key={item.id} className="hover:bg-gray-50">
             <TableCell className="px-2 py-1">
               <div className="flex flex-row gap-1 items-center">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEdit(item, 'regional')}
-                        aria-label="Editar regional"
-                        className="h-8 w-8"
-                      >
-                        <Edit3 className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Editar</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <Can action="accion-editar-regional">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(item, 'regional')}
+                          aria-label="Editar regional"
+                          className="h-8 w-8"
+                        >
+                          <Edit3 className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Editar</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </Can>
 
                 {item.activo ? (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              aria-label="Inactivar regional"
-                              className="h-8 w-8"
-                            >
-                              <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>¿Inactivar regional?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Esta acción inactivará la regional "{item.nombre}" y no podrá ser usada hasta que se reactive. ¿Estás seguro?
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDeactivate(item, 'regional')}>
-                                Sí, inactivar
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Inactivar</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <Can action="accion-inactivar-regional">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                aria-label="Inactivar regional"
+                                className="h-8 w-8"
+                              >
+                                <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Inactivar regional?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Esta acción inactivará la regional "{item.nombre}" y no podrá ser usada hasta que se reactive. ¿Estás seguro?
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeactivate(item, 'regional')}>
+                                  Sí, inactivar
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Inactivar</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </Can>
                 ) : (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              aria-label="Activar regional"
-                              className="h-8 w-8"
-                            >
-                              <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>¿Activar regional?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                ¿Estás seguro de que deseas activar la regional "{item.nombre}"?
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleActivate(item, 'regional')}>
-                                Sí, activar
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Activar</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <Can action="accion-activar-regional">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                aria-label="Activar regional"
+                                className="h-8 w-8"
+                              >
+                                <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Activar regional?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  ¿Estás seguro de que deseas activar la regional "{item.nombre}"?
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleActivate(item, 'regional')}>
+                                  Sí, activar
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Activar</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </Can>
                 )}
 
                 {!item.activo && (
@@ -1304,78 +1335,84 @@ export default function UbicacionesPage() {
           <TableRow key={item.id} className="hover:bg-gray-50">
             <TableCell className="px-2 py-1">
               <div className="flex flex-row gap-1 items-center">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEdit(item, 'sucursal')}
-                        aria-label="Editar sucursal"
-                        className="h-8 w-8"
-                      >
-                        <Edit3 className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Editar</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <Can action="accion-editar-sucursal">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(item, 'sucursal')}
+                          aria-label="Editar sucursal"
+                          className="h-8 w-8"
+                        >
+                          <Edit3 className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Editar</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </Can>
                 {item.activo ? (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" aria-label="Inactivar sucursal" className="h-8 w-8">
-                              <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>¿Inactivar sucursal?</AlertDialogTitle>
-                              <AlertDialogDescription>Esta acción inactivará la sucursal "{item.nombre}". ¿Estás seguro?</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDeactivate(item, 'sucursal')}>Sí, inactivar</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Inactivar</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <Can action="accion-inactivar-sucursal">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" aria-label="Inactivar sucursal" className="h-8 w-8">
+                                <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Inactivar sucursal?</AlertDialogTitle>
+                                <AlertDialogDescription>Esta acción inactivará la sucursal "{item.nombre}". ¿Estás seguro?</AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeactivate(item, 'sucursal')}>Sí, inactivar</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Inactivar</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </Can>
                 ) : (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" aria-label="Activar sucursal" className="h-8 w-8">
-                              <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>¿Activar sucursal?</AlertDialogTitle>
-                              <AlertDialogDescription>¿Deseas activar la sucursal "{item.nombre}"?</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleActivate(item, 'sucursal')}>Sí, activar</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Activar</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <Can action="accion-activar-sucursal">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" aria-label="Activar sucursal" className="h-8 w-8">
+                                <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Activar sucursal?</AlertDialogTitle>
+                                <AlertDialogDescription>¿Deseas activar la sucursal "{item.nombre}"?</AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleActivate(item, 'sucursal')}>Sí, activar</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Activar</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </Can>
                 )}
 
                 {!item.activo && (
@@ -1793,9 +1830,17 @@ export default function UbicacionesPage() {
   const renderForm = () => {
     switch (activeTab) {
       case 'paises':
-        return <PaisForm initialData={editingItem} onSaved={handleSaved} />;
+        return (
+          <Can action={editingItem ? "accion-actualizar-pais" : "accion-crear-pais"}>
+            <PaisForm initialData={editingItem} onSaved={handleSaved} />
+          </Can>
+        );
       case 'departamentos':
-        return <DepartamentoForm initialData={editingItem} paises={paises} onSaved={handleSaved} />;
+        return (
+          <Can action={editingItem ? "accion-actualizar-departamento" : "accion-crear-departamento"}>
+            <DepartamentoForm initialData={editingItem} paises={paises} onSaved={handleSaved} />
+          </Can>
+        );
       case 'regionales': {
         // Opciones para multiselect
         const deptOptions: MultiSelectOption[] = departamentos.map(d => ({ id: d.id, value: String(d.id), label: d.nombre }));
@@ -1845,7 +1890,8 @@ export default function UbicacionesPage() {
           }
         };
         return (
-          <form onSubmit={onSubmitRegional} className="space-y-6">
+          <Can action={editingItem ? "accion-actualizar-regional" : "accion-crear-regional"}>
+            <form onSubmit={onSubmitRegional} className="space-y-6">
             <div className="grid grid-cols-3 gap-4">
               <div className="col-span-1">
                 <label className="block text-sm font-medium mb-1">Nombre de la Regional *</label>
@@ -1875,10 +1921,15 @@ export default function UbicacionesPage() {
               <Button type="submit">Guardar</Button>
             </div>
           </form>
+          </Can>
         );
       }
       case 'ciudades':
-        return <CiudadForm initialData={editingItem} departamentos={departamentos} paises={paises} onSaved={handleSaved} />;
+        return (
+          <Can action={editingItem ? "accion-actualizar-ciudad" : "accion-crear-ciudad"}>
+            <CiudadForm initialData={editingItem} departamentos={departamentos} paises={paises} onSaved={handleSaved} />
+          </Can>
+        );
       case 'sucursales': {
         const onSubmitSucursal = async (e: React.FormEvent) => {
           e.preventDefault();
@@ -1908,7 +1959,8 @@ export default function UbicacionesPage() {
           }
         };
         return (
-          <form onSubmit={onSubmitSucursal} className="space-y-6">
+          <Can action={editingItem ? "accion-actualizar-sucursal" : "accion-crear-sucursal"}>
+            <form onSubmit={onSubmitSucursal} className="space-y-6">
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Código</label>
@@ -1975,6 +2027,7 @@ export default function UbicacionesPage() {
               <Button type="submit">Guardar</Button>
             </div>
           </form>
+          </Can>
         );
       }
       default:
@@ -2126,14 +2179,16 @@ export default function UbicacionesPage() {
                     <span className="text-lg font-semibold text-gray-700">{getHeaderTitle()}</span>
                   </div>
                   <div className="flex space-x-2">
-                    <Button
-                      onClick={handleNewItem}
-                      className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
-                      size="sm"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Adicionar Registro
-                    </Button>
+                    <Can action="accion-crear-ubicacion">
+                      <Button
+                        onClick={handleNewItem}
+                        className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
+                        size="sm"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Adicionar Registro
+                      </Button>
+                    </Can>
                   </div>
                 </div>
 

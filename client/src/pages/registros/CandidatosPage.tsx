@@ -41,6 +41,7 @@ import { useLoading } from '@/contexts/LoadingContext';
 import { supabase } from '@/services/supabaseClient';
 import { useTiposCandidatos } from '@/hooks/useTiposCandidatos';
 import { useNavigate } from 'react-router-dom';
+import { Can } from "@/contexts/PermissionsContext";
 
 interface Candidato {
   id: number;
@@ -520,13 +521,15 @@ const CandidatosPage = () => {
                 <span className="text-lg font-semibold text-gray-700">CANDIDATOS</span>
               </div>
               <div className="flex space-x-2">
-                <Button
-                  onClick={handleNewCandidato}
-                  className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
-                  size="sm"
-                >
-                  Adicionar Registro
-                </Button>
+                <Can action="accion-crear-candidato">
+                  <Button
+                    onClick={handleNewCandidato}
+                    className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
+                    size="sm"
+                  >
+                    Adicionar Registro
+                  </Button>
+                </Can>
               </div>
             </div>
 
@@ -631,62 +634,28 @@ const CandidatosPage = () => {
                       <TableRow key={candidato.id} className="hover:bg-gray-50">
                         <TableCell className="px-2 py-1">
                           <div className="flex flex-row gap-1 items-center">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleEdit(candidato)}
-                                    aria-label="Editar candidato"
-                                    className="h-8 w-8"
-                                  >
-                                    <Edit className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Editar</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
+                            <Can action="accion-editar-candidato">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleEdit(candidato)}
+                                      aria-label="Editar candidato"
+                                      className="h-8 w-8"
+                                    >
+                                      <Edit className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Editar</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </Can>
                             {candidato.activo ? (
-                              <AlertDialog>
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <AlertDialogTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          aria-label="Inactivar candidato"
-                                          className="h-8 w-8"
-                                        >
-                                          <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
-                                        </Button>
-                                      </AlertDialogTrigger>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Inactivar</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>¿Inactivar candidato?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Esta acción inactivará el candidato y no podrá ser usado hasta que se reactive. ¿Estás seguro?
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDeactivate(candidato)}>
-                                      Sí, inactivar
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            ) : (
-                              <>
+                              <Can action="accion-inactivar-candidato">
                                 <AlertDialog>
                                   <TooltipProvider>
                                     <Tooltip>
@@ -695,33 +664,73 @@ const CandidatosPage = () => {
                                           <Button
                                             variant="ghost"
                                             size="icon"
-                                            aria-label="Eliminar candidato"
+                                            aria-label="Inactivar candidato"
                                             className="h-8 w-8"
                                           >
-                                            <Trash2 className="h-4 w-4 text-rose-600 hover:text-rose-800 transition-colors" />
+                                            <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
                                           </Button>
                                         </AlertDialogTrigger>
                                       </TooltipTrigger>
                                       <TooltipContent>
-                                        <p>Eliminar</p>
+                                        <p>Inactivar</p>
                                       </TooltipContent>
                                     </Tooltip>
                                   </TooltipProvider>
                                   <AlertDialogContent>
                                     <AlertDialogHeader>
-                                      <AlertDialogTitle>¿Eliminar candidato?</AlertDialogTitle>
+                                      <AlertDialogTitle>¿Inactivar candidato?</AlertDialogTitle>
                                       <AlertDialogDescription>
-                                        Esta acción eliminará el candidato de forma permanente. ¿Estás seguro?
+                                        Esta acción inactivará el candidato y no podrá ser usado hasta que se reactive. ¿Estás seguro?
                                       </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
                                       <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                      <AlertDialogAction onClick={() => confirmarEliminacion(candidato)}>
-                                        Sí, eliminar
+                                      <AlertDialogAction onClick={() => handleDeactivate(candidato)}>
+                                        Sí, inactivar
                                       </AlertDialogAction>
                                     </AlertDialogFooter>
                                   </AlertDialogContent>
                                 </AlertDialog>
+                              </Can>
+                            ) : (
+                              <>
+                                <Can action="accion-eliminar-candidato">
+                                  <AlertDialog>
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <AlertDialogTrigger asChild>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              aria-label="Eliminar candidato"
+                                              className="h-8 w-8"
+                                            >
+                                              <Trash2 className="h-4 w-4 text-rose-600 hover:text-rose-800 transition-colors" />
+                                            </Button>
+                                          </AlertDialogTrigger>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>Eliminar</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>¿Eliminar candidato?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Esta acción eliminará el candidato de forma permanente. ¿Estás seguro?
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => confirmarEliminacion(candidato)}>
+                                          Sí, eliminar
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </Can>
                                 <AlertDialog>
                                   <TooltipProvider>
                                     <Tooltip>
@@ -791,14 +800,15 @@ const CandidatosPage = () => {
           </div>
 
           {/* Formulario de candidato en el tab de registro */}
-          <div className="max-w-2xl mx-auto">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2 text-cyan-800">
-                  <User className="h-5 w-5" />
-                  <span>Información del Candidato</span>
-                </CardTitle>
-              </CardHeader>
+          <Can action={editingId ? "accion-actualizar-candidato" : "accion-crear-candidato"}>
+            <div className="max-w-2xl mx-auto">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2 text-cyan-800">
+                    <User className="h-5 w-5" />
+                    <span>Información del Candidato</span>
+                  </CardTitle>
+                </CardHeader>
                              <CardContent>
                  {isSubmitting && (
                    <div className="mb-4 p-4 bg-cyan-50 border border-cyan-200 rounded-lg">
@@ -949,6 +959,7 @@ const CandidatosPage = () => {
               </CardContent>
             </Card>
           </div>
+          </Can>
         </TabsContent>
       </Tabs>
 

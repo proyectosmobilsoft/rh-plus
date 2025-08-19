@@ -38,6 +38,7 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { useForm } from "react-hook-form";
+import { Can } from "@/contexts/PermissionsContext";
 
 // Esquema de validación para crear usuario
 const crearUsuarioSchema = z.object({
@@ -375,12 +376,12 @@ const UsuariosPage = () => {
     } else {
       console.log('➕ Creando nuevo usuario, llamando createUserMutation');
       // Estamos creando un nuevo usuario
-      createUserMutation.mutate({
-        ...userData,
-        password,
-        perfilIds,
-        empresaIds
-      });
+    createUserMutation.mutate({
+      ...userData,
+      password,
+      perfilIds,
+      empresaIds
+    });
     }
   };
 
@@ -442,31 +443,33 @@ const UsuariosPage = () => {
                 <span className="text-lg font-semibold text-gray-700">USUARIOS</span>
               </div>
               <div className="flex space-x-2">
+                <Can action="accion-crear-usuario">
                 <Button
                   onClick={() => {
                     setEditingUser(null);
-                    // Vaciar completamente el formulario con valores por defecto
-                    form.reset({
-                      identificacion: "",
-                      primer_nombre: "",
-                      segundo_nombre: "",
-                      primer_apellido: "",
-                      segundo_apellido: "",
-                      telefono: "",
-                      email: "",
-                      username: "",
-                      password: "",
-                      confirmPassword: "",
-                      perfilIds: [],
-                      empresaIds: []
-                    });
+                      // Vaciar completamente el formulario con valores por defecto
+                      form.reset({
+                        identificacion: "",
+                        primer_nombre: "",
+                        segundo_nombre: "",
+                        primer_apellido: "",
+                        segundo_apellido: "",
+                        telefono: "",
+                        email: "",
+                        username: "",
+                        password: "",
+                        confirmPassword: "",
+                        perfilIds: [],
+                        empresaIds: []
+                      });
                     setActiveTab("registro");
                   }}
-                  className="bg-brand-lime hover:bg-brand-lime/90"
+                    className="bg-brand-lime hover:bg-brand-lime/90"
                   size="sm"
                 >
                   Adicionar Registro
                 </Button>
+                </Can>
               </div>
             </div>
 
@@ -543,6 +546,7 @@ const UsuariosPage = () => {
                       <TableRow key={usuario.id} className="hover:bg-gray-50">
                         <TableCell className="px-2 py-1">
                           <div className="flex flex-row gap-1 items-center">
+                            <Can action="accion-editar-usuario">
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -552,7 +556,7 @@ const UsuariosPage = () => {
                                     onClick={() => handleEditarUsuario(usuario)}
                                     aria-label="Editar usuario"
                                   >
-                                    <Edit className="h-5 w-5 text-cyan-600 hover:text-cyan-800 transition-colors" />
+                                      <Edit className="h-5 w-5 text-cyan-600 hover:text-cyan-800 transition-colors" />
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
@@ -560,8 +564,10 @@ const UsuariosPage = () => {
                                 </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
+                            </Can>
 
                             {usuario.activo ? (
+                              <Can action="accion-inactivar-usuario">
                               <AlertDialog>
                                 <TooltipProvider>
                                   <Tooltip>
@@ -601,8 +607,10 @@ const UsuariosPage = () => {
                                   </AlertDialogFooter>
                                 </AlertDialogContent>
                               </AlertDialog>
+                            </Can>
                             ) : (
                               <>
+                              <Can action="accion-activar-usuario">
                                 <AlertDialog>
                                   <TooltipProvider>
                                     <Tooltip>
@@ -642,6 +650,8 @@ const UsuariosPage = () => {
                                     </AlertDialogFooter>
                                   </AlertDialogContent>
                                 </AlertDialog>
+                              </Can>
+                              <Can action="accion-eliminar-usuario">
                                 <AlertDialog>
                                   <TooltipProvider>
                                     <Tooltip>
@@ -681,6 +691,7 @@ const UsuariosPage = () => {
                                     </AlertDialogFooter>
                                   </AlertDialogContent>
                                 </AlertDialog>
+                              </Can>
                               </>
                             )}
                           </div>
@@ -699,17 +710,17 @@ const UsuariosPage = () => {
                         </TableCell>
                         <TableCell className="px-3 py-2 text-sm text-gray-900">
                           {usuario.gen_usuario_roles && usuario.gen_usuario_roles.length > 0 ? (
-                            <div className="flex flex-wrap gap-1">
+                          <div className="flex flex-wrap gap-1">
                               {usuario.gen_usuario_roles.map((rol, index) => (
-                                <Badge 
+                              <Badge
                                   key={rol.id} 
-                                  variant="outline" 
+                                variant="outline"
                                   className={`text-xs ${getPerfilColor(rol.rol_id)}`}
-                                >
+                              >
                                   {rol.gen_roles.nombre}
-                                </Badge>
+                              </Badge>
                               ))}
-                            </div>
+                          </div>
                           ) : (
                             <span className="text-gray-400">-</span>
                           )}
@@ -1030,9 +1041,10 @@ const UsuariosPage = () => {
                     >
                       Cancelar
                     </Button>
+                    <Can action={editingUser ? "accion-actualizar-usuario" : "accion-crear-usuario"}>
                     <Button
                       type="submit"
-                      className="bg-brand-lime hover:bg-brand-lime/90 text-white border-0 shadow-sm px-6 py-2 rounded text-sm font-medium transition-colors"
+                        className="bg-brand-lime hover:bg-brand-lime/90 text-white border-0 shadow-sm px-6 py-2 rounded text-sm font-medium transition-colors"
                       disabled={createUserMutation.isPending}
                     >
                       {createUserMutation.isPending ?
@@ -1040,6 +1052,7 @@ const UsuariosPage = () => {
                         (editingUser ? 'Actualizar' : 'Guardar')
                       }
                     </Button>
+                    </Can>
                   </div>
                 </form>
               </Form>

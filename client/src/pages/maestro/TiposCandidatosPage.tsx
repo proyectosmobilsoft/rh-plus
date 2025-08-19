@@ -27,6 +27,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/services/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
 import { useLoading } from '@/contexts/LoadingContext';
+import { Can } from "@/contexts/PermissionsContext";
 
 const tipoCandidatoSchema = z.object({
   nombre: z.string().min(2, 'Nombre requerido'),
@@ -466,13 +467,15 @@ export default function TiposCandidatosPage() {
                 <span className="text-lg font-semibold text-gray-700">TIPOS DE CARGOS</span>
               </div>
               <div className="flex space-x-2">
-                <Button
-                  onClick={handleNewTipo}
-                  className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
-                  size="sm"
-                >
-                  Adicionar Registro
-                </Button>
+                <Can action="accion-crear-tipo-cargo">
+                  <Button
+                    onClick={handleNewTipo}
+                    className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
+                    size="sm"
+                  >
+                    Adicionar Registro
+                  </Button>
+                </Can>
         </div>
       </div>
 
@@ -541,103 +544,113 @@ export default function TiposCandidatosPage() {
                             <div className="flex flex-row gap-1 items-center">
                               {tipo.activo && (
                                 <>
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          onClick={() => handleEdit(tipo)}
-                                          aria-label="Editar tipo"
-                                          className="h-8 w-8"
-                                        >
-                                          <Edit className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <p>Editar</p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
+                                  <Can action="accion-editar-tipo-cargo">
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleEdit(tipo)}
+                                            aria-label="Editar tipo"
+                                            className="h-8 w-8"
+                                          >
+                                            <Edit className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>Editar</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  </Can>
 
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          onClick={() => handleConfigureTipo(tipo)}
-                                          aria-label="Configurar documentos"
-                                          className="h-8 w-8"
-                                        >
-                                          <Settings className="h-4 w-4 text-blue-600 hover:text-blue-800 transition-colors" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <p>Configurar documentos</p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
+                                  <Can action="accion-configurar-documentos-tipo-cargo">
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleConfigureTipo(tipo)}
+                                            aria-label="Configurar documentos"
+                                            className="h-8 w-8"
+                                          >
+                                            <Settings className="h-4 w-4 text-blue-600 hover:text-blue-800 transition-colors" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>Configurar documentos</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  </Can>
                                 </>
                               )}
 
                               {tipo.activo ? (
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => handleInactivate(tipo)}
-                                        aria-label="Inactivar tipo"
-                                        className="h-8 w-8"
-                                      >
-                                        <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Inactivar</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
+                                <Can action="accion-inactivar-tipo-cargo">
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => handleInactivate(tipo)}
+                                          aria-label="Inactivar tipo"
+                                          className="h-8 w-8"
+                                        >
+                                          <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Inactivar</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </Can>
                               ) : (
                                 <>
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          onClick={() => handleDelete(tipo)}
-                                          aria-label="Eliminar tipo"
-                                          className="h-8 w-8"
-                                        >
-                                          <Trash2 className="h-4 w-4 text-red-600 hover:text-red-800 transition-colors" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <p>Eliminar</p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          onClick={() => handleActivate(tipo)}
-                                          aria-label="Activar tipo"
-                                          className="h-8 w-8"
-                                        >
-                                          <CheckCircle className="h-4 w-4 text-green-600 hover:text-green-800 transition-colors" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <p>Activar</p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
+                                  <Can action="accion-eliminar-tipo-cargo">
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleDelete(tipo)}
+                                            aria-label="Eliminar tipo"
+                                            className="h-8 w-8"
+                                          >
+                                            <Trash2 className="h-4 w-4 text-red-600 hover:text-red-800 transition-colors" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>Eliminar</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  </Can>
+                                  <Can action="accion-activar-tipo-cargo">
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleActivate(tipo)}
+                                            aria-label="Activar tipo"
+                                            className="h-8 w-8"
+                                          >
+                                            <CheckCircle className="h-4 w-4 text-green-600 hover:text-green-800 transition-colors" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>Activar</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  </Can>
                                 </>
                               )}
                             </div>
@@ -716,15 +729,17 @@ export default function TiposCandidatosPage() {
                     />
                     </div>
                   <div className="flex justify-end">
+                    <Can action={editingTipo ? "accion-actualizar-tipo-cargo" : "accion-crear-tipo-cargo"}>
                       <Button
-                      type="submit" 
-                      disabled={isCreating || isUpdating}
-                      className="bg-cyan-600 hover:bg-cyan-700 text-white"
-                    >
-                      <Save className="h-4 w-4 mr-2" />
-                      Guardar
+                        type="submit" 
+                        disabled={isCreating || isUpdating}
+                        className="bg-cyan-600 hover:bg-cyan-700 text-white"
+                      >
+                        <Save className="h-4 w-4 mr-2" />
+                        Guardar
                       </Button>
-                    </div>
+                    </Can>
+                  </div>
                     </form>
                   </Form>
           </CardContent>

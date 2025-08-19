@@ -25,6 +25,7 @@ import { rolesService } from '@/services/rolesService';
 import { Skeleton } from "@/components/ui/skeleton"; // Importar Skeleton
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Can } from "@/contexts/PermissionsContext";
 
 // Schema para el formulario de perfil
 const perfilSchema = z.object({
@@ -600,22 +601,24 @@ const PerfilesPage = () => {
                 <span className="text-lg font-semibold text-gray-700">ROLES</span>
               </div>
               <div className="flex space-x-2">
-                <Button
-                  onClick={() => {
-                    setEditingPerfil(null);
-                    form.reset({
-                      codigo: perfiles.length + 1,
-                      nombre: "",
-                      descripcion: "",
-                      permisos: []
-                    });
-                    setActiveTab("vistas");
-                  }}
-                  className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
-                  size="sm"
-                >
-                  Adicionar Registro
-                </Button>
+                <Can action="accion-crear-perfil">
+                  <Button
+                    onClick={() => {
+                      setEditingPerfil(null);
+                      form.reset({
+                        codigo: perfiles.length + 1,
+                        nombre: "",
+                        descripcion: "",
+                        permisos: []
+                      });
+                      setActiveTab("vistas");
+                    }}
+                    className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
+                    size="sm"
+                  >
+                    Adicionar Registro
+                  </Button>
+                </Can>
               </div>
             </div>
 
@@ -682,42 +685,45 @@ const PerfilesPage = () => {
                       <TableRow key={perfil.id} className="hover:bg-gray-50">
                         <TableCell className="px-2 py-1">
                           <div className="flex flex-row gap-1 items-center">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleEdit(perfil)}
-                                    aria-label="Editar perfil"
-                                    className="h-8 w-8"
-                                  >
-                                    <Edit className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Editar</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                            {perfil.activo ? (
+                            <Can action="accion-editar-perfil">
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <AlertDialog>
-                                      <AlertDialogTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          aria-label="Inactivar perfil"
-                                          className="h-8 w-8"
-                                        >
-                                          <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
-                                        </Button>
-                                      </AlertDialogTrigger>
-                                      <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                          <AlertDialogTitle>¿Inactivar perfil?</AlertDialogTitle>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleEdit(perfil)}
+                                      aria-label="Editar perfil"
+                                      className="h-8 w-8"
+                                    >
+                                      <Edit className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Editar</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </Can>
+                            {perfil.activo ? (
+                              <Can action="accion-inactivar-perfil">
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            aria-label="Inactivar perfil"
+                                            className="h-8 w-8"
+                                          >
+                                            <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
+                                          </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>¿Inactivar perfil?</AlertDialogTitle>
                                           <AlertDialogDescription>
                                             Esta acción inactivará el perfil y no podrá ser usado hasta que se reactive. ¿Estás seguro?
                                           </AlertDialogDescription>
@@ -736,78 +742,83 @@ const PerfilesPage = () => {
                                   </TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
+                              </Can>
                             ) : (
                               <>
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            aria-label="Eliminar perfil"
-                                            className="h-8 w-8"
-                                          >
-                                            <Trash2 className="h-4 w-4 text-rose-600 hover:text-rose-800 transition-colors" />
-                                          </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                          <AlertDialogHeader>
-                                            <AlertDialogTitle>¿Eliminar perfil?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                              Esta acción eliminará el perfil de forma permanente. ¿Estás seguro?
-                                            </AlertDialogDescription>
-                                          </AlertDialogHeader>
-                                          <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => deletePerfilPermanentMutation.mutate(perfil.id)}>
-                                              Sí, eliminar
-                                            </AlertDialogAction>
-                                          </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                      </AlertDialog>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Eliminar</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            aria-label="Activar perfil"
-                                            className="h-8 w-8"
-                                          >
-                                            <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
-                                          </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                          <AlertDialogHeader>
-                                            <AlertDialogTitle>¿Activar perfil?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                              Esta acción reactivará el perfil y estará disponible para su uso. ¿Estás seguro?
-                                            </AlertDialogDescription>
-                                          </AlertDialogHeader>
-                                          <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => activatePerfilMutation.mutate(perfil.id)}>
-                                              Sí, activar
-                                            </AlertDialogAction>
-                                          </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                      </AlertDialog>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Activar</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
+                                <Can action="accion-eliminar-perfil">
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <AlertDialog>
+                                          <AlertDialogTrigger asChild>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              aria-label="Eliminar perfil"
+                                              className="h-8 w-8"
+                                            >
+                                              <Trash2 className="h-4 w-4 text-rose-600 hover:text-rose-800 transition-colors" />
+                                            </Button>
+                                          </AlertDialogTrigger>
+                                          <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                              <AlertDialogTitle>¿Eliminar perfil?</AlertDialogTitle>
+                                              <AlertDialogDescription>
+                                                Esta acción eliminará el perfil de forma permanente. ¿Estás seguro?
+                                              </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                              <AlertDialogAction onClick={() => deletePerfilPermanentMutation.mutate(perfil.id)}>
+                                                Sí, eliminar
+                                              </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                          </AlertDialogContent>
+                                        </AlertDialog>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Eliminar</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </Can>
+                                <Can action="accion-activar-perfil">
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <AlertDialog>
+                                          <AlertDialogTrigger asChild>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              aria-label="Activar perfil"
+                                              className="h-8 w-8"
+                                            >
+                                              <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
+                                            </Button>
+                                          </AlertDialogTrigger>
+                                          <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                              <AlertDialogTitle>¿Activar perfil?</AlertDialogTitle>
+                                              <AlertDialogDescription>
+                                                Esta acción reactivará el perfil y estará disponible para su uso. ¿Estás seguro?
+                                              </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                              <AlertDialogAction onClick={() => activatePerfilMutation.mutate(perfil.id)}>
+                                                Sí, activar
+                                              </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                          </AlertDialogContent>
+                                        </AlertDialog>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Activar</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </Can>
                               </>
                             )}
                           </div>
@@ -818,24 +829,26 @@ const PerfilesPage = () => {
                         <TableCell className="px-4 py-3 text-center font-bold text-cyan-700">
                           <div className="flex items-center justify-center gap-2">
                             <span>{perfil.modulos_count}</span>
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleViewModules(perfil)}
-                                    aria-label="Ver módulos"
-                                    className="h-6 w-6"
-                                  >
-                                    <Eye className="h-4 w-4 text-gray-500 hover:text-gray-700" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Ver Módulos Asignados</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
+                            <Can action="accion-ver-modulos-perfil">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleViewModules(perfil)}
+                                      aria-label="Ver módulos"
+                                      className="h-6 w-6"
+                                    >
+                                      <Eye className="h-4 w-4 text-gray-500 hover:text-gray-700" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Ver Módulos Asignados</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </Can>
                           </div>
                         </TableCell>
                         <TableCell className="px-4 py-3">
@@ -952,16 +965,18 @@ const PerfilesPage = () => {
                     >
                       Cancelar
                     </Button>
-                    <Button
-                      type="submit"
-                      className="bg-brand-lime hover:bg-brand-lime/90 text-white border-0 shadow-sm px-6 py-2 rounded text-sm font-medium transition-colors"
-                      disabled={savePerfilMutation.isPending}
-                    >
-                      {savePerfilMutation.isPending ?
-                        (editingPerfil ? 'Actualizando...' : 'Guardando...') :
-                        (editingPerfil ? 'Actualizar' : 'Guardar')
-                      }
-                    </Button>
+                    <Can action={editingPerfil ? "accion-actualizar-perfil" : "accion-crear-perfil"}>
+                      <Button
+                        type="submit"
+                        className="bg-brand-lime hover:bg-brand-lime/90 text-white border-0 shadow-sm px-6 py-2 rounded text-sm font-medium transition-colors"
+                        disabled={savePerfilMutation.isPending}
+                      >
+                        {savePerfilMutation.isPending ?
+                          (editingPerfil ? 'Actualizando...' : 'Guardando...') :
+                          (editingPerfil ? 'Actualizar' : 'Guardar')
+                        }
+                      </Button>
+                    </Can>
                   </div>
                 </form>
               </Form>
@@ -1054,16 +1069,18 @@ const PerfilesPage = () => {
                     >
                       Cancelar
                     </Button>
-                    <Button
-                      type="submit"
-                      className="bg-brand-lime hover:bg-brand-lime/90 text-white border-0 shadow-sm px-6 py-2 rounded text-sm font-medium transition-colors"
-                      disabled={savePerfilMutation.isPending}
-                    >
-                      {savePerfilMutation.isPending ?
-                        (editingPerfil ? 'Actualizando...' : 'Guardando...') :
-                        (editingPerfil ? 'Actualizar' : 'Guardar')
-                      }
-                    </Button>
+                    <Can action={editingPerfil ? "accion-actualizar-perfil" : "accion-crear-perfil"}>
+                      <Button
+                        type="submit"
+                        className="bg-brand-lime hover:bg-brand-lime/90 text-white border-0 shadow-sm px-6 py-2 rounded text-sm font-medium transition-colors"
+                        disabled={savePerfilMutation.isPending}
+                      >
+                        {savePerfilMutation.isPending ?
+                          (editingPerfil ? 'Actualizando...' : 'Guardando...') :
+                          (editingPerfil ? 'Actualizar' : 'Guardar')
+                        }
+                      </Button>
+                    </Can>
                   </div>
                 </form>
               </Form>

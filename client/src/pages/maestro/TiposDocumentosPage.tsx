@@ -24,6 +24,7 @@ import { TipoDocumento, DocumentoTipoForm } from '@/types/maestro';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { useLoading } from '@/contexts/LoadingContext';
+import { Can } from "@/contexts/PermissionsContext";
 
 const documentoTipoSchema = z.object({
   nombre: z.string().min(2, 'Nombre requerido'),
@@ -302,13 +303,15 @@ export default function TiposDocumentosPage() {
                 <span className="text-lg font-semibold text-gray-700">TIPOS DE DOCUMENTOS</span>
               </div>
               <div className="flex space-x-2">
-                <Button
-                  onClick={handleNewDocumento}
-                  className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
-                  size="sm"
-                >
-                  Adicionar Registro
-                </Button>
+                <Can action="accion-crear-tipo-documento">
+                  <Button
+                    onClick={handleNewDocumento}
+                    className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
+                    size="sm"
+                  >
+                    Adicionar Registro
+                  </Button>
+                </Can>
               </div>
             </div>
 
@@ -376,83 +379,91 @@ export default function TiposDocumentosPage() {
                           <TableCell className="px-2 py-1">
                             <div className="flex flex-row gap-1 items-center">
                               {documento.activo && (
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => handleEdit(documento)}
-                                        aria-label="Editar documento"
-                                        className="h-8 w-8"
-                                      >
-                                        <Edit className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Editar</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
+                                <Can action="accion-editar-tipo-documento">
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => handleEdit(documento)}
+                                          aria-label="Editar documento"
+                                          className="h-8 w-8"
+                                        >
+                                          <Edit className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Editar</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </Can>
                               )}
 
                               {documento.activo ? (
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => handleInactivate(documento)}
-                                        aria-label="Inactivar documento"
-                                        className="h-8 w-8"
-                                      >
-                                        <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Inactivar</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
+                                <Can action="accion-inactivar-tipo-documento">
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => handleInactivate(documento)}
+                                          aria-label="Inactivar documento"
+                                          className="h-8 w-8"
+                                        >
+                                          <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Inactivar</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </Can>
                               ) : (
                                 <>
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          onClick={() => handleDelete(documento)}
-                                          aria-label="Eliminar documento"
-                                          className="h-8 w-8"
-                                        >
-                                          <Trash2 className="h-4 w-4 text-red-600 hover:text-red-800 transition-colors" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <p>Eliminar</p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          onClick={() => handleActivate(documento)}
-                                          aria-label="Activar documento"
-                                          className="h-8 w-8"
-                                        >
-                                          <CheckCircle className="h-4 w-4 text-green-600 hover:text-green-800 transition-colors" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <p>Activar</p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
+                                  <Can action="accion-eliminar-tipo-documento">
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleDelete(documento)}
+                                            aria-label="Eliminar documento"
+                                            className="h-8 w-8"
+                                          >
+                                            <Trash2 className="h-4 w-4 text-red-600 hover:text-red-800 transition-colors" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>Eliminar</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  </Can>
+                                  <Can action="accion-activar-tipo-documento">
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleActivate(documento)}
+                                            aria-label="Activar documento"
+                                            className="h-8 w-8"
+                                          >
+                                            <CheckCircle className="h-4 w-4 text-green-600 hover:text-green-800 transition-colors" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>Activar</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  </Can>
                                 </>
                               )}
                             </div>
@@ -603,14 +614,16 @@ export default function TiposDocumentosPage() {
                   </div>
                   
                   <div className="flex justify-end">
-                    <Button 
-                      type="submit" 
-                      disabled={isCreatingDocumento || isUpdatingDocumento}
-                      className="bg-cyan-600 hover:bg-cyan-700 text-white"
-                    >
-                      <Save className="h-4 w-4 mr-2" />
-                      Guardar
-                    </Button>
+                    <Can action={editingDocumento ? "accion-actualizar-tipo-documento" : "accion-crear-tipo-documento"}>
+                      <Button 
+                        type="submit" 
+                        disabled={isCreatingDocumento || isUpdatingDocumento}
+                        className="bg-cyan-600 hover:bg-cyan-700 text-white"
+                      >
+                        <Save className="h-4 w-4 mr-2" />
+                        Guardar
+                      </Button>
+                    </Can>
                   </div>
                 </form>
               </Form>

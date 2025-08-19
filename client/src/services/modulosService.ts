@@ -112,12 +112,21 @@ export const modulosService = {
   },
 
   async deleteModulo(id: number): Promise<void> {
-    const { error } = await supabase
+    // Primero eliminar todos los permisos asociados al módulo
+    const { error: permisosError } = await supabase
+      .from('gen_modulo_permisos')
+      .delete()
+      .eq('modulo_id', id);
+    
+    if (permisosError) throw permisosError;
+    
+    // Luego eliminar el módulo
+    const { error: moduloError } = await supabase
       .from('gen_modulos')
       .delete()
       .eq('id', id);
     
-    if (error) throw error;
+    if (moduloError) throw moduloError;
   },
 
   // Módulos con permisos

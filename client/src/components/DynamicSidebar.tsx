@@ -25,6 +25,13 @@ import {
   Globe,
   Mail,
   Shield,
+  ClipboardList,
+  Award,
+  Key,
+  ClipboardCheck,
+  FileCheck,
+  Database,
+  Lock,
 } from 'lucide-react';
 
 const menuItems = [
@@ -36,20 +43,20 @@ const menuItems = [
   },
   {
     title: "Seguridad",
-    icon: <Settings className="h-5 w-5" />,
+    icon: <Shield className="h-5 w-5" />,
     subItems: [
       { title: "Usuarios", path: "/seguridad/usuarios", icon: <Users className="h-4 w-4" /> },
-      { title: "Perfiles", path: "/seguridad/perfiles", icon: <Settings className="h-4 w-4" /> },
-      { title: "Permisos", path: "/seguridad/permisos", icon: <Shield className="h-4 w-4" /> },
+      { title: "Perfiles", path: "/seguridad/perfiles", icon: <Key className="h-4 w-4" /> },
+      { title: "Permisos", path: "/seguridad/permisos", icon: <Lock className="h-4 w-4" /> },
       { title: "Logs del Sistema", path: "/seguridad/logs-sistema", icon: <Activity className="h-4 w-4" /> },
     ],
   },
   {
-    title: "Maestro",
-    icon: <Settings className="h-5 w-5" />,
+    title: "Maestros",
+    icon: <Database className="h-5 w-5" />,
     subItems: [
       { title: "Tipos de Documentos", path: "/maestro/tipos-documentos", icon: <FileText className="h-4 w-4" /> },
-      { title: "Tipos de Cargos", path: "/maestro/tipos-candidatos", icon: <FileText className="h-4 w-4" /> },
+      { title: "Tipos de Cargos", path: "/maestro/tipos-candidatos", icon: <Award className="h-4 w-4" /> },
       { title: "Plantillas", path: "/maestro/plantillas", icon: <Layers className="h-4 w-4" /> },
       { title: "Ubicaciones", path: "/maestro/ubicaciones", icon: <MapPin className="h-4 w-4" /> },
       { title: "Estructura Financiera", path: "/maestro/estructura-financiera", icon: <Building className="h-4 w-4" /> },
@@ -68,7 +75,7 @@ const menuItems = [
   },
   {
     title: "Solicitudes",
-    icon: <FileText className="h-5 w-5" />,
+    icon: <ClipboardList className="h-5 w-5" />,
     path: "/expedicion-orden",
     subItems: [],
   },
@@ -84,18 +91,18 @@ const menuItems = [
     path: "/analistas",
     subItems: [],
   },
+  
   {
+    title: "Configuración",
+    icon: <Settings className="h-5 w-5" />,
+    path: "/configuraciones/globales",
+    subItems: [],
+  },{
     title: "Acerca de la Empresa",
     icon: <Info className="h-5 w-5" />,
     path: "/empresa/acerca",
     subItems: [],
   },
-   {
-   title: "Configuración",
-   icon: <Globe className="h-5 w-5" />,
-   path: "/configuraciones/globales",
-   subItems: [],
- },
 ];
 
 interface DynamicSidebarProps {
@@ -126,14 +133,14 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
       try {
         const parsed = JSON.parse(currentUserData);
         setUserData(parsed);
-      } catch {}
+      } catch { }
     }
     const onStorage = (e: StorageEvent) => {
       if (e.key === 'userData') {
         try {
           const parsed = e.newValue ? JSON.parse(e.newValue) : null;
           setUserData(parsed);
-        } catch {}
+        } catch { }
       }
     };
     window.addEventListener('storage', onStorage);
@@ -145,46 +152,45 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
   // Mapeo dinámico de rutas -> acciones requeridas (OR entre códigos listados)
   const pathToActions: Record<string, string[]> = React.useMemo(() => ({
     // Dashboard
-    '/dashboard': ['dashboard_view', 'ver_dashboard'],
+    '/dashboard': ['vista-dashboard'],
 
     // Seguridad
-    '/seguridad/usuarios': ['usuarios_view', 'gestionar_usuarios'],
-    '/seguridad/perfiles': ['perfiles_view'],
-    '/seguridad/logs-sistema': ['logs_view', 'gestionar_usuarios'],
-    '/seguridad/permisos': ['permisos_view', 'permisos_manage'],
-
-    // Registros
-    '/registros/candidatos': ['candidatos_view'],
-    '/candidatos': ['candidatos_view'],
-    '/registros/empresas': ['empresas_view', 'gestionar_empresas'],
-    '/registros/prestadores': ['prestadores_view'],
-    // QR (oculto si no hay permiso específico)
-    '/registros/qr': ['qr_view'],
+    '/seguridad/usuarios': ['vista_usuarios'],
+    '/seguridad/perfiles': ['vista_perfiles'],
+    '/seguridad/permisos': ['vista_permisos'],
+    '/seguridad/logs-sistema': ['vista_logs'],
 
     // Maestro (subsecciones)
-    '/maestro/tipos-documentos': ['maestro_view', 'maestro_manage'],
-    '/maestro/tipos-candidatos': ['maestro_view', 'maestro_manage'],
-    '/maestro/plantillas': ['maestro_view', 'maestro_manage'],
-    '/maestro/ubicaciones': ['maestro_view', 'maestro_manage'],
-    '/maestro/estructura-financiera': ['maestro_view', 'maestro_manage'],
-    '/maestro/correos-masivos': ['maestro_manage'],
+    '/maestro/tipos-documentos': ['vista-tipo-documentos'],
+    '/maestro/tipos-candidatos': ['vista-tipo-cargos'],
+    '/maestro/plantillas': ['vista-plantillas'],
+    '/maestro/ubicaciones': ['vista-ubicaciones'],
+    '/maestro/estructura-financiera': ['vista-estructura-financiera'],
+    '/maestro/correos-masivos': ['vista-correos-masivos'],
 
-    
+    // Registros
+    '/registros/candidatos': ['vista-candidatos'],
+    '/candidatos': ['vista-candidatos'],
+    '/registros/empresas': ['vista-empresas'],
+    '/registros/prestadores': ['vista-prestadores'],
+    // QR (oculto si no hay permiso específico)
+    '/registros/qr': ['vista-qr'],
+
 
     // Órdenes / Solicitudes
-    '/expedicion-orden': ['ordenes_view', 'gestionar_ordenes'],
+    '/expedicion-orden': ['vista-solicitudes'],
 
     // Certificados
-    '/expedicion-certificados': ['certificados_view'],
+    '/expedicion-certificados': ['vista-certificados'],
 
     // Analistas
-    '/analistas': ['analistas_view'],
+    '/analistas': ['vista-analistas'],
 
     // Acerca de la Empresa
-    '/empresa/acerca': ['empresas_view', 'gestionar_empresas'],
+    '/empresa/acerca': ['vista-acerca-empresa'],
 
-     // Acerca de la Empresa
-     '/configuraciones/globales': ['configuraciones_view'],
+    // Acerca de la Empresa
+    '/configuraciones/globales': ['vista-configuracion'],
 
     // Reportes
     '/reportes': ['reportes_view', 'ver_reportes'],
@@ -278,20 +284,20 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
       <div className="sidebar-header">
         {/* Información del usuario */}
         <div className="flex items-center space-x-3">
-          <button 
+          <button
             onClick={() => setShowUserOverlay(!showUserOverlay)}
             className="user-avatar-large bg-blue-600 hover:bg-blue-700 transition-colors duration-200 cursor-pointer"
           >
             <User className="text-white" />
           </button>
-          
+
           {/* Información del usuario (siempre visible) */}
           <div className="flex-1 min-w-0">
             {/* Nombre completo del usuario */}
             <p className="text-sm font-semibold text-gray-900 truncate">
               {userData ? `${userData.primerNombre} ${userData.primerApellido}` : 'Usuario'}
             </p>
-            
+
             {/* Perfiles/Roles del usuario */}
             {userData?.roles && userData.roles.length > 0 && (
               <div className="mt-2">
@@ -305,16 +311,16 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
               </div>
             )}
           </div>
-          
+
           {/* Overlay del usuario */}
           {showUserOverlay && createPortal(
             <div className="fixed inset-0 z-[9999] flex items-start justify-start">
               {/* Backdrop */}
-              <div 
+              <div
                 className="absolute inset-0 bg-black bg-opacity-25"
                 onClick={() => setShowUserOverlay(false)}
               ></div>
-              
+
               {/* Modal */}
               <div className="relative mt-16 ml-4 bg-white rounded-lg shadow-2xl border border-gray-200 p-4 min-w-[400px] max-w-[500px] max-h-[80vh] overflow-y-auto">
                 <div className="space-y-4">
@@ -339,7 +345,7 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
                       </svg>
                     </button>
                   </div>
-                  
+
                   {/* Información detallada */}
                   <div className="space-y-4">
                     {/* Perfiles */}
@@ -355,7 +361,7 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
                         </div>
                       </div>
                     )}
-                    
+
                     {/* Empresas */}
                     {userData?.empresas && userData.empresas.length > 0 && (
                       <div>
@@ -370,7 +376,7 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
                         </div>
                       </div>
                     )}
-                    
+
                     {/* Información adicional */}
                     <div className="pt-3 border-t border-gray-200">
                       <div className="grid grid-cols-2 gap-4 text-sm">
@@ -385,7 +391,7 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
                       </div>
                     </div>
                   </div>
-                  
+
                   {/* Botón de cerrar sesión */}
                   <div className="pt-3 border-t border-gray-200">
                     <Button
@@ -396,17 +402,17 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
                         localStorage.removeItem('token');
                         localStorage.removeItem('authToken');
                         localStorage.removeItem('empresaData');
-                        
+
                         // Limpiar empresa seleccionada
                         limpiarEmpresaSeleccionada();
-                        
+
                         console.log('Sesión cerrada desde overlay - todos los datos eliminados');
-                        
+
                         // Intentar usar logout del contexto si está disponible
                         if (logout) {
                           logout();
                         }
-                        
+
                         // Redirigir al login
                         window.location.href = '/login';
                       }}
@@ -438,9 +444,8 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
                 {hasChildren ? (
                   <button
                     onClick={() => toggleMenu(index)}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 text-sm text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-700 transition-all duration-200 font-medium menu-item-animation sidebar-menu-item ${
-                      isMenuActive ? 'menu-item-active' : ''
-                    }`}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 text-sm text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-700 transition-all duration-200 font-medium menu-item-animation sidebar-menu-item ${isMenuActive ? 'menu-item-active' : ''
+                      }`}
                   >
                     <div className="flex items-center space-x-3">
                       {menu.icon}
@@ -456,9 +461,8 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
                   <NavLink
                     to={(menu as any).path || '#'}
                     onClick={() => handleNavigate((menu as any).path || '#')}
-                    className={({ isActive: active }) => `w-full block text-left px-3 py-2.5 text-sm rounded-lg transition-all duration-200 font-medium menu-item-animation sidebar-menu-item ${
-                      active ? 'menu-item-active' : 'text-gray-700 hover:bg-blue-50 hover:text-blue-700'
-                    }`}
+                    className={({ isActive: active }) => `w-full block text-left px-3 py-2.5 text-sm rounded-lg transition-all duration-200 font-medium menu-item-animation sidebar-menu-item ${active ? 'menu-item-active' : 'text-gray-700 hover:bg-blue-50 hover:text-blue-700'
+                      }`}
                   >
                     <div className="flex items-center space-x-3">
                       {menu.icon}
@@ -477,9 +481,8 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
                           key={subIndex}
                           to={subItem.path || '#'}
                           onClick={() => handleNavigate(subItem.path || '#')}
-                          className={({ isActive: active }) => `w-full block text-left px-3 py-2 text-sm rounded-lg transition-all duration-200 menu-item-animation sidebar-menu-item ${
-                            active ? 'menu-item-active' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'
-                          }`}
+                          className={({ isActive: active }) => `w-full block text-left px-3 py-2 text-sm rounded-lg transition-all duration-200 menu-item-animation sidebar-menu-item ${active ? 'menu-item-active' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'
+                            }`}
                         >
                           <div className="flex items-center space-x-3">
                             {subItem.icon}

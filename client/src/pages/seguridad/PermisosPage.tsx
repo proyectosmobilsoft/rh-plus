@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Plus, Search, Shield, Save, RefreshCw, Loader2, Lock, CheckCircle, Eye, X, Settings, Pause, Play, Trash } from "lucide-react";
+import { Edit, Trash2, Plus, Search, Shield, Save, RefreshCw, Loader2, Lock, CheckCircle, Eye, X, Settings, Pause, Play, Trash, AlertTriangle, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -55,6 +55,8 @@ const PermisosPage: React.FC = () => {
   const [permisosDelModulo, setPermisosDelModulo] = useState<ModuloPermiso[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [moduloParaEliminar, setModuloParaEliminar] = useState<Modulo | null>(null);
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
 
   const { toast } = useToast();
   const { startLoading, stopLoading } = useLoading();
@@ -268,8 +270,33 @@ const PermisosPage: React.FC = () => {
     // No es necesario invalidar la consulta de modulos aquí, ya que la tabla ya muestra el estado actual
   };
 
-  const handleEliminarModulo = async (id: number) => {
-    deleteModulo(id);
+  const handleEliminarModulo = (modulo: Modulo) => {
+    setModuloParaEliminar(modulo);
+    setShowDeleteConfirmModal(true);
+  };
+
+  const confirmarEliminacionModulo = async () => {
+    if (!moduloParaEliminar) return;
+    
+    try {
+      startLoading();
+      await deleteModulo(moduloParaEliminar.id);
+      toast({
+        title: "✅ Módulo eliminado",
+        description: `El módulo "${moduloParaEliminar.nombre}" y todos sus permisos han sido eliminados exitosamente.`,
+        variant: "default",
+      });
+      setShowDeleteConfirmModal(false);
+      setModuloParaEliminar(null);
+    } catch (error: any) {
+      toast({
+        title: "❌ Error al eliminar módulo",
+        description: error.message || "Hubo un error al eliminar el módulo",
+        variant: "destructive",
+      });
+    } finally {
+      stopLoading();
+    }
   };
 
   // Handlers para permisos
@@ -631,7 +658,7 @@ const PermisosPage: React.FC = () => {
                                     <AlertDialogFooter>
                                       <AlertDialogCancel>Cancelar</AlertDialogCancel>
                                       <AlertDialogAction
-                                        onClick={() => handleEliminarModulo(modulo.id)}
+                                        onClick={() => handleEliminarModulo(modulo)}
                                         className="bg-red-600 hover:bg-red-700"
                                       >
                                         Eliminar
@@ -962,6 +989,60 @@ const PermisosPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Modal de confirmación para eliminar módulo */}
+      <AlertDialog open={showDeleteConfirmModal} onOpenChange={setShowDeleteConfirmModal}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-red-600" />
+              Confirmar Eliminación de Módulo
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="flex items-center gap-2 text-red-800 font-semibold mb-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  ADVERTENCIA CRÍTICA
+                </div>
+                <p className="text-red-700 text-sm">
+                  Al eliminar el módulo <strong>"{moduloParaEliminar?.nombre}"</strong> se eliminarán <strong>TODOS los permisos asociados</strong>.
+                </p>
+              </div>
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="flex items-center gap-2 text-yellow-800 font-semibold mb-2">
+                  <Info className="h-4 w-4" />
+                  IMPACTO
+                </div>
+                <ul className="text-yellow-700 text-sm space-y-1">
+                  <li>• Todos los permisos del módulo serán eliminados permanentemente</li>
+                  <li>• Los roles que tengan estos permisos perderán acceso a las funcionalidades</li>
+                  <li>• Esta acción no se puede deshacer</li>
+                </ul>
+              </div>
+              <p className="text-gray-600">
+                ¿Estás completamente seguro de que deseas continuar con esta eliminación?
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              onClick={() => {
+                setShowDeleteConfirmModal(false);
+                setModuloParaEliminar(null);
+              }}
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmarEliminacionModulo}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Sí, Eliminar Módulo y Permisos
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
