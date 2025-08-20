@@ -186,9 +186,19 @@ export default function DashboardReportes() {
 
       {/* Tabs con reportes detallados */}
       <Tabs defaultValue="estados" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="estados">Órdenes por Estado</TabsTrigger>
-          <TabsTrigger value="analistas">Performance por Analista</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 bg-cyan-100/60 p-1 rounded-lg">
+          <TabsTrigger 
+            value="estados"
+            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+          >
+            Órdenes por Estado
+          </TabsTrigger>
+          <TabsTrigger 
+            value="analistas"
+            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+          >
+            Performance por Analista
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="estados" className="space-y-4">

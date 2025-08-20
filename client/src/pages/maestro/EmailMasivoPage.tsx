@@ -22,7 +22,9 @@ import {
   User,
   Building,
   Code,
-  GripVertical
+  GripVertical,
+  Calendar,
+  Megaphone
 } from 'lucide-react';
 import { supabase } from '@/services/supabaseClient';
 import { emailTemplatesService } from '@/services/emailTemplatesService';
@@ -526,11 +528,12 @@ export default function EmailMasivoPage() {
 
   const getEstadoColor = (estado: string) => {
     switch (estado) {
-      case 'borrador': return 'bg-slate-100 text-slate-800';
-      case 'enviando': return 'bg-cyan-100 text-cyan-800';
-      case 'completada': return 'bg-emerald-100 text-emerald-800';
-      case 'cancelada': return 'bg-red-100 text-red-800';
-      default: return 'bg-slate-100 text-slate-800';
+      case 'borrador': return 'bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-200 transition-colors';
+      case 'enviando': return 'bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200 transition-colors';
+      case 'completada': return 'bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-200 transition-colors';
+      case 'cancelada': return 'bg-red-100 text-red-800 border-red-200 hover:bg-red-200 transition-colors';
+      case 'enviada': return 'bg-green-100 text-green-800 border-green-200 hover:bg-green-200 transition-colors';
+      default: return 'bg-slate-100 text-slate-800 border-slate-200 hover:bg-slate-200 transition-colors';
     }
   };
 
@@ -540,6 +543,7 @@ export default function EmailMasivoPage() {
       case 'enviando': return <Clock className="w-4 h-4" />;
       case 'completada': return <CheckCircle className="w-4 h-4" />;
       case 'cancelada': return <AlertCircle className="w-4 h-4" />;
+      case 'enviada': return <CheckCircle className="w-4 h-4" />;
       default: return <FileText className="w-4 h-4" />;
     }
   };
@@ -904,12 +908,16 @@ export default function EmailMasivoPage() {
                   <div className="w-8 h-8 bg-orange-100 rounded flex items-center justify-center">
                     <Users className="w-5 h-5 text-orange-600" />
                   </div>
-                  <span className="text-lg font-semibold text-gray-700">CAMPAÑAS RECIENTES</span>
+                  <div>
+                    <span className="text-lg font-semibold text-gray-700">CAMPAÑAS RECIENTES</span>
+                    <p className="text-xs text-gray-500 mt-1">Ordenadas por fecha (más recientes primero)</p>
+                  </div>
                 </div>
               </div>
 
               <div className="p-6">
                 <div className="space-y-6">
+                  {/* Campañas ordenadas por fecha descendente (más recientes primero) */}
                   {/* Campañas de Gmail */}
                   {gmailCampaigns.length > 0 && (
                     <div>
@@ -919,7 +927,12 @@ export default function EmailMasivoPage() {
                       </h3>
                       <div className="space-y-3">
                         {gmailCampaigns.map((campaign) => (
-                          <div key={`gmail-${campaign.id}`} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 bg-white transition-colors">
+                          <div 
+                            key={`gmail-${campaign.id}`} 
+                            className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 hover:shadow-sm bg-white transition-all duration-200 cursor-pointer group"
+                            onClick={() => handleViewCampaignSentInfo(campaign, 'gmail')}
+                            title="Click para ver detalles de la campaña"
+                          >
                             <div className="flex items-center space-x-4">
                               <div className="p-2 bg-gray-100 rounded-lg">
                                 {getEstadoIcon(campaign.estado)}
@@ -927,27 +940,45 @@ export default function EmailMasivoPage() {
                               <div>
                                 <div className="flex items-center space-x-2">
                                   <h3 className="font-semibold text-gray-900">{campaign.nombre}</h3>
-                                  <Badge variant="outline" className="text-xs bg-cyan-100 text-cyan-700">Gmail</Badge>
+                                  <Badge variant="outline" className="text-xs bg-cyan-100 text-cyan-700 border-cyan-200">
+                                    Gmail
+                                  </Badge>
                                 </div>
                                 <p className="text-sm text-gray-600">{campaign.asunto_personalizado}</p>
                                 <div className="flex items-center space-x-4 mt-1">
-                                  <Badge className={getEstadoColor(campaign.estado)}>
+                                  <Badge className={`${getEstadoColor(campaign.estado)} font-medium`}>
                                     {campaign.estado}
                                   </Badge>
-                                  <Badge variant="secondary" className="text-xs">
+                                  <Badge variant="secondary" className="text-xs bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-100 cursor-default">
                                     {campaign.tipo_destinatario}
                                   </Badge>
                                   <span className="text-xs text-gray-500">
                                     {campaign.enviados_count}/{campaign.destinatarios_count} enviados
                                   </span>
+                                  <div className="flex items-center space-x-1 text-xs text-gray-500" title="Fecha de creación de la campaña">
+                                    <Calendar className="w-3 h-3" />
+                                    <span>{new Date(campaign.created_at).toLocaleDateString('es-ES', {
+                                      year: 'numeric',
+                                      month: 'short',
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}</span>
+                                  </div>
                                 </div>
                               </div>
                             </div>
                             <div className="flex items-center space-x-2">
+                              <div className="text-xs text-gray-400 group-hover:text-gray-600 transition-colors">
+                                Click para ver detalles
+                              </div>
                               <Button 
                                 variant="ghost" 
                                 size="sm"
-                                onClick={() => handleViewCampaignSentInfo(campaign, 'gmail')}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleViewCampaignSentInfo(campaign, 'gmail');
+                                }}
                                 title="Ver qué se envió y a quién"
                                 className="text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                               >
@@ -968,12 +999,17 @@ export default function EmailMasivoPage() {
                   {campaigns.length > 0 && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                        <FileText className="h-5 w-5 text-purple-600" />
+                        <Megaphone className="h-5 w-5 text-purple-600" />
                         <span>Campañas Regulares</span>
                       </h3>
                       <div className="space-y-3">
                         {campaigns.map((campaign) => (
-                          <div key={campaign.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 bg-white transition-colors">
+                          <div 
+                            key={campaign.id} 
+                            className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 hover:shadow-sm bg-white transition-all duration-200 cursor-pointer group"
+                            onClick={() => handleViewCampaignSentInfo(campaign, 'email')}
+                            title="Click para ver detalles de la campaña"
+                          >
                             <div className="flex items-center space-x-4">
                               <div className="p-2 bg-gray-100 rounded-lg">
                                 {getEstadoIcon(campaign.estado)}
@@ -982,20 +1018,36 @@ export default function EmailMasivoPage() {
                                 <h3 className="font-semibold text-gray-900">{campaign.nombre}</h3>
                                 <p className="text-sm text-gray-600">{campaign.asunto_personalizado}</p>
                                 <div className="flex items-center space-x-4 mt-1">
-                                  <Badge className={getEstadoColor(campaign.estado)}>
+                                  <Badge className={`${getEstadoColor(campaign.estado)} font-medium`}>
                                     {campaign.estado}
                                   </Badge>
                                   <span className="text-xs text-gray-500">
                                     {campaign.enviados_count}/{campaign.destinatarios_count} enviados
                                   </span>
+                                  <div className="flex items-center space-x-1 text-xs text-gray-500" title="Fecha de creación de la campaña">
+                                    <Calendar className="w-3 h-3" />
+                                    <span>{new Date(campaign.created_at).toLocaleDateString('es-ES', {
+                                      year: 'numeric',
+                                      month: 'short',
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}</span>
+                                  </div>
                                 </div>
                               </div>
                             </div>
                             <div className="flex items-center space-x-2">
-                              <Button 
+                              <div className="text-xs text-gray-400 group-hover:text-gray-600 transition-colors">
+                                Click para ver detalles
+                              </div>
+                                                              <Button 
                                 variant="ghost" 
                                 size="sm"
-                                onClick={() => handleViewCampaignSentInfo(campaign, 'email')}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleViewCampaignSentInfo(campaign, 'email');
+                                }}
                                 title="Ver qué se envió y a quién"
                                 className="text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                               >
@@ -1041,7 +1093,7 @@ export default function EmailMasivoPage() {
                     <Card className="shadow-sm border border-gray-200 bg-white">
                       <CardHeader className="bg-cyan-600 text-white rounded-t-lg">
                         <CardTitle className="flex items-center space-x-3 text-lg">
-                          <FileText className="h-5 w-5" />
+                          <Megaphone className="h-5 w-5" />
                           <span>Plantilla</span>
                         </CardTitle>
                         <CardDescription className="text-cyan-100">
@@ -1116,7 +1168,7 @@ export default function EmailMasivoPage() {
                        <SelectContent>
                          <SelectItem value="estandar">
                            <div className="flex items-center space-x-2">
-                             <FileText className="h-4 w-4" />
+                             <Megaphone className="h-4 w-4" />
                              <span>Plantilla Estándar</span>
                            </div>
                          </SelectItem>
@@ -1147,7 +1199,7 @@ export default function EmailMasivoPage() {
                          {templates.map((template) => (
                            <SelectItem key={template.id} value={template.id.toString()}>
                              <div className="flex items-center space-x-2">
-                               <FileText className="h-4 w-4" />
+                               <Megaphone className="h-4 w-4" />
                                <span>{template.nombre}</span>
                              </div>
                            </SelectItem>
@@ -1446,7 +1498,7 @@ export default function EmailMasivoPage() {
                                onClick={() => setShowHtmlPreview(false)}
                                className={!showHtmlPreview ? 'bg-teal-400 hover:bg-teal-500 text-white' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}
                              >
-                               <FileText className="h-4 w-4 mr-2" />
+                               <Megaphone className="h-4 w-4 mr-2" />
                                Vista Texto
                              </Button>
                              <Button
@@ -1635,7 +1687,7 @@ export default function EmailMasivoPage() {
                         setShowSaveTemplateModal(true);
                       }}
                     >
-                      <FileText className="h-4 w-4 mr-2" />
+                      <Megaphone className="h-4 w-4 mr-2" />
                       Guardar Plantilla
                     </Button>
                     <Button 
@@ -1943,7 +1995,7 @@ export default function EmailMasivoPage() {
             {/* Contenido del mensaje */}
             <div>
               <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
-                <FileText className="h-4 w-4" />
+                <Megaphone className="h-4 w-4" />
                 Mensaje Enviado
               </h4>
               <div className="bg-white border border-slate-200 rounded-lg p-4">
