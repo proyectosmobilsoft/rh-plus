@@ -299,7 +299,6 @@ export default function PerfilCandidato() {
             id,
             nombre,
             descripcion,
-            requerido,
             activo
           )
         `)
@@ -339,8 +338,7 @@ export default function PerfilCandidato() {
           tipos_documentos (
             id,
             nombre,
-            descripcion,
-            requerido
+            descripcion
           )
         `)
         .eq('candidato_id', candidatoId)
