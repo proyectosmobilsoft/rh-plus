@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Plus, Edit, Trash2, X, ChevronDown, Eye, Settings, Building, Users, FileText, Award, BarChart, UserCheck, QrCode, Crown, Shield, Loader2, Lock, CheckCircle, PackageOpen } from "lucide-react";
+import { Plus, Edit, Trash2, X, ChevronDown, Eye, Settings, Building, Users, FileText, Award, BarChart, UserCheck, QrCode, Crown, Shield, Lock, CheckCircle, PackageOpen, Search, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -17,6 +17,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useLoading } from "@/contexts/LoadingContext";
 import { apiRequest } from "@/lib/queryClient";
 import { AdvancedProfileManager } from "@/components/profiles/AdvancedProfileManager";
 import { PermissionsForm } from "@/components/profiles/PermissionsForm";
@@ -24,6 +25,7 @@ import { rolesService } from '@/services/rolesService';
 import { Skeleton } from "@/components/ui/skeleton"; // Importar Skeleton
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Can } from "@/contexts/PermissionsContext";
 
 // Schema para el formulario de perfil
 const perfilSchema = z.object({
@@ -268,14 +270,17 @@ const PerfilesPage = () => {
   const [isAdvancedModalOpen, setIsAdvancedModalOpen] = useState(false);
   const [editingPerfil, setEditingPerfil] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("perfiles");
-  const [search, setSearch] = useState("");
-  const [estadoFilter, setEstadoFilter] = useState<string | null>("activo");
   const [isModulesModalOpen, setIsModulesModalOpen] = useState(false);
   const [viewingModules, setViewingModules] = useState<{ modulo_nombre: string }[] | null>(null);
   const [selectedProfileForModules, setSelectedProfileForModules] = useState<Perfil | null>(null);
 
+  // Estados para filtros
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("active");
+
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { startLoading, stopLoading } = useLoading();
 
   // Funciones auxiliares para las vistas
   const getModuleColor = (modulo: string) => {
@@ -360,22 +365,27 @@ const PerfilesPage = () => {
   // Create/Update perfil mutation
   const savePerfilMutation = useMutation({
     mutationFn: async (data: PerfilForm) => {
-      // Mapear los permisos del formulario a la estructura esperada por setAccionesToRol
-      const modulosParaGuardar = data.permisos.map(p => ({
-        modulo_id: Number(p.viewId), // viewId del formulario es ahora el modulo_id
-        acciones: p.actions // actions del formulario ya contiene los codes
-      }));
+      startLoading();
+      try {
+        // Mapear los permisos del formulario a la estructura esperada por setAccionesToRol
+        const modulosParaGuardar = data.permisos.map(p => ({
+          modulo_id: Number(p.viewId), // viewId del formulario es ahora el modulo_id
+          acciones: p.actions // actions del formulario ya contiene los codes
+        }));
 
-      if (editingPerfil) {
-        // Editar
-        const updated = await rolesService.updateRole(editingPerfil.id, { nombre: data.nombre, descripcion: data.descripcion });
-        await rolesService.setAccionesToRol(editingPerfil.id, modulosParaGuardar);
-        return updated;
-      } else {
-        // Crear
-        const created = await rolesService.createRole({ nombre: data.nombre, descripcion: data.descripcion });
-        await rolesService.setAccionesToRol(created.id, modulosParaGuardar);
-        return created;
+        if (editingPerfil) {
+          // Editar
+          const updated = await rolesService.updateRole(editingPerfil.id, { nombre: data.nombre, descripcion: data.descripcion });
+          await rolesService.setAccionesToRol(editingPerfil.id, modulosParaGuardar);
+          return updated;
+        } else {
+          // Crear
+          const created = await rolesService.createRole({ nombre: data.nombre, descripcion: data.descripcion });
+          await rolesService.setAccionesToRol(created.id, modulosParaGuardar);
+          return created;
+        }
+      } finally {
+        stopLoading();
       }
     },
     onSuccess: async () => {
@@ -395,7 +405,12 @@ const PerfilesPage = () => {
   // Delete perfil mutation
   const deletePerfilMutation = useMutation({
     mutationFn: async (id: number) => {
-      return await rolesService.deleteRole(id);
+      startLoading();
+      try {
+        return await rolesService.deleteRole(id);
+      } finally {
+        stopLoading();
+      }
     },
     onSuccess: async () => {
       queryClient.removeQueries({ queryKey: ['roles'] });
@@ -410,7 +425,12 @@ const PerfilesPage = () => {
   // Mutaciones para eliminar permanente y activar
   const deletePerfilPermanentMutation = useMutation({
     mutationFn: async (id: number) => {
-      return await rolesService.deleteRolePermanent(id);
+      startLoading();
+      try {
+        return await rolesService.deleteRolePermanent(id);
+      } finally {
+        stopLoading();
+      }
     },
     onSuccess: async () => {
       queryClient.removeQueries({ queryKey: ['roles'] });
@@ -424,7 +444,12 @@ const PerfilesPage = () => {
 
   const activatePerfilMutation = useMutation({
     mutationFn: async (id: number) => {
-      return await rolesService.activateRole(id);
+      startLoading();
+      try {
+        return await rolesService.activateRole(id);
+      } finally {
+        stopLoading();
+      }
     },
     onSuccess: async () => {
       queryClient.removeQueries({ queryKey: ['roles'] });
@@ -442,8 +467,9 @@ const PerfilesPage = () => {
 
   // handleEdit debe cargar los permisos del rol desde Supabase y mostrarlos en la tabla para editar
   const handleEdit = async (perfil: any) => {
-    setEditingPerfil(perfil);
+    startLoading();
     try {
+      setEditingPerfil(perfil);
       const accionesCompletas = await rolesService.getAccionesCompletasPorRol(perfil.id);
       // console.log("Acciones completas fetched:", accionesCompletas); // Comentado para limpiar consola
 
@@ -484,6 +510,8 @@ const PerfilesPage = () => {
       toast({ title: 'Error', description: 'No se pudieron cargar los permisos del perfil', variant: 'destructive' });
       form.reset({ codigo: perfil.id, nombre: perfil.nombre, descripcion: perfil.descripcion || '', permisos: [] });
       setActiveTab('vistas');
+    } finally {
+      stopLoading();
     }
   };
 
@@ -493,35 +521,43 @@ const PerfilesPage = () => {
   };
 
   const handleAdvancedProfileCreated = async (profile: any) => {
-    // Invalidar cache para actualizar la lista y refrescar
-    await queryClient.invalidateQueries({ queryKey: ['/api/perfiles'] });
-    await refetch();
+    startLoading();
+    try {
+      // Invalidar cache para actualizar la lista y refrescar
+      await queryClient.invalidateQueries({ queryKey: ['/api/perfiles'] });
+      await refetch();
 
-    // Mostrar notificación de éxito
-    toast({
-      title: "Perfil Avanzado Creado",
-      description: `El perfil "${profile.name}" ha sido creado exitosamente con permisos granulares.`,
-      variant: "default",
-    });
+      // Mostrar notificación de éxito
+      toast({
+        title: "Perfil Avanzado Creado",
+        description: `El perfil "${profile.name}" ha sido creado exitosamente con permisos granulares.`,
+        variant: "default",
+      });
+    } finally {
+      stopLoading();
+    }
   };
 
   const handleViewModules = async (perfil: Perfil) => {
-    setSelectedProfileForModules(perfil);
+    startLoading();
     try {
+      setSelectedProfileForModules(perfil);
       const acciones = await rolesService.getAccionesCompletasPorRol(perfil.id);
       const uniqueModules = [...new Map(acciones.map(item => [item.modulo_nombre, item])).values()];
       setViewingModules(uniqueModules);
       setIsModulesModalOpen(true);
     } catch (error) {
       toast({ title: 'Error', description: 'No se pudieron cargar los módulos del perfil', variant: 'destructive' });
+    } finally {
+      stopLoading();
     }
   };
 
   // Filtrado de perfiles
   const filteredPerfiles = perfiles.filter(perfil => {
-    const matchesSearch = perfil.nombre.toLowerCase().includes(search.toLowerCase()) || (perfil.descripcion || '').toLowerCase().includes(search.toLowerCase());
-    const matchesEstado = estadoFilter === null ? true : (estadoFilter === 'activo' ? perfil.activo : !perfil.activo);
-    return matchesSearch && matchesEstado;
+    const matchesSearch = perfil.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || (perfil.descripcion || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === "all" ? true : (statusFilter === "active" ? perfil.activo : !perfil.activo);
+    return matchesSearch && matchesStatus;
   });
 
 
@@ -565,21 +601,61 @@ const PerfilesPage = () => {
                 <span className="text-lg font-semibold text-gray-700">ROLES</span>
               </div>
               <div className="flex space-x-2">
+                <Can action="accion-crear-perfil">
+                  <Button
+                    onClick={() => {
+                      setEditingPerfil(null);
+                      form.reset({
+                        codigo: perfiles.length + 1,
+                        nombre: "",
+                        descripcion: "",
+                        permisos: []
+                      });
+                      setActiveTab("vistas");
+                    }}
+                    className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
+                    size="sm"
+                  >
+                    Adicionar Registro
+                  </Button>
+                </Can>
+              </div>
+            </div>
+
+            {/* Filtros */}
+            <div className="p-4 border-b bg-gray-50">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    placeholder="Buscar por nombre o descripción..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filtrar por estado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos los estados</SelectItem>
+                    <SelectItem value="active">Solo activos</SelectItem>
+                    <SelectItem value="inactive">Solo inactivos</SelectItem>
+                  </SelectContent>
+                </Select>
+
                 <Button
+                  variant="outline"
                   onClick={() => {
-                    setEditingPerfil(null);
-                    form.reset({
-                      codigo: perfiles.length + 1,
-                      nombre: "",
-                      descripcion: "",
-                      permisos: []
-                    });
-                    setActiveTab("vistas");
+                    setSearchTerm("");
+                    setStatusFilter("active");
                   }}
-                  className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
-                  size="sm"
+                  className="flex items-center gap-2"
                 >
-                  Adicionar Registro
+                  <Filter className="w-4 h-4" />
+                  Limpiar filtros
                 </Button>
               </div>
             </div>
@@ -609,42 +685,45 @@ const PerfilesPage = () => {
                       <TableRow key={perfil.id} className="hover:bg-gray-50">
                         <TableCell className="px-2 py-1">
                           <div className="flex flex-row gap-1 items-center">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleEdit(perfil)}
-                                    aria-label="Editar perfil"
-                                    className="h-8 w-8"
-                                  >
-                                    <Edit className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Editar</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                            {perfil.activo ? (
+                            <Can action="accion-editar-perfil">
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <AlertDialog>
-                                      <AlertDialogTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          aria-label="Inactivar perfil"
-                                          className="h-8 w-8"
-                                        >
-                                          <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
-                                        </Button>
-                                      </AlertDialogTrigger>
-                                      <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                          <AlertDialogTitle>¿Inactivar perfil?</AlertDialogTitle>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleEdit(perfil)}
+                                      aria-label="Editar perfil"
+                                      className="h-8 w-8"
+                                    >
+                                      <Edit className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Editar</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </Can>
+                            {perfil.activo ? (
+                              <Can action="accion-inactivar-perfil">
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            aria-label="Inactivar perfil"
+                                            className="h-8 w-8"
+                                          >
+                                            <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
+                                          </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>¿Inactivar perfil?</AlertDialogTitle>
                                           <AlertDialogDescription>
                                             Esta acción inactivará el perfil y no podrá ser usado hasta que se reactive. ¿Estás seguro?
                                           </AlertDialogDescription>
@@ -663,78 +742,83 @@ const PerfilesPage = () => {
                                   </TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
+                              </Can>
                             ) : (
                               <>
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            aria-label="Eliminar perfil"
-                                            className="h-8 w-8"
-                                          >
-                                            <Trash2 className="h-4 w-4 text-rose-600 hover:text-rose-800 transition-colors" />
-                                          </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                          <AlertDialogHeader>
-                                            <AlertDialogTitle>¿Eliminar perfil?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                              Esta acción eliminará el perfil de forma permanente. ¿Estás seguro?
-                                            </AlertDialogDescription>
-                                          </AlertDialogHeader>
-                                          <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => deletePerfilPermanentMutation.mutate(perfil.id)}>
-                                              Sí, eliminar
-                                            </AlertDialogAction>
-                                          </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                      </AlertDialog>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Eliminar</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            aria-label="Activar perfil"
-                                            className="h-8 w-8"
-                                          >
-                                            <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
-                                          </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                          <AlertDialogHeader>
-                                            <AlertDialogTitle>¿Activar perfil?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                              Esta acción reactivará el perfil y estará disponible para su uso. ¿Estás seguro?
-                                            </AlertDialogDescription>
-                                          </AlertDialogHeader>
-                                          <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => activatePerfilMutation.mutate(perfil.id)}>
-                                              Sí, activar
-                                            </AlertDialogAction>
-                                          </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                      </AlertDialog>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Activar</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
+                                <Can action="accion-eliminar-perfil">
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <AlertDialog>
+                                          <AlertDialogTrigger asChild>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              aria-label="Eliminar perfil"
+                                              className="h-8 w-8"
+                                            >
+                                              <Trash2 className="h-4 w-4 text-rose-600 hover:text-rose-800 transition-colors" />
+                                            </Button>
+                                          </AlertDialogTrigger>
+                                          <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                              <AlertDialogTitle>¿Eliminar perfil?</AlertDialogTitle>
+                                              <AlertDialogDescription>
+                                                Esta acción eliminará el perfil de forma permanente. ¿Estás seguro?
+                                              </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                              <AlertDialogAction onClick={() => deletePerfilPermanentMutation.mutate(perfil.id)}>
+                                                Sí, eliminar
+                                              </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                          </AlertDialogContent>
+                                        </AlertDialog>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Eliminar</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </Can>
+                                <Can action="accion-activar-perfil">
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <AlertDialog>
+                                          <AlertDialogTrigger asChild>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              aria-label="Activar perfil"
+                                              className="h-8 w-8"
+                                            >
+                                              <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
+                                            </Button>
+                                          </AlertDialogTrigger>
+                                          <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                              <AlertDialogTitle>¿Activar perfil?</AlertDialogTitle>
+                                              <AlertDialogDescription>
+                                                Esta acción reactivará el perfil y estará disponible para su uso. ¿Estás seguro?
+                                              </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                              <AlertDialogAction onClick={() => activatePerfilMutation.mutate(perfil.id)}>
+                                                Sí, activar
+                                              </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                          </AlertDialogContent>
+                                        </AlertDialog>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Activar</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </Can>
                               </>
                             )}
                           </div>
@@ -745,24 +829,26 @@ const PerfilesPage = () => {
                         <TableCell className="px-4 py-3 text-center font-bold text-cyan-700">
                           <div className="flex items-center justify-center gap-2">
                             <span>{perfil.modulos_count}</span>
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleViewModules(perfil)}
-                                    aria-label="Ver módulos"
-                                    className="h-6 w-6"
-                                  >
-                                    <Eye className="h-4 w-4 text-gray-500 hover:text-gray-700" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Ver Módulos Asignados</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
+                            <Can action="accion-ver-modulos-perfil">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleViewModules(perfil)}
+                                      aria-label="Ver módulos"
+                                      className="h-6 w-6"
+                                    >
+                                      <Eye className="h-4 w-4 text-gray-500 hover:text-gray-700" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Ver Módulos Asignados</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </Can>
                           </div>
                         </TableCell>
                         <TableCell className="px-4 py-3">
@@ -879,16 +965,18 @@ const PerfilesPage = () => {
                     >
                       Cancelar
                     </Button>
-                    <Button
-                      type="submit"
-                      className="bg-brand-lime hover:bg-brand-lime/90 text-white border-0 shadow-sm px-6 py-2 rounded text-sm font-medium transition-colors"
-                      disabled={savePerfilMutation.isPending}
-                    >
-                      {savePerfilMutation.isPending ?
-                        (editingPerfil ? 'Actualizando...' : 'Guardando...') :
-                        (editingPerfil ? 'Actualizar' : 'Guardar')
-                      }
-                    </Button>
+                    <Can action={editingPerfil ? "accion-actualizar-perfil" : "accion-crear-perfil"}>
+                      <Button
+                        type="submit"
+                        className="bg-brand-lime hover:bg-brand-lime/90 text-white border-0 shadow-sm px-6 py-2 rounded text-sm font-medium transition-colors"
+                        disabled={savePerfilMutation.isPending}
+                      >
+                        {savePerfilMutation.isPending ?
+                          (editingPerfil ? 'Actualizando...' : 'Guardando...') :
+                          (editingPerfil ? 'Actualizar' : 'Guardar')
+                        }
+                      </Button>
+                    </Can>
                   </div>
                 </form>
               </Form>
@@ -981,16 +1069,18 @@ const PerfilesPage = () => {
                     >
                       Cancelar
                     </Button>
-                    <Button
-                      type="submit"
-                      className="bg-brand-lime hover:bg-brand-lime/90 text-white border-0 shadow-sm px-6 py-2 rounded text-sm font-medium transition-colors"
-                      disabled={savePerfilMutation.isPending}
-                    >
-                      {savePerfilMutation.isPending ?
-                        (editingPerfil ? 'Actualizando...' : 'Guardando...') :
-                        (editingPerfil ? 'Actualizar' : 'Guardar')
-                      }
-                    </Button>
+                    <Can action={editingPerfil ? "accion-actualizar-perfil" : "accion-crear-perfil"}>
+                      <Button
+                        type="submit"
+                        className="bg-brand-lime hover:bg-brand-lime/90 text-white border-0 shadow-sm px-6 py-2 rounded text-sm font-medium transition-colors"
+                        disabled={savePerfilMutation.isPending}
+                      >
+                        {savePerfilMutation.isPending ?
+                          (editingPerfil ? 'Actualizando...' : 'Guardando...') :
+                          (editingPerfil ? 'Actualizar' : 'Guardar')
+                        }
+                      </Button>
+                    </Can>
                   </div>
                 </form>
               </Form>

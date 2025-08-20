@@ -23,25 +23,20 @@ const FormRenderer: React.FC<FormRendererProps> = ({
 
   // Actualizar formData cuando cambien los datos iniciales
   React.useEffect(() => {
-    console.log('🔍 FormRenderer - Actualizando datos iniciales:', initialData);
     setFormData(initialData);
   }, [initialData]);
 
   const handleFieldChange = (fieldName: string, value: any) => {
-    console.log('🔍 FormRenderer - Campo cambiado:', fieldName, '=', value);
     setFormData(prev => {
       const newData = {
         ...prev,
         [fieldName]: value
       };
-      console.log('🔍 FormRenderer - Estado actualizado:', newData);
       return newData;
     });
   };
 
   const handleSave = () => {
-    console.log('🔍 FormRenderer - Datos del formulario al guardar:', formData);
-    console.log('🔍 FormRenderer - Estructura del formulario:', estructura);
     if (onSave) {
       onSave(formData);
     }
@@ -142,7 +137,7 @@ const FormRenderer: React.FC<FormRendererProps> = ({
               value={value}
               onChange={(e) => handleFieldChange(fieldName, e.target.value)}
               placeholder={String(placeholder)}
-              className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full max-w-md px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors"
             />
           )}
 
@@ -151,7 +146,7 @@ const FormRenderer: React.FC<FormRendererProps> = ({
               value={value}
               onChange={(e) => handleFieldChange(fieldName, e.target.value)}
               placeholder={String(placeholder)}
-              className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-md text-sm min-h-[80px] resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full max-w-md px-4 py-3 border border-gray-300 rounded-lg text-sm min-h-[100px] resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors"
             />
           )}
 
@@ -160,7 +155,7 @@ const FormRenderer: React.FC<FormRendererProps> = ({
               type="date"
               value={value}
               onChange={(e) => handleFieldChange(fieldName, e.target.value)}
-              className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full max-w-md px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors"
             />
           )}
 
@@ -168,7 +163,7 @@ const FormRenderer: React.FC<FormRendererProps> = ({
             <select 
               value={value}
               onChange={(e) => handleFieldChange(fieldName, e.target.value)}
-              className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full max-w-md px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors"
             >
               <option value="">{String(placeholder)}</option>
               {renderSelectOptions(campo.opciones)}
@@ -176,12 +171,12 @@ const FormRenderer: React.FC<FormRendererProps> = ({
           )}
 
           {tipo === 'checkbox' && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <input
                 type="checkbox"
                 checked={value}
                 onChange={(e) => handleFieldChange(fieldName, e.target.checked)}
-                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
               />
               <span className="text-sm text-gray-600">
                 {String(label)}
@@ -195,7 +190,7 @@ const FormRenderer: React.FC<FormRendererProps> = ({
               value={value}
               onChange={(e) => handleFieldChange(fieldName, e.target.value)}
               placeholder={String(placeholder)}
-              className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full max-w-md px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors"
             />
           )}
 
@@ -205,7 +200,7 @@ const FormRenderer: React.FC<FormRendererProps> = ({
               value={value}
               onChange={(e) => handleFieldChange(fieldName, e.target.value)}
               placeholder={String(placeholder)}
-              className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full max-w-md px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors"
             />
           )}
 
@@ -233,20 +228,9 @@ const FormRenderer: React.FC<FormRendererProps> = ({
     const titulo = seccion.titulo || `Sección ${seccionIndex}`;
     const icono = seccion.icono || 'FileText';
     const campos = seccion.campos || [];
-    const layout = seccion.layout || 'grid-cols-1 md:grid-cols-2'; // Layout por defecto
-
-    // Determinar el número de columnas del layout
-    const getColumnCount = (layoutString: string) => {
-      if (layoutString.includes('grid-cols-2')) return 2;
-      if (layoutString.includes('grid-cols-3')) return 3;
-      if (layoutString.includes('grid-cols-4')) return 4;
-      return 2; // Por defecto
-    };
-
-    const columnCount = getColumnCount(layout);
 
     return (
-      <div key={seccionIndex} className="mb-6 p-4 border rounded-lg bg-gradient-to-br from-slate-50 to-slate-100 shadow-sm">
+      <div key={seccionIndex} className="mb-6 p-4 border rounded-lg bg-gradient-to-br from-slate-50 to-slate-100 shadow-sm w-full">
         {/* Título de la sección */}
         <h4 className="text-base font-bold text-gray-700 mb-4 flex items-center gap-2">
           {icono === 'Users' && <Users className="w-5 h-5 text-blue-600" />}
@@ -264,42 +248,89 @@ const FormRenderer: React.FC<FormRendererProps> = ({
         </h4>
 
         {/* Campos de la sección con grid dinámico */}
-        <div className={`grid gap-4 ${layout}`}>
-          {Array.isArray(campos) && campos.map((campo: any, campoIndex: number) => {
-            // Determinar el colspan del campo
-            const colspan = campo.colspan || 'col-span-1';
-            const isFullWidth = colspan.includes('col-span-2') || colspan.includes('col-span-3') || colspan.includes('col-span-4') || colspan.includes('col-span-12');
+        <div className="grid gap-4 grid-cols-12 w-full">
+          {Array.isArray(campos) && campos
+            .sort((a, b) => (a.order || 0) - (b.order || 0)) // Ordenar por order
+            .map((campo: any, campoIndex: number) => {
+            // Calcular el colspan del campo de manera simple y directa
+            let fieldWidth = 'col-span-12'; // Por defecto ocupa toda la fila
+            let customStyle: { 
+              width?: string;
+              maxWidth?: string;
+            } = {}; // Para valores problemáticos
             
-            // Determinar el ancho del campo basado en el layout
-            let fieldWidth = '';
-            if (columnCount === 2) {
-              fieldWidth = isFullWidth ? 'col-span-2' : 'col-span-1';
-            } else if (columnCount === 3) {
-              if (colspan.includes('col-span-3')) {
-                fieldWidth = 'col-span-3';
-              } else if (colspan.includes('col-span-2')) {
-                fieldWidth = 'col-span-2';
+            // Función para calcular el ancho del campo
+            const calcularAnchoCampo = (span: number) => {
+              if ([5, 6, 7, 9, 10, 11].includes(span)) {
+                // Para valores problemáticos, usar width personalizado con un poco menos de ancho
+                const porcentaje = (span / 12) * 100 * 0.9; // Reducir un 10% del ancho
+                return {
+                  fieldWidth: 'col-span-12',
+                  customStyle: {
+                    width: `${porcentaje}%`,
+                    maxWidth: `${porcentaje}%`
+                  }
+                };
               } else {
-                fieldWidth = 'col-span-1';
+                // Para valores que funcionan bien con Tailwind
+                return {
+                  fieldWidth: `col-span-${span}`,
+                  customStyle: {}
+                };
               }
-            } else if (columnCount === 4) {
-              if (colspan.includes('col-span-4')) {
-                fieldWidth = 'col-span-4';
-              } else if (colspan.includes('col-span-3')) {
-                fieldWidth = 'col-span-3';
-              } else if (colspan.includes('col-span-2')) {
-                fieldWidth = 'col-span-2';
-              } else {
-                fieldWidth = 'col-span-1';
+            };
+            
+            if (campo.colspan) {
+              if (typeof campo.colspan === 'string') {
+                if (campo.colspan.startsWith('col-span-')) {
+                  // Extraer el número de la clase col-span-X
+                  const match = campo.colspan.match(/col-span-(\d+)/);
+                  if (match) {
+                    const span = parseInt(match[1]);
+                    const resultado = calcularAnchoCampo(span);
+                    fieldWidth = resultado.fieldWidth;
+                    customStyle = resultado.customStyle;
+                  } else {
+                    fieldWidth = campo.colspan;
+                  }
+                } else if (campo.colspan.match(/^\d+$/)) {
+                  // Si es un número en string, convertirlo
+                  const span = parseInt(campo.colspan);
+                  if (span >= 1 && span <= 12) {
+                    const resultado = calcularAnchoCampo(span);
+                    fieldWidth = resultado.fieldWidth;
+                    customStyle = resultado.customStyle;
+                  }
+                } else {
+                  // Si es otro string, intentar usarlo como está
+                  fieldWidth = campo.colspan;
+                }
+              } else if (typeof campo.colspan === 'number') {
+                const span = Math.min(Math.max(campo.colspan, 1), 12);
+                const resultado = calcularAnchoCampo(span);
+                fieldWidth = resultado.fieldWidth;
+                customStyle = resultado.customStyle;
               }
-            } else {
-              fieldWidth = isFullWidth ? 'col-span-2' : 'col-span-1';
+            } else if (campo.dimension) {
+              const span = Math.min(Math.max(campo.dimension, 1), 12);
+              const resultado = calcularAnchoCampo(span);
+              fieldWidth = resultado.fieldWidth;
+              customStyle = resultado.customStyle;
+            } else if (campo.gridColumnSpan) {
+              const match = campo.gridColumnSpan.match(/span (\d+)/);
+              if (match) {
+                const span = Math.min(Math.max(parseInt(match[1]), 1), 12);
+                const resultado = calcularAnchoCampo(span);
+                fieldWidth = resultado.fieldWidth;
+                customStyle = resultado.customStyle;
+              }
             }
             
             return (
               <div 
                 key={campoIndex} 
                 className={`space-y-2 ${fieldWidth}`}
+                style={customStyle}
               >
                 {/* Label del campo */}
                 <div className="flex items-center gap-2">
@@ -312,15 +343,15 @@ const FormRenderer: React.FC<FormRendererProps> = ({
                       {String(campo.tipo || 'text')}
                     </span>
                   )}
-                  {!hideFieldLabels && colspan && (
+                  {!hideFieldLabels && (
                     <span className="text-xs text-blue-500 bg-blue-100 px-2 py-1 rounded">
-                      {colspan}
+                      {campo.colspan || campo.dimension || '12'} cols
                     </span>
                   )}
                 </div>
 
                 {/* Renderizado del campo según su tipo */}
-                <div className="ml-4">
+                <div className="ml-2">
                   {campo.tipo === 'text' && (
                     <input
                       type="text"

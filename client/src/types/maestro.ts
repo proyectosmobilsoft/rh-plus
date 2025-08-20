@@ -25,7 +25,8 @@ export interface TipoDocumento {
   id: number;
   nombre: string;
   descripcion?: string;
-  requerido: boolean;
+  lleva_fecha_vigencia?: boolean;
+  fecha_vigencia?: string;
   activo: boolean;
   created_at: string;
   updated_at: string;
@@ -34,14 +35,16 @@ export interface TipoDocumento {
 export interface CreateTipoDocumentoData {
   nombre: string;
   descripcion?: string;
-  requerido?: boolean;
+  lleva_fecha_vigencia?: boolean;
+  fecha_vigencia?: string;
   activo?: boolean;
 }
 
 export interface UpdateTipoDocumentoData {
   nombre?: string;
   descripcion?: string;
-  requerido?: boolean;
+  lleva_fecha_vigencia?: boolean;
+  fecha_vigencia?: string;
   activo?: boolean;
 }
 
@@ -50,7 +53,8 @@ export interface TipoCandidatoDocumento {
   id: number;
   tipo_candidato_id: number;
   tipo_documento_id: number;
-  obligatorio: boolean;
+  obligatorio: boolean;  // Indica si el documento está seleccionado para este tipo de cargo
+  requerido: boolean;    // Indica si el documento es requerido/obligatorio para este tipo de cargo
   orden: number;
   created_at: string;
   updated_at: string;
@@ -60,11 +64,13 @@ export interface CreateTipoCandidatoDocumentoData {
   tipo_candidato_id: number;
   tipo_documento_id: number;
   obligatorio?: boolean;
+  requerido?: boolean;
   orden?: number;
 }
 
 export interface UpdateTipoCandidatoDocumentoData {
   obligatorio?: boolean;
+  requerido?: boolean;
   orden?: number;
 }
 
@@ -74,7 +80,6 @@ export interface TipoCandidatoDocumentoConDetalles extends TipoCandidatoDocument
     id: number;
     nombre: string;
     descripcion?: string;
-    requerido: boolean;
     activo: boolean;
   };
 }
@@ -88,5 +93,6 @@ export interface TipoCandidatoForm {
 export interface DocumentoTipoForm {
   nombre: string;
   descripcion?: string;
-  requerido: boolean;
+  lleva_fecha_vigencia: boolean;
+  fecha_vigencia?: string;
 } 

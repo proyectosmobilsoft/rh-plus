@@ -35,7 +35,9 @@ import UsuariosPage from './pages/seguridad/UsuariosPage';
 import CrearUsuarioPage from './pages/seguridad/CrearUsuarioPage';
 import EditarUsuarioPage from './pages/seguridad/EditarUsuarioPage';
 import PerfilesPage from './pages/seguridad/PerfilesPage';
+import LogsSistemaPage from './pages/seguridad/LogsSistemaPage';
 import GestionPermisosPage from './pages/seguridad/GestionPermisosPage';
+import PermisosPage from './pages/seguridad/PermisosPage';
 import MenuPage from './pages/seguridad/MenuPage';
 import CrearCandidatoAdmin from './pages/admin/CrearCandidatoAdmin';
 // Páginas para cada sección
@@ -88,6 +90,7 @@ import EditarAnalistaPage from './pages/analistas/EditarAnalistaPage';
 
 // Páginas de maestro
 import TiposCandidatosPage from './pages/maestro/TiposCandidatosPage';
+import TiposDocumentosPage from './pages/maestro/TiposDocumentosPage';
 
 // Páginas de admin
 import TemplatesPage from './pages/admin/ordenes/TemplatesPage';
@@ -370,6 +373,16 @@ function App() {
                 <GestionPermisosPage />
               </ProtectedRoute>
             } />
+            <Route path="/permisos" element={
+              <ProtectedRoute>
+                <PermisosPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/seguridad/permisos" element={
+              <ProtectedRoute>
+                <PermisosPage />
+              </ProtectedRoute>
+            } />
             <Route path="/menu" element={
               <ProtectedRoute>
                 <MenuPage />
@@ -378,6 +391,16 @@ function App() {
             <Route path="/seguridad/menu" element={
               <ProtectedRoute>
                 <MenuPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/logs-sistema" element={
+              <ProtectedRoute>
+                <LogsSistemaPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/seguridad/logs-sistema" element={
+              <ProtectedRoute>
+                <LogsSistemaPage />
               </ProtectedRoute>
             } />
 
@@ -490,6 +513,17 @@ function App() {
             <Route path="/maestro/tipos-candidatos" element={
               <ProtectedRoute>
                 <TiposCandidatosPage />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/tipos-documentos" element={
+              <ProtectedRoute>
+                <TiposDocumentosPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/maestro/tipos-documentos" element={
+              <ProtectedRoute>
+                <TiposDocumentosPage />
               </ProtectedRoute>
             } />
 

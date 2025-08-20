@@ -320,6 +320,122 @@ export const deletePlantilla = async (id: number): Promise<boolean> => {
   }
 };
 
+/**
+ * Activa una plantilla
+ */
+export const activatePlantilla = async (id: number): Promise<boolean> => {
+  console.log('🔄 activatePlantilla llamado con ID:', id);
+  const { startLoading, stopLoading } = getLoadingContext();
+  
+  try {
+    startLoading();
+    console.log('📝 Actualizando plantilla con ID:', id, 'a activa: true');
+    
+    const { data, error } = await supabase
+      .from('plantillas_solicitudes')
+      .update({ activa: true, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select();
+    
+    console.log('📊 Respuesta de Supabase:', { data, error });
+    
+    if (error) {
+      console.error('❌ Error al activar plantilla:', error);
+      return false;
+    }
+    
+    console.log('✅ Plantilla activada exitosamente');
+    return true;
+  } catch (error) {
+    console.error('❌ Error en activatePlantilla:', error);
+    return false;
+  } finally {
+    stopLoading();
+  }
+};
+
+/**
+ * Inactiva una plantilla
+ */
+export const deactivatePlantilla = async (id: number): Promise<boolean> => {
+  console.log('🔄 deactivatePlantilla llamado con ID:', id);
+  const { startLoading, stopLoading } = getLoadingContext();
+  
+  try {
+    startLoading();
+    console.log('📝 Actualizando plantilla con ID:', id, 'a activa: false');
+    
+    const { data, error } = await supabase
+      .from('plantillas_solicitudes')
+      .update({ activa: false, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select();
+    
+    console.log('📊 Respuesta de Supabase:', { data, error });
+    
+    if (error) {
+      console.error('❌ Error al inactivar plantilla:', error);
+      return false;
+    }
+    
+    console.log('✅ Plantilla inactivada exitosamente');
+    return true;
+  } catch (error) {
+    console.error('❌ Error en deactivatePlantilla:', error);
+    return false;
+  } finally {
+    stopLoading();
+  }
+};
+
+/**
+ * Establece una plantilla como predeterminada
+ * Primero remueve el estado de predeterminada de todas las plantillas
+ * Luego establece la plantilla especificada como predeterminada
+ */
+export const setDefaultPlantilla = async (id: number): Promise<boolean> => {
+  console.log('🔄 setDefaultPlantilla llamado con ID:', id);
+  const { startLoading, stopLoading } = getLoadingContext();
+  
+  try {
+    startLoading();
+    
+    console.log('📝 Removiendo estado predeterminada de todas las plantillas...');
+    // Primero, remover el estado de predeterminada de todas las plantillas
+    const { error: errorRemoveDefault } = await supabase
+      .from('plantillas_solicitudes')
+      .update({ es_default: false, updated_at: new Date().toISOString() })
+      .eq('es_default', true);
+    
+    if (errorRemoveDefault) {
+      console.error('❌ Error al remover estado predeterminada:', errorRemoveDefault);
+      return false;
+    }
+    
+    console.log('✅ Estado predeterminada removido de todas las plantillas');
+    
+    console.log('📝 Estableciendo plantilla con ID:', id, 'como predeterminada...');
+    // Luego, establecer la plantilla especificada como predeterminada
+    const { error: errorSetDefault } = await supabase
+      .from('plantillas_solicitudes')
+      .update({ es_default: true, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    
+    if (errorSetDefault) {
+      console.error('❌ Error al establecer plantilla como predeterminada:', errorSetDefault);
+      return false;
+    }
+    
+    console.log('✅ Plantilla establecida como predeterminada exitosamente');
+    return true;
+  } catch (error) {
+    console.error('❌ Error en setDefaultPlantilla:', error);
+    return false;
+  } finally {
+    stopLoading();
+  }
+};
+
 // Exportar el servicio completo
 export const plantillasService = {
   getAll: getAllPlantillas,
@@ -329,5 +445,8 @@ export const plantillasService = {
   create: createPlantilla,
   update: updatePlantilla,
   delete: deletePlantilla,
+  activate: activatePlantilla,
+  deactivate: deactivatePlantilla,
+  setDefault: setDefaultPlantilla,
   verificarEstructura: verificarEstructuraDB
 }; 

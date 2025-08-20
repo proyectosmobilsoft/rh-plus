@@ -91,6 +91,7 @@ export const authService: AuthService = {
             )
           ),
           gen_usuario_roles (
+            rol_id,
             gen_roles (
               id,
               nombre
@@ -146,6 +147,7 @@ export const authService: AuthService = {
             )
           ),
           gen_usuario_roles (
+            rol_id,
             gen_roles (
               id,
               nombre
@@ -161,8 +163,48 @@ export const authService: AuthService = {
       }
 
       // Extraer roles y empresas de la respuesta
-      const roles = userData.gen_usuario_roles?.map((ur: any) => ur.gen_roles).filter(Boolean) || [];
+      const roles = (userData.gen_usuario_roles || [])
+        .map((ur: any) => {
+          const role = ur?.gen_roles;
+          if (!role) return null;
+          return { id: role.id ?? ur.rol_id, nombre: role.nombre };
+        })
+        .filter(Boolean) || [];
       const empresas = userData.gen_usuario_empresas?.map((ue: any) => ue.empresas).filter(Boolean) || [];
+
+      // Helper: obtener acciones por rol desde gen_roles_modulos (por ids)
+      const getAccionesPorRolByIds = async (roleIds: number[]) => {
+        const accionesPorRol: Record<string, string[]> = {};
+        const flattened = new Set<string>();
+        if (roleIds.length === 0) return { accionesPorRol, acciones: Array.from(flattened) };
+        try {
+          const { data, error } = await supabase
+            .from('gen_roles_modulos')
+            .select('rol_id, selected_actions_codes, selected_actions_codes')
+            .in('rol_id', roleIds);
+          if (!error && Array.isArray(data)) {
+            for (const row of data) {
+              const codes: string[] = Array.isArray((row as any).selected_actions_codes)
+                ? (row as any).selected_actions_codes
+                : (Array.isArray((row as any).selected_actions_codes) ? (row as any).selected_actions_codes : []);
+              accionesPorRol[String((row as any).rol_id)] = codes;
+              codes.forEach(c => flattened.add(c));
+            }
+          }
+        } catch (_e) {
+          // Ignorar errores para no bloquear login
+        }
+        return { accionesPorRol, acciones: Array.from(flattened) };
+      };
+
+      // Construir roleIds a partir de ambas fuentes: join y tabla intermedia
+      const roleIdsFromJoin = (userData.gen_usuario_roles || [])
+        .map((ur: any) => ur?.rol_id)
+        .filter((id: any) => Number.isFinite(id));
+      const roleIdsFromRoles = (userData.gen_usuario_roles || [])
+        .map((ur: any) => ur?.gen_roles?.id)
+        .filter((id: any) => Number.isFinite(id));
+      const roleIdsUnique = Array.from(new Set<number>([...roleIdsFromJoin, ...roleIdsFromRoles] as number[]));
 
       // Intentar usar la función RPC check_password
       try {
@@ -172,6 +214,8 @@ export const authService: AuthService = {
         });
 
         if (!verifyError && verifyData === true) {
+          // Obtener acciones por rol con ids robustos
+          const { accionesPorRol, acciones } = await getAccionesPorRolByIds(roleIdsUnique);
           // Retornar datos completos del usuario para guardar en localStorage
           return {
             success: true,
@@ -185,6 +229,8 @@ export const authService: AuthService = {
               activo: userData.activo,
               roles: roles,
               empresas: empresas,
+              accionesPorRol,
+              acciones,
               // Información adicional del usuario
               password_hash: userData.password_hash // Solo para debug, no usar en producción
             }
@@ -201,6 +247,7 @@ export const authService: AuthService = {
       const isMatch = simpleHash === userData.password_hash;
       
       if (isMatch) {
+        const { accionesPorRol, acciones } = await getAccionesPorRolByIds(roleIdsUnique);
         return {
           success: true,
           userData: {
@@ -213,6 +260,8 @@ export const authService: AuthService = {
             activo: userData.activo,
             roles: roles,
             empresas: empresas,
+            accionesPorRol,
+            acciones,
             // Información adicional del usuario
             password_hash: userData.password_hash // Solo para debug
           }

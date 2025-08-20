@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Mail, 
   Users, 
@@ -129,6 +130,7 @@ export default function EmailMasivoPage() {
   const [draggedVariable, setDraggedVariable] = useState<string>('');
   const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
   const [templateName, setTemplateName] = useState('');
+  const [activeTab, setActiveTab] = useState('campanas');
   const [campaignData, setCampaignData] = useState({
     nombre: '',
     asunto: '',
@@ -870,35 +872,182 @@ export default function EmailMasivoPage() {
 
   return (
     <>
-      <div className="min-h-screen bg-slate-50">
-        <div className="container mx-auto p-8 space-y-8">
-        {/* Header Corporativo */}
-        <div className="text-center border-b border-slate-200 pb-8">
-          <div className="flex items-center justify-center space-x-4 mb-6">
-            <div className="p-4 bg-slate-800 rounded-xl shadow-lg">
-              <Mail className="h-10 w-10 text-white" />
-            </div>
-            <div>
-              <h1 className="text-4xl font-bold text-slate-900 tracking-tight">Sistema de Correos Masivos</h1>
-              <p className="text-slate-600 text-lg mt-2">Gestión profesional de campañas de comunicación</p>
-            </div>
-          </div>
+      <div className="p-4 max-w-full mx-auto">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-3xl font-extrabold text-cyan-800 flex items-center gap-2 mb-2">
+            <Mail className="w-8 h-8 text-cyan-600" />
+            Correos Masivos
+          </h1>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
-          {/* Panel izquierdo - Configuración */}
-          <div className="xl:col-span-1 space-y-6">
-                         {/* Selector de Plantillas */}
-                           <Card className="shadow-lg border border-slate-200 bg-white">
-                <CardHeader className="bg-slate-800 text-white rounded-t-lg">
-                  <CardTitle className="flex items-center space-x-3 text-lg">
-                    <FileText className="h-5 w-5" />
-                    <span>Plantilla</span>
-                  </CardTitle>
-                  <CardDescription className="text-slate-300">
-                    Selecciona la plantilla base
-                  </CardDescription>
-                </CardHeader>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 bg-cyan-100/60 p-1 rounded-lg">
+            <TabsTrigger
+              value="campanas"
+              className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+            >
+              Campañas Recientes
+            </TabsTrigger>
+            <TabsTrigger
+              value="nueva"
+              className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+            >
+              Nueva Campaña
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Tab de Campañas Recientes */}
+          <TabsContent value="campanas" className="mt-6">
+            <div className="bg-white rounded-lg border">
+              <div className="flex items-center justify-between p-4 border-b">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-orange-100 rounded flex items-center justify-center">
+                    <Users className="w-5 h-5 text-orange-600" />
+                  </div>
+                  <span className="text-lg font-semibold text-gray-700">CAMPAÑAS RECIENTES</span>
+                </div>
+              </div>
+
+              <div className="p-6">
+                <div className="space-y-6">
+                  {/* Campañas de Gmail */}
+                  {gmailCampaigns.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                        <Mail className="h-5 w-5 text-cyan-600" />
+                        <span>Campañas de Gmail</span>
+                      </h3>
+                      <div className="space-y-3">
+                        {gmailCampaigns.map((campaign) => (
+                          <div key={`gmail-${campaign.id}`} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 bg-white transition-colors">
+                            <div className="flex items-center space-x-4">
+                              <div className="p-2 bg-gray-100 rounded-lg">
+                                {getEstadoIcon(campaign.estado)}
+                              </div>
+                              <div>
+                                <div className="flex items-center space-x-2">
+                                  <h3 className="font-semibold text-gray-900">{campaign.nombre}</h3>
+                                  <Badge variant="outline" className="text-xs bg-cyan-100 text-cyan-700">Gmail</Badge>
+                                </div>
+                                <p className="text-sm text-gray-600">{campaign.asunto_personalizado}</p>
+                                <div className="flex items-center space-x-4 mt-1">
+                                  <Badge className={getEstadoColor(campaign.estado)}>
+                                    {campaign.estado}
+                                  </Badge>
+                                  <Badge variant="secondary" className="text-xs">
+                                    {campaign.tipo_destinatario}
+                                  </Badge>
+                                  <span className="text-xs text-gray-500">
+                                    {campaign.enviados_count}/{campaign.destinatarios_count} enviados
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleViewCampaignSentInfo(campaign, 'gmail')}
+                                title="Ver qué se envió y a quién"
+                                className="text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {gmailCampaigns.length > 0 && campaigns.length > 0 && (
+                    <hr className="border-gray-300" />
+                  )}
+
+                  {/* Campañas regulares */}
+                  {campaigns.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                        <FileText className="h-5 w-5 text-purple-600" />
+                        <span>Campañas Regulares</span>
+                      </h3>
+                      <div className="space-y-3">
+                        {campaigns.map((campaign) => (
+                          <div key={campaign.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 bg-white transition-colors">
+                            <div className="flex items-center space-x-4">
+                              <div className="p-2 bg-gray-100 rounded-lg">
+                                {getEstadoIcon(campaign.estado)}
+                              </div>
+                              <div>
+                                <h3 className="font-semibold text-gray-900">{campaign.nombre}</h3>
+                                <p className="text-sm text-gray-600">{campaign.asunto_personalizado}</p>
+                                <div className="flex items-center space-x-4 mt-1">
+                                  <Badge className={getEstadoColor(campaign.estado)}>
+                                    {campaign.estado}
+                                  </Badge>
+                                  <span className="text-xs text-gray-500">
+                                    {campaign.enviados_count}/{campaign.destinatarios_count} enviados
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleViewCampaignSentInfo(campaign, 'email')}
+                                title="Ver qué se envió y a quién"
+                                className="text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Mensaje cuando no hay campañas */}
+                  {campaigns.length === 0 && gmailCampaigns.length === 0 && (
+                    <div className="text-center py-12">
+                      <Mail className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600 font-medium">No hay campañas creadas aún</p>
+                      <p className="text-gray-500 text-sm mt-2">Crea tu primera campaña para comenzar</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Tab de Nueva Campaña */}
+          <TabsContent value="nueva" className="mt-6">
+            <div className="bg-white rounded-lg border">
+              <div className="flex items-center justify-between p-4 border-b">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-orange-100 rounded flex items-center justify-center">
+                    <Send className="w-5 h-5 text-orange-600" />
+                  </div>
+                  <span className="text-lg font-semibold text-gray-700">NUEVA CAMPAÑA</span>
+                </div>
+              </div>
+
+              <div className="p-6">
+                <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
+                  {/* Panel izquierdo - Configuración */}
+                  <div className="xl:col-span-1 space-y-6">
+                    {/* Selector de Plantillas */}
+                    <Card className="shadow-sm border border-gray-200 bg-white">
+                      <CardHeader className="bg-cyan-600 text-white rounded-t-lg">
+                        <CardTitle className="flex items-center space-x-3 text-lg">
+                          <FileText className="h-5 w-5" />
+                          <span>Plantilla</span>
+                        </CardTitle>
+                        <CardDescription className="text-cyan-100">
+                          Selecciona la plantilla base
+                        </CardDescription>
+                      </CardHeader>
                <CardContent className="p-6">
                  <div className="space-y-4">
                    <div>
@@ -1026,17 +1175,17 @@ export default function EmailMasivoPage() {
                </CardContent>
              </Card>
 
-                         {/* Selección de Destinatarios */}
-                           <Card className="shadow-lg border border-slate-200 bg-white">
-                <CardHeader className="bg-slate-700 text-white rounded-t-lg">
-                  <CardTitle className="flex items-center space-x-3 text-lg">
-                    <Users className="h-5 w-5" />
-                    <span>Destinatarios</span>
-                  </CardTitle>
-                  <CardDescription className="text-slate-300">
-                    Define tu audiencia objetivo
-                  </CardDescription>
-                </CardHeader>
+                    {/* Selección de Destinatarios */}
+                    <Card className="shadow-sm border border-gray-200 bg-white">
+                      <CardHeader className="bg-cyan-600 text-white rounded-t-lg">
+                        <CardTitle className="flex items-center space-x-3 text-lg">
+                          <Users className="h-5 w-5" />
+                          <span>Destinatarios</span>
+                        </CardTitle>
+                        <CardDescription className="text-cyan-100">
+                          Define tu audiencia objetivo
+                        </CardDescription>
+                      </CardHeader>
                <CardContent className="p-6">
                  <div className="space-y-4">
                    <div>
@@ -1098,6 +1247,7 @@ export default function EmailMasivoPage() {
                          variant={selectionType === 'todos' ? 'default' : 'outline'}
                          size="sm"
                          onClick={() => setSelectionType('todos')}
+                         className={selectionType === 'todos' ? 'bg-teal-400 hover:bg-teal-500 text-white' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}
                        >
                          Todos
                        </Button>
@@ -1105,6 +1255,7 @@ export default function EmailMasivoPage() {
                          variant={selectionType === 'especificos' ? 'default' : 'outline'}
                          size="sm"
                          onClick={() => setSelectionType('especificos')}
+                         className={selectionType === 'especificos' ? 'bg-teal-400 hover:bg-teal-500 text-white' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}
                        >
                          Específicos
                        </Button>
@@ -1129,6 +1280,7 @@ export default function EmailMasivoPage() {
                                variant="outline"
                                size="sm"
                                onClick={handleSelectAllRecipients}
+                               className="border-gray-300 text-gray-700 hover:bg-gray-50"
                              >
                                Seleccionar Todos
                              </Button>
@@ -1136,6 +1288,7 @@ export default function EmailMasivoPage() {
                                variant="outline"
                                size="sm"
                                onClick={handleDeselectAllRecipients}
+                               className="border-gray-300 text-gray-700 hover:bg-gray-50"
                              >
                                Deseleccionar
                              </Button>
@@ -1211,40 +1364,40 @@ export default function EmailMasivoPage() {
 
           </div>
 
-                    {/* Panel central - Editor de campaña */}
-          <div className="xl:col-span-3 space-y-6">
-            <Card className="shadow-lg border border-slate-200 bg-white">
-              <CardHeader className="bg-slate-900 text-white rounded-t-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center space-x-3 text-xl">
-                      <Send className="h-6 w-6" />
-                      <span>Nueva Campaña</span>
-                    </CardTitle>
-                                         <CardDescription className="text-slate-300">
-                       {selectedTemplate ? 
-                         selectedTemplate.id === 0 ? 'Plantilla estándar seleccionada' :
-                         selectedTemplate.id === -1 ? 'Crear contenido personalizado' :
-                         `Plantilla: ${selectedTemplate.nombre}` 
-                         : 'Selecciona una plantilla para comenzar'}
-                       {isDragging && (
-                         <span className="ml-2 text-cyan-300">• Arrastra variables aquí</span>
-                       )}
-                     </CardDescription>
-                  </div>
-                  <div className="flex space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPreviewMode(!previewMode)}
-                      className="border-slate-300 text-slate-300 hover:bg-slate-700"
-                    >
-                      <Eye className="h-4 w-4 mr-2" />
-                      {previewMode ? 'Editar' : 'Vista Previa'}
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
+                  {/* Panel central - Editor de campaña */}
+                  <div className="xl:col-span-3 space-y-6">
+                    <Card className="shadow-sm border border-gray-200 bg-white">
+                      <CardHeader className="bg-cyan-600 text-white rounded-t-lg">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <CardTitle className="flex items-center space-x-3 text-xl">
+                              <Send className="h-6 w-6" />
+                              <span>Editor de Campaña</span>
+                            </CardTitle>
+                            <CardDescription className="text-cyan-100">
+                              {selectedTemplate ? 
+                                selectedTemplate.id === 0 ? 'Plantilla estándar seleccionada' :
+                                selectedTemplate.id === -1 ? 'Crear contenido personalizado' :
+                                `Plantilla: ${selectedTemplate.nombre}` 
+                                : 'Selecciona una plantilla para comenzar'}
+                              {isDragging && (
+                                <span className="ml-2 text-cyan-200">• Arrastra variables aquí</span>
+                              )}
+                            </CardDescription>
+                          </div>
+                          <div className="flex space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setPreviewMode(!previewMode)}
+                              className="border-cyan-300 text-cyan-100 hover:bg-cyan-500 hover:text-white"
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              {previewMode ? 'Editar' : 'Vista Previa'}
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
               <CardContent className="p-6">
                 <div className="space-y-6">
                   {/* Información básica */}
@@ -1291,6 +1444,7 @@ export default function EmailMasivoPage() {
                                variant={!showHtmlPreview ? "default" : "outline"}
                                size="sm"
                                onClick={() => setShowHtmlPreview(false)}
+                               className={!showHtmlPreview ? 'bg-teal-400 hover:bg-teal-500 text-white' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}
                              >
                                <FileText className="h-4 w-4 mr-2" />
                                Vista Texto
@@ -1299,6 +1453,7 @@ export default function EmailMasivoPage() {
                                variant={showHtmlPreview ? "default" : "outline"}
                                size="sm"
                                onClick={() => setShowHtmlPreview(true)}
+                               className={showHtmlPreview ? 'bg-teal-400 hover:bg-teal-500 text-white' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}
                              >
                                <Code className="h-4 w-4 mr-2" />
                                Vista HTML
@@ -1343,6 +1498,7 @@ export default function EmailMasivoPage() {
                                  setCampaignData(prev => ({ ...prev, contenido: textarea.value }));
                                }
                              }}
+                             className="border-gray-300 text-gray-700 hover:bg-gray-50"
                            >
                              Agregar Saludo
                            </Button>
@@ -1363,6 +1519,7 @@ export default function EmailMasivoPage() {
                                  setCampaignData(prev => ({ ...prev, contenido: textarea.value }));
                                }
                              }}
+                             className="border-gray-300 text-gray-700 hover:bg-gray-50"
                            >
                              Agregar Cierre
                            </Button>
@@ -1467,34 +1624,34 @@ export default function EmailMasivoPage() {
                     </div>
                   </div>
 
-                                     {/* Botones de acción */}
-                   <div className="flex justify-end space-x-4 pt-6 border-t border-slate-200">
-                     <Button 
-                       variant="outline" 
-                       className="border-slate-300 text-slate-700 hover:bg-slate-50"
-                       onClick={() => {
-                         console.log('Abriendo modal de guardar plantilla...');
-                         console.log('Estado actual de campaignData:', campaignData);
-                         setShowSaveTemplateModal(true);
-                       }}
-                     >
-                       <FileText className="h-4 w-4 mr-2" />
-                       Guardar Plantilla
-                     </Button>
-                     <Button 
-                       variant="outline" 
-                       className="border-red-300 text-red-700 hover:bg-red-50"
-                       onClick={async () => {
-                         console.log('Ejecutando verificación de tablas...');
-                         await checkTables();
-                         toast.info('Verificación completada. Revisa la consola para detalles.');
-                       }}
-                     >
-                       <Code className="h-4 w-4 mr-2" />
-                       Verificar Tablas
-                     </Button>
-                     <Button 
-                       onClick={async () => {
+                  {/* Botones de acción */}
+                  <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+                    <Button 
+                      variant="outline" 
+                      className="border-gray-300 text-gray-700 hover:bg-gray-50"
+                      onClick={() => {
+                        console.log('Abriendo modal de guardar plantilla...');
+                        console.log('Estado actual de campaignData:', campaignData);
+                        setShowSaveTemplateModal(true);
+                      }}
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      Guardar Plantilla
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="border-red-300 text-red-700 hover:bg-red-50"
+                      onClick={async () => {
+                        console.log('Ejecutando verificación de tablas...');
+                        await checkTables();
+                        toast.info('Verificación completada. Revisa la consola para detalles.');
+                      }}
+                    >
+                      <Code className="h-4 w-4 mr-2" />
+                      Verificar Tablas
+                    </Button>
+                    <Button 
+                      onClick={async () => {
                          if (!campaignData.nombre.trim()) {
                            toast.error('Ingresa un nombre para la campaña');
                            return;
@@ -1665,7 +1822,7 @@ export default function EmailMasivoPage() {
                          }
                        }}
                        disabled={enviandoCorreos}
-                       className="w-full"
+                       className="bg-teal-400 hover:bg-teal-500 text-white"
                      >
                        {enviandoCorreos ? (
                          <>
@@ -1675,7 +1832,7 @@ export default function EmailMasivoPage() {
                        ) : (
                          <>
                            <Send className="h-4 w-4 mr-2" />
-                           Crear Campaña
+                           Crear y Enviar Campaña
                          </>
                        )}
                      </Button>
@@ -1683,127 +1840,13 @@ export default function EmailMasivoPage() {
                 </div>
               </CardContent>
             </Card>
-          </div>
-        </div>
-
-                 {/* Campañas recientes */}
-                   <Card className="shadow-lg border border-slate-200 bg-white">
-            <CardHeader className="bg-slate-800 text-white rounded-t-lg">
-              <CardTitle className="flex items-center space-x-3 text-xl">
-                <Users className="h-6 w-6" />
-                <span>Campañas Recientes</span>
-              </CardTitle>
-              <CardDescription className="text-slate-300">
-                Historial de campañas creadas
-              </CardDescription>
-            </CardHeader>
-           <CardContent className="p-6">
-             <div className="space-y-4">
-               {/* Campañas de Gmail */}
-               {gmailCampaigns.length > 0 && (
-                 <div className="mb-6">
-                   <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                     <Mail className="h-5 w-5 text-cyan-600" />
-                     <span>Campañas de Gmail</span>
-                   </h3>
-                   <div className="space-y-3">
-                     {gmailCampaigns.map((campaign) => (
-                                               <div key={`gmail-${campaign.id}`} className="flex items-center justify-between p-4 border border-slate-200 rounded-lg hover:bg-slate-50 bg-white">
-                          <div className="flex items-center space-x-4">
-                            <div className="p-2 bg-slate-100 rounded-lg">
-                              {getEstadoIcon(campaign.estado)}
-                            </div>
-                           <div>
-                             <div className="flex items-center space-x-2">
-                               <h3 className="font-semibold text-gray-900">{campaign.nombre}</h3>
-                               <Badge variant="outline" className="text-xs">Gmail</Badge>
-                             </div>
-                             <p className="text-sm text-gray-600">{campaign.asunto_personalizado}</p>
-                             <div className="flex items-center space-x-4 mt-1">
-                               <Badge className={getEstadoColor(campaign.estado)}>
-                                 {campaign.estado}
-                               </Badge>
-                               <Badge variant="secondary" className="text-xs">
-                                 {campaign.tipo_destinatario}
-                               </Badge>
-                               <span className="text-xs text-gray-500">
-                                 {campaign.enviados_count}/{campaign.destinatarios_count} enviados
-                               </span>
-                             </div>
-                           </div>
-                         </div>
-                         <div className="flex items-center space-x-2">
-                           <Button 
-                             variant="ghost" 
-                             size="sm"
-                             onClick={() => handleViewCampaignSentInfo(campaign, 'gmail')}
-                             title="Ver qué se envió y a quién"
-                           >
-                             <Eye className="h-4 w-4" />
-                           </Button>
-                         </div>
-                       </div>
-                     ))}
-                   </div>
-                 </div>
-               )}
-
-               {/* Campañas regulares */}
-               {campaigns.length > 0 && (
-                 <div>
-                   <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                     <FileText className="h-5 w-5 text-purple-600" />
-                     <span>Campañas Regulares</span>
-                   </h3>
-                   <div className="space-y-3">
-                     {campaigns.map((campaign) => (
-                                               <div key={campaign.id} className="flex items-center justify-between p-4 border border-slate-200 rounded-lg hover:bg-slate-50 bg-white">
-                          <div className="flex items-center space-x-4">
-                            <div className="p-2 bg-slate-100 rounded-lg">
-                              {getEstadoIcon(campaign.estado)}
-                            </div>
-                           <div>
-                             <h3 className="font-semibold text-gray-900">{campaign.nombre}</h3>
-                             <p className="text-sm text-gray-600">{campaign.asunto_personalizado}</p>
-                             <div className="flex items-center space-x-4 mt-1">
-                               <Badge className={getEstadoColor(campaign.estado)}>
-                                 {campaign.estado}
-                               </Badge>
-                               <span className="text-xs text-gray-500">
-                                 {campaign.enviados_count}/{campaign.destinatarios_count} enviados
-                               </span>
-                             </div>
-                           </div>
-                         </div>
-                         <div className="flex items-center space-x-2">
-                           <Button 
-                             variant="ghost" 
-                             size="sm"
-                             onClick={() => handleViewCampaignSentInfo(campaign, 'email')}
-                             title="Ver qué se envió y a quién"
-                           >
-                             <Eye className="h-4 w-4" />
-                           </Button>
-                         </div>
-                       </div>
-                     ))}
-                   </div>
-                 </div>
-               )}
-
-                               {/* Mensaje cuando no hay campañas */}
-                {campaigns.length === 0 && gmailCampaigns.length === 0 && (
-                  <div className="text-center py-12">
-                    <Mail className="h-16 w-16 text-slate-400 mx-auto mb-4" />
-                    <p className="text-slate-600 font-medium">No hay campañas creadas aún</p>
-                    <p className="text-slate-500 text-sm mt-2">Crea tu primera campaña para comenzar</p>
                   </div>
-                )}
-             </div>
-           </CardContent>
-         </Card>
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
-    </div>
     
     {/* Modal para guardar plantilla */}
     {showSaveTemplateModal && (
@@ -1838,13 +1881,13 @@ export default function EmailMasivoPage() {
                 setShowSaveTemplateModal(false);
                 setTemplateName('');
               }}
-              className="border-slate-300 text-slate-700 hover:bg-slate-50"
+              className="border-gray-300 text-gray-700 hover:bg-gray-50"
             >
               Cancelar
             </Button>
             <Button
               onClick={handleSaveTemplate}
-              className="bg-slate-800 hover:bg-slate-900 text-white"
+              className="bg-teal-400 hover:bg-teal-500 text-white"
             >
               Guardar Plantilla
             </Button>
@@ -1960,7 +2003,7 @@ export default function EmailMasivoPage() {
         <div className="flex justify-end pt-4">
           <Button
             onClick={() => setShowCampaignModal(false)}
-            className="bg-slate-800 hover:bg-slate-900 text-white"
+            className="bg-teal-400 hover:bg-teal-500 text-white"
           >
             Cerrar
           </Button>

@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { 
   Building2, 
   MapPin, 
@@ -19,10 +23,12 @@ import {
   Clock,
   Hash,
   Briefcase,
-  Target
+  Target,
+  Building
 } from 'lucide-react';
 import { obtenerEmpresaSeleccionada } from '@/utils/empresaUtils';
 import { supabase } from '@/services/supabaseClient';
+import { useRegisterView } from '@/hooks/useRegisterView';
 
 interface EmpresaInfo {
   id: number;
@@ -47,9 +53,17 @@ interface EmpresaInfo {
 }
 
 export default function AcercaEmpresaPage() {
+  // Registrar vista informativa (sin acciones CRUD)
+  const { addAction } = useRegisterView('AcercaEmpresa', 'listado', 'Acerca de la Empresa');
+  useEffect(() => {
+    addAction('ver', 'Ver Información de la Empresa');
+    addAction('refrescar', 'Refrescar Información');
+  }, [addAction]);
+  
   const [empresa, setEmpresa] = useState<EmpresaInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("informacion");
 
   useEffect(() => {
     const cargarEmpresa = async () => {
@@ -189,285 +203,261 @@ export default function AcercaEmpresaPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-full mx-auto p-8 space-y-8">
-        {/* Header Minimalista */}
-        <div className="text-center space-y-4">
-          <div className="flex items-center justify-center space-x-3 mb-6">
-            <div className="p-3 bg-cyan-100 rounded-xl">
-<Building2 className="h-8 w-8 text-cyan-600" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Acerca de la Empresa</h1>
-              <p className="text-gray-600">Información detallada de tu empresa</p>
-            </div>
-          </div>
-          
-          {/* Información de la Empresa */}
-          <div className="bg-white rounded-2xl shadow-sm border border-black p-8">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-semibold text-gray-900">{empresa.razon_social}</h2>
-                <p className="text-gray-600">Empresa registrada en el sistema</p>
+    <div className="p-4 max-w-full mx-auto">
+      {/* Header con el mismo estilo que la página de empresas */}
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-3xl font-extrabold text-cyan-800 flex items-center gap-2 mb-2">
+          <Building className="w-8 h-8 text-cyan-600" />
+          Acerca de la Empresa
+        </h1>
+      </div>
+
+      {/* Tabs con el mismo estilo que la página de empresas */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-1 bg-cyan-100/60 p-1 rounded-lg">
+          <TabsTrigger
+            value="informacion"
+            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+          >
+            Información de la Empresa
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="informacion" className="mt-6">
+          {/* Header similar al diseño de empresas */}
+          <div className="bg-white rounded-lg border">
+            <div className="flex items-center justify-between p-4 border-b">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-orange-100 rounded flex items-center justify-center">
+                  <Building className="w-5 h-5 text-orange-600" />
+                </div>
+                <span className="text-lg font-semibold text-gray-700">INFORMACIÓN DE LA EMPRESA</span>
               </div>
               <div className="flex space-x-2">
                 {getEstadoBadge(empresa.activo)}
                 {getTipoEmpresaBadge(empresa.tipo_empresa)}
               </div>
             </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                             <div className="flex items-center space-x-3 p-3 border border-black rounded-lg" style={{ borderWidth: '0.5px' }}>
-                 <div className="p-2 bg-gray-100 rounded-lg">
-                   <Users className="h-4 w-4 text-gray-600" />
-                 </div>
-                 <div className="min-w-0 flex-1">
-                   <p className="text-sm text-gray-500">Empleados</p>
-                   <p className="font-medium text-gray-900">{empresa.numero_empleados}</p>
-                 </div>
-               </div>
-               
-               <div className="flex items-center space-x-3 p-3 border border-black rounded-lg" style={{ borderWidth: '0.5px' }}>
-                 <div className="p-2 bg-gray-100 rounded-lg">
-                   <MapPin className="h-4 w-4 text-gray-600" />
-                 </div>
-                 <div className="min-w-0 flex-1">
-                   <p className="text-sm text-gray-500">Ubicación</p>
-                   <p className="font-medium text-gray-900 truncate">{empresa.ciudad_nombre || empresa.ciudad}</p>
-                 </div>
-               </div>
-               
-               <div className="flex items-center space-x-3 p-3 border border-black rounded-lg" style={{ borderWidth: '0.5px' }}>
-                 <div className="p-2 bg-gray-100 rounded-lg">
-                   <Phone className="h-4 w-4 text-gray-600" />
-                 </div>
-                 <div className="min-w-0 flex-1">
-                   <p className="text-sm text-gray-500">Teléfono</p>
-                   <p className="font-medium text-gray-900 truncate">{empresa.telefono}</p>
-                 </div>
-               </div>
-               
-               <div className="flex items-center space-x-3 p-3 border border-black rounded-lg" style={{ borderWidth: '0.5px' }}>
-                 <div className="p-2 bg-gray-100 rounded-lg">
-                   <Mail className="h-4 w-4 text-gray-600" />
-                 </div>
-                 <div className="min-w-0 flex-1">
-                   <p className="text-sm text-gray-500">Email</p>
-                   <p className="font-medium text-gray-900 break-all text-xs">{empresa.email}</p>
-                 </div>
-               </div>
+
+            {/* Información principal de la empresa */}
+            <div className="p-6">
+              <div className="mb-6">
+                <h2 className="text-2xl font-semibold text-gray-900 mb-2">{empresa.razon_social}</h2>
+                <p className="text-gray-600">Empresa registrada en el sistema</p>
+              </div>
+              
+              {/* Grid de información rápida */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-gray-700">Tipo de Empresa</Label>
+                  <Input 
+                    value={empresa.tipo_empresa} 
+                    disabled 
+                    className="bg-gray-50 text-gray-900 font-bold"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-gray-700">Ciudad</Label>
+                  <Input 
+                    value={empresa.ciudad_nombre || empresa.ciudad} 
+                    disabled 
+                    className="bg-gray-50 text-gray-900 font-bold"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-gray-700">Teléfono</Label>
+                  <Input 
+                    value={empresa.telefono} 
+                    disabled 
+                    className="bg-gray-50 text-gray-900 font-bold"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-gray-700">Email</Label>
+                  <Input 
+                    value={empresa.email} 
+                    disabled 
+                    className="bg-gray-50 text-gray-900 font-bold"
+                  />
+                </div>
+              </div>
+
+              {/* Sección: Información General */}
+              <div className="mb-8">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <Building2 className="h-5 w-5 text-cyan-600 mr-2" />
+                  Información General
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-700">Tipo de Documento</Label>
+                    <Input 
+                      value={empresa.tipo_documento} 
+                      disabled 
+                      className="bg-gray-50 text-gray-900 font-bold"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-700">NIT</Label>
+                    <Input 
+                      value={empresa.nit} 
+                      disabled 
+                      className="bg-gray-50 text-gray-900 font-mono font-bold"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-700">Régimen Tributario</Label>
+                    <Input 
+                      value={empresa.regimen_tributario} 
+                      disabled 
+                      className="bg-gray-50 text-gray-900 font-bold"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-700">Número de Empleados</Label>
+                    <Input 
+                      value={empresa.numero_empleados.toString()} 
+                      disabled 
+                      className="bg-gray-50 text-gray-900 font-bold"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <Separator className="my-8" />
+
+              {/* Sección: Actividad Económica e Información del Sistema en una fila */}
+              <div className="mb-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Actividad Económica */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <Activity className="h-5 w-5 text-cyan-600 mr-2" />
+                      Actividad Económica
+                    </h3>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-gray-700">Código de Actividad</Label>
+                        <Input 
+                          value={empresa.actividad_economica} 
+                          disabled 
+                          className="bg-gray-50 text-gray-900 font-bold"
+                        />
+                      </div>
+                      
+                      {empresa.actividad_nombre && (
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium text-gray-700">Descripción de Actividad</Label>
+                          <Input 
+                            value={empresa.actividad_nombre} 
+                            disabled 
+                            className="bg-gray-50 text-gray-900 font-bold"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Información del Sistema */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <Calendar className="h-5 w-5 text-cyan-600 mr-2" />
+                      Información del Sistema
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-gray-700">Fecha de Registro</Label>
+                        <Input 
+                          value={formatearFecha(empresa.created_at)} 
+                          disabled 
+                          className="bg-gray-50 text-gray-900 font-bold"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-gray-700">Última Actualización</Label>
+                        <Input 
+                          value={formatearFecha(empresa.updated_at)} 
+                          disabled 
+                          className="bg-gray-50 text-gray-900 font-bold"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-gray-700">ID de Empresa</Label>
+                        <Input 
+                          value={`#${empresa.id}`} 
+                          disabled 
+                          className="bg-gray-50 text-gray-900 font-mono font-bold"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Separator className="my-8" />
+
+              {/* Sección: Información de Contacto */}
+              <div className="mb-8">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <Phone className="h-5 w-5 text-cyan-600 mr-2" />
+                  Información de Contacto
+                </h3>
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700">Teléfono</Label>
+                      <Input 
+                        value={empresa.telefono} 
+                        disabled 
+                        className="bg-gray-50 text-gray-900 font-bold"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700">Correo Electrónico</Label>
+                      <Input 
+                        value={empresa.email} 
+                        disabled 
+                        className="bg-gray-50 text-gray-900 font-bold"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700">Representante Legal</Label>
+                      <Input 
+                        value={empresa.representante_legal} 
+                        disabled 
+                        className="bg-gray-50 text-gray-900 font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-700">Dirección</Label>
+                    <Textarea 
+                      value={empresa.direccion} 
+                      disabled 
+                      className="bg-gray-50 text-gray-900 font-bold resize-none"
+                      rows={2}
+                    />
+                    <div className="text-sm text-gray-500">
+                      {empresa.ciudad_nombre}, {empresa.departamento_nombre}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-
-        {/* Grid principal de información */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Información General */}
-          <Card className="shadow-sm border border-black bg-white">
-            <CardHeader className="border-b border-gray-100">
-              <CardTitle className="flex items-center space-x-2 text-xl font-semibold text-gray-900">
-                <Building2 className="h-6 w-6 text-cyan-600" />
-                <span>Información General</span>
-              </CardTitle>
-              <CardDescription className="text-gray-600">Datos básicos de la empresa</CardDescription>
-            </CardHeader>
-            <CardContent className="p-6 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-cyan-100 rounded-lg">
-<FileText className="h-4 w-4 text-cyan-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">Tipo de Documento</p>
-                      <p className="text-gray-900 font-semibold">{empresa.tipo_documento}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-brand-lime/10 rounded-lg">
-                      <FileText className="h-4 w-4 text-brand-lime" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">NIT</p>
-                      <p className="text-gray-900 font-mono font-semibold">{empresa.nit}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-purple-100 rounded-lg">
-                      <Activity className="h-4 w-4 text-purple-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">Régimen Tributario</p>
-                      <p className="text-gray-900 font-semibold">{empresa.regimen_tributario}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-orange-100 rounded-lg">
-                      <Users className="h-4 w-4 text-orange-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">Empleados</p>
-                      <p className="text-gray-900 font-semibold">{empresa.numero_empleados}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Información de Contacto */}
-          <Card className="shadow-sm border border-black bg-white">
-            <CardHeader className="border-b border-gray-100">
-              <CardTitle className="flex items-center space-x-2 text-xl font-semibold text-gray-900">
-                <Phone className="h-6 w-6 text-cyan-600" />
-                <span>Información de Contacto</span>
-              </CardTitle>
-              <CardDescription className="text-gray-600">Datos de contacto de la empresa</CardDescription>
-            </CardHeader>
-            <CardContent className="p-6 space-y-6">
-              <div className="space-y-4">
-                <div className="flex items-start space-x-4">
-                  <div className="p-3 bg-brand-lime/10 rounded-xl">
-                    <MapPin className="h-5 w-5 text-brand-lime" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-700 mb-1">Dirección</p>
-                    <p className="text-gray-900 font-semibold">{empresa.direccion}</p>
-                    <p className="text-gray-600 text-sm">
-                      {empresa.ciudad_nombre}, {empresa.departamento_nombre}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-4">
-                  <div className="p-3 bg-cyan-100 rounded-xl">
-<Phone className="h-5 w-5 text-cyan-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-700 mb-1">Teléfono</p>
-                    <p className="text-gray-900 font-semibold">{empresa.telefono}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-4">
-                  <div className="p-3 bg-purple-100 rounded-xl">
-                    <Mail className="h-5 w-5 text-purple-600" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-gray-700 mb-1">Correo Electrónico</p>
-                    <p className="text-gray-900 font-semibold break-all text-sm">{empresa.email}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-4">
-                  <div className="p-3 bg-orange-100 rounded-xl">
-                    <User className="h-5 w-5 text-orange-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-700 mb-1">Representante Legal</p>
-                    <p className="text-gray-900 font-semibold">{empresa.representante_legal}</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Actividad Económica */}
-          <Card className="shadow-sm border border-black bg-white">
-            <CardHeader className="border-b border-gray-100">
-              <CardTitle className="flex items-center space-x-2 text-xl font-semibold text-gray-900">
-                <Activity className="h-6 w-6 text-cyan-600" />
-                <span>Actividad Económica</span>
-              </CardTitle>
-              <CardDescription className="text-gray-600">Información sobre la actividad de la empresa</CardDescription>
-            </CardHeader>
-            <CardContent className="p-6 space-y-6">
-              <div className="space-y-4">
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-orange-100 rounded-lg">
-                      <Hash className="h-4 w-4 text-orange-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">Código de Actividad</p>
-                      <p className="text-gray-900 font-mono font-semibold">{empresa.actividad_economica}</p>
-                    </div>
-                  </div>
-                </div>
-                
-                {empresa.actividad_nombre && (
-                  <div className="bg-gray-50 rounded-xl p-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-cyan-100 rounded-lg">
-<Globe className="h-4 w-4 text-cyan-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-700">Descripción de Actividad</p>
-                        <p className="text-gray-900 font-semibold">{empresa.actividad_nombre}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Información del Sistema */}
-          <Card className="shadow-sm border border-black bg-white">
-            <CardHeader className="border-b border-gray-100">
-              <CardTitle className="flex items-center space-x-2 text-xl font-semibold text-gray-900">
-                <Calendar className="h-6 w-6 text-cyan-600" />
-                <span>Información del Sistema</span>
-              </CardTitle>
-              <CardDescription className="text-gray-600">Datos de registro y actualización</CardDescription>
-            </CardHeader>
-            <CardContent className="p-6 space-y-6">
-              <div className="space-y-4">
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-brand-lime/10 rounded-lg">
-                      <Calendar className="h-4 w-4 text-brand-lime" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">Fecha de Registro</p>
-                      <p className="text-gray-900 font-semibold">{formatearFecha(empresa.created_at)}</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <Clock className="h-4 w-4 text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">Última Actualización</p>
-                      <p className="text-gray-900 font-semibold">{formatearFecha(empresa.updated_at)}</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-purple-100 rounded-lg">
-                      <Hash className="h-4 w-4 text-purple-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">ID de Empresa</p>
-                      <p className="text-gray-900 font-mono font-semibold">#{empresa.id}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 } 

@@ -18,7 +18,6 @@ export interface CandidatoDocumentoConDetalles extends CandidatoDocumento {
     id: number;
     nombre: string;
     descripcion?: string;
-    requerido: boolean;
     activo: boolean;
   };
 }
@@ -62,7 +61,6 @@ export const candidatosDocumentosService = {
           id,
           nombre,
           descripcion,
-          requerido,
           activo
         )
       `)
@@ -158,7 +156,6 @@ export const candidatosDocumentosService = {
           id,
           nombre,
           descripcion,
-          requerido,
           activo
         )
       `)

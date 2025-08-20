@@ -14,16 +14,29 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Plantilla } from '@/services/plantillasService';
+import { empresasService, Empresa } from '@/services/empresasService';
 
 const ExpedicionOrdenPage = () => {
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [estadoFilter, setEstadoFilter] = useState<string | undefined>(undefined);
+  const [empresaFilter, setEmpresaFilter] = useState<string | undefined>(undefined);
   const [activeTab, setActiveTab] = useState("listado");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSolicitud, setSelectedSolicitud] = useState<Solicitud | undefined>(undefined);
   const [empresaData, setEmpresaData] = useState<any>(null);
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
+
+  // Estados disponibles para el filtro
+  const estadosDisponibles = [
+    { value: 'PENDIENTE', label: 'Pendiente' },
+    { value: 'ASIGNADO', label: 'Asignado' },
+    { value: 'PENDIENTE DOCUMENTOS', label: 'Pendiente Documentos' },
+    { value: 'EN_PROCESO', label: 'En Proceso' },
+    { value: 'APROBADA', label: 'Aprobada' },
+    { value: 'RECHAZADA', label: 'Rechazada' }
+  ];
 
   // Obtener datos de la empresa del localStorage
   useEffect(() => {
@@ -39,10 +52,29 @@ const ExpedicionOrdenPage = () => {
     }
   }, []);
 
+  // Cargar lista de empresas para el filtro
+  useEffect(() => {
+    const fetchEmpresas = async () => {
+      try {
+        const empresasData = await empresasService.getAll();
+        setEmpresas(empresasData);
+      } catch (error) {
+        console.error('Error al cargar empresas:', error);
+        toast.error('Error al cargar la lista de empresas');
+      }
+    };
+    
+    fetchEmpresas();
+  }, []);
+
   // Fetch solicitudes when component mounts or filter changes
   useEffect(() => {
     fetchSolicitudes();
-  }, [estadoFilter]);
+    return () => {
+      // Limpieza al salir de la pantalla
+      try { setIsLoading(false); } catch {}
+    };
+  }, [estadoFilter, empresaFilter]);
 
   const fetchSolicitudes = async () => {
     setIsLoading(true);
@@ -85,16 +117,103 @@ const ExpedicionOrdenPage = () => {
     }
   };
 
-  const handleApprove = async (id: number) => {
+  const handleStandBy = async (id: number, observacion: string) => {
+    setIsLoading(true);
     try {
-      await solicitudesService.update(id, { estado: 'APROBADA' });
-      toast.success('Solicitud aprobada correctamente');
-      fetchSolicitudes(); // Refresh the list
+      const success = await solicitudesService.putStandBy(id, observacion);
+      if (success) {
+        toast.success('Solicitud puesta en Stand By exitosamente');
+        fetchSolicitudes(); // Recargar la lista
+      } else {
+        toast.error('Error al cambiar el estado a Stand By');
+      }
     } catch (error) {
-      toast.error('Error al aprobar la solicitud');
-      console.error(error);
+      console.error('Error al cambiar estado a Stand By:', error);
+      toast.error('Error al cambiar el estado a Stand By');
+    } finally {
+      setIsLoading(false);
     }
   };
+
+  const handleReactivate = async (id: number) => {
+    console.log('🔍 ExpedicionOrdenPage.handleReactivate llamado con ID:', id);
+    console.log('🔍 Activando loading local...');
+    setIsLoading(true);
+    try {
+      console.log('🔍 Llamando a solicitudesService.reactivate...');
+      const success = await solicitudesService.reactivate(id);
+      console.log('🔍 Resultado de reactivate:', success);
+      if (success) {
+        toast.success('Solicitud reactivada exitosamente');
+        console.log('🔍 Recargando lista de solicitudes...');
+        fetchSolicitudes(); // Recargar la lista
+        console.log('🔍 Solicitud reactivada exitosamente');
+      } else {
+        toast.error('Error al reactivar la solicitud');
+        console.log('❌ Error al reactivar la solicitud');
+      }
+    } catch (error) {
+      console.error('Error al reactivar solicitud:', error);
+      toast.error('Error al reactivar la solicitud');
+    } finally {
+      console.log('🔍 Desactivando loading local...');
+      setIsLoading(false);
+    }
+  };
+
+  const handleContact = async (id: number) => {
+    setIsLoading(true);
+    try {
+      const success = await solicitudesService.contact(id, 'Solicitud contactada por el usuario');
+      if (success) {
+        toast.success('Solicitud marcada como contactada');
+        fetchSolicitudes(); // Recargar la lista
+      } else {
+        toast.error('Error al marcar como contactada');
+      }
+    } catch (error) {
+      console.error('Error al contactar solicitud:', error);
+      toast.error('Error al contactar la solicitud');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+     const handleApprove = async (id: number) => {
+     setIsLoading(true);
+     try {
+       const success = await solicitudesService.approve(id, 'Solicitud aprobada por el usuario');
+       if (success) {
+       toast.success('Solicitud aprobada exitosamente');
+       fetchSolicitudes(); // Recargar la lista
+       } else {
+         toast.error('Error al aprobar la solicitud');
+       }
+     } catch (error) {
+       console.error('Error al aprobar solicitud:', error);
+       toast.error('Error al aprobar la solicitud');
+     } finally {
+       setIsLoading(false);
+     }
+   };
+
+   const handleDeserto = async (id: number) => {
+     setIsLoading(true);
+     try {
+       const success = await solicitudesService.updateStatus(id, 'DESERTO', 'Solicitud marcada como deserto por el usuario');
+       if (success) {
+         toast.success('Solicitud marcada como deserto exitosamente');
+         fetchSolicitudes(); // Recargar la lista
+       } else {
+         toast.error('Error al marcar como deserto');
+       }
+     } catch (error) {
+       console.error('Error al marcar como deserto:', error);
+       toast.error('Error al marcar como deserto');
+     } finally {
+       setIsLoading(false);
+     }
+   };
 
   const handleView = async (solicitud: Solicitud) => {
     // Implementar vista de detalles si es necesario
@@ -112,10 +231,13 @@ const ExpedicionOrdenPage = () => {
       (solicitud.nombres?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
       (solicitud.apellidos?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
       (solicitud.cargo?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      (solicitud.empresaUsuaria?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      (solicitud.numeroDocumento?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+      (solicitud.empresa_usuaria?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (solicitud.numero_documento?.toLowerCase() || '').includes(searchTerm.toLowerCase());
 
-    return matchesSearch;
+    const matchesEmpresa = !empresaFilter || empresaFilter === 'all' || 
+      solicitud.empresas?.id?.toString() === empresaFilter;
+
+    return matchesSearch && matchesEmpresa;
   });
 
   return (
@@ -185,9 +307,27 @@ const ExpedicionOrdenPage = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos</SelectItem>
-                    <SelectItem value="PENDIENTE">Pendiente</SelectItem>
-                    <SelectItem value="APROBADA">Aprobada</SelectItem>
-                    <SelectItem value="RECHAZADA">Rechazada</SelectItem>
+                    {estadosDisponibles.map((estado) => (
+                      <SelectItem key={estado.value} value={estado.value}>
+                        {estado.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select 
+                  value={empresaFilter || 'all'} 
+                  onValueChange={(value) => setEmpresaFilter(value === 'all' ? undefined : value)}
+                >
+                  <SelectTrigger className="w-[200px] h-9">
+                    <SelectValue placeholder="Filtrar por empresa" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas las empresas</SelectItem>
+                    {empresas.map((empresa) => (
+                      <SelectItem key={empresa.id} value={empresa.id.toString()}>
+                        {empresa.razon_social}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -208,14 +348,17 @@ const ExpedicionOrdenPage = () => {
                   Error al cargar las solicitudes. Por favor intente nuevamente.
                 </div>
               ) : (
-                <SolicitudesList
-                  solicitudes={solicitudesFiltradas}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                  onView={handleView}
-                  onApprove={handleApprove}
-                  isLoading={isLoading}
-                />
+                                 <SolicitudesList
+                   solicitudes={solicitudesFiltradas}
+                   onEdit={handleEdit}
+                   onView={handleView}
+                   onApprove={handleApprove}
+                   onContact={handleContact}
+                   onStandBy={handleStandBy}
+                   onReactivate={handleReactivate}
+                   onDeserto={handleDeserto}
+                   isLoading={isLoading}
+                 />
               )}
             </div>
           </div>
@@ -239,7 +382,9 @@ const ExpedicionOrdenPage = () => {
               empresaId={empresaData.id}
               onPlantillaSelect={handlePlantillaSelect}
               selectedSolicitud={selectedSolicitud}
-              onSave={() => {
+              onSave={async () => {
+                // Pequeño delay para que el usuario vea el mensaje de éxito
+                await new Promise(resolve => setTimeout(resolve, 500));
                 setActiveTab("listado");
                 fetchSolicitudes();
               }}

@@ -87,12 +87,31 @@ import { especialidadesService, Especialidad } from '@/services/especialidadesSe
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { useLoading } from '@/contexts/LoadingContext';
+import { useRegisterView } from '@/hooks/useRegisterView';
+import { Can } from '@/contexts/PermissionsContext';
 
 const PrestadoresPage = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: cityData } = useCityData();
   const { startLoading, stopLoading } = useLoading();
+  const { addAction: addPrestadoresListado } = useRegisterView('Prestadores', 'listado', 'Listado de Prestadores');
+  const { addAction: addPrestadoresForm } = useRegisterView('Prestadores', 'formulario', 'Registro de Prestador');
+
+  // Registrar acciones para JSON de permisos
+  useEffect(() => {
+    // Listado
+    addPrestadoresListado('editar', 'Editar Prestador');
+    addPrestadoresListado('activar', 'Activar Prestador');
+    addPrestadoresListado('inactivar', 'Inactivar Prestador');
+    addPrestadoresListado('eliminar', 'Eliminar Prestador');
+    addPrestadoresListado('exportar', 'Exportar');
+
+    // Formulario
+    addPrestadoresForm('crear', 'Crear Prestador');
+    addPrestadoresForm('actualizar', 'Actualizar Prestador');
+    addPrestadoresForm('cancelar', 'Cancelar');
+  }, [addPrestadoresListado, addPrestadoresForm]);
   
   // Estados para tabs
   const [activeTab, setActiveTab] = useState("prestadores");
@@ -415,13 +434,15 @@ const PrestadoresPage = () => {
                  <TooltipProvider>
                    <Tooltip>
                      <TooltipTrigger asChild>
-                       <Button
-                         onClick={handleNewPrestador}
-                         className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
-                         size="sm"
-                       >
-                         Adicionar Registro
-                       </Button>
+                       <Can action="accion-crear-prestador">
+                         <Button
+                           onClick={handleNewPrestador}
+                           className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
+                           size="sm"
+                         >
+                           Adicionar Registro
+                         </Button>
+                       </Can>
                      </TooltipTrigger>
                      <TooltipContent>
                        <p>Crear un nuevo prestador</p>
@@ -555,135 +576,146 @@ const PrestadoresPage = () => {
                       <TableRow key={prestador.id} className="hover:bg-gray-50">
                         <TableCell className="px-2 py-1">
                           <div className="flex flex-row gap-1 items-center">
-                                                         <TooltipProvider>
-                               <Tooltip>
-                                 <TooltipTrigger asChild>
-                                   <Button
-                                     variant="ghost"
-                                     size="icon"
-                                     onClick={() => handleEdit(prestador)}
-                                     aria-label="Editar prestador"
-                                     className="h-8 w-8"
-                                   >
-                                     <Edit className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
-                                   </Button>
-                                 </TooltipTrigger>
-                                 <TooltipContent>
-                                   <p>Editar prestador</p>
-                                 </TooltipContent>
-                               </Tooltip>
-                             </TooltipProvider>
-                            {prestador.activo ? (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <AlertDialog>
-                                      <AlertDialogTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          aria-label="Inactivar prestador"
-                                          className="h-8 w-8"
-                                        >
-                                          <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
-                                        </Button>
-                                      </AlertDialogTrigger>
-                                      <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                          <AlertDialogTitle>¿Inactivar prestador?</AlertDialogTitle>
-                                          <AlertDialogDescription>
-                                            Esta acción inactivará el prestador y no podrá ser usado hasta que se reactive. ¿Estás seguro?
-                                          </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                          <AlertDialogAction onClick={() => handleDeactivate(prestador)}>
-                                            Sí, inactivar
-                                          </AlertDialogAction>
-                                        </AlertDialogFooter>
-                                      </AlertDialogContent>
-                                    </AlertDialog>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Inactivar</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            ) : (
-                              <>
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            aria-label="Eliminar prestador"
-                                            className="h-8 w-8"
-                                          >
-                                            <Trash2 className="h-4 w-4 text-rose-600 hover:text-rose-800 transition-colors" />
-                                          </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                          <AlertDialogHeader>
-                                            <AlertDialogTitle>¿Eliminar prestador?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                              Esta acción eliminará el prestador de forma permanente. ¿Estás seguro?
-                                            </AlertDialogDescription>
-                                          </AlertDialogHeader>
-                                          <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleDelete(prestador)}>
-                                              Sí, eliminar
-                                            </AlertDialogAction>
-                                          </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                      </AlertDialog>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Eliminar</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            aria-label="Activar prestador"
-                                            className="h-8 w-8"
-                                          >
-                                            <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
-                                          </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                          <AlertDialogHeader>
-                                            <AlertDialogTitle>¿Activar prestador?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                              Esta acción reactivará el prestador y estará disponible para su uso. ¿Estás seguro?
-                                            </AlertDialogDescription>
-                                          </AlertDialogHeader>
-                                          <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleActivate(prestador)}>
-                                              Sí, activar
-                                            </AlertDialogAction>
-                                          </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                      </AlertDialog>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Activar</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                              </>
-                            )}
-                          </div>
+                               <Can action="accion-editar-prestador">
+                                 <TooltipProvider>
+                                   <Tooltip>
+                                     <TooltipTrigger asChild>
+                                       <Button
+                                         variant="ghost"
+                                         size="icon"
+                                         onClick={() => handleEdit(prestador)}
+                                         aria-label="Editar prestador"
+                                         className="h-8 w-8"
+                                       >
+                                         <Edit className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
+                                       </Button>
+                                     </TooltipTrigger>
+                                     <TooltipContent>
+                                       <p>Editar prestador</p>
+                                     </TooltipContent>
+                                   </Tooltip>
+                                 </TooltipProvider>
+                               </Can>
+                               {prestador.activo ? (
+                                 <Can action="accion-inactivar-prestador">
+                                   <TooltipProvider>
+                                     <Tooltip>
+                                       <TooltipTrigger asChild>
+                                         <AlertDialog>
+                                           <AlertDialogTrigger asChild>
+                                             <Button
+                                               variant="ghost"
+                                               size="icon"
+                                               aria-label="Inactivar prestador"
+                                               className="h-8 w-8"
+                                               onClick={() => handleDeactivate(prestador)}
+                                             >
+                                               <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
+                                             </Button>
+                                           </AlertDialogTrigger>
+                                           <AlertDialogContent>
+                                             <AlertDialogHeader>
+                                               <AlertDialogTitle>¿Inactivar prestador?</AlertDialogTitle>
+                                               <AlertDialogDescription>
+                                                 Esta acción inactivará el prestador y no podrá ser usado hasta que se reactive. ¿Estás seguro?
+                                               </AlertDialogDescription>
+                                             </AlertDialogHeader>
+                                             <AlertDialogFooter>
+                                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                               <AlertDialogAction onClick={() => handleDeactivate(prestador)}>
+                                                 Sí, inactivar
+                                               </AlertDialogAction>
+                                             </AlertDialogFooter>
+                                           </AlertDialogContent>
+                                         </AlertDialog>
+                                       </TooltipTrigger>
+                                       <TooltipContent>
+                                         <p>Inactivar</p>
+                                       </TooltipContent>
+                                     </Tooltip>
+                                   </TooltipProvider>
+                                 </Can>
+                               ) : (
+                                 <>
+                                   <Can action="accion-eliminar-prestador">
+                                     <TooltipProvider>
+                                       <Tooltip>
+                                         <TooltipTrigger asChild>
+                                           <AlertDialog>
+                                             <AlertDialogTrigger asChild>
+                                               <Button
+                                                 variant="ghost"
+                                                 size="icon"
+                                                 aria-label="Eliminar prestador"
+                                                 className="h-8 w-8"
+                                                 onClick={() => handleDelete(prestador)}
+                                               >
+                                                 <Trash2 className="h-4 w-4 text-rose-600 hover:text-rose-800 transition-colors" />
+                                               </Button>
+                                             </AlertDialogTrigger>
+                                             <AlertDialogContent>
+                                               <AlertDialogHeader>
+                                                 <AlertDialogTitle>¿Eliminar prestador?</AlertDialogTitle>
+                                                 <AlertDialogDescription>
+                                                   Esta acción eliminará el prestador de forma permanente. ¿Estás seguro?
+                                                 </AlertDialogDescription>
+                                               </AlertDialogHeader>
+                                               <AlertDialogFooter>
+                                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                 <AlertDialogAction onClick={() => handleDelete(prestador)}>
+                                                   Sí, eliminar
+                                                 </AlertDialogAction>
+                                               </AlertDialogFooter>
+                                             </AlertDialogContent>
+                                           </AlertDialog>
+                                         </TooltipTrigger>
+                                         <TooltipContent>
+                                           <p>Eliminar</p>
+                                         </TooltipContent>
+                                       </Tooltip>
+                                     </TooltipProvider>
+                                   </Can>
+                                   <Can action="accion-activar-prestador">
+                                     <TooltipProvider>
+                                       <Tooltip>
+                                         <TooltipTrigger asChild>
+                                           <AlertDialog>
+                                             <AlertDialogTrigger asChild>
+                                               <Button
+                                                 variant="ghost"
+                                                 size="icon"
+                                                 aria-label="Activar prestador"
+                                                 className="h-8 w-8"
+                                                 onClick={() => handleActivate(prestador)}
+                                               >
+                                                 <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
+                                               </Button>
+                                             </AlertDialogTrigger>
+                                             <AlertDialogContent>
+                                               <AlertDialogHeader>
+                                                 <AlertDialogTitle>¿Activar prestador?</AlertDialogTitle>
+                                                 <AlertDialogDescription>
+                                                   Esta acción reactivará el prestador y estará disponible para su uso. ¿Estás seguro?
+                                                 </AlertDialogDescription>
+                                               </AlertDialogHeader>
+                                               <AlertDialogFooter>
+                                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                 <AlertDialogAction onClick={() => handleActivate(prestador)}>
+                                                   Sí, activar
+                                                 </AlertDialogAction>
+                                               </AlertDialogFooter>
+                                             </AlertDialogContent>
+                                           </AlertDialog>
+                                         </TooltipTrigger>
+                                         <TooltipContent>
+                                           <p>Activar</p>
+                                         </TooltipContent>
+                                       </Tooltip>
+                                     </TooltipProvider>
+                                   </Can>
+                                 </>
+                               )}
+                             </div>
                         </TableCell>
                         <TableCell className="px-4 py-3 text-sm text-gray-900">{prestador.identificacion}</TableCell>
                                                  <TableCell className="px-4 py-3 text-sm text-gray-900">{prestador.razon_social}</TableCell>
@@ -712,9 +744,10 @@ const PrestadoresPage = () => {
           </div>
 
           {/* Formulario de prestador en el tab de registro */}
-          <Card>
-            <CardContent className="p-6">
-                             <form onSubmit={handleSubmit} className="space-y-3">
+          <Can action={editingId ? "accion-actualizar-prestador" : "accion-crear-prestador"}>
+            <Card>
+              <CardContent className="p-6">
+                <form onSubmit={handleSubmit} className="space-y-3">
                                  {/* Sección 1: Información Personal */}
                  <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
                    <div className="flex items-center gap-2 pb-2 border-b">
@@ -960,9 +993,10 @@ const PrestadoresPage = () => {
                      </Tooltip>
                    </TooltipProvider>
                  </div>
-              </form>
-            </CardContent>
-          </Card>
+                </form>
+              </CardContent>
+            </Card>
+          </Can>
         </TabsContent>
       </Tabs>
     </div>
