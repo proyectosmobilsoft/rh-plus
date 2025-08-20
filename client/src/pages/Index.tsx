@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { 
   ResponsiveContainer, 
   LineChart, 
@@ -20,10 +22,23 @@ import {
   Pie,
   Cell,
   AreaChart,
-  Area
+  Area,
+  ComposedChart,
+  ScatterChart,
+  Scatter,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
+  FunnelChart,
+  Funnel,
+  Cell as FunnelCell
 } from "recharts";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from '@/services/supabaseClient';
+import { format, subDays, startOfMonth, endOfMonth } from "date-fns";
+import { es } from "date-fns/locale";
 import { 
   Users, 
   Building, 
@@ -42,9 +57,53 @@ import {
   Shield,
   Mail,
   QrCode,
-  Calendar,
+  Calendar as CalendarIcon,
   Target,
-  Zap
+  Zap,
+  BarChart3,
+  PieChart as PieChartIcon,
+  LineChart as LineChartIcon,
+  ActivitySquare,
+  Globe,
+  Star,
+  Heart,
+  TrendingDown,
+  Eye,
+  DollarSign,
+  Info,
+  Lightbulb,
+  Rocket,
+  Crown,
+  Trophy,
+  Medal,
+  Flame,
+  Sparkles,
+  Rainbow,
+  Palette,
+  Music,
+  Camera,
+  Gamepad2,
+  Coffee,
+  Pizza,
+  IceCream,
+  Cake,
+  Gift,
+  PartyPopper,
+  Diamond,
+  Gem,
+  Ribbon,
+  Flag,
+  Sword,
+  Castle,
+  Mountain,
+  Flower,
+  Leaf,
+  Sun,
+  Moon,
+  Cloud,
+  Wind,
+  Fish,
+  Bird
 } from "lucide-react";
 
 // Interfaces para los datos del dashboard
@@ -108,12 +167,18 @@ const StatCard = ({ title, value, description, icon, trend, color = "brand-lime"
 );
 
 const Dashboard = () => {
-  const [chartPeriod, setChartPeriod] = useState<"week" | "month" | "quarter">("month");
+  const [dateRange, setDateRange] = useState<{
+    from: Date;
+    to: Date;
+  }>({
+    from: startOfMonth(new Date()),
+    to: endOfMonth(new Date())
+  });
   const [activeTab, setActiveTab] = useState("overview");
 
   // Query principal para obtener todas las estadísticas del dashboard
   const { data: stats, isLoading, error } = useQuery({
-    queryKey: ["dashboard-stats", chartPeriod],
+    queryKey: ["dashboard-stats", dateRange.from, dateRange.to],
     queryFn: async (): Promise<DashboardStats> => {
       try {
         // Obtener estadísticas de empresas
@@ -335,39 +400,50 @@ const Dashboard = () => {
       {/* Header del Dashboard */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
         <div>
-          <h1 className="text-4xl font-bold text-gray-900 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Dashboard de Recursos Humanos
-          </h1>
-          <p className="text-gray-600 mt-2">Vista general del sistema y métricas clave</p>
+          <p className="text-gray-600">Vista general del sistema y métricas clave</p>
         </div>
         
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Button 
-              size="sm" 
-              variant={chartPeriod === "week" ? "default" : "outline"}
-              onClick={() => setChartPeriod("week")}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              Semana
-            </Button>
-            <Button 
-              size="sm" 
-              variant={chartPeriod === "month" ? "default" : "outline"}
-              onClick={() => setChartPeriod("month")}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              Mes
-            </Button>
-            <Button 
-              size="sm" 
-              variant={chartPeriod === "quarter" ? "default" : "outline"}
-              onClick={() => setChartPeriod("quarter")}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              Trimestre
-            </Button>
-          </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-[280px] justify-start text-left font-normal bg-white border-blue-200 hover:bg-blue-50"
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateRange.from ? (
+                  dateRange.to ? (
+                    <>
+                      {format(dateRange.from, "LLL dd, y", { locale: es })} -{" "}
+                      {format(dateRange.to, "LLL dd, y", { locale: es })}
+                    </>
+                  ) : (
+                    format(dateRange.from, "LLL dd, y", { locale: es })
+                  )
+                ) : (
+                  <span>Seleccionar fechas</span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                initialFocus
+                mode="range"
+                defaultMonth={dateRange.from}
+                selected={dateRange}
+                onSelect={(range) => {
+                  if (range?.from && range?.to) {
+                    setDateRange({
+                      from: range.from,
+                      to: range.to
+                    });
+                  }
+                }}
+                numberOfMonths={2}
+                locale={es}
+              />
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
@@ -558,7 +634,138 @@ const Dashboard = () => {
                       <YAxis />
                       <Tooltip />
                       <Bar dataKey="cantidad" fill="#8b5cf6" />
+                      {stats?.topEmpresas?.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
                     </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Gráfica de Radar - Rendimiento por Categoría */}
+            <Card className="border-l-4 border-l-pink-500">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="h-5 w-5 text-pink-500" />
+                  Rendimiento por Categoría
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart data={[
+                      { categoria: 'Empresas', valor: 85, fullMark: 100 },
+                      { categoria: 'Candidatos', valor: 78, fullMark: 100 },
+                      { categoria: 'Solicitudes', valor: 92, fullMark: 100 },
+                      { categoria: 'Usuarios', valor: 88, fullMark: 100 },
+                      { categoria: 'Prestadores', valor: 75, fullMark: 100 }
+                    ]}>
+                      <PolarGrid />
+                      <PolarAngleAxis dataKey="categoria" />
+                      <PolarRadiusAxis angle={90} domain={[0, 100]} />
+                      <Radar name="Rendimiento" dataKey="valor" stroke="#ec4899" fill="#ec4899" fillOpacity={0.3} />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Segunda fila de gráficas */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Gráfica de Embudo - Proceso de Solicitudes */}
+            <Card className="border-l-4 border-l-orange-500">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="h-5 w-5 text-orange-500" />
+                  Proceso de Solicitudes
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <FunnelChart>
+                      <Tooltip />
+                      <Funnel
+                        dataKey="valor"
+                        data={[
+                          { name: 'Recibidas', valor: 1250, fill: '#f97316' },
+                          { name: 'En Revisión', valor: 980, fill: '#eab308' },
+                          { name: 'Aprobadas', valor: 856, fill: '#22c55e' },
+                          { name: 'Completadas', valor: 720, fill: '#3b82f6' }
+                        ]}
+                        fill={COLORS[0]}
+                        isAnimationActive
+                      />
+                    </FunnelChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Gráfica de Dispersión - Candidatos por Edad y Ciudad */}
+            <Card className="border-l-4 border-l-cyan-500">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5 text-cyan-500" />
+                  Candidatos por Edad y Ciudad
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ScatterChart>
+                      <CartesianGrid />
+                      <XAxis type="number" dataKey="edad" name="Edad" />
+                      <YAxis type="number" dataKey="ciudad" name="Ciudad" />
+                      <Tooltip cursor={{ strokeDasharray: '3 3' }} />
+                      <Scatter name="Candidatos" data={[
+                        { edad: 25, ciudad: 1, fill: '#06b6d4' },
+                        { edad: 30, ciudad: 2, fill: '#06b6d4' },
+                        { edad: 35, ciudad: 3, fill: '#06b6d4' },
+                        { edad: 28, ciudad: 1, fill: '#06b6d4' },
+                        { edad: 30, ciudad: 2, fill: '#06b6d4' }
+                      ]} fill="#06b6d4" />
+                      {[
+                        { edad: 25, ciudad: 1, fill: '#06b6d4' },
+                        { edad: 30, ciudad: 2, fill: '#06b6d4' },
+                        { edad: 35, ciudad: 3, fill: '#06b6d4' },
+                        { edad: 28, ciudad: 1, fill: '#06b6d4' },
+                        { edad: 30, ciudad: 2, fill: '#06b6d4' }
+                      ].map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </ScatterChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Tercera fila de gráficas */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Gráfica de Composed - Solicitudes por Mes con Múltiples Métricas */}
+            <Card className="border-l-4 border-l-emerald-500">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-emerald-500" />
+                  Solicitudes por Mes - Múltiples Métricas
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={stats?.solicitudesPorMes || []}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="mes" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="cantidad" fill="#10b981" opacity={0.8} />
+                      <Line type="monotone" dataKey="aprobadas" stroke="#3b82f6" strokeWidth={2} />
+                      <Line type="monotone" dataKey="rechazadas" stroke="#ef4444" strokeWidth={2} />
+                    </ComposedChart>
                   </ResponsiveContainer>
                 </div>
               </CardContent>
@@ -623,7 +830,92 @@ const Dashboard = () => {
                         name="Solicitudes"
                         activeDot={{ r: 8, fill: '#14b8a6' }}
                       />
+                      {stats?.solicitudesPorMes?.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
                     </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Gráfica de Área - Tendencias de Crecimiento */}
+            <Card className="border-l-4 border-l-rose-500">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-rose-500" />
+                  Tendencias de Crecimiento
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={[
+                      { mes: 'Ene', empresas: 35, candidatos: 650, solicitudes: 120 },
+                      { mes: 'Feb', empresas: 38, candidatos: 720, solicitudes: 135 },
+                      { mes: 'Mar', empresas: 40, candidatos: 780, solicitudes: 98 },
+                      { mes: 'Abr', empresas: 42, candidatos: 820, solicitudes: 156 },
+                      { mes: 'May', empresas: 45, candidatos: 870, solicitudes: 178 },
+                      { mes: 'Jun', empresas: 45, candidatos: 890, solicitudes: 145 }
+                    ]}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="mes" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Area type="monotone" dataKey="empresas" stackId="1" stroke="#f43f5e" fill="#f43f5e" fillOpacity={0.6} />
+                      <Area type="monotone" dataKey="candidatos" stackId="1" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.6} />
+                      <Area type="monotone" dataKey="solicitudes" stackId="1" stroke="#06b6d4" fill="#06b6d4" fillOpacity={0.6} />
+                      {[
+                        { dataKey: 'empresas', color: '#f43f5e' },
+                        { dataKey: 'candidatos', color: '#8b5cf6' },
+                        { dataKey: 'solicitudes', color: '#06b6d4' }
+                      ].map((item, index) => (
+                        <Cell key={`cell-${index}`} fill={item.color} />
+                      ))}
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Segunda fila de gráficas */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Gráfica de Barras Apiladas - Distribución por Departamento */}
+            <Card className="border-l-4 border-l-violet-500">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5 text-violet-500" />
+                  Distribución por Departamento
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={[
+                      { departamento: 'Antioquia', solicitudes: 234, candidatos: 189, empresas: 12 },
+                      { departamento: 'Cundinamarca', solicitudes: 189, candidatos: 156, empresas: 15 },
+                      { departamento: 'Valle del Cauca', solicitudes: 156, candidatos: 123, empresas: 8 },
+                      { departamento: 'Atlántico', solicitudes: 123, candidatos: 98, empresas: 6 },
+                      { departamento: 'Bolívar', solicitudes: 98, candidatos: 76, empresas: 4 }
+                    ]}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="departamento" angle={-45} textAnchor="end" height={80} />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="solicitudes" stackId="a" fill="#8b5cf6" />
+                      <Bar dataKey="candidatos" stackId="a" fill="#06b6d4" />
+                      <Bar dataKey="empresas" stackId="a" fill="#f59e0b" />
+                      {[
+                        { dataKey: 'solicitudes', color: '#8b5cf6' },
+                        { dataKey: 'candidatos', color: '#06b6d4' },
+                        { dataKey: 'empresas', color: '#f59e0b' }
+                      ].map((item, index) => (
+                        <Cell key={`cell-${index}`} fill={item.color} />
+                      ))}
+                    </BarChart>
                   </ResponsiveContainer>
                 </div>
               </CardContent>
@@ -703,17 +995,69 @@ const Dashboard = () => {
                       <YAxis dataKey="ciudad" type="category" width={100} />
                       <Tooltip />
                       <Bar dataKey="cantidad" fill="#ec4899" />
+                      {stats?.candidatosPorCiudad?.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                      {stats?.candidatosPorCiudad?.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Resumen Geográfico */}
+            {/* Gráfica de Donut - Distribución por Tipo */}
             <Card className="border-l-4 border-l-cyan-500">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Database className="h-5 w-5 text-cyan-500" />
+                  <PieChartIcon className="h-5 w-5 text-cyan-500" />
+                  Distribución por Tipo
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: 'Empresas', value: stats?.totalEmpresas || 0, fill: '#3b82f6' },
+                          { name: 'Candidatos', value: stats?.totalCandidatos || 0, fill: '#10b981' },
+                          { name: 'Solicitudes', value: stats?.totalSolicitudes || 0, fill: '#f59e0b' },
+                          { name: 'Usuarios', value: stats?.totalUsuarios || 0, fill: '#8b5cf6' }
+                        ]}
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={80}
+                        innerRadius={40}
+                        dataKey="value"
+                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      >
+                        {[
+                          { name: 'Empresas', value: stats?.totalEmpresas || 0, fill: '#3b82f6' },
+                          { name: 'Candidatos', value: stats?.totalCandidatos || 0, fill: '#10b981' },
+                          { name: 'Solicitudes', value: stats?.totalSolicitudes || 0, fill: '#f59e0b' },
+                          { name: 'Usuarios', value: stats?.totalUsuarios || 0, fill: '#8b5cf6' }
+                        ].map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Segunda fila de gráficas */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Resumen Geográfico */}
+            <Card className="border-l-4 border-l-emerald-500">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Database className="h-5 w-5 text-emerald-500" />
                   Resumen Geográfico
                 </CardTitle>
               </CardHeader>
@@ -739,6 +1083,45 @@ const Dashboard = () => {
                       </div>
                     ))}
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Gráfica de Barras Horizontales - Comparación Regional */}
+            <Card className="border-l-4 border-l-rose-500">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Globe className="h-5 w-5 text-rose-500" />
+                  Comparación Regional
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={[
+                      { region: 'Caribe', solicitudes: 156, candidatos: 123, empresas: 8 },
+                      { region: 'Andina', solicitudes: 234, candidatos: 189, empresas: 15 },
+                      { region: 'Pacífica', solicitudes: 98, candidatos: 76, empresas: 6 },
+                      { region: 'Orinoquía', solicitudes: 67, candidatos: 45, empresas: 4 },
+                      { region: 'Amazonía', solicitudes: 34, candidatos: 23, empresas: 2 }
+                    ]} layout="horizontal">
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis type="number" />
+                      <YAxis dataKey="region" type="category" width={80} />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="solicitudes" stackId="a" fill="#f43f5e" />
+                      <Bar dataKey="candidatos" stackId="a" fill="#8b5cf6" />
+                      <Bar dataKey="empresas" stackId="a" fill="#06b6d4" />
+                      {[
+                        { dataKey: 'solicitudes', color: '#f43f5e' },
+                        { dataKey: 'candidatos', color: '#8b5cf6' },
+                        { dataKey: 'empresas', color: '#06b6d4' }
+                      ].map((item, index) => (
+                        <Cell key={`cell-${index}`} fill={item.color} />
+                      ))}
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
               </CardContent>
             </Card>
