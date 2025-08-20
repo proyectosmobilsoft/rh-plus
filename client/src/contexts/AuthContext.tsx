@@ -283,7 +283,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       };
 
       // Guardar datos completos del usuario en localStorage
-      localStorage.setItem('userData', JSON.stringify(userWithPermissions));
+      //localStorage.setItem('userData', JSON.stringify(userWithPermissions));
       console.log('Datos completos del usuario guardados en localStorage:', userWithPermissions);
 
       // Verificar que se guardaron correctamente
