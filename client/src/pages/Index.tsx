@@ -7,14 +7,14 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { 
-  ResponsiveContainer, 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   Legend,
   BarChart,
   Bar,
@@ -39,13 +39,13 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from '@/services/supabaseClient';
 import { format, subDays, startOfMonth, endOfMonth } from "date-fns";
 import { es } from "date-fns/locale";
-import { 
-  Users, 
-  Building, 
-  FileText, 
-  UserCheck, 
-  TrendingUp, 
-  Clock, 
+import {
+  Users,
+  Building,
+  FileText,
+  UserCheck,
+  TrendingUp,
+  Clock,
   AlertTriangle,
   CheckCircle,
   XCircle,
@@ -185,42 +185,42 @@ const Dashboard = () => {
         const { data: empresas, error: empresasError } = await supabase
           .from('empresas')
           .select('id, razon_social, activo');
-        
+
         if (empresasError) throw empresasError;
 
         // Obtener estadísticas de candidatos
         const { data: candidatos, error: candidatosError } = await supabase
           .from('candidatos')
           .select('id, ciudad_id, activo');
-        
+
         if (candidatosError) throw candidatosError;
 
         // Obtener estadísticas de solicitudes
         const { data: solicitudes, error: solicitudesError } = await supabase
           .from('hum_solicitudes')
           .select('id, estado, created_at, empresa_id');
-        
+
         if (solicitudesError) throw solicitudesError;
 
         // Obtener estadísticas de usuarios
         const { data: usuarios, error: usuariosError } = await supabase
           .from('gen_usuarios')
           .select('id, activo');
-        
+
         if (usuariosError) throw usuariosError;
 
         // Obtener estadísticas de prestadores
         const { data: prestadores, error: prestadoresError } = await supabase
           .from('prestadores')
           .select('id, activo');
-        
+
         if (prestadoresError) throw prestadoresError;
 
         // Obtener ciudades para el análisis geográfico
         const { data: ciudades, error: ciudadesError } = await supabase
           .from('ciudades')
           .select('id, nombre');
-        
+
         if (ciudadesError) throw ciudadesError;
 
         // Calcular estadísticas
@@ -243,22 +243,22 @@ const Dashboard = () => {
 
         // Solicitudes de hoy
         const hoy = new Date().toISOString().slice(0, 10);
-        const solicitudesHoy = solicitudes?.filter(s => 
+        const solicitudesHoy = solicitudes?.filter(s =>
           s.created_at && s.created_at.slice(0, 10) === hoy
         ).length || 0;
 
         // Solicitudes pendientes
-        const solicitudesPendientes = solicitudes?.filter(s => 
+        const solicitudesPendientes = solicitudes?.filter(s =>
           s.estado === 'pendiente' || s.estado === 'asignada'
         ).length || 0;
 
         // Solicitudes aprobadas
-        const solicitudesAprobadas = solicitudes?.filter(s => 
+        const solicitudesAprobadas = solicitudes?.filter(s =>
           s.estado === 'aprobada' || s.estado === 'finalizada'
         ).length || 0;
 
         // Solicitudes rechazadas
-        const solicitudesRechazadas = solicitudes?.filter(s => 
+        const solicitudesRechazadas = solicitudes?.filter(s =>
           s.estado === 'rechazada'
         ).length || 0;
 
@@ -289,10 +289,10 @@ const Dashboard = () => {
           const mes = fecha.toLocaleDateString('es-ES', { month: 'short' });
           const cantidad = solicitudes?.filter(s => {
             const solicitudFecha = new Date(s.created_at);
-            return solicitudFecha.getMonth() === fecha.getMonth() && 
-                   solicitudFecha.getFullYear() === fecha.getFullYear();
+            return solicitudFecha.getMonth() === fecha.getMonth() &&
+              solicitudFecha.getFullYear() === fecha.getFullYear();
           }).length || 0;
-          
+
           solicitudesPorMes.push({ mes, cantidad });
         }
 
@@ -402,7 +402,7 @@ const Dashboard = () => {
         <div>
           <p className="text-gray-600">Vista general del sistema y métricas clave</p>
         </div>
-        
+
         <div className="flex items-center gap-4">
           <Popover>
             <PopoverTrigger asChild>
@@ -486,10 +486,10 @@ const Dashboard = () => {
       {/* Tabs del Dashboard */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:grid-cols-4">
-          <TabsTrigger value="overview" className="text-sm">Vista General</TabsTrigger>
-          <TabsTrigger value="analytics" className="text-sm">Análisis</TabsTrigger>
-          <TabsTrigger value="performance" className="text-sm">Rendimiento</TabsTrigger>
-          <TabsTrigger value="geography" className="text-sm">Geografía</TabsTrigger>
+          <TabsTrigger value="overview" className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300">Vista General</TabsTrigger>
+          <TabsTrigger value="analytics" className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300">Análisis</TabsTrigger>
+          <TabsTrigger value="performance" className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300">Rendimiento</TabsTrigger>
+          <TabsTrigger value="geography" className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300">Geografía</TabsTrigger>
         </TabsList>
 
         {/* Tab: Vista General */}
@@ -544,11 +544,11 @@ const Dashboard = () => {
                       <XAxis dataKey="mes" />
                       <YAxis />
                       <Tooltip />
-                      <Area 
-                        type="monotone" 
-                        dataKey="cantidad" 
-                        stroke="#10b981" 
-                        fill="#10b981" 
+                      <Area
+                        type="monotone"
+                        dataKey="cantidad"
+                        stroke="#10b981"
+                        fill="#10b981"
                         fillOpacity={0.3}
                       />
                     </AreaChart>
@@ -788,7 +788,7 @@ const Dashboard = () => {
                     </Badge>
                   </div>
                   <Progress value={(stats?.usuariosActivos || 0) / (stats?.totalUsuarios || 1) * 100} className="h-2" />
-                  
+
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Prestadores Activos</span>
                     <Badge variant="secondary" className="bg-blue-100 text-blue-800">
@@ -822,10 +822,10 @@ const Dashboard = () => {
                       <YAxis />
                       <Tooltip />
                       <Legend />
-                      <Line 
-                        type="monotone" 
-                        dataKey="cantidad" 
-                        stroke="#14b8a6" 
+                      <Line
+                        type="monotone"
+                        dataKey="cantidad"
+                        stroke="#14b8a6"
                         strokeWidth={3}
                         name="Solicitudes"
                         activeDot={{ r: 8, fill: '#14b8a6' }}
@@ -938,8 +938,8 @@ const Dashboard = () => {
                         {stats?.totalSolicitudes ? Math.round((stats.solicitudesAprobadas / stats.totalSolicitudes) * 100) : 0}%
                       </span>
                     </div>
-                    <Progress 
-                      value={stats?.totalSolicitudes ? (stats.solicitudesAprobadas / stats.totalSolicitudes) * 100 : 0} 
+                    <Progress
+                      value={stats?.totalSolicitudes ? (stats.solicitudesAprobadas / stats.totalSolicitudes) * 100 : 0}
                       className="h-2 bg-gray-200"
                     />
                   </div>
@@ -951,8 +951,8 @@ const Dashboard = () => {
                         {stats?.totalSolicitudes ? Math.round((stats.solicitudesRechazadas / stats.totalSolicitudes) * 100) : 0}%
                       </span>
                     </div>
-                    <Progress 
-                      value={stats?.totalSolicitudes ? (stats.solicitudesRechazadas / stats.totalSolicitudes) * 100 : 0} 
+                    <Progress
+                      value={stats?.totalSolicitudes ? (stats.solicitudesRechazadas / stats.totalSolicitudes) * 100 : 0}
                       className="h-2 bg-gray-200"
                     />
                   </div>
@@ -964,8 +964,8 @@ const Dashboard = () => {
                         {stats?.totalSolicitudes ? Math.round((stats.solicitudesPendientes / stats.totalSolicitudes) * 100) : 0}%
                       </span>
                     </div>
-                    <Progress 
-                      value={stats?.totalSolicitudes ? (stats.solicitudesPendientes / stats.totalSolicitudes) * 100 : 0} 
+                    <Progress
+                      value={stats?.totalSolicitudes ? (stats.solicitudesPendientes / stats.totalSolicitudes) * 100 : 0}
                       className="h-2 bg-gray-200"
                     />
                   </div>
@@ -1073,7 +1073,7 @@ const Dashboard = () => {
                       <div className="text-sm text-green-600">Candidatos</div>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-3">
                     <h4 className="font-medium text-gray-700">Top Ciudades</h4>
                     {stats?.candidatosPorCiudad?.slice(0, 5).map((item, index) => (

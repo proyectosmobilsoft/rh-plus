@@ -99,7 +99,7 @@
   .sidebar-expanded {
     width: 14rem;
   }
-  
+
   .header-title {
     font-size: 1rem;
   }
@@ -127,7 +127,7 @@
 .sidebar-toggle-hover:hover {
   background-color: rgba(59, 130, 246, 0.1);
   color: rgb(59, 130, 246);
-} 
+}
 
 /* Scroll personalizado para el sidebar */
 .scrollbar-thin {
@@ -166,7 +166,7 @@
 }
 
 .sidebar-menu-item::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 0;
   top: 0;
@@ -205,6 +205,7 @@
 
 .menu-item-animation:hover {
   transform: translateX(4px);
+  width: 93%;
 }
 
 /* Estilos para el estado activo más visible */
@@ -229,7 +230,7 @@
 
 /* Mejoras para el scroll */
 .sidebar-scroll {
-  scrollbar-width: thin;
+  scrollbar-width: none;
   scrollbar-color: #cbd5e1 transparent;
   overflow-y: auto;
   overflow-x: hidden;
@@ -268,7 +269,7 @@
 }
 
 .scroll-indicator::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -280,13 +281,23 @@
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 0.5; }
-  50% { opacity: 0.8; }
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.8;
+  }
 }
 
 @keyframes scroll-pulse {
-  0%, 100% { opacity: 0.7; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 /* Asegurar que el header y footer del sidebar no se muevan */
@@ -369,7 +380,7 @@
     /* Mantener el sidebar visible en móviles después de la navegación */
     transform: translateX(0) !important;
   }
-  
+
   .content-with-sidebar-mobile {
     /* Ajustar el contenido cuando el sidebar está abierto en móviles */
     margin-left: 0;
@@ -411,7 +422,7 @@
     width: 100%;
     max-width: 280px;
   }
-  
+
   .content-with-fixed-sidebar {
     margin-left: 0;
     width: 100%;
@@ -453,8 +464,6 @@
   }
 }
 
-
-
 /* Estilos para el avatar de usuario más grande */
 .user-avatar-large {
   width: 64px;
@@ -464,6 +473,31 @@
   align-items: center;
   justify-content: center;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.user-avatar-large:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.user-avatar-large::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 12px;
+  height: 12px;
+  background: #3b82f6;
+  border-radius: 50%;
+  border: 2px solid white;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.user-avatar-large:hover::after {
+  opacity: 1;
 }
 
 .user-avatar-large svg {
@@ -529,7 +563,7 @@
     /* Mantener el sidebar visible en móviles después de la navegación */
     transform: translateX(0) !important;
   }
-  
+
   .content-with-sidebar-mobile {
     /* Ajustar el contenido cuando el sidebar está abierto en móviles */
     margin-left: 0;
@@ -554,7 +588,7 @@
   height: 100%;
   color: #6b7280;
   font-size: 0.875rem;
-} 
+}
 
 /* Estilos específicos para sidebar de altura completa SIN espacio blanco */
 .sidebar-full-height {
@@ -619,6 +653,123 @@
   background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
   border-bottom: 2px solid #e2e8f0;
   padding: 1rem;
+  position: relative;
+}
+
+/* Indicador de estado en línea en la esquina superior izquierda */
+.online-status-top-left {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  display: flex;
+  align-items: center;
+  z-index: 10;
+}
+
+.online-status-top-left .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 0.25rem;
+  flex-shrink: 0;
+}
+
+.online-status-top-left .status-text {
+  font-size: 0.625rem;
+  color: #6b7280;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+/* Indicador de estado en línea en la esquina superior derecha */
+.online-status-top-right {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: flex;
+  align-items: center;
+  z-index: 10;
+}
+
+.online-status-top-right .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 0.25rem;
+  flex-shrink: 0;
+}
+
+.online-status-top-right .status-text {
+  font-size: 0.625rem;
+  color: #6b7280;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+/* Asegurar que el email se muestre completo en el header */
+.sidebar-header .flex-1 {
+  min-width: 0;
+  width: 100%;
+}
+
+.sidebar-header .break-all {
+  word-break: break-all;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+  line-height: 1.2;
+}
+
+/* Estilos para el indicador de estado en línea */
+.online-status {
+  display: flex;
+  align-items: center;
+  margin-top: 0.25rem;
+}
+
+.online-status .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 0.5rem;
+  flex-shrink: 0;
+}
+
+.online-status .status-text {
+  font-size: 0.75rem;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+/* Sección de rol compacta - más pequeña y con fondo similar al header */
+.role-section {
+  margin: 0.5rem 0;
+  padding: 0.75rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  width: 100%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.role-section .role-badge {
+  display: block;
+  width: 100%;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+  padding: 0.5rem 0.75rem;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: 0.375rem;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+}
+
+.role-section .role-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 /* Contenido del sidebar - ocupa todo el espacio restante */
@@ -626,7 +777,7 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 0.30rem;
+  padding: 0.3rem;
   min-height: 0;
 }
 
@@ -648,13 +799,52 @@
   .sidebar-full-height {
     width: 280px;
   }
-  
+
   .sidebar-container {
     width: 280px;
   }
-  
+
   .main-content-with-sidebar {
     margin-left: 0;
     width: 100vw;
   }
-} 
+}
+
+/* Estilos para la información del usuario en el header */
+.user-info-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.user-info-item {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  transition: all 0.2s ease;
+}
+
+.user-info-item:hover {
+  transform: translateX(2px);
+}
+
+.user-info-item svg {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.user-info-item p {
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Mejorar el espaciado del header */
+.sidebar-header {
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  border-bottom: 2px solid #e2e8f0;
+  padding: 1rem;
+  position: relative;
+}

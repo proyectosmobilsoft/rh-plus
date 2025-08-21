@@ -1,7 +1,8 @@
 import { supabase } from './supabaseClient';
 
 export interface UsuarioData {
-  identificacion?: string; // Ahora opcional si no es requerido en BD
+  id?: number;
+  identificacion?: string;
   primer_nombre: string;
   segundo_nombre?: string;
   primer_apellido: string;
@@ -10,8 +11,11 @@ export interface UsuarioData {
   email: string;
   username: string;
   activo?: boolean;
-  password_hash?: string; // Para actualizaciones de contraseña
-  foto_base64?: string; // Nueva: imagen en base64
+  password_hash?: string;
+  foto_base64?: string;
+  ultimo_acceso?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export const usuariosService = {
@@ -278,6 +282,21 @@ export const usuariosService = {
       .from('gen_usuarios')
       .delete()
       .eq('id', id);
+    if (error) throw error;
+    return data;
+  },
+
+  // Actualizar último acceso del usuario
+  async updateUltimoAcceso(id: number) {
+    const { data, error } = await supabase
+      .from('gen_usuarios')
+      .update({ 
+        ultimo_acceso: new Date().toISOString() 
+      })
+      .eq('id', id)
+      .select('ultimo_acceso')
+      .single();
+    
     if (error) throw error;
     return data;
   }

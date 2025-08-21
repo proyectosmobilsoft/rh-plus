@@ -164,15 +164,23 @@ export const authService: AuthService = {
         return { success: false };
       }
 
+      // Verificar que userData no sea null antes de continuar
+      if (!userData || !userData.id) {
+        return { success: false };
+      }
+
+      // A partir de aquí, userData está garantizado que no es null
+      const safeUserData = userData as NonNullable<typeof userData>;
+
       // Extraer roles y empresas de la respuesta
-      const roles = (userData.gen_usuario_roles || [])
+      const roles = (safeUserData.gen_usuario_roles || [])
         .map((ur: any) => {
           const role = ur?.gen_roles;
           if (!role) return null;
           return { id: role.id ?? ur.rol_id, nombre: role.nombre };
         })
         .filter(Boolean) || [];
-      const empresas = userData.gen_usuario_empresas?.map((ue: any) => ue.empresas).filter(Boolean) || [];
+      const empresas = safeUserData.gen_usuario_empresas?.map((ue: any) => ue.empresas).filter(Boolean) || [];
 
       // Helper: obtener acciones por rol desde gen_roles_modulos (por ids)
       const getAccionesPorRolByIds = async (roleIds: number[]) => {
@@ -200,10 +208,10 @@ export const authService: AuthService = {
       };
 
       // Construir roleIds a partir de ambas fuentes: join y tabla intermedia
-      const roleIdsFromJoin = (userData.gen_usuario_roles || [])
+      const roleIdsFromJoin = (safeUserData.gen_usuario_roles || [])
         .map((ur: any) => ur?.rol_id)
         .filter((id: any) => Number.isFinite(id));
-      const roleIdsFromRoles = (userData.gen_usuario_roles || [])
+      const roleIdsFromRoles = (safeUserData.gen_usuario_roles || [])
         .map((ur: any) => ur?.gen_roles?.id)
         .filter((id: any) => Number.isFinite(id));
       const roleIdsUnique = Array.from(new Set<number>([...roleIdsFromJoin, ...roleIdsFromRoles] as number[]));
@@ -212,30 +220,39 @@ export const authService: AuthService = {
       try {
         const { data: verifyData, error: verifyError } = await supabase.rpc('check_password', {
           password_to_check: password,
-          stored_hash: userData.password_hash
+          stored_hash: safeUserData.password_hash
         });
 
         if (!verifyError && verifyData === true) {
+          // Actualizar último acceso del usuario
+          if (safeUserData.id) {
+            await supabase
+              .from('gen_usuarios')
+              .update({ ultimo_acceso: new Date().toISOString() })
+              .eq('id', safeUserData.id);
+          }
+
           // Obtener acciones por rol con ids robustos
           const { accionesPorRol, acciones } = await getAccionesPorRolByIds(roleIdsUnique);
           // Retornar datos completos del usuario para guardar en localStorage
           return {
             success: true,
             userData: {
-              id: userData.id,
-              username: userData.username,
-              email: userData.email,
-              primerNombre: userData.primer_nombre,
-              primerApellido: userData.primer_apellido,
-              foto_base64: userData.foto_base64,
+              id: safeUserData.id,
+              username: safeUserData.username,
+              email: safeUserData.email,
+              primerNombre: safeUserData.primer_nombre,
+              primerApellido: safeUserData.primer_apellido,
+              foto_base64: safeUserData.foto_base64,
               role: roles.length > 0 ? roles[0].nombre : 'admin', // Usar el primer rol o admin por defecto
-              activo: userData.activo,
+              activo: safeUserData.activo,
               roles: roles,
               empresas: empresas,
               accionesPorRol,
               acciones,
+              ultimoAcceso: new Date().toISOString(), // Incluir último acceso
               // Información adicional del usuario
-              password_hash: userData.password_hash // Solo para debug, no usar en producción
+              password_hash: safeUserData.password_hash // Solo para debug, no usar en producción
             }
           };
         } else {
@@ -247,27 +264,36 @@ export const authService: AuthService = {
 
       // Fallback final: comparar con hash simple (base64)
       const simpleHash = btoa(password);
-      const isMatch = simpleHash === userData.password_hash;
+      const isMatch = simpleHash === safeUserData.password_hash;
       
       if (isMatch) {
+        // Actualizar último acceso del usuario
+        if (safeUserData.id) {
+          await supabase
+            .from('gen_usuarios')
+            .update({ ultimo_acceso: new Date().toISOString() })
+            .eq('id', safeUserData.id);
+        }
+
         const { accionesPorRol, acciones } = await getAccionesPorRolByIds(roleIdsUnique);
         return {
           success: true,
           userData: {
-            id: userData.id,
-            username: userData.username,
-            email: userData.email,
-            primerNombre: userData.primer_nombre,
-            primerApellido: userData.primer_apellido,
-            foto_base64: userData.foto_base64,
+            id: safeUserData.id,
+            username: safeUserData.username,
+            email: safeUserData.email,
+            primerNombre: safeUserData.primer_nombre,
+            primerApellido: safeUserData.primer_apellido,
+            foto_base64: safeUserData.foto_base64,
             role: roles.length > 0 ? roles[0].nombre : 'admin',
-            activo: userData.activo,
+            activo: safeUserData.activo,
             roles: roles,
             empresas: empresas,
             accionesPorRol,
             acciones,
+            ultimoAcceso: new Date().toISOString(), // Incluir último acceso
             // Información adicional del usuario
-            password_hash: userData.password_hash // Solo para debug
+            password_hash: safeUserData.password_hash // Solo para debug
           }
         };
       }

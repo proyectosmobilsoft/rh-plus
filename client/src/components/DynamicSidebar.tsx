@@ -91,13 +91,13 @@ const menuItems = [
     path: "/analistas",
     subItems: [],
   },
-  
+
   {
     title: "Configuración",
     icon: <Settings className="h-5 w-5" />,
     path: "/configuraciones/globales",
     subItems: [],
-  },{
+  }, {
     title: "Acerca de la Empresa",
     icon: <Info className="h-5 w-5" />,
     path: "/empresa/acerca",
@@ -282,11 +282,12 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
     <div className="sidebar-container" ref={sidebarRef}>
       {/* Header con información del usuario */}
       <div className="sidebar-header">
-        {/* Información del usuario */}
-        <div className="flex items-center space-x-3">
+        {/* Indicador de estado en línea en la esquina superior derecha */}
+
+        <div className="flex justify-between space-x-3">
           <button
             onClick={() => setShowUserOverlay(!showUserOverlay)}
-            className="user-avatar-large bg-blue-600 hover:bg-blue-700 transition-colors duration-200 cursor-pointer overflow-hidden"
+            className="user-avatar-large bg-blue-600 hover:bg-blue-700 transition-colors duration-200 cursor-pointer overflow-hidden flex-shrink-0"
           >
             {userData?.foto_base64 ? (
               <img src={userData.foto_base64} alt="Avatar" className="w-full h-full object-cover" />
@@ -294,154 +295,222 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
               <User className="text-white" />
             )}
           </button>
+          {/* Información adicional del usuario */}
+          <div className="mt-3 space-y-2">
+            {/* Estado de conexión */}
+            <div className="flex items-center justify-end">
+              <div className="flex items-center space-x-1">
+                <div className={`w-2 h-2 rounded-full ${userData?.activo ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                <span className="text-xs text-gray-600 font-medium">
+                  {userData?.activo ? 'En línea' : 'Desconectado'}
+                </span>
+              </div>
+            </div>
 
-          {/* Información del usuario (siempre visible) */}
+            {/* Última actividad */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-1 group relative">
+
+                <span className="text-xs text-gray-600">
+                  {userData?.ultimoAcceso
+                    ? new Date(userData.ultimoAcceso).toLocaleString('es-ES', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })
+                    : 'No disponible'
+                  }
+                </span>
+
+                {/* Tooltip */}
+                <div className="absolute bottom-full right-0 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-20">
+                  {userData?.ultimoAcceso
+                    ? ((new Date().getTime() - new Date(userData.ultimoAcceso).getTime()) < 5 * 60 * 1000)
+                      ? 'Acceso reciente (últimos 5 min)'
+                      : 'Acceso anterior (más de 5 min)'
+                    : 'Información no disponible'
+                  }
+                  <div className="absolute top-full right-2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Información del usuario */}
+        <div className="flex items-start space-x-3">
+
+          {/* Información del usuario: nombre y detalles adicionales */}
           <div className="flex-1 min-w-0">
-            {/* Nombre completo del usuario */}
             <p className="text-sm font-semibold text-gray-900 truncate">
               {userData ? `${userData.primerNombre} ${userData.primerApellido}` : 'Usuario'}
             </p>
 
-            {/* Perfiles/Roles del usuario */}
-            {userData?.roles && userData.roles.length > 0 && (
-              <div className="mt-2">
-                <div className="flex flex-wrap gap-1">
-                  {userData.roles.map((role: any, index: number) => (
-                    <Badge key={index} variant="outline" className="text-xs px-1 py-0.5">
-                      {role.nombre}
-                    </Badge>
-                  ))}
-                </div>
+            {/* Información adicional del usuario */}
+            <div className="user-info-section">
+              {/* Email */}
+              <div className="user-info-item">
+                <Mail className="w-3 h-3 text-gray-400" />
+                <p className="text-xs text-gray-500">{userData?.email || ''}</p>
               </div>
-            )}
+
+              {/* Rol/Perfil */}
+              {userData?.roles && userData.roles.length > 0 && (
+                <div className="user-info-item">
+                  <Shield className="w-3 h-3 text-gray-400" />
+                  <p className="text-xs text-gray-500">
+                    {userData.roles[0]?.nombre || userData?.role || 'Rol'}
+                  </p>
+                </div>
+              )}
+
+              {/* Empresa asociada */}
+              {userData?.empresas && userData.empresas.length > 0 && (
+                <div className="user-info-item">
+                  <Building className="w-3 h-3 text-gray-400" />
+                  <p className="text-xs text-gray-500">
+                    {userData.empresas[0]?.razon_social || 'Empresa'}
+                  </p>
+                </div>
+              )}
+
+
+            </div>
           </div>
+        </div>
 
-          {/* Overlay del usuario */}
-          {showUserOverlay && createPortal(
-            <div className="fixed inset-0 z-[9999] flex items-start justify-start">
-              {/* Backdrop */}
-              <div
-                className="absolute inset-0 bg-black bg-opacity-25"
-                onClick={() => setShowUserOverlay(false)}
-              ></div>
+        {/* Línea divisoria */}
+        <div className="mt-3 border-t border-gray-200"></div>
 
-              {/* Modal */}
-              <div className="relative mt-16 ml-4 bg-white rounded-lg shadow-2xl border border-gray-200 p-4 min-w-[400px] max-w-[500px] max-h-[80vh] overflow-y-auto">
+
+
+        {/* Overlay del usuario */}
+        {showUserOverlay && createPortal(
+          <div className="fixed inset-0 z-[9999] flex items-start justify-start">
+            {/* Backdrop */}
+            <div
+              className="absolute inset-0 bg-black bg-opacity-25"
+              onClick={() => setShowUserOverlay(false)}
+            ></div>
+
+            {/* Modal */}
+            <div className="relative mt-16 ml-4 bg-white rounded-lg shadow-2xl border border-gray-200 p-4 min-w-[400px] max-w-[500px] max-h-[80vh] overflow-y-auto">
+              <div className="space-y-4">
+                {/* Header del overlay */}
+                <div className="flex items-center space-x-3 pb-3 border-b border-gray-200">
+                  <div className="user-avatar-large bg-blue-600 overflow-hidden">
+                    {userData?.foto_base64 ? (
+                      <img src={userData.foto_base64} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      <User className="text-white" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {userData ? `${userData.primerNombre} ${userData.primerApellido}` : 'Usuario'}
+                    </h3>
+                    <p className="text-sm text-gray-500">{userData?.email}</p>
+                    <p className="text-xs text-blue-600 font-medium">{userData?.role}</p>
+                  </div>
+                  <button
+                    onClick={() => setShowUserOverlay(false)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-100"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Información detallada */}
                 <div className="space-y-4">
-                  {/* Header del overlay */}
-                  <div className="flex items-center space-x-3 pb-3 border-b border-gray-200">
-                    <div className="user-avatar-large bg-blue-600 overflow-hidden">
-                      {userData?.foto_base64 ? (
-                        <img src={userData.foto_base64} alt="Avatar" className="w-full h-full object-cover" />
-                      ) : (
-                        <User className="text-white" />
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        {userData ? `${userData.primerNombre} ${userData.primerApellido}` : 'Usuario'}
-                      </h3>
-                      <p className="text-sm text-gray-500">{userData?.email}</p>
-                      <p className="text-xs text-blue-600 font-medium">{userData?.role}</p>
-                    </div>
-                    <button
-                      onClick={() => setShowUserOverlay(false)}
-                      className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-100"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-
-                  {/* Información detallada */}
-                  <div className="space-y-4">
-                    {/* Perfiles */}
-                    {userData?.roles && userData.roles.length > 0 && (
-                      <div>
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">Perfiles asignados:</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {userData.roles.map((role: any, index: number) => (
-                            <Badge key={index} variant="outline" className="text-xs px-2 py-1">
-                              {role.nombre}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Empresas */}
-                    {userData?.empresas && userData.empresas.length > 0 && (
-                      <div>
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">Empresas asociadas:</h4>
-                        <div className="space-y-2">
-                          {userData.empresas.map((empresa: any, index: number) => (
-                            <div key={index} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                              <p className="text-sm font-medium text-gray-900">{empresa.razon_social}</p>
-                              <p className="text-xs text-gray-500">ID: {empresa.id}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Información adicional */}
-                    <div className="pt-3 border-t border-gray-200">
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <p className="text-gray-500">Usuario ID:</p>
-                          <p className="font-medium">{userData?.id}</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-500">Estado:</p>
-                          <p className="font-medium">{userData?.activo ? 'Activo' : 'Inactivo'}</p>
-                        </div>
+                  {/* Perfiles */}
+                  {userData?.roles && userData.roles.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Perfiles asignados:</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {userData.roles.map((role: any, index: number) => (
+                          <Badge key={index} variant="outline" className="text-xs px-2 py-1">
+                            {role.nombre}
+                          </Badge>
+                        ))}
                       </div>
                     </div>
-                  </div>
+                  )}
 
-                  {/* Botón de cerrar sesión */}
+                  {/* Empresas */}
+                  {userData?.empresas && userData.empresas.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Empresas asociadas:</h4>
+                      <div className="space-y-2">
+                        {userData.empresas.map((empresa: any, index: number) => (
+                          <div key={index} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                            <p className="text-sm font-medium text-gray-900">{empresa.razon_social}</p>
+                            <p className="text-xs text-gray-500">ID: {empresa.id}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Información adicional */}
                   <div className="pt-3 border-t border-gray-200">
-                    <Button
-                      onClick={() => {
-                        setShowUserOverlay(false);
-                        // Limpiar todo el localStorage
-                        localStorage.removeItem('userData');
-                        localStorage.removeItem('token');
-                        localStorage.removeItem('authToken');
-                        localStorage.removeItem('empresaData');
-
-                        // Limpiar empresa seleccionada
-                        limpiarEmpresaSeleccionada();
-
-                        console.log('Sesión cerrada desde overlay - todos los datos eliminados');
-
-                        // Intentar usar logout del contexto si está disponible
-                        if (logout) {
-                          logout();
-                        }
-
-                        // Redirigir al login
-                        window.location.href = '/login';
-                      }}
-                      variant="ghost"
-                      className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 text-sm py-2"
-                    >
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Cerrar Sesión
-                    </Button>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-500">Usuario ID:</p>
+                        <p className="font-medium">{userData?.id}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Estado:</p>
+                        <p className="font-medium">{userData?.activo ? 'Activo' : 'Inactivo'}</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
+
+                {/* Botón de cerrar sesión */}
+                <div className="pt-3 border-t border-gray-200">
+                  <Button
+                    onClick={() => {
+                      setShowUserOverlay(false);
+                      // Limpiar todo el localStorage
+                      localStorage.removeItem('userData');
+                      localStorage.removeItem('token');
+                      localStorage.removeItem('authToken');
+                      localStorage.removeItem('empresaData');
+
+                      // Limpiar empresa seleccionada
+                      limpiarEmpresaSeleccionada();
+
+                      console.log('Sesión cerrada desde overlay - todos los datos eliminados');
+
+                      // Intentar usar logout del contexto si está disponible
+                      if (logout) {
+                        logout();
+                      }
+
+                      // Redirigir al login
+                      window.location.href = '/login';
+                    }}
+                    variant="ghost"
+                    className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 text-sm py-2"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Cerrar Sesión
+                  </Button>
+                </div>
               </div>
-            </div>,
-            document.body
-          )}
-        </div>
+            </div>
+          </div>,
+          document.body
+        )}
       </div>
 
       {/* Sistema de navegación con filtrado por permisos */}
       <div className="sidebar-scroll">
         <nav className="space-y-1">
+
           {filteredMenus.map((menu, index) => {
             const hasChildren = menu.subItems && menu.subItems.length > 0;
             const isExpanded = expandedMenus.has(index.toString());
