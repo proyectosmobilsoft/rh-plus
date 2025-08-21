@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Save, UserCheck } from "lucide-react";
+import { ArrowLeft, Save, UserCheck, ImagePlus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { usuariosService, UsuarioData } from "@/services/usuariosService";
@@ -33,6 +33,7 @@ const editUsuarioSchema = z.object({
   }, "Contraseña debe tener al menos 8 caracteres con mayúsculas, minúsculas y números"),
   perfilIds: z.array(z.number()).min(1, "Debe seleccionar al menos un perfil"),
   activo: z.boolean().default(true),
+  foto_base64: z.string().optional(),
 });
 
 type FormData = z.infer<typeof editUsuarioSchema>;
@@ -59,6 +60,7 @@ interface Usuario {
     nombre: string;
     descripcion?: string;
   }>;
+  foto_base64?: string;
 }
 
 const EditarUsuarioPage = () => {
@@ -141,6 +143,7 @@ const EditarUsuarioPage = () => {
 
   const { register, handleSubmit, formState: { errors }, watch, setValue, reset } = form;
   const passwordValue = watch("password");
+  const fotoBase64 = watch("foto_base64");
 
   // Cargar datos del usuario cuando esté disponible
   useEffect(() => {
@@ -157,6 +160,7 @@ const EditarUsuarioPage = () => {
         password: "",
         perfilIds: usuario.perfiles.map(p => p.id),
         activo: usuario.activo,
+        foto_base64: usuario.foto_base64 || "",
       });
       setSelectedPerfiles(usuario.perfiles.map(p => p.id));
     }
@@ -197,6 +201,7 @@ const EditarUsuarioPage = () => {
         email: data.email,
         username: data.username,
         activo: data.activo,
+        foto_base64: data.foto_base64 || undefined,
       };
       
       console.log('📤 Datos mapeados para el servicio:', usuarioData);
@@ -270,6 +275,18 @@ const EditarUsuarioPage = () => {
     updateUsuarioMutation.mutate(formDataWithPerfiles);
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setValue("foto_base64", String(reader.result));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removePhoto = () => setValue("foto_base64", "");
+
   const handlePerfilChange = (perfilId: number, checked: boolean) => {
     let newSelectedPerfiles: number[];
     if (checked) {
@@ -342,6 +359,37 @@ const EditarUsuarioPage = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              {/* Foto de perfil */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                  <ImagePlus className="w-5 h-5 text-cyan-600" />
+                  Foto de perfil
+                </h3>
+                <div className="flex items-center gap-6">
+                  <div className="w-24 h-24 rounded-full overflow-hidden border bg-gray-50 flex items-center justify-center">
+                    {fotoBase64 ? (
+                      <img src={fotoBase64} alt="Foto" className="w-full h-full object-cover" />
+                    ) : (
+                      <UserCheck className="w-10 h-10 text-gray-400" />
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="block text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100"
+                    />
+                    {fotoBase64 && (
+                      <Button type="button" variant="ghost" size="sm" onClick={removePhoto} className="text-red-600 hover:text-red-700">
+                        <Trash2 className="w-4 h-4 mr-1" /> Quitar foto
+                      </Button>
+                    )}
+                    <input type="hidden" {...register("foto_base64")} />
+                    <p className="text-xs text-gray-500">Formatos recomendados: JPG, PNG. Tamaño sugerido: 400x400.</p>
+                  </div>
+                </div>
+              </div>
               {/* Información personal */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>

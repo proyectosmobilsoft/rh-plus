@@ -83,6 +83,7 @@ export const authService: AuthService = {
           email,
           primer_nombre,
           primer_apellido,
+          foto_base64,
           activo,
           gen_usuario_empresas (
             empresas (
@@ -139,6 +140,7 @@ export const authService: AuthService = {
           primer_nombre,
           primer_apellido,
           password_hash,
+          foto_base64,
           activo,
           gen_usuario_empresas (
             empresas (
@@ -225,6 +227,7 @@ export const authService: AuthService = {
               email: userData.email,
               primerNombre: userData.primer_nombre,
               primerApellido: userData.primer_apellido,
+              foto_base64: userData.foto_base64,
               role: roles.length > 0 ? roles[0].nombre : 'admin', // Usar el primer rol o admin por defecto
               activo: userData.activo,
               roles: roles,
@@ -256,6 +259,7 @@ export const authService: AuthService = {
             email: userData.email,
             primerNombre: userData.primer_nombre,
             primerApellido: userData.primer_apellido,
+            foto_base64: userData.foto_base64,
             role: roles.length > 0 ? roles[0].nombre : 'admin',
             activo: userData.activo,
             roles: roles,

@@ -11,6 +11,7 @@ export interface UsuarioData {
   username: string;
   activo?: boolean;
   password_hash?: string; // Para actualizaciones de contraseña
+  foto_base64?: string; // Nueva: imagen en base64
 }
 
 export const usuariosService = {
@@ -29,6 +30,7 @@ export const usuariosService = {
         email,
         username,
         activo,
+        foto_base64,
         gen_usuario_roles ( id, rol_id, created_at, gen_roles ( id, nombre ) ),
         gen_usuario_empresas ( id, empresa_id, created_at, empresas ( id, razon_social ) )
       `);

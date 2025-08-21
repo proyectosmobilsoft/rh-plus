@@ -286,9 +286,13 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
         <div className="flex items-center space-x-3">
           <button
             onClick={() => setShowUserOverlay(!showUserOverlay)}
-            className="user-avatar-large bg-blue-600 hover:bg-blue-700 transition-colors duration-200 cursor-pointer"
+            className="user-avatar-large bg-blue-600 hover:bg-blue-700 transition-colors duration-200 cursor-pointer overflow-hidden"
           >
-            <User className="text-white" />
+            {userData?.foto_base64 ? (
+              <img src={userData.foto_base64} alt="Avatar" className="w-full h-full object-cover" />
+            ) : (
+              <User className="text-white" />
+            )}
           </button>
 
           {/* Información del usuario (siempre visible) */}
@@ -326,8 +330,12 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
                 <div className="space-y-4">
                   {/* Header del overlay */}
                   <div className="flex items-center space-x-3 pb-3 border-b border-gray-200">
-                    <div className="user-avatar-large bg-blue-600">
-                      <User className="text-white" />
+                    <div className="user-avatar-large bg-blue-600 overflow-hidden">
+                      {userData?.foto_base64 ? (
+                        <img src={userData.foto_base64} alt="Avatar" className="w-full h-full object-cover" />
+                      ) : (
+                        <User className="text-white" />
+                      )}
                     </div>
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold text-gray-900">

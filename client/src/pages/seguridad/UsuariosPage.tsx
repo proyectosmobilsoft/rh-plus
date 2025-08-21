@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Plus, Search, Users, Save, RefreshCw, Loader2, Lock, CheckCircle, User } from "lucide-react";
+import { Edit, Trash2, Plus, Search, Users, Save, RefreshCw, Loader2, Lock, CheckCircle, User, ImagePlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Link } from "wouter";
@@ -40,7 +40,7 @@ import {
 import { useForm } from "react-hook-form";
 import { Can } from "@/contexts/PermissionsContext";
 
-// Esquema de validación para crear usuario
+// Esquema de validación para crear/editar usuario (usa isEditing para reglas de contraseña)
 const crearUsuarioSchema = z.object({
   identificacion: z.string().min(1, "La identificación es requerida"),
   primer_nombre: z.string().min(1, "El primer nombre es requerido"),
@@ -50,15 +50,31 @@ const crearUsuarioSchema = z.object({
   telefono: z.string().optional(),
   email: z.string().email("Email inválido"),
   username: z.string().min(3, "El username debe tener al menos 3 caracteres"),
-  password: z.string()
-    .min(8, "La contraseña debe tener al menos 8 caracteres")
-    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, "La contraseña debe contener al menos una letra mayúscula, una minúscula y un número"),
-  confirmPassword: z.string(),
+  password: z.string().optional(),
+  confirmPassword: z.string().optional(),
   perfilIds: z.array(z.number()).min(1, "Debe seleccionar al menos un perfil"),
   empresaIds: z.array(z.number()).optional(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Las contraseñas no coinciden",
-  path: ["confirmPassword"],
+  foto_base64: z.string().optional(),
+  isEditing: z.boolean().optional(),
+}).superRefine((data, ctx) => {
+  const isEditing = !!data.isEditing;
+  const pwd = data.password || "";
+  const confirm = data.confirmPassword || "";
+  if (!isEditing) {
+    if (!pwd) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["password"], message: "La contraseña es requerida" });
+      return;
+    }
+    if (pwd.length < 8) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["password"], message: "La contraseña debe tener al menos 8 caracteres" });
+    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(pwd)) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["password"], message: "La contraseña debe contener al menos una mayúscula, una minúscula y un número" });
+    if (confirm !== pwd) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["confirmPassword"], message: "Las contraseñas no coinciden" });
+  } else {
+    if (pwd) {
+      if (pwd.length < 8) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["password"], message: "La contraseña debe tener al menos 8 caracteres" });
+      if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(pwd)) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["password"], message: "La contraseña debe contener al menos una mayúscula, una minúscula y un número" });
+      if (confirm !== pwd) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["confirmPassword"], message: "Las contraseñas no coinciden" });
+    }
+  }
 });
 
 // Esquema para editar usuario (password opcional)
@@ -79,6 +95,7 @@ const editarUsuarioSchema = z.object({
   confirmPassword: z.string().optional(),
   perfilIds: z.array(z.number()).min(1, "Debe seleccionar al menos un perfil"),
   empresaIds: z.array(z.number()).optional(),
+  foto_base64: z.string().optional(),
 }).refine((data) => {
   if (data.password && data.password !== "") {
     return data.password === data.confirmPassword;
@@ -110,6 +127,7 @@ interface Usuario {
   email: string;
   username: string;
   activo: boolean;
+  foto_base64?: string;
   gen_usuario_roles: Array<{ id: number; rol_id: number; created_at: string; gen_roles: { id: number; nombre: string } }>;
   gen_usuario_empresas: Array<{ id: number; empresa_id: number; created_at: string; empresas: { id: number; razon_social: string } }>;
 }
@@ -179,6 +197,8 @@ const UsuariosPage = () => {
       confirmPassword: "",
       perfilIds: [],
       empresaIds: [],
+      foto_base64: "",
+      isEditing: false,
     },
   });
 
@@ -358,7 +378,7 @@ const UsuariosPage = () => {
 
   const handleCrearUsuario = (data: CrearUsuarioForm) => {
     // Filtrar campos que no deben enviarse al backend
-    const { confirmPassword, perfilIds, empresaIds, ...userData } = data;
+    const { confirmPassword, perfilIds, empresaIds, isEditing, ...userData } = data;
     const password = data.password;
 
     // Decidir si crear o actualizar basado en editingUser
@@ -403,7 +423,9 @@ const UsuariosPage = () => {
       username: usuario.username,
       password: "",
       perfilIds: usuario.gen_usuario_roles?.map(r => r.rol_id) || [],
-      empresaIds: usuario.gen_usuario_empresas?.map(e => e.empresa_id) || []
+      empresaIds: usuario.gen_usuario_empresas?.map(e => e.empresa_id) || [],
+      foto_base64: usuario.foto_base64 || "",
+      isEditing: true,
     });
     setActiveTab("registro");
   };
@@ -460,7 +482,8 @@ const UsuariosPage = () => {
                         password: "",
                         confirmPassword: "",
                         perfilIds: [],
-                        empresaIds: []
+                        empresaIds: [],
+                        isEditing: false,
                       });
                     setActiveTab("registro");
                   }}
@@ -751,6 +774,43 @@ const UsuariosPage = () => {
             <CardContent className="p-6">
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(handleCrearUsuario)} className="space-y-6">
+                  {/* Foto de perfil */}
+                  <div className="p-4 border rounded-lg bg-slate-50 mb-2">
+                    <h3 className="text-base font-bold text-gray-700 mb-3 flex items-center gap-2">
+                      <ImagePlus className="w-5 h-5 text-cyan-600" />
+                      Foto de perfil
+                    </h3>
+                    <div className="flex items-center gap-6">
+                      <div className="w-24 h-24 rounded-full overflow-hidden border bg-gray-50 flex items-center justify-center">
+                        {form.watch('foto_base64') ? (
+                          <img src={form.watch('foto_base64') as unknown as string} alt="Foto" className="w-full h-full object-cover" />
+                        ) : (
+                          <User className="w-10 h-10 text-gray-400" />
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const reader = new FileReader();
+                            reader.onload = () => form.setValue('foto_base64', String(reader.result));
+                            reader.readAsDataURL(file);
+                          }}
+                          className="block text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100"
+                        />
+                        {form.watch('foto_base64') && (
+                          <Button type="button" variant="ghost" size="sm" onClick={() => form.setValue('foto_base64', "")} className="text-red-600 hover:text-red-700">
+                            Quitar foto
+                          </Button>
+                        )}
+                        <input type="hidden" {...form.register('foto_base64')} />
+                        <p className="text-xs text-gray-500">Formatos recomendados: JPG, PNG. Tamaño sugerido: 400x400.</p>
+                      </div>
+                    </div>
+                  </div>
                   {/* Datos Personales */}
                   <div className="p-4 border rounded-lg bg-slate-50 mb-4">
                     <h3 className="text-base font-bold text-gray-700 mb-2 flex items-center gap-2">
@@ -888,85 +948,89 @@ const UsuariosPage = () => {
                         )}
                       />
 
-                      <FormField
-                        control={form.control}
-                        name="password"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Contraseña *</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="password"
-                                placeholder="Contraseña"
-                                autoComplete="new-password"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                            {field.value && (
-                              <div className="mt-2 space-y-1">
-                                <div className="flex items-center gap-2">
-                                  <div className={`w-2 h-2 rounded-full ${field.value.length >= 8 ? 'bg-brand-lime' : 'bg-gray-300'}`} />
-                                  <span className={`text-xs ${field.value.length >= 8 ? 'text-brand-lime' : 'text-gray-500'}`}>
-                                    Mínimo 8 caracteres
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <div className={`w-2 h-2 rounded-full ${/[a-z]/.test(field.value) ? 'bg-brand-lime' : 'bg-gray-300'}`} />
-                                  <span className={`text-xs ${/[a-z]/.test(field.value) ? 'text-brand-lime' : 'text-gray-500'}`}>
-                                    Al menos una letra minúscula
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <div className={`w-2 h-2 rounded-full ${/[A-Z]/.test(field.value) ? 'bg-brand-lime' : 'bg-gray-300'}`} />
-                                  <span className={`text-xs ${/[A-Z]/.test(field.value) ? 'text-brand-lime' : 'text-gray-500'}`}>
-                                    Al menos una letra mayúscula
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <div className={`w-2 h-2 rounded-full ${/\d/.test(field.value) ? 'bg-brand-lime' : 'bg-gray-300'}`} />
-                                  <span className={`text-xs ${/\d/.test(field.value) ? 'text-brand-lime' : 'text-gray-500'}`}>
-                                    Al menos un número
-                                  </span>
-                                </div>
-                              </div>
-                            )}
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="confirmPassword"
-                        render={({ field }) => {
-                          const password = form.watch("password");
-                          const isMatch = field.value === password && field.value !== "";
-                          return (
-                            <FormItem>
-                              <FormLabel>Confirmar Contraseña *</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="password"
-                                  placeholder="Confirmar contraseña"
-                                  autoComplete="new-password"
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                              {field.value && password && (
-                                <div className="mt-2">
-                                  <div className="flex items-center gap-2">
-                                    <div className={`w-2 h-2 rounded-full ${isMatch ? 'bg-brand-lime' : 'bg-red-500'}`} />
-                                    <span className={`text-xs ${isMatch ? 'text-brand-lime' : 'text-red-600'}`}>
-                                      {isMatch ? 'Las contraseñas coinciden' : 'Las contraseñas no coinciden'}
-                                    </span>
+                      {!editingUser && (
+                        <>
+                          <FormField
+                            control={form.control}
+                            name="password"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Contraseña *</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="password"
+                                    placeholder="Contraseña"
+                                    autoComplete="new-password"
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                                {field.value && (
+                                  <div className="mt-2 space-y-1">
+                                    <div className="flex items-center gap-2">
+                                      <div className={`w-2 h-2 rounded-full ${field.value.length >= 8 ? 'bg-brand-lime' : 'bg-gray-300'}`} />
+                                      <span className={`text-xs ${field.value.length >= 8 ? 'text-brand-lime' : 'text-gray-500'}`}>
+                                        Mínimo 8 caracteres
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <div className={`w-2 h-2 rounded-full ${/[a-z]/.test(field.value) ? 'bg-brand-lime' : 'bg-gray-300'}`} />
+                                      <span className={`text-xs ${/[a-z]/.test(field.value) ? 'text-brand-lime' : 'text-gray-500'}`}>
+                                        Al menos una letra minúscula
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <div className={`w-2 h-2 rounded-full ${/[A-Z]/.test(field.value) ? 'bg-brand-lime' : 'bg-gray-300'}`} />
+                                      <span className={`text-xs ${/[A-Z]/.test(field.value) ? 'text-brand-lime' : 'text-gray-500'}`}>
+                                        Al menos una letra mayúscula
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <div className={`w-2 h-2 rounded-full ${/\d/.test(field.value) ? 'bg-brand-lime' : 'bg-gray-300'}`} />
+                                      <span className={`text-xs ${/\d/.test(field.value) ? 'text-brand-lime' : 'text-gray-500'}`}>
+                                        Al menos un número
+                                      </span>
+                                    </div>
                                   </div>
-                                </div>
-                              )}
-                            </FormItem>
-                          );
-                        }}
-                      />
+                                )}
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="confirmPassword"
+                            render={({ field }) => {
+                              const password = form.watch("password");
+                              const isMatch = field.value === password && field.value !== "";
+                              return (
+                                <FormItem>
+                                  <FormLabel>Confirmar Contraseña *</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      type="password"
+                                      placeholder="Confirmar contraseña"
+                                      autoComplete="new-password"
+                                      {...field}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                  {field.value && password && (
+                                    <div className="mt-2">
+                                      <div className="flex items-center gap-2">
+                                        <div className={`w-2 h-2 rounded-full ${isMatch ? 'bg-brand-lime' : 'bg-red-500'}`} />
+                                        <span className={`text-xs ${isMatch ? 'text-brand-lime' : 'text-red-600'}`}>
+                                          {isMatch ? 'Las contraseñas coinciden' : 'Las contraseñas no coinciden'}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )}
+                                </FormItem>
+                              );
+                            }}
+                          />
+                        </>
+                      )}
                     </div>
                   </div>
 

@@ -909,7 +909,7 @@ export default function EmailMasivoPage() {
                     <Users className="w-5 h-5 text-orange-600" />
                   </div>
                   <div>
-                    <span className="text-lg font-semibold text-gray-700">CAMPAÑAS RECIENTES</span>
+                  <span className="text-lg font-semibold text-gray-700">CAMPAÑAS RECIENTES</span>
                     <p className="text-xs text-gray-500 mt-1">Ordenadas por fecha (más recientes primero)</p>
                   </div>
                 </div>
@@ -1041,7 +1041,7 @@ export default function EmailMasivoPage() {
                               <div className="text-xs text-gray-400 group-hover:text-gray-600 transition-colors">
                                 Click para ver detalles
                               </div>
-                                                              <Button 
+                              <Button 
                                 variant="ghost" 
                                 size="sm"
                                 onClick={(e) => {
