@@ -66,13 +66,15 @@ interface SolicitudFormProps {
   onSubmit: (data: SolicitudFormData) => void;
   onCancel: () => void;
   isLoading?: boolean;
+  readOnly?: boolean;
 }
 
 const SolicitudForm: React.FC<SolicitudFormProps> = ({ 
   solicitud, 
   onSubmit, 
   onCancel, 
-  isLoading = false 
+  isLoading = false,
+  readOnly = false
 }) => {
   const form = useForm<SolicitudFormData>({
     resolver: zodResolver(solicitudSchema),
@@ -122,321 +124,325 @@ const SolicitudForm: React.FC<SolicitudFormProps> = ({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-        {/* Información del Trabajador */}
-        <div className="p-4 border rounded-lg bg-slate-50 mb-4">
-          <h3 className="text-base font-bold text-gray-700 mb-2 flex items-center gap-2">
-            <Users className="w-5 h-5 text-cyan-600" />
-            Datos del Trabajador
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="nombres"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nombres *</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Nombres completos" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="apellidos"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Apellidos *</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Apellidos completos" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-            <FormField
-              control={form.control}
-              name="tipoDocumento"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tipo Documento *</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+        <fieldset disabled={readOnly} className={readOnly ? 'opacity-90 pointer-events-none' : ''}>
+          {/* Información del Trabajador */}
+          <div className="p-4 border rounded-lg bg-slate-50 mb-4">
+            <h3 className="text-base font-bold text-gray-700 mb-2 flex items-center gap-2">
+              <Users className="w-5 h-5 text-cyan-600" />
+              Datos del Trabajador
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="nombres"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nombres *</FormLabel>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccione" />
-                      </SelectTrigger>
+                      <Input placeholder="Nombres completos" {...field} />
                     </FormControl>
-                    <SelectContent>
-                      <SelectItem value="CC">Cédula de Ciudadanía</SelectItem>
-                      <SelectItem value="CE">Cédula de Extranjería</SelectItem>
-                      <SelectItem value="TI">Tarjeta de Identidad</SelectItem>
-                      <SelectItem value="PEP">Permiso Especial de Permanencia</SelectItem>
-                      <SelectItem value="VISA">Visa</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="numeroDocumento"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Número Documento *</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Número de documento" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="lugarExpedicion"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Lugar de Expedición</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ciudad de expedición" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-            <FormField
-              control={form.control}
-              name="celular"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Celular</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Número de celular" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="direccion"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Dirección</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Dirección de residencia" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-        </div>
-
-        {/* Información de la Empresa */}
-        <div className="p-4 border rounded-lg bg-slate-50 mb-4">
-          <h3 className="text-base font-bold text-gray-700 mb-2 flex items-center gap-2">
-            <Building className="w-5 h-5 text-green-600" />
-            Información de la Empresa
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="empresaUsuaria"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Empresa Usuaria</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Nombre de la empresa" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="ciudadPrestacionServicio"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Ciudad de Prestación</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ciudad donde presta servicio" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-        </div>
-
-        {/* Información del Cargo */}
-        <div className="p-4 border rounded-lg bg-slate-50 mb-4">
-          <h3 className="text-base font-bold text-gray-700 mb-2 flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-orange-600" />
-            Información del Cargo
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="cargo"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Cargo *</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Cargo a desempeñar" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="ciudad"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Ciudad *</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ciudad de trabajo" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-            <FormField
-              control={form.control}
-              name="fechaIngreso"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Fecha de Ingreso</FormLabel>
-                  <FormControl>
-                    <Input type="date" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="tipoContrato"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tipo de Contrato</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Tipo de contrato" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-        </div>
-
-        {/* Estado y Prioridad */}
-        <div className="p-4 border rounded-lg bg-cyan-50 mb-4">
-          <h3 className="text-base font-bold text-gray-700 mb-2 flex items-center gap-2">
-            <FileText className="w-5 h-5 text-cyan-600" />
-            Estado y Prioridad
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="estado"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Estado</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="apellidos"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Apellidos *</FormLabel>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccione estado" />
-                      </SelectTrigger>
+                      <Input placeholder="Apellidos completos" {...field} />
                     </FormControl>
-                    <SelectContent>
-                      <SelectItem value="PENDIENTE">Pendiente</SelectItem>
-                      <SelectItem value="APROBADA">Aprobada</SelectItem>
-                      <SelectItem value="RECHAZADA">Rechazada</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+              <FormField
+                control={form.control}
+                name="tipoDocumento"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo Documento *</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={readOnly}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccione" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="CC">Cédula de Ciudadanía</SelectItem>
+                        <SelectItem value="CE">Cédula de Extranjería</SelectItem>
+                        <SelectItem value="TI">Tarjeta de Identidad</SelectItem>
+                        <SelectItem value="PEP">Permiso Especial de Permanencia</SelectItem>
+                        <SelectItem value="VISA">Visa</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="numeroDocumento"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Número Documento *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Número de documento" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="lugarExpedicion"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Lugar de Expedición</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ciudad de expedición" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <FormField
+                control={form.control}
+                name="celular"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Celular</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Número de celular" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="direccion"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Dirección</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Dirección de residencia" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
+
+          {/* Información de la Empresa */}
+          <div className="p-4 border rounded-lg bg-slate-50 mb-4">
+            <h3 className="text-base font-bold text-gray-700 mb-2 flex items-center gap-2">
+              <Building className="w-5 h-5 text-green-600" />
+              Información de la Empresa
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="empresaUsuaria"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Empresa Usuaria</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Nombre de la empresa" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="ciudadPrestacionServicio"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Ciudad de Prestación</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ciudad donde presta servicio" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
+
+          {/* Información del Cargo */}
+          <div className="p-4 border rounded-lg bg-slate-50 mb-4">
+            <h3 className="text-base font-bold text-gray-700 mb-2 flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-orange-600" />
+              Información del Cargo
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="cargo"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cargo *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Cargo a desempeñar" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="ciudad"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Ciudad *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ciudad de trabajo" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <FormField
+                control={form.control}
+                name="fechaIngreso"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Fecha de Ingreso</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="tipoContrato"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo de Contrato</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Tipo de contrato" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
+
+          {/* Estado y Prioridad */}
+          <div className="p-4 border rounded-lg bg-cyan-50 mb-4">
+            <h3 className="text-base font-bold text-gray-700 mb-2 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-cyan-600" />
+              Estado y Prioridad
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="estado"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Estado</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={readOnly}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccione estado" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="PENDIENTE">Pendiente</SelectItem>
+                        <SelectItem value="APROBADA">Aprobada</SelectItem>
+                        <SelectItem value="RECHAZADA">Rechazada</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="prioridad"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Prioridad</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={readOnly}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccione prioridad" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="baja">Baja</SelectItem>
+                        <SelectItem value="media">Media</SelectItem>
+                        <SelectItem value="alta">Alta</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
+
+          {/* Observaciones */}
+          <div className="p-4 border rounded-lg bg-slate-50 mb-4">
+            <h3 className="text-base font-bold text-gray-700 mb-2 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-purple-600" />
+              Observaciones
+            </h3>
             <FormField
               control={form.control}
-              name="prioridad"
+              name="observaciones"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Prioridad</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccione prioridad" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="baja">Baja</SelectItem>
-                      <SelectItem value="media">Media</SelectItem>
-                      <SelectItem value="alta">Alta</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <FormLabel>Observaciones</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Observaciones adicionales sobre la solicitud"
+                      className="min-h-[100px]"
+                      {...field}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
           </div>
-        </div>
+        </fieldset>
 
-        {/* Observaciones */}
-        <div className="p-4 border rounded-lg bg-slate-50 mb-4">
-          <h3 className="text-base font-bold text-gray-700 mb-2 flex items-center gap-2">
-            <FileText className="w-5 h-5 text-purple-600" />
-            Observaciones
-          </h3>
-          <FormField
-            control={form.control}
-            name="observaciones"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Observaciones</FormLabel>
-                <FormControl>
-                  <Textarea
-                    placeholder="Observaciones adicionales sobre la solicitud"
-                    className="min-h-[100px]"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div className="flex justify-end space-x-2 pt-4">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onCancel}
-            disabled={isLoading}
-          >
-            Cancelar
-          </Button>
-          <Button
-            type="submit"
-            className="bg-green-500 hover:bg-green-600 text-white border-0 shadow-sm px-6 py-2 rounded text-sm font-medium transition-colors"
-            disabled={isLoading}
-          >
-            {isLoading ? 'Guardando...' : (solicitud ? 'Actualizar' : 'Guardar')}
-          </Button>
-        </div>
+        {!readOnly && (
+          <div className="flex justify-end space-x-2 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+              disabled={isLoading}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              className="bg-green-500 hover:bg-green-600 text-white border-0 shadow-sm px-6 py-2 rounded text-sm font-medium transition-colors"
+              disabled={isLoading}
+            >
+              {isLoading ? 'Guardando...' : (solicitud ? 'Actualizar' : 'Guardar')}
+            </Button>
+          </div>
+        )}
       </form>
     </Form>
   );

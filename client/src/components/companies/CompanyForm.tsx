@@ -24,6 +24,7 @@ import { useLoading } from '@/contexts/LoadingContext';
 interface CompanyFormProps {
   initialData?: any; // Cambiado de Company a any para soportar las nuevas propiedades
   onSaved?: () => void;
+  onCancel?: () => void;
   entityType?: 'afiliada' | 'prestador';
 }
 
@@ -75,7 +76,7 @@ const convertFileToBase64 = (file: File): Promise<string> => {
   });
 };
 
-export function CompanyForm({ initialData, onSaved, entityType = 'afiliada' }: CompanyFormProps) {
+export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afiliada' }: CompanyFormProps) {
   const { toast } = useToast();
   const { startLoading, stopLoading } = useLoading();
   const [existingDocuments, setExistingDocuments] = useState<{ [key: string]: string }>({});
@@ -476,8 +477,8 @@ export function CompanyForm({ initialData, onSaved, entityType = 'afiliada' }: C
       const base64 = await convertFileToBase64(file);
       const fieldName = `documento_${documentType}_base64`;
       form.setValue(fieldName as any, base64);
-      setUploadedFiles(prev => ({
-        ...prev,
+        setUploadedFiles(prev => ({
+          ...prev,
         [documentType]: file.name
       }));
       toast({
@@ -532,7 +533,7 @@ export function CompanyForm({ initialData, onSaved, entityType = 'afiliada' }: C
 
     // Validar que sea una imagen
     if (!file.type.startsWith('image/')) {
-      toast({
+        toast({
         title: "Error",
         description: "Por favor selecciona un archivo de imagen válido.",
         variant: "destructive",
@@ -1354,8 +1355,8 @@ export function CompanyForm({ initialData, onSaved, entityType = 'afiliada' }: C
                       )}
                     </div>
                   </div>
-                </div>
               </div>
+            </div>
 
               {/* Separador */}
               <div className="border-t border-gray-200 my-6"></div>
@@ -1458,7 +1459,7 @@ export function CompanyForm({ initialData, onSaved, entityType = 'afiliada' }: C
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => onSaved?.()}
+                  onClick={() => (onCancel ? onCancel() : onSaved?.())}
                 >
                   Cancelar
                 </Button>

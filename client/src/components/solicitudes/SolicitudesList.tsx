@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Edit, Pause, CheckCircle, Phone, Play, XCircle } from 'lucide-react';
+import { Edit, Pause, CheckCircle, Phone, Play, XCircle, Eye, X, Ban, User, Building2, FileText, Clock, Code, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
@@ -10,6 +10,7 @@ import { Solicitud } from '@/services/solicitudesService';
 import { useLoading } from '@/contexts/LoadingContext';
 import { Can } from '@/contexts/PermissionsContext';
 import { useRegisterView } from '@/hooks/useRegisterView';
+// import SolicitudForm from '@/components/solicitudes/SolicitudForm';
 
 interface SolicitudesListProps {
   solicitudes: Solicitud[];
@@ -20,6 +21,7 @@ interface SolicitudesListProps {
   onStandBy: (id: number, observacion: string) => void;
   onReactivate: (id: number) => void;
   onDeserto: (id: number) => void;
+  onCancel: (id: number) => void;
   isLoading?: boolean;
 }
 
@@ -32,6 +34,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   onStandBy,
   onReactivate,
   onDeserto,
+  onCancel,
   isLoading = false
 }) => {
   const { startLoading, stopLoading } = useLoading();
@@ -43,6 +46,8 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     addAction('standby', 'Poner en Stand By');
     addAction('reactivar', 'Reactivar Solicitud');
     addAction('deserto', 'Marcar Deserto');
+    addAction('visualizar', 'Visualizar Solicitud');
+    addAction('cancelar', 'Cancelar Solicitud');
   }, [addAction]);
   const [confirmApproveOpen, setConfirmApproveOpen] = useState(false);
   const [confirmContactOpen, setConfirmContactOpen] = useState(false);
@@ -55,6 +60,10 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   const [solicitudesStandBy, setSolicitudesStandBy] = useState<Map<number, string>>(new Map());
   const [reactivatingSolicitudId, setReactivatingSolicitudId] = useState<number | null>(null);
   const [desertoSolicitudId, setDesertoSolicitudId] = useState<number | null>(null);
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [selectedSolicitudForView, setSelectedSolicitudForView] = useState<Solicitud | null>(null);
+  const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
+  const [cancelingSolicitudId, setCancelingSolicitudId] = useState<number | null>(null);
 
   // Detener loading global cuando se complete una operación de Contacto
   useEffect(() => {
@@ -142,6 +151,19 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     }
   }, [reactivatingSolicitudId, stopLoading]);
 
+  // Timeout de seguridad para detener loading global en cancelación si no se completa en 10 segundos
+  useEffect(() => {
+    if (cancelingSolicitudId) {
+      const timeoutId = setTimeout(() => {
+        console.log('⚠️ Timeout de seguridad: Deteniendo loading global por operación de Cancelación');
+        setCancelingSolicitudId(null);
+        stopLoading();
+      }, 10000); // 10 segundos
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [cancelingSolicitudId, stopLoading]);
+
   // Limpiar estados de solicitudes que ya no están en STAND BY
   useEffect(() => {
     setSolicitudesStandBy(prev => {
@@ -187,6 +209,26 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     }
   }, [solicitudes, desertoSolicitudId, stopLoading]);
 
+  // Detener loading global cuando se complete una operación de Cancelación
+  useEffect(() => {
+    if (cancelingSolicitudId) {
+      console.log('🔍 useEffect de cancelación ejecutado, cancelingSolicitudId:', cancelingSolicitudId);
+      const solicitud = solicitudes.find(s => s.id === cancelingSolicitudId);
+      console.log('🔍 Solicitud encontrada:', solicitud?.id, 'Estado:', solicitud?.estado);
+
+      if (solicitud && solicitud.estado === 'CANCELADA') {
+        console.log('🔍 Operación de Cancelación completada, limpiando estado...');
+        setCancelingSolicitudId(null);
+        stopLoading(); // Detener loading global cuando se complete la operación de Cancelación
+        console.log('🔍 Loading global detenido por operación de Cancelación');
+      } else if (solicitud) {
+        console.log('🔍 Solicitud aún no en estado Cancelada, esperando...');
+      } else {
+        console.log('🔍 Solicitud no encontrada, puede que se haya recargado la lista');
+      }
+    }
+  }, [solicitudes, cancelingSolicitudId, stopLoading]);
+
   // Asegurar que al salir de la pantalla se libere el loading global y se limpien diálogos
   useEffect(() => {
     return () => {
@@ -196,6 +238,8 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
       setConfirmStandByOpen(false);
       setConfirmReactivateOpen(false);
       setConfirmDesertoOpen(false);
+      setViewModalOpen(false);
+      setConfirmCancelOpen(false);
     };
   }, [stopLoading]);
 
@@ -221,6 +265,8 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
         return <Badge className="bg-indigo-300 hover:bg-indigo-400 text-indigo-900 border-indigo-500">En Proceso</Badge>;
       case 'DESERTO':
         return <Badge className="bg-red-300 hover:bg-red-400 text-red-900 border-red-500">Deserto</Badge>;
+             case 'CANCELADA':
+         return <Badge className="bg-red-300 hover:bg-red-400 text-red-900 border-red-500">Cancelada</Badge>;
       default:
         return <Badge variant="outline">{formatEstado(estado || 'Sin estado')}</Badge>;
     }
@@ -245,6 +291,8 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
         return 'bg-indigo-100';
       case 'DESERTO':
         return 'bg-red-100';
+             case 'CANCELADA':
+         return 'bg-red-100';
       default:
         return '';
     }
@@ -280,11 +328,173 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   // Función para verificar si la solicitud está en STAND BY
   const isStandBy = (estado: string) => estado?.toUpperCase() === 'STAND BY';
 
-  // Función para verificar si la solicitud está en estado DESERTO
-  const isDeserto = (estado: string) => estado?.toUpperCase() === 'DESERTO';
+     // Función para verificar si la solicitud está en estado DESERTO
+   const isDeserto = (estado: string) => estado?.toUpperCase() === 'DESERTO';
+
+   // Función para verificar si la solicitud está en estado CANCELADA
+   const isCancelada = (estado: string) => estado?.toUpperCase() === 'CANCELADA';
 
   const getDisplayValue = (value: string | undefined, defaultValue: string = 'No especificado') => {
     return value && value.trim() !== '' ? value : defaultValue;
+  };
+
+  // Función para renderizar la plantilla en modo de solo lectura
+  const renderPlantilla = (estructura: any, datos: any) => {
+    console.log('🔍 renderPlantilla llamado con:', { estructura, datos });
+    
+    if (!estructura || !estructura.secciones) {
+      console.log('❌ No hay estructura o secciones:', { estructura });
+      return (
+        <div className="text-center py-4 text-gray-500">
+          <p>No hay estructura de plantilla disponible</p>
+          <p className="text-xs mt-1">Estructura recibida: {JSON.stringify(estructura)}</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        {estructura.secciones.map((seccion: any, seccionIndex: number) => {
+          if (!seccion || typeof seccion !== 'object') return null;
+
+          const titulo = seccion.titulo || `Sección ${seccionIndex}`;
+          const icono = seccion.icono || 'FileText';
+          const campos = seccion.campos || [];
+
+          return (
+            <div key={seccionIndex} className="mb-6 p-4 border rounded-lg bg-gradient-to-br from-slate-50 to-slate-100 shadow-sm w-full">
+              {/* Título de la sección */}
+              <h4 className="text-base font-bold text-gray-700 mb-4 flex items-center gap-2">
+                {icono === 'Users' && <User className="w-5 h-5 text-blue-600" />}
+                {icono === 'Building' && <Building2 className="w-5 h-5 text-green-600" />}
+                {icono === 'DollarSign' && <DollarSign className="w-5 h-5 text-orange-600" />}
+                {icono === 'FileText' && <FileText className="w-5 h-5 text-gray-600" />}
+                {icono === 'Clock' && <Clock className="w-5 h-5 text-red-600" />}
+                {String(titulo)}
+              </h4>
+
+              {/* Campos de la sección con grid dinámico */}
+              <div className="grid gap-4 grid-cols-12 w-full">
+                {Array.isArray(campos) && campos
+                  .sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
+                  .map((campo: any, campoIndex: number) => {
+                    if (!campo || typeof campo !== 'object') return null;
+
+                    const fieldName = campo.nombre || `campo_${campoIndex}`;
+                    const value = datos[fieldName] || '';
+                    const label = campo.label || campo.nombre || `Campo ${campoIndex}`;
+                    const tipo = campo.tipo || 'text';
+                    const required = campo.required || false;
+                    const placeholder = campo.placeholder || `Ingrese ${label.toLowerCase()}`;
+
+                    // Calcular el ancho del campo
+                    let fieldWidth = 'col-span-12';
+                    if (campo.colspan) {
+                      const span = Math.min(Math.max(parseInt(campo.colspan), 1), 12);
+                      fieldWidth = `col-span-${span}`;
+                    } else if (campo.dimension) {
+                      const span = Math.min(Math.max(campo.dimension, 1), 12);
+                      fieldWidth = `col-span-${span}`;
+                    }
+
+                    return (
+                      <div key={campoIndex} className={`space-y-2 ${fieldWidth}`}>
+                        {/* Label del campo */}
+                        <div className="flex items-center gap-2">
+                          <label className="font-medium text-sm text-gray-700">
+                            {String(label)}
+                            {required && <span className="text-red-500 ml-1">*</span>}
+                          </label>
+                          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                            {String(tipo)}
+                          </span>
+                        </div>
+
+                        {/* Campo en modo de solo lectura */}
+                        <div className="ml-2">
+                          {tipo === 'text' && (
+                            <input
+                              type="text"
+                              value={value}
+                              disabled
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700"
+                            />
+                          )}
+
+                          {tipo === 'textarea' && (
+                            <textarea
+                              value={value}
+                              disabled
+                              rows={3}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700 resize-none"
+                            />
+                          )}
+
+                          {tipo === 'date' && (
+                            <input
+                              type="text"
+                              value={value}
+                              disabled
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700"
+                            />
+                          )}
+
+                          {tipo === 'select' && (
+                            <input
+                              type="text"
+                              value={value}
+                              disabled
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700"
+                            />
+                          )}
+
+                          {tipo === 'checkbox' && (
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={value}
+                                disabled
+                                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded"
+                              />
+                              <span className="text-sm text-gray-600">
+                                {String(label)}
+                              </span>
+                            </div>
+                          )}
+
+                          {tipo === 'number' && (
+                            <input
+                              type="text"
+                              value={value}
+                              disabled
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700"
+                            />
+                          )}
+
+                          {tipo === 'email' && (
+                            <input
+                              type="text"
+                              value={value}
+                              disabled
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700"
+                            />
+                          )}
+
+                          {/* Información adicional del campo */}
+                          <div className="mt-1 text-xs text-gray-500">
+                            {required && <span className="text-red-500">Campo requerido</span>}
+                            {!required && <span className="text-gray-400">Campo opcional</span>}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
   };
 
   const handleStandByClick = (id: number | undefined) => {
@@ -406,6 +616,36 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     }
   };
 
+  const handleViewClick = (solicitud: Solicitud) => {
+    setSelectedSolicitudForView(solicitud);
+    setViewModalOpen(true);
+  };
+
+  const handleCancelClick = (id: number | undefined) => {
+    if (id) {
+      setSelectedSolicitudId(id);
+      setCancelingSolicitudId(id);
+      setConfirmCancelOpen(true);
+    }
+  };
+
+  const handleCancelConfirm = () => {
+    if (selectedSolicitudId) {
+      console.log('🔍 handleCancelConfirm llamado para solicitud ID:', selectedSolicitudId);
+      console.log('🔍 Llamando a startLoading()...');
+      startLoading(); // Activar loading global
+      console.log('🔍 Llamando a onCancel con ID:', selectedSolicitudId);
+      onCancel(selectedSolicitudId);
+      console.log('🔍 onCancel ejecutado');
+
+      setConfirmCancelOpen(false);
+      setSelectedSolicitudId(null);
+      setCancelingSolicitudId(null);
+      // NO limpiar cancelingSolicitudId aquí, se limpiará cuando se complete la operación
+      // El loading se detendrá cuando se complete la operación en el componente padre
+    }
+  };
+
   if (solicitudes.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
@@ -422,6 +662,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
           <TableHeader>
             <TableRow>
               <TableHead className="text-left w-32">Acciones</TableHead>
+              <TableHead className="text-center w-24">Consecutivo</TableHead>
               <TableHead>Documento</TableHead>
               <TableHead>Empresa</TableHead>
               <TableHead>Analista Asignado</TableHead>
@@ -437,8 +678,8 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
               >
                 <TableCell>
                   <div className="flex justify-start items-center space-x-1">
-                    {/* Botón Editar - solo visible cuando esté en estado ASIGNADO */}
-                    {solicitud.estado === 'ASIGNADO' && (
+                                         {/* Botón Editar - solo visible cuando esté en estado ASIGNADO */}
+                     {solicitud.estado === 'ASIGNADO' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
                       <Can action="accion-editar-solicitud">
                         <TooltipProvider>
                           <Tooltip>
@@ -461,8 +702,30 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                       </Can>
                     )}
 
-                    {/* Botón Aprobar - solo visible en estado PENDIENTE */}
-                    {solicitud.estado === 'PENDIENTE' && !isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && (
+                    {/* Botón Visualizar - siempre visible */}
+                    <Can action="accion-visualizar-solicitud">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => onView(solicitud)}
+                              aria-label="Visualizar solicitud"
+                              className="h-8 w-8"
+                            >
+                              <Eye className="h-4 w-4 text-blue-600" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Visualizar</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </Can>
+
+                                         {/* Botón Aprobar - solo visible en estado PENDIENTE */}
+                     {solicitud.estado === 'PENDIENTE' && !isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
                       <Can action="accion-aprobar-solicitud">
                         <TooltipProvider>
                           <Tooltip>
@@ -485,8 +748,8 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                       </Can>
                     )}
 
-                    {/* Botón Contactado - solo visible en estado ASIGNADO */}
-                    {solicitud.estado === 'ASIGNADO' && !isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && (
+                                         {/* Botón Contactado - solo visible en estado ASIGNADO */}
+                     {solicitud.estado === 'ASIGNADO' && !isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
                       <Can action="accion-contactar-solicitud">
                         <TooltipProvider>
                           <Tooltip>
@@ -515,8 +778,8 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                       </Can>
                     )}
 
-                    {/* Botón Stand By / Reactivar - solo visible cuando NO esté en Deserto */}
-                    {!isDeserto(solicitud.estado) && isStandBy(solicitud.estado) && (
+                                         {/* Botón Stand By / Reactivar - solo visible cuando NO esté en Deserto o Cancelada */}
+                     {!isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && isStandBy(solicitud.estado) && (
                       <Can action="accion-reactivar-solicitud">
                         <TooltipProvider>
                           <Tooltip>
@@ -542,7 +805,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                       </Can>
                     )}
 
-                    {!isDeserto(solicitud.estado) && !isStandBy(solicitud.estado) && (
+                                         {!isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && !isStandBy(solicitud.estado) && (
                       <Can action="accion-standby-solicitud">
                         <TooltipProvider>
                           <Tooltip>
@@ -565,30 +828,58 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                       </Can>
                     )}
 
-                    {/* Botón Deserto - solo visible cuando NO esté en estado Deserto */}
-                    {!isDeserto(solicitud.estado) && (
-                      <Can action="accion-deserto-solicitud">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleDesertoClick(solicitud.id)}
-                                aria-label="Marcar como Deserto"
-                                className="h-8 w-8"
-                              >
-                                <XCircle className="h-4 w-4 text-red-600" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Marcar como Deserto</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </Can>
-                    )}
+                                         {/* Botón Deserto - solo visible cuando NO esté en estado Deserto o Cancelada */}
+                     {!isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                       <Can action="accion-deserto-solicitud">
+                         <TooltipProvider>
+                           <Tooltip>
+                             <TooltipTrigger asChild>
+                               <Button
+                                 variant="ghost"
+                                 size="icon"
+                                 onClick={() => handleDesertoClick(solicitud.id)}
+                                 aria-label="Marcar como Deserto"
+                                 className="h-8 w-8"
+                               >
+                                 <Ban className="h-4 w-4 text-red-600" />
+                               </Button>
+                             </TooltipTrigger>
+                             <TooltipContent>
+                               <p>Marcar como Deserto</p>
+                             </TooltipContent>
+                           </Tooltip>
+                         </TooltipProvider>
+                       </Can>
+                     )}
+
+                                         {/* Botón Cancelar - solo visible cuando esté en estado ASIGNADO */}
+                     {solicitud.estado === 'ASIGNADO' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                       <Can action="accion-cancelar-solicitud">
+                         <TooltipProvider>
+                           <Tooltip>
+                             <TooltipTrigger asChild>
+                               <Button
+                                 variant="ghost"
+                                 size="icon"
+                                 onClick={() => handleCancelClick(solicitud.id)}
+                                 aria-label="Cancelar solicitud"
+                                 className="h-8 w-8"
+                               >
+                                 <X className="h-4 w-4 text-red-600" />
+                               </Button>
+                             </TooltipTrigger>
+                             <TooltipContent>
+                               <p>Cancelar</p>
+                             </TooltipContent>
+                           </Tooltip>
+                         </TooltipProvider>
+                       </Can>
+                     )}
                   </div>
+                </TableCell>
+
+                <TableCell className="text-center">
+                  <span className="font-bold text-red-600">#{solicitud.id}</span>
                 </TableCell>
 
                 <TableCell>
@@ -782,6 +1073,93 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
               className="bg-red-600 hover:bg-red-700"
             >
               Marcar como Deserto
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+                           {/* Modal de Visualización de Solicitud */}
+      <AlertDialog open={viewModalOpen} onOpenChange={setViewModalOpen}>
+        <AlertDialogContent className="sm:max-w-[96vw] w-[96vw] h-[92vh] overflow-hidden relative p-0">
+          {/* Botón X en la esquina superior derecha */}
+          <button
+            aria-label="Cerrar"
+            className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+            onClick={() => {
+              setViewModalOpen(false);
+              setSelectedSolicitudForView(null);
+            }}
+          >
+            <XCircle className="w-5 h-5" />
+          </button>
+
+          <div className="h-full flex flex-col">
+            <div className="px-6 pt-6 pb-4 border-b bg-white/80 backdrop-blur">
+              <AlertDialogHeader>
+                <AlertDialogTitle className="text-2xl font-bold text-gray-800">
+                  Solicitud #{selectedSolicitudForView?.id} - Plantilla
+                </AlertDialogTitle>
+                <AlertDialogDescription className="text-gray-600">
+                  Visualización de la plantilla asociada a la solicitud
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+              {selectedSolicitudForView ? (
+                selectedSolicitudForView.estructura_datos ? (
+                  <div className="bg-white rounded-lg border border-gray-200 p-6">
+                    {renderPlantilla(selectedSolicitudForView.estructura_datos, selectedSolicitudForView.estructura_datos)}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <FileText className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                    <p className="font-medium">No hay plantilla disponible</p>
+                    <p className="text-sm">Esta solicitud no tiene estructura de plantilla configurada</p>
+                  </div>
+                )
+              ) : null}
+            </div>
+
+            <div className="px-6 py-4 border-t bg-white/80 backdrop-blur">
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => {
+                  setViewModalOpen(false);
+                  setSelectedSolicitudForView(null);
+                }} className="px-6 py-2">
+                  Cerrar
+                </AlertDialogCancel>
+              </AlertDialogFooter>
+            </div>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirmación de Cancelación */}
+      <AlertDialog open={confirmCancelOpen} onOpenChange={setConfirmCancelOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Cancelar solicitud?</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas cancelar esta solicitud?
+              <br />
+              <span className="text-sm text-muted-foreground">
+                Esta acción marcará la solicitud como cancelada y deshabilitará todas las acciones futuras.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setConfirmCancelOpen(false);
+              setCancelingSolicitudId(null);
+            }}>
+              No Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancelConfirm}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Sí, Cancelar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -16,6 +16,7 @@ interface PlantillasSelectorProps {
   selectedSolicitud?: Solicitud; // Para edición
   onSave?: () => void; // Callback cuando se guarda exitosamente
   onCancel?: () => void; // Callback cuando se cancela
+  readOnly?: boolean; // Nuevo: modo solo lectura
 }
 
 export default function PlantillasSelector({ 
@@ -23,7 +24,8 @@ export default function PlantillasSelector({
   onPlantillaSelect, 
   selectedSolicitud, 
   onSave, 
-  onCancel 
+  onCancel,
+  readOnly = false
 }: PlantillasSelectorProps) {
   const { startLoading, stopLoading } = useLoading();
   const [plantillas, setPlantillas] = useState<Plantilla[]>([]);
@@ -291,9 +293,10 @@ export default function PlantillasSelector({
                 estructura={estructuraFormulario} 
                 hideFieldLabels={true}
                 initialData={initialFormData}
-                onSave={handleFormSave}
-                onCancel={handleFormCancel}
-                showButtons={true}
+                onSave={readOnly ? undefined : handleFormSave}
+                onCancel={onCancel}
+                showButtons={!readOnly}
+                readOnly={readOnly}
               />
             </div>
           ) : (

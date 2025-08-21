@@ -22,11 +22,12 @@ const ExpedicionOrdenPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [estadoFilter, setEstadoFilter] = useState<string | undefined>(undefined);
   const [empresaFilter, setEmpresaFilter] = useState<string | undefined>(undefined);
-  const [activeTab, setActiveTab] = useState("listado");
+  const [activeTab, setActiveTab] = useState("registro");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSolicitud, setSelectedSolicitud] = useState<Solicitud | undefined>(undefined);
   const [empresaData, setEmpresaData] = useState<any>(null);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [readOnlyView, setReadOnlyView] = useState(false);
 
   // Estados disponibles para el filtro
   const estadosDisponibles = [
@@ -103,6 +104,7 @@ const ExpedicionOrdenPage = () => {
 
   const handleEdit = async (solicitud: Solicitud) => {
     setSelectedSolicitud(solicitud);
+    setReadOnlyView(false);
     setActiveTab("registro");
   };
 
@@ -197,27 +199,46 @@ const ExpedicionOrdenPage = () => {
      }
    };
 
-   const handleDeserto = async (id: number) => {
-     setIsLoading(true);
-     try {
-       const success = await solicitudesService.updateStatus(id, 'DESERTO', 'Solicitud marcada como deserto por el usuario');
-       if (success) {
-         toast.success('Solicitud marcada como deserto exitosamente');
-         fetchSolicitudes(); // Recargar la lista
-       } else {
-         toast.error('Error al marcar como deserto');
-       }
-     } catch (error) {
-       console.error('Error al marcar como deserto:', error);
-       toast.error('Error al marcar como deserto');
-     } finally {
-       setIsLoading(false);
-     }
-   };
+     const handleDeserto = async (id: number) => {
+    setIsLoading(true);
+    try {
+      const success = await solicitudesService.updateStatus(id, 'DESERTO', 'Solicitud marcada como deserto por el usuario');
+      if (success) {
+        toast.success('Solicitud marcada como deserto exitosamente');
+        fetchSolicitudes(); // Recargar la lista
+      } else {
+        toast.error('Error al marcar como deserto');
+      }
+    } catch (error) {
+      console.error('Error al marcar como deserto:', error);
+      toast.error('Error al marcar como deserto');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCancel = async (id: number) => {
+    setIsLoading(true);
+    try {
+      const success = await solicitudesService.updateStatus(id, 'CANCELADA', 'Solicitud cancelada por el usuario');
+      if (success) {
+        toast.success('Solicitud cancelada exitosamente');
+        fetchSolicitudes(); // Recargar la lista
+      } else {
+        toast.error('Error al cancelar la solicitud');
+      }
+    } catch (error) {
+      console.error('Error al cancelar la solicitud:', error);
+      toast.error('Error al cancelar la solicitud');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleView = async (solicitud: Solicitud) => {
-    // Implementar vista de detalles si es necesario
-    toast.info('Vista de detalles no implementada aún');
+    setSelectedSolicitud(solicitud);
+    setReadOnlyView(true);
+    setActiveTab("registro");
   };
 
   const handlePlantillaSelect = (plantilla: Plantilla) => {
@@ -252,18 +273,50 @@ const ExpedicionOrdenPage = () => {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2 bg-cyan-100/60 p-1 rounded-lg">
           <TabsTrigger
-            value="listado"
-            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
-          >
-            Listado de Solicitudes
-          </TabsTrigger>
-          <TabsTrigger
             value="registro"
             className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
           >
             Registro de Solicitud
           </TabsTrigger>
+          <TabsTrigger
+            value="listado"
+            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+          >
+            Listado de Solicitudes
+          </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="registro" className="mt-6">
+          {!empresaData ? (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center py-8">
+                  <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Error al cargar datos de empresa</h3>
+                  <p className="text-gray-600">
+                    No se pudieron cargar los datos de la empresa desde el almacenamiento local.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <PlantillasSelector
+              empresaId={empresaData.id}
+              onPlantillaSelect={handlePlantillaSelect}
+              selectedSolicitud={selectedSolicitud}
+              onSave={async () => {
+                // Pequeño delay para que el usuario vea el mensaje de éxito
+                await new Promise(resolve => setTimeout(resolve, 500));
+                setActiveTab("listado");
+                fetchSolicitudes();
+              }}
+              onCancel={() => {
+                setActiveTab("listado");
+              }}
+              readOnly={readOnlyView}
+            />
+          )}
+        </TabsContent>
 
         <TabsContent value="listado" className="mt-6">
           {/* Header similar a usuarios */}
@@ -348,51 +401,21 @@ const ExpedicionOrdenPage = () => {
                   Error al cargar las solicitudes. Por favor intente nuevamente.
                 </div>
               ) : (
-                                 <SolicitudesList
-                   solicitudes={solicitudesFiltradas}
-                   onEdit={handleEdit}
-                   onView={handleView}
-                   onApprove={handleApprove}
-                   onContact={handleContact}
-                   onStandBy={handleStandBy}
-                   onReactivate={handleReactivate}
-                   onDeserto={handleDeserto}
-                   isLoading={isLoading}
-                 />
+                <SolicitudesList
+                  solicitudes={solicitudesFiltradas}
+                  onEdit={handleEdit}
+                  onView={handleView}
+                  onApprove={handleApprove}
+                  onContact={handleContact}
+                  onStandBy={handleStandBy}
+                  onReactivate={handleReactivate}
+                  onDeserto={handleDeserto}
+                  onCancel={handleCancel}
+                  isLoading={isLoading}
+                />
               )}
             </div>
           </div>
-        </TabsContent>
-
-        <TabsContent value="registro" className="mt-6">
-          {!empresaData ? (
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center py-8">
-                  <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Error al cargar datos de empresa</h3>
-                  <p className="text-gray-600">
-                    No se pudieron cargar los datos de la empresa desde el almacenamiento local.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <PlantillasSelector
-              empresaId={empresaData.id}
-              onPlantillaSelect={handlePlantillaSelect}
-              selectedSolicitud={selectedSolicitud}
-              onSave={async () => {
-                // Pequeño delay para que el usuario vea el mensaje de éxito
-                await new Promise(resolve => setTimeout(resolve, 500));
-                setActiveTab("listado");
-                fetchSolicitudes();
-              }}
-              onCancel={() => {
-                setActiveTab("listado");
-              }}
-            />
-          )}
         </TabsContent>
       </Tabs>
     </div>

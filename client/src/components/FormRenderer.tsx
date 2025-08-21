@@ -9,6 +9,7 @@ interface FormRendererProps {
   onSave?: (formData: Record<string, any>) => void; // Callback para guardar
   onCancel?: () => void; // Callback para cancelar
   showButtons?: boolean; // Mostrar botones de acción
+  readOnly?: boolean; // Nuevo: modo solo lectura
 }
 
 const FormRenderer: React.FC<FormRendererProps> = ({ 
@@ -17,7 +18,8 @@ const FormRenderer: React.FC<FormRendererProps> = ({
   initialData = {}, 
   onSave, 
   onCancel, 
-  showButtons = false 
+  showButtons = false,
+  readOnly = false 
 }) => {
   const [formData, setFormData] = React.useState<Record<string, any>>(initialData);
 
@@ -27,6 +29,7 @@ const FormRenderer: React.FC<FormRendererProps> = ({
   }, [initialData]);
 
   const handleFieldChange = (fieldName: string, value: any) => {
+    if (readOnly) return; // No permitir cambios si está en modo de solo lectura
     setFormData(prev => {
       const newData = {
         ...prev,
@@ -135,18 +138,20 @@ const FormRenderer: React.FC<FormRendererProps> = ({
             <input
               type="text"
               value={value}
-              onChange={(e) => handleFieldChange(fieldName, e.target.value)}
+              onChange={readOnly ? undefined : (e) => handleFieldChange(fieldName, e.target.value)}
               placeholder={String(placeholder)}
               className="w-full max-w-md px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors"
+              disabled={readOnly}
             />
           )}
 
           {tipo === 'textarea' && (
             <textarea
               value={value}
-              onChange={(e) => handleFieldChange(fieldName, e.target.value)}
+              onChange={readOnly ? undefined : (e) => handleFieldChange(fieldName, e.target.value)}
               placeholder={String(placeholder)}
               className="w-full max-w-md px-4 py-3 border border-gray-300 rounded-lg text-sm min-h-[100px] resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors"
+              disabled={readOnly}
             />
           )}
 
@@ -154,16 +159,18 @@ const FormRenderer: React.FC<FormRendererProps> = ({
             <input
               type="date"
               value={value}
-              onChange={(e) => handleFieldChange(fieldName, e.target.value)}
+              onChange={readOnly ? undefined : (e) => handleFieldChange(fieldName, e.target.value)}
               className="w-full max-w-md px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors"
+              disabled={readOnly}
             />
           )}
 
           {tipo === 'select' && (
             <select 
               value={value}
-              onChange={(e) => handleFieldChange(fieldName, e.target.value)}
+              onChange={readOnly ? undefined : (e) => handleFieldChange(fieldName, e.target.value)}
               className="w-full max-w-md px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors"
+              disabled={readOnly}
             >
               <option value="">{String(placeholder)}</option>
               {renderSelectOptions(campo.opciones)}
@@ -175,8 +182,9 @@ const FormRenderer: React.FC<FormRendererProps> = ({
               <input
                 type="checkbox"
                 checked={value}
-                onChange={(e) => handleFieldChange(fieldName, e.target.checked)}
+                onChange={readOnly ? undefined : (e) => handleFieldChange(fieldName, e.target.checked)}
                 className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                disabled={readOnly}
               />
               <span className="text-sm text-gray-600">
                 {String(label)}
@@ -188,9 +196,10 @@ const FormRenderer: React.FC<FormRendererProps> = ({
             <input
               type="number"
               value={value}
-              onChange={(e) => handleFieldChange(fieldName, e.target.value)}
+              onChange={readOnly ? undefined : (e) => handleFieldChange(fieldName, e.target.value)}
               placeholder={String(placeholder)}
               className="w-full max-w-md px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors"
+              disabled={readOnly}
             />
           )}
 
@@ -198,9 +207,10 @@ const FormRenderer: React.FC<FormRendererProps> = ({
             <input
               type="email"
               value={value}
-              onChange={(e) => handleFieldChange(fieldName, e.target.value)}
+              onChange={readOnly ? undefined : (e) => handleFieldChange(fieldName, e.target.value)}
               placeholder={String(placeholder)}
               className="w-full max-w-md px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors"
+              disabled={readOnly}
             />
           )}
 
@@ -356,18 +366,20 @@ const FormRenderer: React.FC<FormRendererProps> = ({
                     <input
                       type="text"
                       value={formData[campo.nombre] || ''}
-                      onChange={(e) => handleFieldChange(campo.nombre, e.target.value)}
+                      onChange={readOnly ? undefined : (e) => handleFieldChange(campo.nombre, e.target.value)}
                       placeholder={String(campo.placeholder || `Ingrese ${(campo.label || '').toLowerCase()}`)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                      disabled={readOnly}
                     />
                   )}
 
                   {campo.tipo === 'textarea' && (
                     <textarea
                       value={formData[campo.nombre] || ''}
-                      onChange={(e) => handleFieldChange(campo.nombre, e.target.value)}
+                      onChange={readOnly ? undefined : (e) => handleFieldChange(campo.nombre, e.target.value)}
                       placeholder={String(campo.placeholder || `Ingrese ${(campo.label || '').toLowerCase()}`)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm min-h-[80px] resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                      disabled={readOnly}
                     />
                   )}
 
@@ -375,16 +387,18 @@ const FormRenderer: React.FC<FormRendererProps> = ({
                     <input
                       type="date"
                       value={formData[campo.nombre] || ''}
-                      onChange={(e) => handleFieldChange(campo.nombre, e.target.value)}
+                      onChange={readOnly ? undefined : (e) => handleFieldChange(campo.nombre, e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                      disabled={readOnly}
                     />
                   )}
 
                   {campo.tipo === 'select' && (
                     <select 
                       value={formData[campo.nombre] || ''}
-                      onChange={(e) => handleFieldChange(campo.nombre, e.target.value)}
+                      onChange={readOnly ? undefined : (e) => handleFieldChange(campo.nombre, e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                      disabled={readOnly}
                     >
                       <option value="">{String(campo.placeholder || 'Seleccione una opción')}</option>
                       {renderSelectOptions(campo.opciones)}
@@ -396,8 +410,9 @@ const FormRenderer: React.FC<FormRendererProps> = ({
                       <input
                         type="checkbox"
                         checked={formData[campo.nombre] || false}
-                        onChange={(e) => handleFieldChange(campo.nombre, e.target.checked)}
+                        onChange={readOnly ? undefined : (e) => handleFieldChange(campo.nombre, e.target.checked)}
                         className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                        disabled={readOnly}
                       />
                       <span className="text-sm text-gray-600">
                         {String(campo.label || campo.nombre)}
@@ -409,9 +424,10 @@ const FormRenderer: React.FC<FormRendererProps> = ({
                     <input
                       type="number"
                       value={formData[campo.nombre] || ''}
-                      onChange={(e) => handleFieldChange(campo.nombre, e.target.value)}
+                      onChange={readOnly ? undefined : (e) => handleFieldChange(campo.nombre, e.target.value)}
                       placeholder={String(campo.placeholder || `Ingrese ${(campo.label || '').toLowerCase()}`)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      disabled={readOnly}
                     />
                   )}
 
@@ -419,9 +435,10 @@ const FormRenderer: React.FC<FormRendererProps> = ({
                     <input
                       type="email"
                       value={formData[campo.nombre] || ''}
-                      onChange={(e) => handleFieldChange(campo.nombre, e.target.value)}
+                      onChange={readOnly ? undefined : (e) => handleFieldChange(campo.nombre, e.target.value)}
                       placeholder={String(campo.placeholder || `Ingrese ${(campo.label || '').toLowerCase()}`)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      disabled={readOnly}
                     />
                   )}
 

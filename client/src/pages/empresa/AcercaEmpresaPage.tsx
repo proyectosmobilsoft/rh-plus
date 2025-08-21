@@ -24,11 +24,16 @@ import {
   Hash,
   Briefcase,
   Target,
-  Building
+  Building,
+  Edit3
 } from 'lucide-react';
 import { obtenerEmpresaSeleccionada } from '@/utils/empresaUtils';
 import { supabase } from '@/services/supabaseClient';
 import { useRegisterView } from '@/hooks/useRegisterView';
+import { Button } from '@/components/ui/button';
+import { CompanyForm } from '@/components/companies/CompanyForm';
+import { empresaService } from '@/services/empresaService';
+import { useLoading } from '@/contexts/LoadingContext';
 
 interface EmpresaInfo {
   id: number;
@@ -64,6 +69,8 @@ export default function AcercaEmpresaPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("informacion");
+  const [isEditing, setIsEditing] = useState(false);
+  const { startLoading, stopLoading } = useLoading();
 
   useEffect(() => {
     const cargarEmpresa = async () => {
@@ -78,18 +85,16 @@ export default function AcercaEmpresaPage() {
           return;
         }
 
-        const { data, error: dbError } = await supabase
-          .from('empresas')
-          .select('*')
-          .eq('id', empresaSeleccionada.id)
-          .single();
+        // Usar servicio para obtener empresa con campos extendidos (incluye logo y plantillas)
+        const data = await empresaService.getById(empresaSeleccionada.id);
+        const dbError = null;
 
         if (dbError) {
           setError('Error al cargar la información de la empresa');
           return;
         }
 
-        setEmpresa(data);
+        setEmpresa(data as any);
       } catch (err) {
         setError('Error al cargar la información de la empresa');
       } finally {
@@ -233,228 +238,273 @@ export default function AcercaEmpresaPage() {
                 </div>
                 <span className="text-lg font-semibold text-gray-700">INFORMACIÓN DE LA EMPRESA</span>
               </div>
-              <div className="flex space-x-2">
+              <div className="flex items-center gap-2">
                 {getEstadoBadge(empresa.activo)}
                 {getTipoEmpresaBadge(empresa.tipo_empresa)}
+                {!isEditing ? (
+                  <Button
+                    className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1 ml-2"
+                    size="sm"
+                    onClick={() => setIsEditing(true)}
+                  >
+                    <Edit3 className="h-4 w-4 mr-2" />
+                    Editar
+                  </Button>
+                ) : (
+                  <Button
+                    disabled
+                    className="bg-yellow-100 text-yellow-800 border-yellow-300 cursor-default text-xs px-3 py-1 ml-2"
+                    size="sm"
+                  >
+                    Modo edición
+                  </Button>
+                )}
               </div>
             </div>
 
-            {/* Información principal de la empresa */}
-            <div className="p-6">
-              <div className="mb-6">
-                <h2 className="text-2xl font-semibold text-gray-900 mb-2">{empresa.razon_social}</h2>
-                <p className="text-gray-600">Empresa registrada en el sistema</p>
+            {/* Edición: reutilizar el mismo formulario de creación con datos iniciales */}
+            {isEditing && (
+              <div className="p-4 bg-gray-50 border-b">
+                <CompanyForm
+                  initialData={empresa}
+                  onSaved={async () => {
+                    // Al guardar, refrescar y salir de edición
+                    try {
+                      startLoading();
+                      const refreshed = await empresaService.getById(empresa.id);
+                      if (refreshed) setEmpresa(refreshed as any);
+                    } finally {
+                      stopLoading();
+                      setIsEditing(false);
+                    }
+                  }}
+                  onCancel={async () => {
+                    // Al cancelar, mostrar loading global y refrescar datos
+                    try {
+                      startLoading();
+                      const refreshed = await empresaService.getById(empresa.id);
+                      if (refreshed) setEmpresa(refreshed as any);
+                    } finally {
+                      stopLoading();
+                      setIsEditing(false);
+                    }
+                  }}
+                />
               </div>
-              
-              {/* Grid de información rápida */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-700">Tipo de Empresa</Label>
-                  <Input 
-                    value={empresa.tipo_empresa} 
-                    disabled 
-                    className="bg-gray-50 text-gray-900 font-bold"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-700">Ciudad</Label>
-                  <Input 
-                    value={empresa.ciudad_nombre || empresa.ciudad} 
-                    disabled 
-                    className="bg-gray-50 text-gray-900 font-bold"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-700">Teléfono</Label>
-                  <Input 
-                    value={empresa.telefono} 
-                    disabled 
-                    className="bg-gray-50 text-gray-900 font-bold"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-700">Email</Label>
-                  <Input 
-                    value={empresa.email} 
-                    disabled 
-                    className="bg-gray-50 text-gray-900 font-bold"
-                  />
-                </div>
-              </div>
+            )}
 
-              {/* Sección: Información General */}
-              <div className="mb-8">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <Building2 className="h-5 w-5 text-cyan-600 mr-2" />
-                  Información General
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {/* Información principal de la empresa (solo lectura) */}
+            {!isEditing && (
+              <div className="p-6">
+                <div className="mb-6">
+                  <h2 className="text-2xl font-semibold text-gray-900 mb-2">{empresa.razon_social}</h2>
+                  <p className="text-gray-600">Empresa registrada en el sistema</p>
+                </div>
+                
+                {/* Grid de información rápida */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-700">Tipo de Documento</Label>
+                    <Label className="text-sm font-medium text-gray-700">Tipo de Empresa</Label>
                     <Input 
-                      value={empresa.tipo_documento} 
+                      value={empresa.tipo_empresa} 
                       disabled 
                       className="bg-gray-50 text-gray-900 font-bold"
                     />
                   </div>
-
+                  
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-700">NIT</Label>
+                    <Label className="text-sm font-medium text-gray-700">Ciudad</Label>
                     <Input 
-                      value={empresa.nit} 
-                      disabled 
-                      className="bg-gray-50 text-gray-900 font-mono font-bold"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-700">Régimen Tributario</Label>
-                    <Input 
-                      value={empresa.regimen_tributario} 
+                      value={empresa.ciudad_nombre || empresa.ciudad} 
                       disabled 
                       className="bg-gray-50 text-gray-900 font-bold"
                     />
                   </div>
-
+                  
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-700">Número de Empleados</Label>
+                    <Label className="text-sm font-medium text-gray-700">Teléfono</Label>
                     <Input 
-                      value={empresa.numero_empleados.toString()} 
+                      value={empresa.telefono} 
+                      disabled 
+                      className="bg-gray-50 text-gray-900 font-bold"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-700">Email</Label>
+                    <Input 
+                      value={empresa.email} 
                       disabled 
                       className="bg-gray-50 text-gray-900 font-bold"
                     />
                   </div>
                 </div>
-              </div>
 
-              <Separator className="my-8" />
+                {/* Sección: Información General */}
+                <div className="mb-8">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <Building2 className="h-5 w-5 text-cyan-600 mr-2" />
+                    Información General
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700">Tipo de Documento</Label>
+                      <Input 
+                        value={empresa.tipo_documento} 
+                        disabled 
+                        className="bg-gray-50 text-gray-900 font-bold"
+                      />
+                    </div>
 
-              {/* Sección: Actividad Económica e Información del Sistema en una fila */}
-              <div className="mb-8">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  {/* Actividad Económica */}
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                      <Activity className="h-5 w-5 text-cyan-600 mr-2" />
-                      Actividad Económica
-                    </h3>
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium text-gray-700">Código de Actividad</Label>
-                        <Input 
-                          value={empresa.actividad_economica} 
-                          disabled 
-                          className="bg-gray-50 text-gray-900 font-bold"
-                        />
-                      </div>
-                      
-                      {empresa.actividad_nombre && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700">NIT</Label>
+                      <Input 
+                        value={empresa.nit} 
+                        disabled 
+                        className="bg-gray-50 text-gray-900 font-mono font-bold"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700">Régimen Tributario</Label>
+                      <Input 
+                        value={String(empresa.regimen_tributario || '')} 
+                        disabled 
+                        className="bg-gray-50 text-gray-900 font-bold"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700">Número de Empleados</Label>
+                      <Input 
+                        value={empresa.numero_empleados?.toString() || ''} 
+                        disabled 
+                        className="bg-gray-50 text-gray-900 font-bold"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <Separator className="my-8" />
+
+                {/* Sección: Actividad Económica e Información del Sistema en una fila */}
+                <div className="mb-8">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Actividad Económica */}
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <Activity className="h-5 w-5 text-cyan-600 mr-2" />
+                        Actividad Económica
+                      </h3>
+                      <div className="space-y-4">
                         <div className="space-y-2">
-                          <Label className="text-sm font-medium text-gray-700">Descripción de Actividad</Label>
+                          <Label className="text-sm font-medium text-gray-700">Código de Actividad</Label>
                           <Input 
-                            value={empresa.actividad_nombre} 
+                            value={String(empresa.actividad_economica || '')} 
                             disabled 
                             className="bg-gray-50 text-gray-900 font-bold"
                           />
                         </div>
-                      )}
+                        {empresa.actividad_nombre && (
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium text-gray-700">Descripción de Actividad</Label>
+                            <Input 
+                              value={empresa.actividad_nombre} 
+                              disabled 
+                              className="bg-gray-50 text-gray-900 font-bold"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Información del Sistema */}
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <Calendar className="h-5 w-5 text-cyan-600 mr-2" />
+                        Información del Sistema
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium text-gray-700">Fecha de Registro</Label>
+                          <Input 
+                            value={formatearFecha(empresa.created_at)} 
+                            disabled 
+                            className="bg-gray-50 text-gray-900 font-bold"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium text-gray-700">Última Actualización</Label>
+                          <Input 
+                            value={formatearFecha(empresa.updated_at)} 
+                            disabled 
+                            className="bg-gray-50 text-gray-900 font-bold"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium text-gray-700">ID de Empresa</Label>
+                          <Input 
+                            value={`#${empresa.id}`} 
+                            disabled 
+                            className="bg-gray-50 text-gray-900 font-mono font-bold"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
+                </div>
 
-                  {/* Información del Sistema */}
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                      <Calendar className="h-5 w-5 text-cyan-600 mr-2" />
-                      Información del Sistema
-                    </h3>
+                <Separator className="my-8" />
+
+                {/* Sección: Información de Contacto */}
+                <div className="mb-8">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <Phone className="h-5 w-5 text-cyan-600 mr-2" />
+                    Información de Contacto
+                  </h3>
+                  <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div className="space-y-2">
-                        <Label className="text-sm font-medium text-gray-700">Fecha de Registro</Label>
+                        <Label className="text-sm font-medium text-gray-700">Teléfono</Label>
                         <Input 
-                          value={formatearFecha(empresa.created_at)} 
+                          value={empresa.telefono} 
                           disabled 
                           className="bg-gray-50 text-gray-900 font-bold"
                         />
                       </div>
-                      
                       <div className="space-y-2">
-                        <Label className="text-sm font-medium text-gray-700">Última Actualización</Label>
+                        <Label className="text-sm font-medium text-gray-700">Correo Electrónico</Label>
                         <Input 
-                          value={formatearFecha(empresa.updated_at)} 
+                          value={empresa.email} 
                           disabled 
                           className="bg-gray-50 text-gray-900 font-bold"
                         />
                       </div>
-                      
                       <div className="space-y-2">
-                        <Label className="text-sm font-medium text-gray-700">ID de Empresa</Label>
+                        <Label className="text-sm font-medium text-gray-700">Representante Legal</Label>
                         <Input 
-                          value={`#${empresa.id}`} 
+                          value={empresa.representante_legal} 
                           disabled 
-                          className="bg-gray-50 text-gray-900 font-mono font-bold"
+                          className="bg-gray-50 text-gray-900 font-bold"
                         />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700">Dirección</Label>
+                      <Textarea 
+                        value={empresa.direccion} 
+                        disabled 
+                        className="bg-gray-50 text-gray-900 font-bold resize-none"
+                        rows={2}
+                      />
+                      <div className="text-sm text-gray-500">
+                        {empresa.ciudad_nombre || empresa.ciudad}, {empresa.departamento_nombre || ''}
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-
-              <Separator className="my-8" />
-
-              {/* Sección: Información de Contacto */}
-              <div className="mb-8">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <Phone className="h-5 w-5 text-cyan-600 mr-2" />
-                  Información de Contacto
-                </h3>
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-gray-700">Teléfono</Label>
-                      <Input 
-                        value={empresa.telefono} 
-                        disabled 
-                        className="bg-gray-50 text-gray-900 font-bold"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-gray-700">Correo Electrónico</Label>
-                      <Input 
-                        value={empresa.email} 
-                        disabled 
-                        className="bg-gray-50 text-gray-900 font-bold"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-gray-700">Representante Legal</Label>
-                      <Input 
-                        value={empresa.representante_legal} 
-                        disabled 
-                        className="bg-gray-50 text-gray-900 font-bold"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-700">Dirección</Label>
-                    <Textarea 
-                      value={empresa.direccion} 
-                      disabled 
-                      className="bg-gray-50 text-gray-900 font-bold resize-none"
-                      rows={2}
-                    />
-                    <div className="text-sm text-gray-500">
-                      {empresa.ciudad_nombre}, {empresa.departamento_nombre}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            )}
           </div>
         </TabsContent>
       </Tabs>
