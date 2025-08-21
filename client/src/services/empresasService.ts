@@ -12,6 +12,7 @@ export interface Empresa {
   representante_legal: string;
   cargo_representante: string;
   estado: string;
+  logo_base64?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -25,7 +26,7 @@ export const obtenerEmpresaPorId = async (empresaId: number): Promise<Empresa | 
     
     const { data, error } = await supabase
       .from('empresas')
-      .select('*')
+      .select('*, logo_base64')
       .eq('id', empresaId)
       .single();
 
@@ -56,7 +57,7 @@ export const obtenerEmpresas = async (): Promise<Empresa[]> => {
     
     const { data, error } = await supabase
       .from('empresas')
-      .select('*')
+      .select('*, logo_base64')
       .order('razon_social');
 
     if (error) {
@@ -112,6 +113,7 @@ export const empresasService = {
         email: empresa.email,
         telefono: empresa.telefono,
         representante_legal: empresa.representanteLegal,
+        logo_base64: empresa.logo_base64,
         activo: empresa.active
       };
 

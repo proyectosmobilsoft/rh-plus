@@ -22,6 +22,7 @@ export const createEmpresaSchema = z.object({
   documento_contrato_base64: z.string().optional(),
   documento_camara_comercio_base64: z.string().optional(),
   documento_rut_base64: z.string().optional(),
+  logo_base64: z.string().optional(),
   
   // Campos de configuración
   tipo_empresa: z.string().default("prestador"),

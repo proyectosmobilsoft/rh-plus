@@ -123,10 +123,21 @@ const Header = ({ sidebarOpen, toggleSidebar }: { sidebarOpen: boolean; toggleSi
           </div>
         </Button>
         
-        {/* Nombre de la empresa */}
-        <h1 className="text-2xl font-bold text-gray-900 bg-gradient-to-r from-cyan-600 to-cyan-800 bg-clip-text text-transparent">
-          {empresaData?.razon_social || empresaData?.nombre || 'Sistema'}
-        </h1>
+        {/* Nombre de la empresa o Logo */}
+        {empresaData?.logo_base64 ? (
+          <div className="flex items-center">
+            <div 
+              className="logo-header-empresa"
+              style={{
+                backgroundImage: `url(${empresaData.logo_base64})`
+              }}
+            ></div>
+          </div>
+        ) : (
+          <h1 className="text-2xl font-bold text-gray-900 bg-gradient-to-r from-cyan-600 to-cyan-800 bg-clip-text text-transparent">
+            {empresaData?.razon_social || empresaData?.nombre || 'Sistema'}
+          </h1>
+        )}
       </div>
       
       {/* Información del usuario */}

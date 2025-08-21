@@ -28,6 +28,7 @@ export interface Empresa {
   documento_contrato?: string;
   documento_camara_comercio?: string;
   documento_rut?: string;
+  logo_base64?: string;
   actividad_economica_id?: string;
   regimen_tributario_id?: string | number;
   numero_empleados?: number;
@@ -61,6 +62,7 @@ export const createEmpresa = async (data: CreateEmpresaDTO): Promise<Empresa | n
       documento_contrato: data.documento_contrato_base64,
       documento_camara_comercio: data.documento_camara_comercio_base64,
       documento_rut: data.documento_rut_base64,
+      logo_base64: data.logo_base64,
       tipo_empresa: data.tipo_empresa || 'prestador',
       activo: data.activo || true
     };
@@ -122,7 +124,7 @@ export const getEmpresaById = async (id: number): Promise<Empresa | null> => {
     // Primero obtener la empresa
     const { data: empresa, error: empresaError } = await supabase
       .from('empresas')
-      .select('*')
+      .select('*, logo_base64')
       .eq('id', id)
       .single();
 
@@ -222,6 +224,7 @@ export const updateEmpresa = async (id: number, data: Partial<CreateEmpresaDTO>)
       documento_contrato: data.documento_contrato_base64,
       documento_camara_comercio: data.documento_camara_comercio_base64,
       documento_rut: data.documento_rut_base64,
+      logo_base64: data.logo_base64,
       tipo_empresa: data.tipo_empresa || 'prestador',
       activo: data.activo || true
     };
@@ -296,7 +299,7 @@ export const getAllEmpresas = async (): Promise<Empresa[]> => {
     startLoading();
     const { data, error } = await supabase
       .from('empresas')
-      .select('*')
+      .select('*, logo_base64')
       .order('razon_social');
 
     if (error) {

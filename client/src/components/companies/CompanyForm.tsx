@@ -65,6 +65,16 @@ const calculateNITVerificationDigit = (nit: string): number => {
   return remainder > 1 ? 11 - remainder : remainder;
 };
 
+// Función para convertir archivo a Base64
+const convertFileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
 export function CompanyForm({ initialData, onSaved, entityType = 'afiliada' }: CompanyFormProps) {
   const { toast } = useToast();
   const { startLoading, stopLoading } = useLoading();
@@ -81,6 +91,7 @@ export function CompanyForm({ initialData, onSaved, entityType = 'afiliada' }: C
   const [selectedDepartamento, setSelectedDepartamento] = useState<string>("");
   const [showDocumentPreview, setShowDocumentPreview] = useState(false);
   const [previewDocument, setPreviewDocument] = useState<{ content: string; name: string; type: string } | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
   // Estado para plantillas asignadas
   const [plantillasAsignadas, setPlantillasAsignadas] = useState<number[]>(
@@ -201,6 +212,10 @@ export function CompanyForm({ initialData, onSaved, entityType = 'afiliada' }: C
       numero_empleados: 1,
       activo: true,
       tipo_empresa: entityType,
+      documento_contrato_base64: "",
+      documento_camara_comercio_base64: "",
+      documento_rut_base64: "",
+      logo_base64: "",
       documentos: []
     },
   });
@@ -273,6 +288,7 @@ export function CompanyForm({ initialData, onSaved, entityType = 'afiliada' }: C
         documento_contrato_base64: initialData.documento_contrato || "",
         documento_camara_comercio_base64: initialData.documento_camara_comercio || "",
         documento_rut_base64: initialData.documento_rut || "",
+        logo_base64: initialData.logo_base64 || "", // Cargar el logo si existe
         documentos: []
       };
 
@@ -323,6 +339,12 @@ export function CompanyForm({ initialData, onSaved, entityType = 'afiliada' }: C
       console.log('Documentos existentes cargados:', existingDocs);
       setUploadedFiles(existingDocs);
       setExistingDocuments(existingDocs);
+
+      // Cargar logo si existe
+      if (initialData.logo_base64) {
+        setLogoPreview(initialData.logo_base64);
+        console.log('Logo encontrado:', !!initialData.logo_base64);
+      }
 
       // Cargar departamento cuando se carga la ciudad
       if (initialData.ciudad) {
@@ -390,6 +412,7 @@ export function CompanyForm({ initialData, onSaved, entityType = 'afiliada' }: C
         documento_contrato_base64: data.documento_contrato_base64,
         documento_camara_comercio_base64: data.documento_camara_comercio_base64,
         documento_rut_base64: data.documento_rut_base64,
+        logo_base64: data.logo_base64, // Incluir el logo en el payload
         tipo_empresa: data.tipo_empresa || 'prestador',
         tipo_documento: data.tipo_documento, // Agregar el campo que falta
         activo: data.activo || true,
@@ -400,6 +423,7 @@ export function CompanyForm({ initialData, onSaved, entityType = 'afiliada' }: C
       console.log('actividad_economica:', data.actividad_economica);
       console.log('regimen_tributario:', data.regimen_tributario);
       console.log('numero_empleados:', data.numero_empleados);
+      console.log('logo_base64:', data.logo_base64 ? 'Presente' : 'No presente');
       console.log('Tipo de actividad_economica:', typeof data.actividad_economica);
       console.log('Tipo de regimen_tributario:', typeof data.regimen_tributario);
       console.log('Tipo de numero_empleados:', typeof data.numero_empleados);
@@ -444,36 +468,195 @@ export function CompanyForm({ initialData, onSaved, entityType = 'afiliada' }: C
     setSelectedPlantilla(Number(plantillaId));
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, docType: string) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const base64 = reader.result as string;
-        // Guardar el nombre del archivo para mostrar en la UI
-        setUploadedFiles(prev => ({
-          ...prev,
-          [docType]: file.name
-        }));
-        // Guardar el base64 en el formulario según el tipo de documento
-        switch (docType) {
-          case 'contrato':
-            form.setValue('documento_contrato_base64', base64);
-            break;
-          case 'camara_comercio':
-            form.setValue('documento_camara_comercio_base64', base64);
-            break;
-          case 'rut':
-            form.setValue('documento_rut_base64', base64);
-            break;
-        }
-        toast({
-          title: "Archivo seleccionado",
-          description: `${file.name} ha sido seleccionado correctamente.`,
-        });
-      };
-      reader.readAsDataURL(file);
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>, documentType: string) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const base64 = await convertFileToBase64(file);
+      const fieldName = `documento_${documentType}_base64`;
+      form.setValue(fieldName as any, base64);
+      setUploadedFiles(prev => ({
+        ...prev,
+        [documentType]: file.name
+      }));
+      toast({
+        title: "Documento subido",
+        description: `${file.name} se ha subido correctamente.`,
+        variant: "default",
+      });
+    } catch (error) {
+      console.error('Error al convertir archivo:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo procesar el archivo.",
+        variant: "destructive",
+      });
     }
+  };
+
+  // Función para validar dimensiones de imagen
+  const validateImageDimensions = (file: File): Promise<{ isValid: boolean; message: string }> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const { width, height } = img;
+        const aspectRatio = width / height;
+        const targetAspectRatio = 16 / 9; // 16:9 ratio
+        
+        // Verificar si las dimensiones están en el rango recomendado
+        const isWidthInRange = width >= 1200 && width <= 1920;
+        const isHeightInRange = height >= 675 && height <= 1080;
+        const isAspectRatioClose = Math.abs(aspectRatio - targetAspectRatio) < 0.5;
+        
+        if (isWidthInRange && isHeightInRange && isAspectRatioClose) {
+          resolve({
+            isValid: true,
+            message: `Dimensiones óptimas: ${width}x${height}px (${aspectRatio.toFixed(2)}:1)`
+          });
+        } else {
+          resolve({
+            isValid: false,
+            message: `Se recomienda 1600x900px (16:9). Actual: ${width}x${height}px. Se optimizará automáticamente.`
+          });
+        }
+      };
+      img.onerror = () => resolve({ isValid: false, message: 'No se pudo validar la imagen' });
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const handleLogoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validar que sea una imagen
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Error",
+        description: "Por favor selecciona un archivo de imagen válido.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validar tamaño (máximo 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "Error",
+        description: "El logo debe ser menor a 5MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Validar dimensiones de la imagen
+      const validation = await validateImageDimensions(file);
+      
+      // Mostrar información sobre la imagen
+      if (validation.isValid) {
+        toast({
+          title: "Imagen óptima",
+          description: validation.message,
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "Imagen detectada",
+          description: validation.message,
+          variant: "default",
+        });
+      }
+      
+      // Comprimir la imagen antes de convertir a Base64
+      const compressedImage = await compressImage(file);
+      const base64 = await convertFileToBase64(compressedImage);
+      form.setValue('logo_base64', base64);
+      setLogoPreview(base64);
+      
+      toast({
+        title: "Logo procesado",
+        description: "Imagen optimizada y convertida a 1600x900px (16:9 ratio).",
+        variant: "default",
+      });
+    } catch (error) {
+      console.error('Error al procesar logo:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo procesar el logo.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Función para comprimir imágenes
+  const compressImage = (file: File): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        // Usar las medidas recomendadas: 1600x900px (16:9 ratio)
+        const targetWidth = 1600;
+        const targetHeight = 900;
+        
+        // Calcular dimensiones manteniendo el aspect ratio
+        let { width, height } = img;
+        const aspectRatio = width / height;
+        const targetAspectRatio = targetWidth / targetHeight;
+        
+        let finalWidth, finalHeight;
+        
+        if (aspectRatio > targetAspectRatio) {
+          // Imagen más ancha que 16:9, ajustar por altura
+          finalHeight = targetHeight;
+          finalWidth = targetHeight * aspectRatio;
+        } else {
+          // Imagen más alta que 16:9, ajustar por ancho
+          finalWidth = targetWidth;
+          finalHeight = targetWidth / aspectRatio;
+        }
+        
+        // Configurar canvas con las dimensiones finales
+        canvas.width = finalWidth;
+        canvas.height = finalHeight;
+        
+        // Crear fondo blanco para centrar la imagen
+        if (ctx) {
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, finalWidth, finalHeight);
+          
+          // Calcular posición para centrar la imagen
+          const offsetX = (finalWidth - width) / 2;
+          const offsetY = (finalHeight - height) / 2;
+          
+          // Dibujar imagen centrada
+          ctx.drawImage(img, offsetX, offsetY, width, height);
+        }
+        
+        // Convertir a blob con alta calidad (PNG para mantener transparencia)
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, '.png'), {
+                type: 'image/png',
+                lastModified: Date.now(),
+              });
+              resolve(compressedFile);
+            } else {
+              reject(new Error('Error al comprimir imagen'));
+            }
+          },
+          'image/png',
+          0.95 // Alta calidad
+        );
+      };
+      
+      img.onerror = () => reject(new Error('Error al cargar imagen'));
+      img.src = URL.createObjectURL(file);
+    });
   };
 
   const handleOpenPreview = (plantilla: any) => {
@@ -1083,6 +1266,96 @@ export function CompanyForm({ initialData, onSaved, entityType = 'afiliada' }: C
                 )}
               </div>
             </div>
+
+              {/* Separador */}
+              <div className="border-t border-gray-200 my-6"></div>
+
+              {/* Sección del Logo */}
+              <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                  <Building2 className="w-5 h-5 text-blue-600" />
+                  Logo de la Empresa
+                </h3>
+                <div className="flex items-center gap-6">
+                  {/* Vista previa del logo */}
+                  <div className="flex-shrink-0">
+                    <div className="w-32 h-32 border-2 border-dashed border-gray-300 rounded-lg overflow-hidden bg-white flex items-center justify-center">
+                      {logoPreview || form.watch('logo_base64') ? (
+                        <div 
+                          className="logo-preview-empresa"
+                          style={{
+                            backgroundImage: `url(${logoPreview || form.watch('logo_base64')})`
+                          }}
+                        ></div>
+                      ) : (
+                        <div className="text-center text-gray-400">
+                          <Building2 className="w-8 h-8 mx-auto mb-2" />
+                          <p className="text-xs">Sin logo</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Controles del logo */}
+                  <div className="flex-1">
+                    <div className="space-y-3">
+                      <div>
+                        <Label htmlFor="logo" className="text-sm font-medium text-gray-700">
+                          Seleccionar Logo
+                        </Label>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Formatos soportados: JPG, PNG. Tamaño máximo: 5MB. 
+                          Se optimizará automáticamente a 1600x900px (16:9 ratio).
+                        </p>
+                      </div>
+                      
+                      <div className="flex items-center gap-3">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => document.getElementById('logo')?.click()}
+                          className="flex items-center gap-2"
+                        >
+                          <Upload className="w-4 h-4" />
+                          {form.watch('logo_base64') ? 'Cambiar Logo' : 'Subir Logo'}
+                        </Button>
+                        
+                        {form.watch('logo_base64') && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              form.setValue('logo_base64', '');
+                              setLogoPreview(null);
+                            }}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            Quitar Logo
+                          </Button>
+                        )}
+                      </div>
+                      
+                      <input
+                        id="logo"
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={handleLogoChange}
+                        onClick={(e) => (e.target as HTMLInputElement).value = ''}
+                      />
+                      
+                      {form.watch('logo_base64') && (
+                        <div className="text-xs text-green-600 bg-green-50 p-2 rounded">
+                          <CheckCircle className="w-3 h-3 inline mr-1" />
+                          Logo cargado correctamente
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               {/* Separador */}
               <div className="border-t border-gray-200 my-6"></div>
