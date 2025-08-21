@@ -4,6 +4,43 @@ import { useNavigate } from "react-router-dom";
 import { plantillasService } from '@/services/plantillasService';
 import { useLoading } from '@/contexts/LoadingContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { 
+  Plus, Edit3, Trash2, Save, X, Eye, FileText
+} from 'lucide-react';
+
+// Normaliza opciones desde string | string[] a string[] seguro
+const toOptionsArray = (options?: string | string[]): string[] => {
+  if (!options) return [];
+  if (Array.isArray(options)) return options.map((o) => String(o).trim()).filter(Boolean);
+  return String(options)
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+};
+
+// Tipos fuertes para evitar never[] e implícitos any
+type FormField = {
+  id: string;
+  type: string;
+  label: string;
+  name?: string;
+  placeholder?: string;
+  required?: boolean;
+  order: number;
+  dimension: number;
+  options?: string | string[];
+  activo?: boolean;
+  [key: string]: any;
+};
+
+type FormSection = {
+  id: string;
+  titulo: string;
+  layout?: string;
+  campos: FormField[];
+  activo?: boolean;
+  [key: string]: any;
+};
 
 const FIELD_TYPES = [
   { value: 'text', label: 'Texto' },
@@ -19,25 +56,7 @@ const FIELD_TYPES = [
   { value: 'percent', label: 'Porcentaje (%)' },
 ];
 
-const SECTION_ICONS = [
-  { value: 'User', label: 'Usuario' },
-  { value: 'Building', label: 'Edificio' },
-  { value: 'DollarSign', label: 'Dinero' },
-  { value: 'Briefcase', label: 'Maletín' },
-  { value: 'Home', label: 'Casa' },
-  { value: 'Car', label: 'Carro' },
-  { value: 'Phone', label: 'Teléfono' },
-  { value: 'Mail', label: 'Correo' },
-  { value: 'MapPin', label: 'Ubicación' },
-  { value: 'Calendar', label: 'Calendario' },
-  { value: 'FileText', label: 'Documento' },
-  { value: 'Shield', label: 'Escudo' },
-  { value: 'Heart', label: 'Corazón' },
-  { value: 'Star', label: 'Estrella' },
-  { value: 'Settings', label: 'Configuración' },
-];
-
-const createDefaultField = () => ({
+const createDefaultField = (): FormField => ({
   id: uuidv4(),
   type: 'text',
   label: '',
@@ -45,14 +64,12 @@ const createDefaultField = () => ({
   required: false,
   order: 1,
   dimension: 12,
-  options: '',
   activo: true,
 });
 
-const createDefaultSection = () => ({
+const createDefaultSection = (): FormSection => ({
   id: uuidv4(),
   titulo: '',
-  icono: 'User',
   layout: 'grid-cols-12',
   campos: [],
   activo: true,
@@ -62,13 +79,13 @@ function reorder(list: any[], startIndex: number, endIndex: number) {
   const result = Array.from(list);
   const [removed] = result.splice(startIndex, 1);
   result.splice(endIndex, 0, removed);
-  return result.map((f, i) => ({ ...f, order: i + 1 }));
+  return result.map((f: any, i: number) => ({ ...f, order: i + 1 }));
 }
 
 const FormBuilder: React.FC<{ 
   precargados?: any[], 
   readOnly?: boolean,
-  onSave?: (data: { nombre: string, descripcion: string, fields: any[] }) => Promise<void>,
+  onSave?: (data: { nombre: string, descripcion: string, estructura_formulario: any }) => Promise<void>,
   initialName?: string,
   initialDescription?: string,
   onFieldsChange?: (fields: any[]) => void,
@@ -79,14 +96,16 @@ const FormBuilder: React.FC<{
 }> = ({ precargados, readOnly = false, onSave, initialName = '', initialDescription = '', onFieldsChange, hideInternalSaveButton = false, isEditing = false, onNameChange, onDescriptionChange }) => {
   const [formName, setFormName] = useState(initialName);
   const [formDesc, setFormDesc] = useState(initialDescription);
-  const [sections, setSections] = useState<any[]>([]);
-  const [currentSection, setCurrentSection] = useState(createDefaultSection());
-  const [currentField, setCurrentField] = useState(createDefaultField());
+  const [sections, setSections] = useState<FormSection[]>([]);
+  const [currentSection, setCurrentSection] = useState<FormSection>(createDefaultSection());
+  const [currentField, setCurrentField] = useState<FormField>(createDefaultField());
   const [showJson, setShowJson] = useState(false);
   const [selectedSectionIdx, setSelectedSectionIdx] = useState<number | null>(null);
   const [selectedFieldIdx, setSelectedFieldIdx] = useState<number | null>(null);
   const [draggedSectionIdx, setDraggedSectionIdx] = useState<number | null>(null);
   const [draggedFieldIdx, setDraggedFieldIdx] = useState<number | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [activeTab, setActiveTab] = useState("seccion");
   const { startLoading, stopLoading } = useLoading();
 
 
@@ -94,70 +113,98 @@ const FormBuilder: React.FC<{
 
   // Inicializar campos precargados con IDs únicos
   useEffect(() => {
-    if (precargados) {
-      let dataToProcess = precargados;
-      
-      // Si precargados es un objeto (JSON parseado), extraer las secciones
-      if (precargados && typeof precargados === 'object' && !Array.isArray(precargados) && precargados.secciones) {
-        dataToProcess = precargados.secciones;
-      }
-      
-      console.log('🔍 FormBuilder - precargados:', precargados);
-      console.log('🔍 FormBuilder - dataToProcess:', dataToProcess);
-      
-      if (dataToProcess && dataToProcess.length > 0) {
-        // Si los datos precargados ya tienen estructura de secciones, usarlos directamente
-        if (dataToProcess[0] && dataToProcess[0].campos) {
-          const processedSections = dataToProcess.map(section => ({
-            ...section,
-            id: section.id || uuidv4(),
-            activo: section.activo !== false, // Asegurar que las secciones estén activas
-            campos: section.campos.map(f => {
-              // Extraer dimension del gridColumnSpan si existe
-              let dimension = f.dimension;
-              if (!dimension && f.gridColumnSpan) {
-                const match = f.gridColumnSpan.match(/span (\d+)/);
-                dimension = match ? parseInt(match[1]) : 12;
-              }
-              // Si no hay dimension, usar 12 por defecto
-              if (!dimension) dimension = 12;
-              
-              return {
-                ...f,
-                id: f.id || uuidv4(),
-                activo: f.activo !== false, // Asegurar que los campos estén activos
-                order: f.order || 1, // Asegurar que tengan orden
-                dimension: dimension, // Asegurar que tengan dimension
-                type: f.tipo || f.type || 'text', // Asegurar que tengan tipo
-                label: f.label || f.label || '', // Asegurar que tengan label
-                name: f.nombre || f.name || '', // Asegurar que tengan nombre
-                placeholder: f.placeholder || '', // Asegurar que tengan placeholder
-                required: f.required || false, // Asegurar que tengan required
-                options: f.opciones || f.options || '' // Asegurar que tengan options
-              };
-            })
-          }));
-          
-          console.log('🔍 FormBuilder - processedSections:', processedSections);
-          setSections(processedSections);
-        } else {
-          // Migración: convertir campos planos a una sección por defecto
-          const camposActivos = dataToProcess.filter(f => f.activo !== false);
-          if (camposActivos.length > 0) {
-            const defaultSection = createDefaultSection();
-            defaultSection.titulo = 'Campos del Formulario';
-            defaultSection.campos = camposActivos.map(f => ({
-        ...f,
-        id: f.id || uuidv4(),
+    if (isInitialized) return; // Evitar ejecución múltiple
+    
+    let dataToProcess: any[] | null = null;
+    if (Array.isArray(precargados)) {
+      dataToProcess = precargados;
+    } else if (precargados && typeof precargados === 'object' && (precargados as any).secciones) {
+      dataToProcess = (precargados as any).secciones as any[];
+    }
+
+    console.log('🔍 FormBuilder - precargados:', precargados);
+    console.log('🔍 FormBuilder - dataToProcess:', dataToProcess);
+
+    if (dataToProcess && dataToProcess.length > 0) {
+      // Si los datos precargados ya tienen estructura de secciones, usarlos directamente
+      if (dataToProcess[0] && (dataToProcess[0] as any).campos) {
+        const processedSections = dataToProcess.map((section: any) => ({
+          ...section,
+          id: section.id || uuidv4(),
+          activo: section.activo !== false,
+          campos: section.campos.map((f: any) => {
+            let dimension = f.dimension;
+            if (!dimension && f.gridColumnSpan) {
+              const match = f.gridColumnSpan.match(/span (\d+)/);
+              dimension = match ? parseInt(match[1]) : 12;
+            }
+            if (!dimension) dimension = 12;
+            return {
+              ...f,
+              id: f.id || uuidv4(),
               activo: f.activo !== false,
-              order: f.order || 1
-            }));
-            setSections([defaultSection]);
-          }
+              order: f.order || 1,
+              dimension,
+              type: f.tipo || f.type || 'text',
+              label: f.label || '',
+              name: f.nombre || f.name || '',
+              placeholder: f.placeholder || '',
+              required: f.required || false,
+              options: f.opciones || f.options || ''
+            };
+          })
+        }));
+        setSections(processedSections);
+      } else {
+        // Migración: convertir campos planos a una sección por defecto
+        const camposActivos = dataToProcess.filter((f: any) => f.activo !== false);
+        if (camposActivos.length > 0) {
+          const defaultSection = createDefaultSection();
+          defaultSection.titulo = 'Campos del Formulario';
+          defaultSection.campos = camposActivos.map((f: any) => ({
+            ...f,
+            id: f.id || uuidv4(),
+            activo: f.activo !== false,
+            order: f.order || 1
+          }));
+          setSections([defaultSection]);
         }
       }
+    } else {
+      // Si no hay datos, crear sección por defecto con campos básicos
+      const defaultSection = createDefaultSection();
+      defaultSection.titulo = 'Datos Personales';
+      defaultSection.campos = [
+        {
+          id: uuidv4(),
+          type: 'number',
+          label: 'Documento',
+          name: 'documento',
+          placeholder: 'Ingrese su número de documento',
+          required: true,
+          order: 1,
+          dimension: 6,
+          options: '',
+          activo: true
+        },
+        {
+          id: uuidv4(),
+          type: 'email',
+          label: 'Correo Electrónico',
+          name: 'correo_electronico',
+          placeholder: 'Ingrese su correo electrónico',
+          required: true,
+          order: 2,
+          dimension: 6,
+          options: '',
+          activo: true
+        }
+      ];
+      setSections([defaultSection]);
     }
-  }, [precargados]);
+    
+    setIsInitialized(true); // Marcar como inicializado
+  }, [precargados, isInitialized]);
 
   // Inicializar nombre y descripción cuando cambien las props
   useEffect(() => {
@@ -243,12 +290,14 @@ const FormBuilder: React.FC<{
     setSelectedSectionIdx(idx);
     setCurrentSection({ ...sections[idx] });
     setSelectedFieldIdx(null);
+    setActiveTab("seccion"); // Cambiar al tab de edición de sección
   };
 
   const selectField = (sectionIdx: number, fieldIdx: number) => {
     setSelectedSectionIdx(sectionIdx);
     setSelectedFieldIdx(fieldIdx);
     setCurrentField({ ...sections[sectionIdx].campos[fieldIdx] });
+    setActiveTab("campo"); // Cambiar al tab de edición de campo
   };
 
   const saveSection = (e: React.FormEvent) => {
@@ -337,7 +386,7 @@ const FormBuilder: React.FC<{
     setDraggedFieldIdx(null);
   };
 
-  const renderField = (f: any, i: number) => {
+  const renderField = (f: FormField, i: number) => {
     const gridColumnSpan = `span ${f.dimension}`;
     switch (f.type) {
       case 'text':
@@ -353,7 +402,6 @@ const FormBuilder: React.FC<{
             <label style={{ fontWeight: 500, fontSize: 13, marginBottom: 4, display: 'block' }}>{f.label}{f.required && ' *'}</label>
             <input 
               type={f.type} 
-              placeholder={f.placeholder} 
               className="form-builder-input"
               style={{ 
                 width: '100%', 
@@ -374,7 +422,6 @@ const FormBuilder: React.FC<{
           }}>
             <label style={{ fontWeight: 500, fontSize: 13, marginBottom: 4, display: 'block' }}>{f.label}{f.required && ' *'}</label>
             <textarea 
-              placeholder={f.placeholder} 
               className="form-builder-input"
               style={{ 
                 width: '100%', 
@@ -402,7 +449,9 @@ const FormBuilder: React.FC<{
               border: '1px solid #e0e7ef', 
               fontSize: 13 
             }}>
-              {f.options.split(',').map((opt: string, idx: number) => <option key={idx} value={opt.trim()}>{opt.trim()}</option>)}
+              {toOptionsArray(f.options).map((opt: string, idx: number) => (
+                <option key={idx} value={opt}>{opt}</option>
+              ))}
             </select>
           </div>
         );
@@ -434,9 +483,9 @@ const FormBuilder: React.FC<{
             minWidth: 0
           }}>
             <label style={{ fontWeight: 500, fontSize: 13, marginBottom: 4, display: 'block' }}>{f.label}{f.required && ' *'}</label><br />
-            {f.options.split(',').map((opt: string, idx: number) => (
+            {toOptionsArray(f.options).map((opt: string, idx: number) => (
               <label key={idx} style={{ marginRight: 8, fontSize: 12 }}>
-                <input type="radio" name={f.name} value={opt.trim()} style={{ marginRight: 4 }} /> {opt.trim()}
+                <input type="radio" name={f.name} value={opt} style={{ marginRight: 4 }} /> {opt}
               </label>
             ))}
           </div>
@@ -469,7 +518,9 @@ const FormBuilder: React.FC<{
               border: '1px solid #e0e7ef', 
               fontSize: 13 
             }}>
-              {f.options.split(',').map((opt: string, idx: number) => <option key={idx} value={opt.trim()}>{opt.trim()}</option>)}
+              {toOptionsArray(f.options).map((opt: string, idx: number) => (
+                <option key={idx} value={opt}>{opt}</option>
+              ))}
             </select>
           </div>
         );
@@ -500,7 +551,6 @@ const FormBuilder: React.FC<{
 
   const formJson = {
     secciones: sections.filter(s => s.activo !== false).map(section => ({
-      icono: section.icono,
       titulo: section.titulo,
       layout: 'grid-cols-12',
       campos: section.campos.filter(f => f.activo !== false).map(field => ({
@@ -510,41 +560,13 @@ const FormBuilder: React.FC<{
         colspan: `col-span-${Math.min(field.dimension, 12)}`,
         gridColumnSpan: `span ${Math.min(field.dimension, 12)}`,
         required: field.required,
-        placeholder: field.placeholder,
         dimension: field.dimension,
         order: field.order,
-        opciones: field.type === 'select' || field.type === 'radio' ?
-          (field.options ? 
-            (Array.isArray(field.options) ? 
-              field.options : 
-              field.options.split(',').map((opt: string) => opt.trim())
-            ) : 
-            []
-          ) :
-          undefined
+        opciones: field.type === 'select' || field.type === 'radio'
+          ? toOptionsArray(field.options)
+          : undefined
       }))
     }))
-  };
-
-  const getIconEmoji = (iconName: string) => {
-    const iconMap: { [key: string]: string } = {
-      'User': '👤',
-      'Building': '🏢',
-      'DollarSign': '💰',
-      'Briefcase': '💼',
-      'Home': '🏠',
-      'Car': '🚗',
-      'Phone': '📱',
-      'Mail': '📧',
-      'MapPin': '📍',
-      'Calendar': '📅',
-      'FileText': '📄',
-      'Shield': '🛡️',
-      'Heart': '❤️',
-      'Star': '⭐',
-      'Settings': '⚙️'
-    };
-    return iconMap[iconName] || '📋';
   };
 
   return (
@@ -591,8 +613,8 @@ const FormBuilder: React.FC<{
       <div style={{ 
         background: '#f8fafc', 
         display: 'flex', 
-        height: '100vh',
-        overflow: 'hidden'
+        minHeight: '100vh',
+        overflow: 'visible'
       }}>
       {!readOnly && (
         <div style={{ 
@@ -602,8 +624,8 @@ const FormBuilder: React.FC<{
           padding: '2rem 1rem', 
           borderRadius: '0 24px 24px 0', 
           boxShadow: '2px 0 12px 0 rgba(0,0,0,0.03)',
-          height: '100vh',
-          overflowY: 'auto'
+          height: 'auto',
+          overflow: 'visible'
         }}>
           <h3 style={{ color: '#000', fontWeight: 700, fontSize: 20, marginBottom: 18 }}>Secciones</h3>
           
@@ -636,7 +658,7 @@ const FormBuilder: React.FC<{
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 16 }}>{getIconEmoji(section.icono)}</span>
+                    <span style={{ fontSize: 16 }}>📋</span>
                     <span>{section.titulo || '(Sin título)'}</span>
                   </div>
                   <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
@@ -691,470 +713,437 @@ const FormBuilder: React.FC<{
         maxWidth: 900, 
         margin: '0 auto', 
         padding: '2rem',
-        height: '100vh',
-        overflowY: 'auto'
+        height: 'auto',
+        overflow: 'visible'
       }}>
         {!readOnly && (
           <>
-            {/* Formulario de sección */}
-            <form style={{ 
-              display: 'flex', 
-              gap: 24, 
-              marginBottom: 32, 
-              flexWrap: 'wrap',
-              background: '#f0f9ff',
-              padding: '24px',
-              borderRadius: '16px',
-              border: '1px solid #bae6fd'
-            }}>
-              <div style={{ flex: 1, minWidth: 320 }}>
-                <fieldset style={{ 
-                  border: '1px solid #0ea5e9', 
-                  borderRadius: 12, 
-                  padding: 20, 
-                  marginBottom: 8,
-                  background: '#ffffff',
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                }}>
-                  <legend style={{ 
-                    color: '#0ea5e9', 
-                    fontWeight: '600', 
-                    padding: '0 8px',
-                    fontSize: '16px'
-                  }}>{selectedSectionIdx === null ? 'Agregar sección' : 'Editar sección'}</legend>
+            {/* Tabs de navegación */}
+            <div className="mb-6">
+              <div className="grid w-full grid-cols-3 bg-cyan-100/60 p-1 rounded-lg">
+                <button
+                  onClick={() => setActiveTab("seccion")}
+                  className={`px-4 py-2 rounded-md transition-all duration-300 text-sm font-medium ${
+                    activeTab === "seccion" 
+                      ? "bg-cyan-600 text-white shadow-md" 
+                      : "text-gray-600 hover:text-gray-800"
+                  }`}
+                >
+                  Agregar Sección
+                </button>
+                <button
+                  onClick={() => setActiveTab("campo")}
+                  className={`px-4 py-2 rounded-md transition-all duration-300 text-sm font-medium ${
+                    activeTab === "campo" 
+                      ? "bg-cyan-600 text-white shadow-md" 
+                      : "text-gray-600 hover:text-gray-800"
+                  }`}
+                >
+                  Agregar Campo
+                </button>
+                <button
+                  onClick={() => setActiveTab("vista")}
+                  className={`px-4 py-2 rounded-md transition-all duration-300 text-sm font-medium ${
+                    activeTab === "vista" 
+                      ? "bg-cyan-600 text-white shadow-md" 
+                      : "text-gray-600 hover:text-gray-800"
+                  }`}
+                >
+                  Vista Previa
+                </button>
+              </div>
+            </div>
+
+            {/* Tab: Agregar/Editar Sección */}
+            {activeTab === "seccion" && (
+              <div className="mb-6">
+                <div className="bg-white rounded-lg border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <span className="text-2xl mr-2">🏢</span>
+                    {selectedSectionIdx === null ? 'Agregar Nueva Sección' : 'Editar Sección'}
+                  </h3>
                   
                   {sections.length === 0 && (
-                    <div style={{ marginBottom: 16, padding: 12, background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' }}>
-                      <p style={{ margin: 0, color: '#0c4a6e', fontSize: 14 }}>
+                    <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-blue-800 text-sm">
                         💡 <strong>Primer paso:</strong> Crea una sección para organizar los campos de tu formulario
                       </p>
-                      <p style={{ margin: '8px 0 0 0', color: '#0c4a6e', fontSize: 12 }}>
+                      <p className="text-blue-700 text-xs mt-1">
                         📐 <strong>Sistema de columnas:</strong> Cada sección usa un grid de 12 columnas. Configura el ancho de cada campo (1-12) para controlar su tamaño.
                       </p>
                     </div>
                   )}
                   
-                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', width: '100%' }}>
-                    <div style={{ flex: '1 1 calc(50% - 6px)', minWidth: '120px' }}>
-                      <label style={{ fontSize: 12, marginBottom: 4, color: '#666' }}>Título de la Sección</label>
+                  <form onSubmit={(e) => e.preventDefault()} className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Título de la Sección</label>
                       <input 
-                        className="borde-input" 
+                        className="w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm" 
                         name="titulo" 
                         value={currentSection.titulo} 
                         onChange={handleSectionChange} 
                         autoComplete="off"
-                        placeholder="Ej: Datos del Trabajador"
-                        style={{ 
-                          width: '100%',
-                          fontSize: 16, 
-                          borderRadius: 8, 
-                          padding: 8, 
-                          border: '1px solid #c1c1c1',
-                          boxSizing: 'border-box'
-                        }} 
                       />
                     </div>
-                    <div style={{ flex: '1 1 calc(50% - 6px)', minWidth: '120px' }}>
-                      <label style={{ fontSize: 12, marginBottom: 4, color: '#666' }}>Icono</label>
-                      <select 
-                        name="icono" 
-                        value={currentSection.icono} 
-                        onChange={handleSectionChange}
-                        style={{ 
-                          width: '100%',
-                          fontSize: 16, 
-                          borderRadius: 8, 
-                          padding: 8, 
-                          border: '1px solid #c1c1c1'
-                        }}
-                      >
-                        {SECTION_ICONS.map(icon => (
-                          <option key={icon.value} value={icon.value}>
-                            {icon.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div style={{ display: 'flex', gap: 6, marginLeft: 'auto', marginTop: 8 }}>
+                    
+                    <div className="flex gap-2 pt-3 justify-end">
                       {selectedSectionIdx === null ? (
                         <button 
-                          onClick={addSection} 
-                          style={{ 
-                            fontSize: 14, 
-                            borderRadius: 6, 
-                            padding: '6px 12px', 
-                            background: '#a5d8ff', 
-                            border: 'none', 
-                            color: '#2d3142', 
-                            fontWeight: 600, 
-                            cursor: 'pointer',
-                            whiteSpace: 'nowrap'
-                          }}
+                          type="button"
+                          onClick={(e) => addSection(e as any)}
+                          className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 text-sm font-medium flex items-center gap-2"
                         >
+                          <Plus className="h-3 w-3" />
                           {sections.length === 0 ? 'Crear Primera Sección' : 'Agregar Sección'}
                         </button>
                       ) : (
                         <>
-                          <button onClick={saveSection} style={{ fontSize: 14, borderRadius: 6, padding: '6px 12px', background: '#b6e2d3', border: 'none', color: '#2d3142', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>Guardar Sección</button>
-                          <button type="button" onClick={() => removeSection(selectedSectionIdx)} style={{ fontSize: 14, borderRadius: 6, padding: '6px 12px', background: '#ffd6e0', border: 'none', color: '#2d3142', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>Eliminar Sección</button>
-                          <button type="button" onClick={() => { setSelectedSectionIdx(null); setCurrentSection(createDefaultSection()); }} style={{ fontSize: 14, borderRadius: 6, padding: '6px 12px', background: '#f0f4f8', border: 'none', color: '#2d3142', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>Cancelar</button>
+                          <button 
+                            type="button"
+                            onClick={saveSection} 
+                            className="px-3 py-1.5 bg-green-100 text-green-700 rounded-md hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 text-sm font-medium flex items-center gap-2"
+                          >
+                            <Save className="h-3 w-3" />
+                            Guardar Sección
+                          </button>
+                          <button 
+                            type="button" 
+                            onClick={() => removeSection(selectedSectionIdx)} 
+                            className="px-3 py-1.5 bg-red-100 text-red-700 rounded-md hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 text-sm font-medium flex items-center gap-2"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                            Eliminar Sección
+                          </button>
+                          <button 
+                            type="button" 
+                            onClick={() => { 
+                              setSelectedSectionIdx(null); 
+                              setCurrentSection(createDefaultSection()); 
+                            }} 
+                            className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 text-sm font-medium flex items-center gap-2"
+                          >
+                            <X className="h-3 w-3" />
+                            Cancelar
+                          </button>
                         </>
                       )}
                     </div>
-                  </div>
-                </fieldset>
+                  </form>
+                </div>
               </div>
-            </form>
+            )}
 
-            {/* Formulario de campo (solo si hay una sección seleccionada) */}
-            {selectedSectionIdx !== null && (
-              <form style={{ 
-                display: 'flex', 
-                gap: 24, 
-                marginBottom: 32, 
-                flexWrap: 'wrap',
-                background: '#f0f9ff',
-                padding: '24px',
-                borderRadius: '16px',
-                border: '1px solid #bae6fd'
-              }}>
-                <div style={{ flex: 1, minWidth: 320 }}>
-                  <fieldset style={{ 
-                    border: '1px solid #0ea5e9', 
-                    borderRadius: 12, 
-                    padding: 20, 
-                    marginBottom: 8,
-                    background: '#ffffff',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                  }}>
-                    <legend style={{ 
-                      color: '#0ea5e9', 
-                      fontWeight: '600', 
-                      padding: '0 8px',
-                      fontSize: '16px'
-                    }}>{selectedFieldIdx === null ? 'Agregar campo' : 'Editar campo'}</legend>
-                    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', width: '100%' }}>
-                      <div style={{ flex: '1 1 calc(50% - 6px)', minWidth: '120px' }}>
-                        <label style={{ fontSize: 12, marginBottom: 4, color: '#666' }}>Tipo de Campo</label>
-                        <Select onValueChange={(value) => setCurrentField(f => ({ ...f, type: value }))} value={currentField.type}>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Seleccionar tipo" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {FIELD_TYPES.map(ft => (
-                              <SelectItem key={ft.value} value={ft.value}>
-                                {ft.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+            {/* Tab: Agregar/Editar Campo */}
+            {activeTab === "campo" && (
+              <div className="mb-6">
+                <div className="bg-white rounded-lg border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <span className="text-2xl mr-2">📋</span>
+                    {selectedFieldIdx === null ? 'Agregar Nuevo Campo' : 'Editar Campo'}
+                  </h3>
+                  
+                  {selectedSectionIdx === null ? (
+                    <div className="text-center py-8">
+                      <div className="text-4xl mb-4">📋</div>
+                      <p className="text-gray-600 mb-2">No hay sección seleccionada</p>
+                      <p className="text-gray-500 text-sm">Selecciona una sección del panel izquierdo para agregar campos</p>
                     </div>
-                    <div style={{ flex: '1 1 calc(50% - 6px)', minWidth: '120px' }}>
-                        <label style={{ fontSize: 12, marginBottom: 4, color: '#666' }}>Label</label>
-                      <input 
-                        className="borde-input" 
-                        name="label" 
-                          value={currentField.label} 
-                        onChange={handleFieldChange} 
-                          autoComplete="off"
-                        style={{ 
-                          width: '100%',
-                          fontSize: 16, 
-                          borderRadius: 8, 
-                          padding: 8, 
-                          border: '1px solid #c1c1c1',
-                          boxSizing: 'border-box'
-                        }} 
-                      />
-                    </div>
-                      {currentField.type !== 'title' && (
-                        <div style={{ flex: '1 1 calc(50% - 6px)', minWidth: '120px' }}>
-                        <label style={{ fontSize: 12, marginBottom: 4, color: '#666' }}>Placeholder</label>
-                        <input 
-                          className="borde-input" 
-                          name="placeholder" 
-                            value={currentField.placeholder} 
-                          onChange={handleFieldChange} 
-                            autoComplete="off"
-                            style={{ 
-                              width: '100%',
-                              fontSize: 16, 
-                              borderRadius: 8, 
-                              padding: 8, 
-                              border: '1px solid #c1c1c1',
-                              boxSizing: 'border-box'
-                            }} 
-                        />
-                      </div>
-                    )}
-                      <div style={{ display: 'flex', flexDirection: 'column', width: 80 }}>
-                      <label style={{ fontSize: 12, marginBottom: 4, color: '#666' }}>Orden</label>
-                        <input className="borde-input" name="order" type="number" min={1} max={99} value={currentField.order} onChange={handleFieldChange} autoComplete="off" style={{ width: 80, fontSize: 16, borderRadius: 8, padding: 8, border: '1px solid #c1c1c1' }} />
-                    </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', width: 80 }}>
-                      <label style={{ fontSize: 12, marginBottom: 4, color: '#666' }}>Tamaño (1-12)</label>
-                        <input className="borde-input" name="dimension" type="number" min={1} max={12} value={currentField.dimension} onChange={handleFieldChange} autoComplete="off" style={{ width: 80, fontSize: 16, borderRadius: 8, padding: 8, border: '1px solid #c1c1c1' }} />
-                    </div>
-                      {(currentField.type === 'select' || currentField.type === 'radio' || currentField.type === 'foreignKey') && (
-                        <input className="borde-input" name="options" placeholder="Opciones (separadas por coma)" value={currentField.options} onChange={handleFieldChange} autoComplete="off" style={{ fontSize: 16, borderRadius: 8, padding: 8, minWidth: 180, border: '1px solid #c1c1c1' }} />
-                    )}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', marginTop: 8 }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', flex: 1 }}>
-                        <div className="toggle-switch">
-                          <input className="borde-input" 
-                            name="required" 
-                            type="checkbox" 
-                              checked={currentField.required} 
-                            onChange={handleFieldChange}
-                            style={{ border: '1px solid #c1c1c1' }}
+                  ) : (
+                    <form onSubmit={(e) => e.preventDefault()} className="space-y-3">
+                      {/* Fila: Tipo de Campo + Orden + Label (12 cols) */}
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                        <div className="md:col-span-3">
+                          <label className="block text-sm font-medium text-gray-700 mb-1.5">Tipo de Campo</label>
+                          <Select onValueChange={(value) => setCurrentField(f => ({ ...f, type: value }))} value={currentField.type}>
+                            <SelectTrigger className="w-full h-8 text-sm">
+                              <SelectValue placeholder="" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {FIELD_TYPES.map(ft => (
+                                <SelectItem key={ft.value} value={ft.value} className="flex items-center gap-2 text-sm">
+                                  <span className="text-sm font-medium">{ft.label}</span>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-1.5">Orden</label>
+                          <input 
+                            className="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm" 
+                            name="order" 
+                            type="number" 
+                            min={1} 
+                            max={99} 
+                            value={currentField.order} 
+                            onChange={handleFieldChange} 
+                            autoComplete="off" 
                           />
-                          <span className="toggle-slider"></span>
                         </div>
-                        <span className="toggle-label">Requerido</span>
-                      </label>
-                        {selectedFieldIdx === null ? (
-                        <div style={{ marginLeft: 'auto' }}>
-                          <button 
-                            onClick={addField} 
-                            style={{ 
-                                fontSize: 14, 
-                                borderRadius: 6, 
-                                padding: '6px 12px', 
-                              background: '#a5d8ff', 
-                              border: 'none', 
-                              color: '#2d3142', 
-                              fontWeight: 600, 
-                              cursor: 'pointer',
-                              width: 'auto',
-                                minWidth: '90px',
-                                whiteSpace: 'nowrap'
-                            }}
-                          >
-                              Agregar Campo
-                          </button>
+                        <div className="md:col-span-7">
+                          <label className="block text-sm font-medium text-gray-700 mb-1.5">Label</label>
+                          <input 
+                            className="w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm" 
+                            name="label" 
+                            value={currentField.label} 
+                            onChange={handleFieldChange} 
+                            autoComplete="off"
+                          />
                         </div>
-                      ) : (
-                          <div style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
-                            <button onClick={saveField} style={{ fontSize: 14, borderRadius: 6, padding: '6px 12px', background: '#b6e2d3', border: 'none', color: '#2d3142', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>Guardar</button>
-                            <button type="button" onClick={() => removeField(selectedSectionIdx, selectedFieldIdx)} style={{ fontSize: 14, borderRadius: 6, padding: '6px 12px', background: '#ffd6e0', border: 'none', color: '#2d3142', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>Eliminar</button>
-                            <button type="button" onClick={() => { setSelectedFieldIdx(null); setCurrentField(createDefaultField()); }} style={{ fontSize: 14, borderRadius: 6, padding: '6px 12px', background: '#f0f4f8', border: 'none', color: '#2d3142', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>Cancelar</button>
+                      </div>
+
+                      {/* Segunda fila consolidada arriba; no se requiere bloque extra de opciones */}
+                      {currentField.type !== 'title' && (
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                          <div className="md:col-span-5">
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                              {currentField.type === 'select' || currentField.type === 'radio' || currentField.type === 'foreignKey' ? 'Opciones (separadas por coma)' : 'Placeholder'}
+                            </label>
+                            {currentField.type === 'select' || currentField.type === 'radio' || currentField.type === 'foreignKey' ? (
+                              <input 
+                                className="w-full px-2 py-0.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-xs" 
+                                name="options" 
+                                placeholder="Opciones (separadas por coma)" 
+                                value={currentField.options as any} 
+                                onChange={handleFieldChange} 
+                                autoComplete="off" 
+                              />
+                            ) : (
+                              <input 
+                                className="w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm" 
+                                name="placeholder" 
+                                value={currentField.placeholder} 
+                                onChange={handleFieldChange} 
+                                autoComplete="off"
+                                
+                              />
+                            )}
+                          </div>
+                          <div className="md:col-span-3">
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">Tamaño (1-12)</label>
+                            <input 
+                              className="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm" 
+                              name="dimension" 
+                              type="number" 
+                              min={1} 
+                              max={12} 
+                              value={currentField.dimension} 
+                              onChange={handleFieldChange} 
+                              autoComplete="off" 
+                            />
+                          </div>
+                          <div className="md:col-span-4 flex items-center h-full">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input 
+                                name="required" 
+                                type="checkbox" 
+                                checked={currentField.required} 
+                                onChange={handleFieldChange}
+                                className="w-4 h-4 text-cyan-600 border-gray-300 rounded focus:ring-cyan-500"
+                              />
+                              <span className="text-sm font-medium text-gray-700">Campo requerido</span>
+                            </label>
+                          </div>
                         </div>
                       )}
-                    </div>
-                  </div>
-                </fieldset>
+                      
+                      {/* Segunda fila consolidada arriba; no se requiere bloque extra de opciones */}
+
+                      <div className="flex items-center justify-end pt-3">
+                        {selectedFieldIdx === null ? (
+                          <button 
+                            type="button"
+                            onClick={(e) => addField(e as any)}
+                            className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 text-sm font-medium flex items-center gap-2"
+                          >
+                            <Plus className="h-3 w-3" />
+                            Agregar Campo
+                          </button>
+                        ) : (
+                          <div className="flex gap-2">
+                            <button 
+                              type="button"
+                              onClick={saveField} 
+                              className="px-3 py-1.5 bg-green-100 text-green-700 rounded-md hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 text-sm font-medium flex items-center gap-2"
+                            >
+                              <Save className="h-3 w-3" />
+                              Guardar
+                            </button>
+                            <button 
+                              type="button" 
+                              onClick={() => removeField(selectedSectionIdx, selectedFieldIdx)} 
+                              className="px-3 py-1.5 bg-red-100 text-red-700 rounded-md hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 text-sm font-medium flex items-center gap-2"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                              Eliminar
+                            </button>
+                            <button 
+                              type="button" 
+                              onClick={() => { 
+                                setSelectedFieldIdx(null); 
+                                setCurrentField(createDefaultField()); 
+                              }} 
+                              className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 text-sm font-medium flex items-center gap-2"
+                            >
+                              <X className="h-3 w-3" />
+                              Cancelar
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </form>
+                  )}
+                </div>
               </div>
-            </form>
+            )}
+
+            {/* Tab: Vista Previa */}
+            {activeTab === "vista" && (
+              <div className="mb-6">
+                <div className="bg-white rounded-lg border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <span className="text-2xl mr-2">👁️</span>
+                    Vista Previa del Formulario
+                  </h3>
+                  
+                  {sections.filter(s => s.activo !== false).length === 0 ? (
+                    <div className="text-center py-8">
+                      <div className="text-4xl mb-4">📋</div>
+                      <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                        No hay secciones configuradas
+                      </h4>
+                      <p className="text-gray-600">
+                        Crea tu primera sección para ver la vista previa del formulario
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {sections.filter(s => s.activo !== false).map((section, sectionIdx) => (
+                        <div key={section.id} className="border border-gray-200 rounded-lg p-4">
+                          <div className="flex items-center gap-2 mb-4 p-3 bg-gray-50 rounded-lg">
+                            <span className="text-xl">📋</span>
+                            <h4 className="font-semibold text-gray-900">
+                              {section.titulo || 'Sección sin título'}
+                            </h4>
+                          </div>
+                          
+                          {section.campos.filter(f => f.activo !== false).length === 0 ? (
+                            <div className="text-center py-4 text-gray-500">
+                              Esta sección no tiene campos configurados
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-12 gap-4">
+                              {(() => {
+                                const camposActivos = section.campos.filter(f => f.activo !== false).sort((a, b) => a.order - b.order);
+                                return camposActivos.map(renderField);
+                              })()}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
           </>
         )}
 
-        {/* Vista previa del formulario */}
-        <div style={{ 
-          background: '#ffffff', 
-          borderRadius: 16, 
-          padding: 20, 
-          marginBottom: 24,
-          border: '1px solid #f59e0b',
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-        }}>
-          <h3 style={{ 
-            fontSize: 18, 
-            fontWeight: 600, 
-            color: '#92400e', 
-            margin: '0 0 20px 0',
-            textAlign: 'center',
-            padding: '8px 16px',
-            background: '#fef3c7',
-            borderRadius: 8,
-            border: '1px solid #f59e0b'
-          }}>
-            📋 Vista Previa del Formulario
-          </h3>
-          
-          {sections.filter(s => s.activo !== false).length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-              <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
-              <h4 style={{ fontSize: 18, fontWeight: 600, color: '#92400e', marginBottom: 8 }}>
-                No hay secciones configuradas
-              </h4>
-              <p style={{ color: '#92400e', fontSize: 14, margin: 0 }}>
-                Crea tu primera sección para ver la vista previa del formulario
-              </p>
-            </div>
-          ) : (
-            sections.filter(s => s.activo !== false).map((section, sectionIdx) => (
-              <div key={section.id} style={{ marginBottom: 24, padding: 16, background: '#fff', borderRadius: 12, border: '1px solid #fbbf24' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, padding: '8px 12px', background: '#fef3c7', borderRadius: 8 }}>
-                  <span style={{ fontSize: 18 }}>{getIconEmoji(section.icono)}</span>
-                  <h4 style={{ fontSize: 16, fontWeight: 600, color: '#92400e', margin: 0 }}>
-                    {section.titulo || 'Sección sin título'}
-                  </h4>
-                </div>
-                
-                {section.campos.filter(f => f.activo !== false).length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '20px', color: '#92400e', fontSize: 14 }}>
-                    Esta sección no tiene campos configurados
-                  </div>
-                ) : (
-                  <div style={{ 
-                    display: 'grid', 
-                    gap: 12,
-                    gridTemplateColumns: 'repeat(12, 1fr)',
-                    width: '100%'
-                  }}>
-                    {(() => {
-                      const camposActivos = section.campos.filter(f => f.activo !== false).sort((a, b) => a.order - b.order);
-                      console.log(`🔍 Vista previa - Sección "${section.titulo}":`, section);
-                      console.log(`🔍 Vista previa - Campos activos:`, camposActivos);
-                      return camposActivos.map(renderField);
-                    })()}
-                  </div>
-                )}
-              </div>
-            ))
-          )}
-        </div>
-
         {/* Botón para mostrar JSON */}
-        <div style={{ marginBottom: 24 }}>
-          <button 
-            type="button" 
-            onClick={() => setShowJson(!showJson)} 
-            style={{ 
-              fontSize: 14, 
-              borderRadius: 6, 
-              padding: '8px 16px', 
-              background: '#6366f1', 
-              border: 'none', 
-              color: '#fff', 
-              fontWeight: 600, 
-              cursor: 'pointer',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            {showJson ? 'Ocultar estructura JSON' : 'Mostrar estructura JSON'}
-          </button>
-          {showJson && (
-            <div className="json-container" style={{ 
-              background: '#f8fafc', 
-              borderRadius: 12, 
-              padding: 20, 
-              border: '1px solid #e2e8f0',
-              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-              marginTop: 16,
-              width: '100%'
-            }}>
-              <pre style={{ 
-                margin: 0,
-                padding: 0,
-                fontSize: 14, 
-                lineHeight: '1.6',
-                fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
-                color: '#1e293b',
-                whiteSpace: 'pre-wrap',
-                wordWrap: 'break-word',
-                width: '100%'
-              }}>
-                {JSON.stringify(formJson, null, 2)}
-              </pre>
-            </div>
-          )}
+        <div className="mb-6">
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <button 
+              type="button" 
+              onClick={() => setShowJson(!showJson)} 
+              className="w-full px-4 py-3 bg-purple-50 hover:bg-purple-100 text-purple-700 border-b border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 text-sm font-medium flex items-center justify-between transition-colors duration-200"
+            >
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Estructura JSON de la Plantilla
+              </div>
+              <div className={`transform transition-transform duration-200 ${showJson ? 'rotate-180' : ''}`}>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </button>
+            
+            {showJson && (
+              <div className="p-4 bg-gray-50 border-t-0">
+                <div className="bg-white rounded-lg border border-gray-200 p-4 max-h-96 overflow-auto">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-semibold text-gray-700">Estructura de Datos</h4>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(JSON.stringify(formJson, null, 2));
+                        // Aquí podrías mostrar un toast de confirmación
+                      }}
+                      className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 rounded transition-colors duration-200"
+                    >
+                      Copiar JSON
+                    </button>
+                  </div>
+                  <pre className="text-xs text-gray-800 font-mono leading-relaxed whitespace-pre-wrap">
+                    {JSON.stringify(formJson, null, 2)}
+                  </pre>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
-            {!hideInternalSaveButton && (
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'flex-end', 
-                marginBottom: 24,
-                padding: '16px 0',
-                borderTop: '1px solid #e2e8f0'
-              }}>
-              <button
-                  type="button"
-                onClick={async () => {
-                  try {
-                      startLoading();
-                      
-                      // Debug: mostrar información sobre el estado actual
-                      console.log('🔍 Debug validación guardar:');
-                      console.log('- formName:', formName);
-                      console.log('- formName.trim():', formName.trim());
-                      console.log('- sections:', sections);
-                      console.log('- sections.length:', sections.length);
-                      console.log('- sections activas:', sections.filter(s => s.activo !== false));
-                      console.log('- sections con campos:', sections.filter(s => s.campos && s.campos.length > 0));
-                      console.log('- total campos:', sections.reduce((acc, s) => acc + (s.campos?.length || 0), 0));
-                      
-                      if (formName.trim() && sections.length > 0) {
-                      if (onSave) {
-                          // Usar callback personalizado - solo pasar el JSON formateado
-                        await onSave({
-                          nombre: formName,
-                          descripcion: formDesc,
-                            estructura_formulario: formJson // Enviar objeto JSON directamente, no como string
-                            // fields: sections.flatMap(section => // This was removed
-                            //   section.campos.filter(f => f.activo !== false)
-                            // )
-                        });
-                      } else {
-                          // Comportamiento original - guardar JSON completo como string
-                        await plantillasService.create({
-                          nombre: formName,
-                          descripcion: formDesc,
-                            estructura_formulario: formJson, // Enviar objeto JSON directamente, no como string
-                          es_default: false,
-                          activa: true,
-                        });
-                        if (navigate) {
-                          navigate("/maestro/plantillas");
-                        } else {
-                          alert('Plantilla guardada exitosamente');
-                        }
-                      }
+        {/* Botón de guardar */}
+        {!hideInternalSaveButton && (
+          <div className="flex justify-end mb-6">
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  startLoading();
+                  
+                  if (formName.trim() && sections.length > 0) {
+                    if (onSave) {
+                      await onSave({
+                        nombre: formName,
+                        descripcion: formDesc,
+                        estructura_formulario: formJson
+                      });
                     } else {
-                        // Validación más específica
-                        if (!formName.trim()) {
-                          alert('Por favor complete el nombre de la plantilla');
-                        } else if (sections.length === 0) {
-                          alert('Por favor agregue al menos una sección');
-                        } else {
-                          alert('Por favor complete el nombre de la plantilla y agregue al menos una sección');
-                        }
+                      await plantillasService.create({
+                        nombre: formName,
+                        descripcion: formDesc,
+                        estructura_formulario: formJson,
+                        es_default: false,
+                        activa: true,
+                      });
+                      if (navigate) {
+                        navigate("/maestro/plantillas");
+                      } else {
+                        alert('Plantilla guardada exitosamente');
                       }
-                  } catch (error) {
-                    console.error('Error al guardar la plantilla:', error);
-                    alert('Error al guardar la plantilla');
-                    } finally {
-                      stopLoading();
                     }
-                  }}
-                  style={{ 
-                    fontSize: 14, 
-                    borderRadius: 6, 
-                    padding: '8px 16px', 
-                    background: '#339af0', 
-                    border: 'none', 
-                    color: '#fff', 
-                    fontWeight: 600, 
-                    cursor: 'pointer',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#2563eb';
-                    e.currentTarget.style.transform = 'translateY(-1px)';
-                    e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = '#339af0';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
-                  }}
-                >
-                  {isEditing ? 'Actualizar Plantilla' : 'Guardar Plantilla'}
-              </button>
-              </div>
+                  } else {
+                    if (!formName.trim()) {
+                      alert('Por favor complete el nombre de la plantilla');
+                    } else if (sections.length === 0) {
+                      alert('Por favor agregue al menos una sección');
+                    } else {
+                      alert('Por favor complete el nombre de la plantilla y agregue al menos una sección');
+                    }
+                  }
+                } catch (error) {
+                  console.error('Error al guardar la plantilla:', error);
+                  alert('Error al guardar la plantilla');
+                } finally {
+                  stopLoading();
+                }
+              }}
+              className="px-4 py-2 bg-cyan-100 text-cyan-700 rounded-md hover:bg-cyan-200 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 text-sm font-medium flex items-center gap-2"
+            >
+              <Save className="h-4 w-4" />
+              {isEditing ? 'Actualizar Plantilla' : 'Guardar Plantilla'}
+            </button>
+          </div>
         )}
       </div>
     </div>
