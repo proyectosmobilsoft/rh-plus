@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Edit, Pause, CheckCircle, Phone, Play, XCircle, Eye, X, Ban, User, Building2, FileText, Clock, Code, DollarSign } from 'lucide-react';
+import { Edit, Pause, CheckCircle, Phone, Play, XCircle, Eye, X, Ban, User, Building2, FileText, Clock, Code, DollarSign, MoreHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
@@ -10,6 +10,7 @@ import { Solicitud } from '@/services/solicitudesService';
 import { useLoading } from '@/contexts/LoadingContext';
 import { Can } from '@/contexts/PermissionsContext';
 import { useRegisterView } from '@/hooks/useRegisterView';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 // import SolicitudForm from '@/components/solicitudes/SolicitudForm';
 
 interface SolicitudesListProps {
@@ -661,10 +662,10 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="text-left w-32">Acciones</TableHead>
+              <TableHead className="text-left w-20"></TableHead>
               <TableHead className="text-center w-24">Consecutivo</TableHead>
               <TableHead>Documento</TableHead>
-              <TableHead>Empresa</TableHead>
+              <TableHead className="w-64">Empresa</TableHead>
               <TableHead>Analista Asignado</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead>Modificación</TableHead>
@@ -677,204 +678,100 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                 className={`${getRowBackgroundColor(solicitud.estado)}`}
               >
                 <TableCell>
-                  <div className="flex justify-start items-center space-x-1">
-                                         {/* Botón Editar - solo visible cuando esté en estado ASIGNADO */}
-                     {solicitud.estado === 'ASIGNADO' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
-                      <Can action="accion-editar-solicitud">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => onEdit(solicitud)}
-                                aria-label="Editar solicitud"
-                                className="h-8 w-8"
-                              >
-                                <Edit className="h-4 w-4 text-purple-600" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Editar</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </Can>
-                    )}
+                  <div className="flex justify-start items-center">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-transparent">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-48">
+                        {/* Botón Editar - solo visible cuando esté en estado ASIGNADO */}
+                        {solicitud.estado === 'ASIGNADO' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                          <Can action="accion-editar-solicitud">
+                            <DropdownMenuItem onClick={() => onEdit(solicitud)} className="cursor-pointer">
+                              <Edit className="h-4 w-4 mr-2 text-purple-600" />
+                              Editar
+                            </DropdownMenuItem>
+                          </Can>
+                        )}
 
-                    {/* Botón Visualizar - siempre visible */}
-                    <Can action="accion-visualizar-solicitud">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => onView(solicitud)}
-                              aria-label="Visualizar solicitud"
-                              className="h-8 w-8"
+                        {/* Botón Visualizar - siempre visible */}
+                        <Can action="accion-visualizar-solicitud">
+                          <DropdownMenuItem onClick={() => onView(solicitud)} className="cursor-pointer">
+                            <Eye className="h-4 w-4 mr-2 text-blue-600" />
+                            Visualizar
+                          </DropdownMenuItem>
+                        </Can>
+
+                        {/* Botón Aprobar - solo visible en estado PENDIENTE */}
+                        {solicitud.estado === 'PENDIENTE' && !isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                          <Can action="accion-aprobar-solicitud">
+                            <DropdownMenuItem onClick={() => handleApproveClick(solicitud.id)} className="cursor-pointer">
+                              <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
+                              Aprobar solicitud
+                            </DropdownMenuItem>
+                          </Can>
+                        )}
+
+                        {/* Botón Contactado - solo visible en estado ASIGNADO */}
+                        {solicitud.estado === 'ASIGNADO' && !isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                          <Can action="accion-contactar-solicitud">
+                            <DropdownMenuItem 
+                              onClick={() => handleContactClick(solicitud.id)}
+                              disabled={contactingSolicitudId === solicitud.id}
+                              className="cursor-pointer"
                             >
-                              <Eye className="h-4 w-4 text-blue-600" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Visualizar</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </Can>
+                              <Phone className="h-4 w-4 mr-2 text-blue-600" />
+                              {contactingSolicitudId === solicitud.id ? 'Procesando...' : 'Contactado'}
+                            </DropdownMenuItem>
+                          </Can>
+                        )}
 
-                                         {/* Botón Aprobar - solo visible en estado PENDIENTE */}
-                     {solicitud.estado === 'PENDIENTE' && !isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
-                      <Can action="accion-aprobar-solicitud">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleApproveClick(solicitud.id)}
-                                aria-label="Aprobar solicitud"
-                                className="h-8 w-8"
-                              >
-                                <CheckCircle className="h-4 w-4 text-green-600" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Aprobar solicitud</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </Can>
-                    )}
+                        {/* Botón Stand By / Reactivar */}
+                        {!isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && isStandBy(solicitud.estado) && (
+                          <Can action="accion-reactivar-solicitud">
+                            <DropdownMenuItem 
+                              onClick={() => handleReactivate(solicitud.id!)}
+                              disabled={reactivatingSolicitudId === solicitud.id}
+                              className="cursor-pointer"
+                            >
+                              <Play className="h-4 w-4 mr-2 text-green-600" />
+                              {reactivatingSolicitudId === solicitud.id ? 'Procesando...' : 'Reactivar solicitud'}
+                            </DropdownMenuItem>
+                          </Can>
+                        )}
 
-                                         {/* Botón Contactado - solo visible en estado ASIGNADO */}
-                     {solicitud.estado === 'ASIGNADO' && !isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
-                      <Can action="accion-contactar-solicitud">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleContactClick(solicitud.id)}
-                                aria-label="Marcar como contactado"
-                                className={`h-8 w-8 ${contactingSolicitudId === solicitud.id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                disabled={contactingSolicitudId === solicitud.id}
-                              >
-                                <Phone className="h-4 w-4 text-blue-600" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>
-                                {contactingSolicitudId === solicitud.id
-                                  ? 'Procesando...'
-                                  : 'Contactado'
-                                }
-                              </p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </Can>
-                    )}
+                        {!isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && !isStandBy(solicitud.estado) && (
+                          <Can action="accion-standby-solicitud">
+                            <DropdownMenuItem onClick={() => handleStandByClick(solicitud.id)} className="cursor-pointer">
+                              <Pause className="h-4 w-4 mr-2 text-gray-600" />
+                              Stand By
+                            </DropdownMenuItem>
+                          </Can>
+                        )}
 
-                                         {/* Botón Stand By / Reactivar - solo visible cuando NO esté en Deserto o Cancelada */}
-                     {!isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && isStandBy(solicitud.estado) && (
-                      <Can action="accion-reactivar-solicitud">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleReactivate(solicitud.id!)}
-                                aria-label="Reactivar solicitud"
-                                className={`h-8 w-8 ${reactivatingSolicitudId === solicitud.id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                disabled={reactivatingSolicitudId === solicitud.id}
-                              >
-                                <Play className="h-4 w-4 text-green-600" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>
-                                {reactivatingSolicitudId === solicitud.id ? 'Procesando...' : 'Reactivar solicitud'}
-                              </p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </Can>
-                    )}
+                        {/* Botón Deserto */}
+                        {!isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                          <Can action="accion-deserto-solicitud">
+                            <DropdownMenuItem onClick={() => handleDesertoClick(solicitud.id)} className="cursor-pointer">
+                              <Ban className="h-4 w-4 mr-2 text-red-600" />
+                              Marcar como Deserto
+                            </DropdownMenuItem>
+                          </Can>
+                        )}
 
-                                         {!isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && !isStandBy(solicitud.estado) && (
-                      <Can action="accion-standby-solicitud">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleStandByClick(solicitud.id)}
-                                aria-label="Marcar como Stand By"
-                                className="h-8 w-8"
-                              >
-                                <Pause className="h-4 w-4 text-gray-600" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Stand By</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </Can>
-                    )}
-
-                                         {/* Botón Deserto - solo visible cuando NO esté en estado Deserto o Cancelada */}
-                     {!isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
-                       <Can action="accion-deserto-solicitud">
-                         <TooltipProvider>
-                           <Tooltip>
-                             <TooltipTrigger asChild>
-                               <Button
-                                 variant="ghost"
-                                 size="icon"
-                                 onClick={() => handleDesertoClick(solicitud.id)}
-                                 aria-label="Marcar como Deserto"
-                                 className="h-8 w-8"
-                               >
-                                 <Ban className="h-4 w-4 text-red-600" />
-                               </Button>
-                             </TooltipTrigger>
-                             <TooltipContent>
-                               <p>Marcar como Deserto</p>
-                             </TooltipContent>
-                           </Tooltip>
-                         </TooltipProvider>
-                       </Can>
-                     )}
-
-                                         {/* Botón Cancelar - solo visible cuando esté en estado ASIGNADO */}
-                     {solicitud.estado === 'ASIGNADO' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
-                       <Can action="accion-cancelar-solicitud">
-                         <TooltipProvider>
-                           <Tooltip>
-                             <TooltipTrigger asChild>
-                               <Button
-                                 variant="ghost"
-                                 size="icon"
-                                 onClick={() => handleCancelClick(solicitud.id)}
-                                 aria-label="Cancelar solicitud"
-                                 className="h-8 w-8"
-                               >
-                                 <X className="h-4 w-4 text-red-600" />
-                               </Button>
-                             </TooltipTrigger>
-                             <TooltipContent>
-                               <p>Cancelar</p>
-                             </TooltipContent>
-                           </Tooltip>
-                         </TooltipProvider>
-                       </Can>
-                     )}
+                        {/* Botón Cancelar */}
+                        {solicitud.estado === 'ASIGNADO' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                          <Can action="accion-cancelar-solicitud">
+                            <DropdownMenuItem onClick={() => handleCancelClick(solicitud.id)} className="cursor-pointer">
+                              <X className="h-4 w-4 mr-2 text-red-600" />
+                              Cancelar
+                            </DropdownMenuItem>
+                          </Can>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </TableCell>
 
@@ -885,10 +782,23 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                 <TableCell>
                   <div className="flex flex-col">
                     <span>
-                      {getDisplayValue(solicitud.candidatos?.tipo_documento, 'Sin tipo')}: {getDisplayValue(solicitud.candidatos?.numero_documento, 'Sin número')}
+                      {
+                        // Intentar obtener el número de documento del JSON de la plantilla primero
+                        solicitud.estructura_datos?.numero_documento || 
+                        solicitud.estructura_datos?.documento ||
+                        solicitud.estructura_datos?.cedula ||
+                        solicitud.estructura_datos?.identificacion ||
+                        getDisplayValue(solicitud.candidatos?.numero_documento, 'Sin número')
+                      }
                     </span>
                     <span className="text-sm text-muted-foreground">
-                      {getDisplayValue(solicitud.lugar_expedicion, 'Sin lugar de expedición')}
+                      {
+                        // Intentar obtener el email del JSON de la plantilla
+                        solicitud.estructura_datos?.email ||
+                        solicitud.estructura_datos?.correo_electronico ||
+                        solicitud.estructura_datos?.correo ||
+                        getDisplayValue(solicitud.lugar_expedicion, 'Sin Email')
+                      }
                     </span>
                   </div>
                 </TableCell>
