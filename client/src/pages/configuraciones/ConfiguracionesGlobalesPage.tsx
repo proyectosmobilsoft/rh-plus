@@ -24,10 +24,12 @@ import {
   Settings,
   Users,
   Briefcase,
-  Shield
+  Shield,
+  Palette
 } from 'lucide-react';
 import { supabase } from '@/services/supabaseClient';
 import { toast } from 'sonner';
+import ConfiguracionColores from '@/components/configuracion/ConfiguracionColores';
 
 interface ConfigEmpresa {
   id: number;
@@ -68,6 +70,7 @@ export default function ConfiguracionesGlobalesPage() {
   const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
   const [ciudades, setCiudades] = useState<Ciudad[]>([]);
   const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<string>('configuracion');
 
   useEffect(() => {
     cargarConfiguracionEmpresa();
@@ -303,13 +306,20 @@ export default function ConfiguracionesGlobalesPage() {
         </h1>
       </div>
 
-      <Tabs value="configuracion" className="w-full">
-        <TabsList className="grid w-full grid-cols-1 bg-cyan-100/60 p-1 rounded-lg">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2 bg-cyan-100/60 p-1 rounded-lg">
           <TabsTrigger
             value="configuracion"
             className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
           >
             Configuración de Empresa
+          </TabsTrigger>
+          <TabsTrigger
+            value="colores"
+            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+          >
+            <Palette className="w-4 h-4 mr-2" />
+            Configuración de Colores
           </TabsTrigger>
         </TabsList>
 
@@ -633,6 +643,14 @@ export default function ConfiguracionesGlobalesPage() {
                 </div>
               </div>
             </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="colores" className="mt-6">
+
+          {/* Componente importado */}
+          <div className="mt-6">
+            <ConfiguracionColores />
           </div>
         </TabsContent>
       </Tabs>

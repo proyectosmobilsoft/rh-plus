@@ -4,6 +4,7 @@ import { ThemeProvider } from './contexts/ThemeContext'
 import { AuthProvider } from './contexts/AuthContext'
 import { LoadingProvider } from './contexts/LoadingContext'
 import { PermissionsProvider } from './contexts/PermissionsContext'
+import { ColorsProvider } from './contexts/ColorsContext'
 import App from './App.tsx'
 import './index.css'
 
@@ -27,7 +28,9 @@ createRoot(document.getElementById("root")!).render(
       <AuthProvider>
         <LoadingProvider>
           <PermissionsProvider>
-            <App />
+            <ColorsProvider>
+              <App />
+            </ColorsProvider>
           </PermissionsProvider>
         </LoadingProvider>
       </AuthProvider>
