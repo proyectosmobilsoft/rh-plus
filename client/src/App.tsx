@@ -121,6 +121,9 @@ function App() {
     <Router>
       <div className="App">
         <LoadingOverlay isLoading={isLoading} />
+        {/* Toasters globales para notificaciones */}
+        <Sonner position="top-right" richColors />
+        <Toaster />
         <Routes>
           {/* Ruta de prueba para verificar providers */}
           <Route path="/test" element={

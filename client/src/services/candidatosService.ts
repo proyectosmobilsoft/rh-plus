@@ -71,15 +71,14 @@ export const candidatosService = {
 
   create: async (candidato: Partial<Candidato>): Promise<Candidato | null> => {
     try {
-      // 1. Crear usuario en gen_usuarios
-      const usuarioData = {
-        username: candidato.email,
-        primer_nombre: candidato.primer_nombre,
-        primer_apellido: candidato.primer_apellido,
-        email: candidato.email,
-        password_hash: btoa(candidato.numero_documento || ''), // Contraseña inicial = número de documento
-        activo: true
-      };
+      // 1. Crear usuario en gen_usuarios con campos disponibles
+      const usuarioData: any = { activo: true };
+      if (candidato.email) usuarioData.username = candidato.email;
+      if (candidato.email) usuarioData.email = candidato.email;
+      if (candidato.primer_nombre) usuarioData.primer_nombre = candidato.primer_nombre;
+      if (candidato.primer_apellido) usuarioData.primer_apellido = candidato.primer_apellido;
+      // Password inicial basado en documento si existe
+      if (candidato.numero_documento) usuarioData.password_hash = btoa(candidato.numero_documento);
 
       const { data: usuario, error: usuarioError } = await supabase
         .from('gen_usuarios')
@@ -92,19 +91,25 @@ export const candidatosService = {
       // 2. Asignar rol de candidato
       const { error: rolError } = await supabase
         .from('gen_usuario_roles')
-        .insert([{
-          usuario_id: usuario.id,
-          rol_id: 15 // ID del rol "Candidato"
-        }]);
+        .insert([{ usuario_id: usuario.id, rol_id: 15 }]); // ID del rol "Candidato"
 
       if (rolError) throw rolError;
 
-      // 3. Crear candidato en tabla candidatos
-      const candidatoData = {
-        ...candidato,
-        usuario_id: usuario.id,
-        activo: true
-      };
+      // 3. Crear candidato en tabla candidatos con campos disponibles
+      const candidatoData: any = { usuario_id: usuario.id, activo: true };
+      // Asegurar valores NOT NULL requeridos por la tabla
+      candidatoData.tipo_documento = candidato.tipo_documento || 'CC';
+      candidatoData.primer_nombre = candidato.primer_nombre || 'SIN_NOMBRE';
+      candidatoData.primer_apellido = candidato.primer_apellido || 'SIN_APELLIDO';
+      const copyProps: (keyof Candidato)[] = [
+        'numero_documento', 'segundo_nombre',
+        'segundo_apellido', 'email', 'telefono', 'direccion',
+        'ciudad', 'empresa_id', 'tipo_candidato_id'
+      ];
+      for (const k of copyProps) {
+        const v = (candidato as any)[k];
+        if (v !== undefined) candidatoData[k] = v;
+      }
 
       const { data: candidatoCreado, error: candidatoError } = await supabase
         .from('candidatos')

@@ -343,12 +343,13 @@ const UsuariosPage = () => {
   // Filtrado de usuarios
   const usuariosFiltrados = useMemo(() => {
     return usuarios.filter(usuario => {
+      const term = (searchTerm || "").toLowerCase();
       const matchesSearch =
-        usuario.primer_nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        usuario.primer_apellido.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        usuario.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        usuario.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (usuario.identificacion || "").toLowerCase().includes(searchTerm.toLowerCase());
+        (usuario.primer_nombre || "").toLowerCase().includes(term) ||
+        (usuario.primer_apellido || "").toLowerCase().includes(term) ||
+        (usuario.email || "").toLowerCase().includes(term) ||
+        (usuario.username || "").toLowerCase().includes(term) ||
+        (usuario.identificacion || "").toLowerCase().includes(term);
 
       const matchesStatus =
         statusFilter === "all" ? true :

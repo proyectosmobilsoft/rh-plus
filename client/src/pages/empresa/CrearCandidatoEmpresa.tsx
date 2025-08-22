@@ -70,7 +70,26 @@ export default function CrearCandidatoEmpresa() {
         navigate('/empresa/candidatos');
       } else {
         const error = await response.json();
-        toast.error(error.message || 'Error creando candidato');
+        if (
+          error?.code === '23505' ||
+          (typeof error?.message === 'string' &&
+            (error.message.includes('usuarios_email_key') ||
+              error.message.toLowerCase().includes('duplicate key')))
+        ) {
+          toast.info(
+            'Ya existe un candidato con este correo electrónico.',
+            {
+              description:
+                'No es necesario volver a crearlo. Puedes buscarlo en la lista o usar otro correo para un candidato nuevo.',
+              action: {
+                label: 'Ver candidatos',
+                onClick: () => navigate('/empresa/candidatos'),
+              },
+            }
+          );
+        } else {
+          toast.error(error.message || 'Error creando candidato');
+        }
       }
     } catch (error) {
       toast.error('Error de conexión');

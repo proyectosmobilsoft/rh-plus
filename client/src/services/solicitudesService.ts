@@ -1,6 +1,8 @@
 import { supabase } from '@/services/supabaseClient';
 import { analistaAsignacionService } from './analistaAsignacionService';
 import { solicitudesLogsService, ACCIONES_SISTEMA, getUsuarioActual } from './solicitudesLogsService';
+import { candidatosService, type Candidato } from './candidatosService';
+import { toast } from 'sonner';
 
 // Función helper para convertir null a undefined
 const getUsuarioId = (): number | undefined => {
@@ -321,9 +323,67 @@ export const solicitudesService = {
         }
       }
 
+      // Si viene estructura_datos, intentar crear candidato con documento y email (obligatorios)
+      let candidatoIdFinal = solicitud.candidato_id;
+      if (!candidatoIdFinal && solicitud.estructura_datos) {
+        const d = solicitud.estructura_datos as Record<string, any>;
+        const numeroDocumento = d.numero_documento || d.documento || d.cedula || d.identificacion;
+        const email = d.email || d.correo_electronico || d.correo;
+        if (numeroDocumento && email) {
+          const candidatoPayload: Partial<Candidato> = {
+            numero_documento: String(numeroDocumento),
+            email: String(email)
+          };
+          // Opcionales si existen en el JSON
+          const map: Record<string, keyof Candidato> = {
+            tipo_documento: 'tipo_documento',
+            primer_nombre: 'primer_nombre',
+            segundo_nombre: 'segundo_nombre',
+            primer_apellido: 'primer_apellido',
+            segundo_apellido: 'segundo_apellido',
+            telefono: 'telefono',
+            direccion: 'direccion',
+            ciudad: 'ciudad',
+            empresa_id: 'empresa_id'
+          };
+          for (const key in map) {
+            const v = (d as any)[key];
+            if (v !== undefined && v !== null && v !== '') {
+              (candidatoPayload as any)[map[key]] = v;
+            }
+          }
+          try {
+            const creado = await candidatosService.create(candidatoPayload);
+            if (creado?.id) {
+              candidatoIdFinal = creado.id;
+              console.log('✅ Candidato creado desde solicitud. ID:', creado.id);
+            }
+          } catch (e: any) {
+            // Si el usuario ya existe (username/email duplicado), informar y asociar candidato existente por documento
+            if (e?.code === '23505' || String(e?.message || '').includes('usuarios_username_key')) {
+              toast.info('Este candidato ya está registrado en el sistema', { position: 'bottom-right' });
+              try {
+                const existente = await candidatosService.getByDocumento(String(numeroDocumento));
+                if (existente?.id) {
+                  candidatoIdFinal = existente.id;
+                  console.log('🔗 Asociado candidato existente ID:', existente.id);
+                }
+              } catch (lookupErr) {
+                console.warn('No se pudo obtener candidato existente por documento:', lookupErr);
+              }
+            } else {
+              console.warn('No se pudo crear candidato desde solicitud:', e);
+            }
+          }
+        } else {
+          console.warn('No se creó candidato: faltan documento y/o email en estructura_datos');
+        }
+      }
+
       // Preparar datos de la solicitud
       const solicitudData = {
         ...solicitud,
+        candidato_id: candidatoIdFinal,
         analista_id: analistaId,
         estado: estadoFinal, // Usar el estado final (ASIGNADO si se asignó analista)
         fecha_solicitud: solicitud.fecha_solicitud || new Date().toISOString()
@@ -604,12 +664,67 @@ export const solicitudesService = {
         console.log('🔄 Estado de solicitud se mantiene como: PENDIENTE');
       }
 
+      // Crear candidato si no viene candidatoId y el JSON trae documento y email
+      let candidatoIdFinal = candidatoId;
+      const d = estructuraDatos || {};
+      if (!candidatoIdFinal && d) {
+        const numeroDocumento = d.numero_documento || d.documento || d.cedula || d.identificacion;
+        const email = d.email || d.correo_electronico || d.correo;
+        if (numeroDocumento && email) {
+          const candidatoPayload: Partial<Candidato> = {
+            numero_documento: String(numeroDocumento),
+            email: String(email)
+          };
+          const map: Record<string, keyof Candidato> = {
+            tipo_documento: 'tipo_documento',
+            primer_nombre: 'primer_nombre',
+            segundo_nombre: 'segundo_nombre',
+            primer_apellido: 'primer_apellido',
+            segundo_apellido: 'segundo_apellido',
+            telefono: 'telefono',
+            direccion: 'direccion',
+            ciudad: 'ciudad',
+            empresa_id: 'empresa_id'
+          };
+          for (const key in map) {
+            const v = (d as any)[key];
+            if (v !== undefined && v !== null && v !== '') {
+              (candidatoPayload as any)[map[key]] = v;
+            }
+          }
+          try {
+            const creado = await candidatosService.create(candidatoPayload);
+            if (creado?.id) {
+              candidatoIdFinal = creado.id;
+              console.log('✅ Candidato creado desde solicitud (plantilla). ID:', creado.id);
+            }
+          } catch (e: any) {
+            if (e?.code === '23505' || String(e?.message || '').includes('usuarios_username_key')) {
+              toast.info('Este candidato ya está registrado en el sistema', { position: 'bottom-right' });
+              try {
+                const existente = await candidatosService.getByDocumento(String(numeroDocumento));
+                if (existente?.id) {
+                  candidatoIdFinal = existente.id;
+                  console.log('🔗 Asociado candidato existente ID:', existente.id);
+                }
+              } catch (lookupErr) {
+                console.warn('No se pudo obtener candidato existente por documento:', lookupErr);
+              }
+            } else {
+              console.warn('No se pudo crear candidato desde solicitud (plantilla):', e);
+            }
+          }
+        } else {
+          console.warn('No se creó candidato (plantilla): faltan documento y/o email');
+        }
+      }
+
       const solicitudData = {
         empresa_id: empresaId,
         plantilla_id: plantillaId,
         plantilla_nombre: plantillaNombre,
         estructura_datos: estructuraDatos,
-        candidato_id: candidatoId,
+        candidato_id: candidatoIdFinal,
         analista_id: analistaId,
         estado: estadoFinal, // Usar el estado final (ASIGNADO si se asignó analista)
         fecha_solicitud: new Date().toISOString()
@@ -680,7 +795,7 @@ export const solicitudesService = {
       try {
         await solicitudesLogsService.crearLog({
           solicitud_id: solicitudTransformada.id!,
-          usuario_id: getUsuarioActual(),
+          usuario_id: getUsuarioId(),
           accion: ACCIONES_SISTEMA.CREAR_SOLICITUD,
           estado_nuevo: solicitudTransformada.estado,
           observacion: `Solicitud creada con plantilla "${plantillaNombre}" para empresa ${empresaId}`
@@ -690,7 +805,7 @@ export const solicitudesService = {
         if (analistaId) {
           await solicitudesLogsService.crearLog({
             solicitud_id: solicitudTransformada.id!,
-            usuario_id: getUsuarioActual(),
+            usuario_id: getUsuarioId(),
             accion: ACCIONES_SISTEMA.ASIGNAR_ANALISTA,
             estado_anterior: 'PENDIENTE',
             estado_nuevo: 'ASIGNADO',
@@ -742,7 +857,7 @@ export const solicitudesService = {
       try {
         await solicitudesLogsService.crearLog({
           solicitud_id: id,
-          usuario_id: getUsuarioActual(),
+          usuario_id: getUsuarioId(),
           accion: ACCIONES_SISTEMA.EDITAR_SOLICITUD,
           estado_anterior: solicitudAnterior.data?.estado,
           estado_nuevo: data.estado,
@@ -802,7 +917,7 @@ export const solicitudesService = {
         console.log('🔍 Creando log de cambio de estado...');
         await solicitudesLogsService.crearLog({
           solicitud_id: id,
-          usuario_id: getUsuarioActual(),
+          usuario_id: getUsuarioId(),
           accion: ACCIONES_SISTEMA.CAMBIAR_ESTADO,
           estado_anterior: solicitudAnterior.data?.estado,
           estado_nuevo: newStatus,
@@ -951,7 +1066,7 @@ export const solicitudesService = {
         try {
           await solicitudesLogsService.crearLog({
             solicitud_id: id,
-            usuario_id: getUsuarioActual(),
+            usuario_id: getUsuarioId(),
             accion: ACCIONES_SISTEMA.CONTACTAR,
             estado_nuevo: 'PENDIENTE DOCUMENTOS',
             observacion: observacion || 'Solicitud contactada'
@@ -994,7 +1109,7 @@ export const solicitudesService = {
         try {
           await solicitudesLogsService.crearLog({
             solicitud_id: id,
-            usuario_id: getUsuarioActual(),
+            usuario_id: getUsuarioId(),
             accion: ACCIONES_SISTEMA.RECHAZAR_SOLICITUD,
             estado_nuevo: 'RECHAZADA',
             observacion: observacion || 'Solicitud rechazada'
@@ -1031,7 +1146,7 @@ export const solicitudesService = {
       try {
         await solicitudesLogsService.crearLog({
           solicitud_id: id,
-          usuario_id: getUsuarioActual(),
+          usuario_id: getUsuarioId(),
           accion: ACCIONES_SISTEMA.ASIGNAR_ANALISTA,
           estado_nuevo: 'ASIGNADO',
           observacion: observacion || `Analista ${analistaId} asignado manualmente`
@@ -1067,7 +1182,7 @@ export const solicitudesService = {
       try {
         await solicitudesLogsService.crearLog({
           solicitud_id: id,
-          usuario_id: getUsuarioActual(),
+          usuario_id: getUsuarioId(),
           accion: ACCIONES_SISTEMA.ASIGNAR_PRIORIDAD,
           observacion: observacion || `Prioridad asignada: ${prioridad}`
         });
@@ -1102,7 +1217,7 @@ export const solicitudesService = {
       try {
         await solicitudesLogsService.crearLog({
           solicitud_id: id,
-          usuario_id: getUsuarioActual(),
+          usuario_id: getUsuarioId(),
           accion: ACCIONES_SISTEMA.ACTUALIZAR_OBSERVACIONES,
           observacion: `Observaciones actualizadas: ${observaciones}`
         });

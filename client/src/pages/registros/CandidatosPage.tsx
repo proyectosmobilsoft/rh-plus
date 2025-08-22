@@ -212,12 +212,26 @@ const CandidatosPage = () => {
         description: "Candidato creado correctamente",
       });
     },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+    onError: (error: any) => {
+      const code = error?.code || error?.cause?.code;
+      const message = typeof error?.message === 'string' ? error.message : '';
+      const isDuplicate =
+        code === '23505' ||
+        (message && (message.includes('usuarios_email_key') || message.toLowerCase().includes('duplicate key')));
+
+      if (isDuplicate) {
+        toast({
+          title: "Ya existe un candidato con este correo",
+          description: "No es necesario volver a crearlo. Puedes buscarlo en la lista o usar otro correo para un candidato nuevo.",
+        });
+        setActiveTab("candidatos");
+      } else {
+        toast({
+          title: "Error",
+          description: message || "Error al crear el candidato",
+          variant: "destructive",
+        });
+      }
     },
   });
 
@@ -321,11 +335,25 @@ const CandidatosPage = () => {
           });
         }
       } catch (error: any) {
-        toast({
-          title: "❌ Error",
-          description: error.message || "Error al procesar la solicitud",
-          variant: "destructive",
-        });
+        const code = error?.code || error?.cause?.code;
+        const message = typeof error?.message === 'string' ? error.message : '';
+        const isDuplicate =
+          code === '23505' ||
+          (message && (message.includes('usuarios_email_key') || message.toLowerCase().includes('duplicate key')));
+
+        if (isDuplicate) {
+          toast({
+            title: "Ya existe un candidato con este correo",
+            description: "No es necesario volver a crearlo. Puedes buscarlo en la lista o usar otro correo para un candidato nuevo.",
+          });
+          setActiveTab("candidatos");
+        } else {
+          toast({
+            title: "❌ Error",
+            description: message || "Error al procesar la solicitud",
+            variant: "destructive",
+          });
+        }
       } finally {
         setIsSubmitting(false);
       }

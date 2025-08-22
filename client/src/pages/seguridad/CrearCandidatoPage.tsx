@@ -49,11 +49,25 @@ const CrearCandidatoPage = () => {
         }, 2000);
       } else {
         const errorData = await response.json();
-        toast({
-          title: "Error",
-          description: errorData.message || "No se pudo crear el candidato",
-          variant: "destructive",
-        });
+        const isDuplicate =
+          errorData?.code === '23505' ||
+          (typeof errorData?.message === 'string' &&
+            (errorData.message.includes('usuarios_email_key') ||
+              errorData.message.toLowerCase().includes('duplicate key')));
+
+        if (isDuplicate) {
+          toast({
+            title: "Ya existe un candidato con este correo",
+            description:
+              "No es necesario volver a crearlo. Puedes buscarlo en la lista de perfiles o usar otro correo para un candidato nuevo.",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: errorData.message || "No se pudo crear el candidato",
+            variant: "destructive",
+          });
+        }
       }
     } catch (error) {
       toast({
