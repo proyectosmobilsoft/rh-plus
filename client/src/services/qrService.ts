@@ -1,6 +1,25 @@
 import { supabase } from './supabaseClient';
 import QRCode from 'qrcode';
 
+function getBaseUrl(): string {
+  // Prioriza variables de entorno si existen
+  const envUrl = (import.meta as any).env?.VITE_PUBLIC_APP_URL || (import.meta as any).env?.VITE_APP_URL;
+  if (envUrl && typeof envUrl === 'string') {
+    try {
+      const url = new URL(envUrl);
+      return url.origin;
+    } catch {
+      // si no es URL válida, sigue con origin
+    }
+  }
+  // Fallback al origin del navegador
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin;
+  }
+  // Último recurso
+  return 'https://localhost';
+}
+
 export interface QRCodeData {
   id?: number;
   candidato_id: number;
@@ -95,7 +114,8 @@ export const qrService = {
       };
 
       // Crear URL para la página pública
-      const qrUrl = `${window.location.origin}/qr/${btoa(JSON.stringify(qrData))}`;
+      const baseUrl = getBaseUrl();
+      const qrUrl = `${baseUrl}/qr/${btoa(JSON.stringify(qrData))}`;
 
       // Generar QR como imagen con la URL
       const qrImageUrl = await QRCode.toDataURL(qrUrl, {
@@ -265,11 +285,9 @@ export const qrService = {
   // Visualizar QR con información completa
   viewQR: async (qrCode: QRCodeData, candidato: any, empresa?: any): Promise<void> => {
     try {
-      // Parsear los datos del QR
-      const qrData = JSON.parse(qrCode.qr_data);
-      
-      // Crear URL para la página pública
-      const qrUrl = `${window.location.origin}/qr/${btoa(qrCode.qr_data)}`;
+      // Crear URL para la página pública con base configurable
+      const baseUrl = getBaseUrl();
+      const qrUrl = `${baseUrl}/qr/${btoa(qrCode.qr_data)}`;
       
       // Abrir en una nueva ventana
       window.open(qrUrl, '_blank', 'width=900,height=800,scrollbars=yes,resizable=yes');
