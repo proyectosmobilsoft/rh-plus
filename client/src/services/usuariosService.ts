@@ -35,9 +35,11 @@ export const usuariosService = {
         username,
         activo,
         foto_base64,
+        created_at,
         gen_usuario_roles ( id, rol_id, created_at, gen_roles ( id, nombre ) ),
         gen_usuario_empresas ( id, empresa_id, created_at, empresas ( id, razon_social ) )
-      `);
+      `)
+      .order('created_at', { ascending: false });
     if (error) throw error;
     return data;
   },

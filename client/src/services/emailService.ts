@@ -196,6 +196,60 @@ class EmailService {
     `;
   }
 
+  // Generar plantilla para notificar creación de solicitud al candidato
+  generateSolicitudCreadaHTML(params: {
+    candidatoNombre: string;
+    usuario: string;
+    password: string;
+    empresaNombre: string;
+    solicitudId: number | string;
+    fecha: string;
+    detalles?: Record<string, any>;
+  }): string {
+    const { candidatoNombre, usuario, password, empresaNombre, solicitudId, fecha, detalles } = params;
+    const detallesHtml = detalles ? Object.entries(detalles)
+      .map(([k, v]) => `<tr><td style="padding:6px 8px;border-bottom:1px solid #eee;color:#555">${k}</td><td style="padding:6px 8px;border-bottom:1px solid #eee;color:#111">${String(v)}</td></tr>`)
+      .join('') : '';
+
+    return `
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Orden de ingreso creada</title>
+      </head>
+      <body style="font-family:Arial,Helvetica,sans-serif;background:#f6f7fb;margin:0;padding:24px;color:#111">
+        <div style="max-width:640px;margin:0 auto;background:#fff;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,0.06);overflow:hidden">
+          <div style="background:#0ea5e9;color:#fff;padding:20px 24px">
+            <h2 style="margin:0">Orden de ingreso creada</h2>
+            <div style="opacity:.9;font-size:13px">${fecha}</div>
+          </div>
+          <div style="padding:24px">
+            <p>Hola <strong>${candidatoNombre || 'Candidato'}</strong>,</p>
+            <p>Te informamos que se ha creado una <strong>orden de ingreso</strong> en la empresa <strong>${empresaNombre}</strong> con ID de solicitud <strong>#${solicitudId}</strong>.</p>
+            <div style="margin:16px 0;padding:14px 16px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px">
+              <div style="font-weight:600;margin-bottom:8px">Credenciales de acceso</div>
+              <div style="font-family:Consolas,Monaco,monospace;background:#111;color:#fff;display:inline-block;padding:6px 10px;border-radius:6px;margin-right:6px">${usuario}</div>
+              <div style="font-family:Consolas,Monaco,monospace;background:#111;color:#fff;display:inline-block;padding:6px 10px;border-radius:6px">${password}</div>
+              <div style="font-size:12px;color:#6b7280;margin-top:8px">Por seguridad, te recomendamos cambiar tu contraseña en el primer ingreso.</div>
+            </div>
+            ${detallesHtml ? `
+            <div style="margin-top:10px">
+              <div style="font-weight:600;margin-bottom:6px">Resumen de la solicitud</div>
+              <table style="width:100%;border-collapse:collapse">${detallesHtml}</table>
+            </div>` : ''}
+            <p style="margin-top:18px">Si no esperabas este correo, por favor ignóralo o contacta a soporte.</p>
+          </div>
+          <div style="padding:16px 24px;background:#f9fafb;border-top:1px solid #eef2f7;color:#6b7280;font-size:12px;text-align:center">
+            © ${new Date().getFullYear()} RH Compensamos. Este es un mensaje automático, no responder.
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
   // Enviar email usando Gmail SMTP
   async sendEmail(emailData: EmailData): Promise<{ success: boolean; message: string }> {
     if (!this.config) {
@@ -343,6 +397,35 @@ class EmailService {
       subject: 'Contraseña Cambiada - RH Compensamos',
       html: html,
       text: 'Tu contraseña ha sido cambiada exitosamente. Si no realizaste este cambio, contacta al soporte inmediatamente.',
+      from: 'noreply@rhcompensamos.com'
+    });
+  }
+
+  async sendSolicitudCreada(params: {
+    to: string;
+    candidatoNombre: string;
+    usuario: string;
+    password: string;
+    empresaNombre: string;
+    solicitudId: number | string;
+    fecha?: string;
+    detalles?: Record<string, any>;
+  }): Promise<{ success: boolean; message: string }> {
+    const html = this.generateSolicitudCreadaHTML({
+      candidatoNombre: params.candidatoNombre,
+      usuario: params.usuario,
+      password: params.password,
+      empresaNombre: params.empresaNombre,
+      solicitudId: params.solicitudId,
+      fecha: params.fecha || new Date().toLocaleString('es-ES'),
+      detalles: params.detalles
+    });
+
+    return this.sendEmail({
+      to: params.to,
+      subject: `Orden de ingreso creada - Empresa ${params.empresaNombre}`,
+      html,
+      text: `Se creó una orden de ingreso en ${params.empresaNombre} (Solicitud #${params.solicitudId}). Usuario: ${params.usuario} / Contraseña: ${params.password}`,
       from: 'noreply@rhcompensamos.com'
     });
   }

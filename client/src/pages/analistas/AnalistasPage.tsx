@@ -697,7 +697,7 @@ export default function AnalistasPage() {
                         <TableCell className="py-1 px-2 text-center border-r border-gray-200">
                           <div className="flex flex-col items-center">
                             <Badge variant="outline" className="bg-cyan-50 text-cyan-700 border-cyan-200">
-                              {analista.cantidad_solicitudes || 0}
+                              {analista.cantidad_asignadas ?? analista.cantidad_solicitudes ?? 0}
                             </Badge>
                             <span className="text-xs text-gray-500 mt-1">asignadas</span>
                           </div>
@@ -709,7 +709,7 @@ export default function AnalistasPage() {
                               <Badge variant="outline" className={getPrioridadBadgeClass(analista.nivel_prioridad_1)}>
                                 {analista.nivel_prioridad_1 === 'cliente' ? 'Cliente' : 
                                  analista.nivel_prioridad_1 === 'sucursal' ? 'Sucursal' : 
-                                 analista.nivel_prioridad_1 === 'solicitudes' ? 'Solicitudes' : 
+                                 analista.nivel_prioridad_1 === 'solicitudes' ? `Solicitudes (${analista.cantidad_configurada || 0})` : 
                                  analista.nivel_prioridad_1}
                               </Badge>
                             ) : (
@@ -721,9 +721,6 @@ export default function AnalistasPage() {
                             {analista.nivel_prioridad_1 === 'sucursal' && analista.sucursal_nombre && (
                               <div className="text-xs text-gray-500">{analista.sucursal_nombre}</div>
                             )}
-                            {analista.nivel_prioridad_1 === 'solicitudes' && (
-                              <div className="text-xs text-gray-500">{analista.cantidad_solicitudes || 0} solicitudes</div>
-                            )}
                           </div>
                         </TableCell>
                         
@@ -733,7 +730,7 @@ export default function AnalistasPage() {
                               <Badge variant="outline" className={getPrioridadBadgeClass(analista.nivel_prioridad_2)}>
                                 {analista.nivel_prioridad_2 === 'cliente' ? 'Cliente' : 
                                  analista.nivel_prioridad_2 === 'sucursal' ? 'Sucursal' : 
-                                 analista.nivel_prioridad_2 === 'solicitudes' ? 'Solicitudes' : 
+                                 analista.nivel_prioridad_2 === 'solicitudes' ? `Solicitudes (${analista.cantidad_configurada || 0})` : 
                                  analista.nivel_prioridad_2}
                               </Badge>
                             ) : (
@@ -745,9 +742,6 @@ export default function AnalistasPage() {
                             {analista.nivel_prioridad_2 === 'sucursal' && analista.sucursal_nombre && (
                               <div className="text-xs text-gray-500">{analista.sucursal_nombre}</div>
                             )}
-                            {analista.nivel_prioridad_2 === 'solicitudes' && (
-                              <div className="text-xs text-gray-500">{analista.cantidad_solicitudes || 0} solicitudes</div>
-                            )}
                           </div>
                         </TableCell>
                         
@@ -757,7 +751,7 @@ export default function AnalistasPage() {
                               <Badge variant="outline" className={getPrioridadBadgeClass(analista.nivel_prioridad_3)}>
                                 {analista.nivel_prioridad_3 === 'cliente' ? 'Cliente' : 
                                  analista.nivel_prioridad_3 === 'sucursal' ? 'Sucursal' : 
-                                 analista.nivel_prioridad_3 === 'solicitudes' ? 'Solicitudes' : 
+                                 analista.nivel_prioridad_3 === 'solicitudes' ? `Solicitudes (${analista.cantidad_configurada || 0})` : 
                                  analista.nivel_prioridad_3}
                               </Badge>
                             ) : (
@@ -768,9 +762,6 @@ export default function AnalistasPage() {
                             )}
                             {analista.nivel_prioridad_3 === 'sucursal' && analista.sucursal_nombre && (
                               <div className="text-xs text-gray-500">{analista.sucursal_nombre}</div>
-                            )}
-                            {analista.nivel_prioridad_3 === 'solicitudes' && (
-                              <div className="text-xs text-gray-500">{analista.cantidad_solicitudes || 0} solicitudes</div>
                             )}
                           </div>
                         </TableCell>

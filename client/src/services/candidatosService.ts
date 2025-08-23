@@ -42,7 +42,8 @@ export const candidatosService = {
           email,
           activo
         )
-      `);
+      `)
+      .order('created_at', { ascending: false });
     if (error) throw error;
     return data || [];
   },

@@ -5,7 +5,8 @@ export const rolesService = {
   async listRoles() {
     const { data, error } = await supabase
       .from('gen_roles')
-      .select('id, nombre, descripcion, activo, gen_roles_modulos(count)'); // Seleccionar 'activo' y count de roles_modulos
+      .select('id, nombre, descripcion, activo, created_at, gen_roles_modulos(count)')
+      .order('created_at', { ascending: false });
 
     if (error) {
       console.error("Error al listar roles:", error);
@@ -80,8 +81,9 @@ export const rolesService = {
   async listActiveRoles() {
     const { data, error } = await supabase
       .from('gen_roles')
-      .select('id, nombre')
-      .eq('activo', true);
+      .select('id, nombre, created_at')
+      .eq('activo', true)
+      .order('created_at', { ascending: false });
     if (error) {
       console.error("Error al listar roles activos:", error);
       throw error;

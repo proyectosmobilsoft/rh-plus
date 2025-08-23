@@ -26,8 +26,13 @@ export interface AnalistaPrioridad {
   nivel_prioridad_1: string | null;
   nivel_prioridad_2: string | null;
   nivel_prioridad_3: string | null;
+  // Cantidad configurada en la asociación (target)
+  cantidad_configurada?: number;
+  // Cantidad real asignada (conteo actual)
+  cantidad_asignadas?: number;
+  // Campo legacy para compatibilidad (se usará como asignadas)
   cantidad_solicitudes?: number;
-  roles?: Array<{ id: number; nombre: string }>; // Agregar información de roles
+  roles?: Array<{ id: number; nombre: string }>;
 }
 
 export const asociacionPrioridadService = {
@@ -60,7 +65,7 @@ export const asociacionPrioridadService = {
             direccion
           )
         `)
-        .eq('gen_usuarios.rol_id', 4) // Solo analistas
+        .eq('gen_usuarios.rol_id', 4)
         .eq('gen_usuarios.activo', true);
 
       if (error) {
@@ -68,7 +73,6 @@ export const asociacionPrioridadService = {
         return [];
       }
 
-      // Transformar los datos para el formato esperado
       const result: AnalistaPrioridad[] = (data || []).map((item: any) => ({
         usuario_id: item.usuario_id,
         usuario_nombre: `${item.gen_usuarios.primer_nombre || ''} ${item.gen_usuarios.primer_apellido || ''}`.trim() || item.gen_usuarios.username,
@@ -80,7 +84,9 @@ export const asociacionPrioridadService = {
         nivel_prioridad_1: item.nivel_prioridad_1,
         nivel_prioridad_2: item.nivel_prioridad_2,
         nivel_prioridad_3: item.nivel_prioridad_3,
-        cantidad_solicitudes: item.cantidad_solicitudes || 0
+        cantidad_configurada: item.cantidad_solicitudes || 0,
+        cantidad_asignadas: 0,
+        cantidad_solicitudes: 0,
       }));
 
       return result;
@@ -93,7 +99,6 @@ export const asociacionPrioridadService = {
   // Obtener analistas con sus prioridades agrupadas
   getAnalistasWithPriorities: async (): Promise<AnalistaPrioridad[]> => {
     try {
-      // Primero obtener los IDs de roles que están relacionados con el módulo 10
       const { data: rolesModulo10, error: rolesError } = await supabase
         .from('gen_roles_modulos')
         .select('rol_id')
@@ -105,17 +110,11 @@ export const asociacionPrioridadService = {
       }
 
       const rolIds = rolesModulo10?.map((r: any) => r.rol_id) || [];
-      console.log('Roles relacionados con módulo 10:', rolIds);
 
       if (rolIds.length === 0) {
-        console.log('No se encontraron roles relacionados con el módulo 10');
         return [];
       }
 
-      // Obtener analistas que tengan alguno de estos roles (ya sea rol principal o roles adicionales)
-      console.log('Consultando usuarios con roles:', rolIds);
-      
-      // Primero obtener todos los usuarios activos
       const { data: todosUsuarios, error: usuariosError } = await supabase
         .from('gen_usuarios')
         .select(`
@@ -137,66 +136,28 @@ export const asociacionPrioridadService = {
         return [];
       }
 
-      // Filtrar usuarios que tengan roles relacionados con el módulo 10
       const analistas = todosUsuarios?.filter((usuario: any) => {
-        // Verificar si el rol principal está en la lista
         const tieneRolPrincipal = usuario.rol_id && rolIds.includes(usuario.rol_id);
-        
-        // Verificar si tiene roles adicionales relacionados
         const tieneRolesAdicionales = usuario.gen_usuario_roles?.some((ur: any) => 
           rolIds.includes(ur.gen_roles.id)
         );
-        
-        const esAnalista = tieneRolPrincipal || tieneRolesAdicionales;
-        
-        if (esAnalista) {
-          console.log(`Usuario ${usuario.username} es analista:`, {
-            rolPrincipal: usuario.rol_id,
-            rolesAdicionales: usuario.gen_usuario_roles?.map((ur: any) => ur.gen_roles.id),
-            tieneRolPrincipal,
-            tieneRolesAdicionales
-          });
-        }
-        
-        return esAnalista;
+        return tieneRolPrincipal || tieneRolesAdicionales;
       }) || [];
 
-      console.log('Analistas encontrados:', analistas?.length || 0);
-      console.log('Detalles de analistas:', analistas);
-
-      // Obtener las prioridades de cada analista
       const analistasConPrioridades: AnalistaPrioridad[] = [];
 
       for (const analista of analistas || []) {
-        console.log('Procesando analista:', analista);
-        
-        // Extraer roles del usuario que estén relacionados con el módulo 10
-        const roles = [];
-        
-        // Verificar si el rol principal del usuario está en la lista de roles del módulo 10
+        const roles: Array<{ id: number; nombre: string }> = [];
         if (analista.rol_id && rolIds.includes(analista.rol_id)) {
-          console.log('Rol principal incluido:', analista.rol_id);
-          roles.push({
-            id: analista.rol_id,
-            nombre: 'Analista' // Asumimos que rol_id = 4 es Analista
-          });
+          roles.push({ id: analista.rol_id, nombre: 'Analista' });
         }
-        
-        // Agregar roles adicionales de gen_usuario_roles que estén en la lista del módulo 10
         if (analista.gen_usuario_roles) {
-          console.log('Roles adicionales encontrados:', analista.gen_usuario_roles);
           const rolesAdicionales = analista.gen_usuario_roles
             .filter((ur: any) => rolIds.includes(ur.gen_roles.id))
-            .map((ur: any) => ({
-              id: ur.gen_roles.id,
-              nombre: ur.gen_roles.nombre
-            }));
+            .map((ur: any) => ({ id: ur.gen_roles.id, nombre: ur.gen_roles.nombre }));
           roles.push(...rolesAdicionales);
         }
-        
-        console.log('Roles finales para el analista:', roles);
 
-                               // Obtener las prioridades del analista
         const { data: prioridades, error: prioridadesError } = await supabase
           .from('analista_prioridades')
           .select(`
@@ -224,19 +185,13 @@ export const asociacionPrioridadService = {
           continue;
         }
 
-        // Si el analista tiene prioridades, agregar cada una
+        const { count: solicitudesReales } = await supabase
+          .from('hum_solicitudes')
+          .select('*', { count: 'exact', head: true })
+          .eq('analista_id', analista.id);
+
         if (prioridades && prioridades.length > 0) {
           for (const prioridad of prioridades) {
-            // Contar solicitudes reales asignadas a este analista
-            const { count: solicitudesReales, error: countError } = await supabase
-              .from('hum_solicitudes')
-              .select('*', { count: 'exact', head: true })
-              .eq('analista_id', analista.id);
-
-            if (countError) {
-              console.warn(`Error contando solicitudes para analista ${analista.id}:`, countError);
-            }
-
             analistasConPrioridades.push({
               usuario_id: analista.id,
               usuario_nombre: `${analista.primer_nombre || ''} ${analista.primer_apellido || ''}`.trim() || analista.username,
@@ -250,22 +205,14 @@ export const asociacionPrioridadService = {
               nivel_prioridad_1: prioridad.nivel_prioridad_1,
               nivel_prioridad_2: prioridad.nivel_prioridad_2,
               nivel_prioridad_3: prioridad.nivel_prioridad_3,
-              cantidad_solicitudes: solicitudesReales || 0, // Usar conteo real en lugar del campo manual
-              roles: roles
+              cantidad_configurada: prioridad.cantidad_solicitudes || 0,
+              cantidad_asignadas: solicitudesReales || 0,
+              // Mantener compatibilidad: usar asignadas en cantidad_solicitudes para la columna general
+              cantidad_solicitudes: solicitudesReales || 0,
+              roles
             });
           }
         } else {
-          // Si no tiene prioridades, contar solicitudes reales asignadas
-          const { count: solicitudesReales, error: countError } = await supabase
-            .from('hum_solicitudes')
-            .select('*', { count: 'exact', head: true })
-            .eq('analista_id', analista.id);
-
-          if (countError) {
-            console.warn(`Error contando solicitudes para analista ${analista.id}:`, countError);
-          }
-
-          // Si no tiene prioridades, agregar con valores por defecto
           analistasConPrioridades.push({
             usuario_id: analista.id,
             usuario_nombre: `${analista.primer_nombre || ''} ${analista.primer_apellido || ''}`.trim() || analista.username,
@@ -279,24 +226,19 @@ export const asociacionPrioridadService = {
             nivel_prioridad_1: null,
             nivel_prioridad_2: null,
             nivel_prioridad_3: null,
-            cantidad_solicitudes: solicitudesReales || 0, // Usar conteo real
-            roles: roles
+            cantidad_configurada: 0,
+            cantidad_asignadas: solicitudesReales || 0,
+            cantidad_solicitudes: solicitudesReales || 0,
+            roles
           });
         }
       }
 
-      console.log('=== FIN getAnalistasWithPriorities ===');
-      console.log('Total de analistas retornados:', analistasConPrioridades.length);
-      console.log('Analistas con prioridades:', analistasConPrioridades);
-      
-      // Ordenar por cantidad de solicitudes reales en orden descendente
       const analistasOrdenados = analistasConPrioridades.sort((a, b) => {
-        const solicitudesA = a.cantidad_solicitudes || 0;
-        const solicitudesB = b.cantidad_solicitudes || 0;
-        return solicitudesB - solicitudesA; // Orden descendente
+        const solicitudesA = a.cantidad_asignadas || 0;
+        const solicitudesB = b.cantidad_asignadas || 0;
+        return solicitudesB - solicitudesA;
       });
-      
-      console.log('Analistas ordenados por solicitudes reales (descendente):', analistasOrdenados);
       return analistasOrdenados;
     } catch (error) {
       console.error('Error en getAnalistasWithPriorities:', error);
@@ -307,9 +249,6 @@ export const asociacionPrioridadService = {
   // Crear o actualizar asociación de prioridad
   upsert: async (asociacion: Omit<AsociacionPrioridad, 'id' | 'created_at' | 'updated_at'>): Promise<AsociacionPrioridad | null> => {
     try {
-      console.log('=== INICIO upsert ===');
-      console.log('Datos a insertar:', asociacion);
-      
       const { data, error } = await supabase
         .from('analista_prioridades')
         .upsert([asociacion], {
@@ -323,8 +262,6 @@ export const asociacionPrioridadService = {
         return null;
       }
 
-      console.log('=== FIN upsert - ÉXITO ===');
-      console.log('Datos insertados:', data);
       return data;
     } catch (error) {
       console.error('=== ERROR en upsert ===');
@@ -357,10 +294,7 @@ export const asociacionPrioridadService = {
   // Obtener prioridades de un usuario específico
   getPrioridadesByUsuarioId: async (usuarioId: number): Promise<any[]> => {
     try {
-      console.log('=== INICIO getPrioridadesByUsuarioId ===');
-      console.log('Usuario ID a consultar:', usuarioId);
-      
-                     const { data, error } = await supabase
+      const { data, error } = await supabase
         .from('analista_prioridades')
         .select(`
           id,
@@ -381,8 +315,6 @@ export const asociacionPrioridadService = {
         return [];
       }
 
-      console.log('=== FIN getPrioridadesByUsuarioId - ÉXITO ===');
-      console.log('Prioridades encontradas:', data);
       return data || [];
     } catch (error) {
       console.error('Error en getPrioridadesByUsuarioId:', error);
@@ -393,9 +325,6 @@ export const asociacionPrioridadService = {
   // Eliminar todas las prioridades de un usuario
   deleteByUsuarioId: async (usuarioId: number): Promise<boolean> => {
     try {
-      console.log('=== INICIO deleteByUsuarioId ===');
-      console.log('Usuario ID a eliminar:', usuarioId);
-      
       const { error } = await supabase
         .from('analista_prioridades')
         .delete()
@@ -406,7 +335,6 @@ export const asociacionPrioridadService = {
         return false;
       }
 
-      console.log('=== FIN deleteByUsuarioId - ÉXITO ===');
       return true;
     } catch (error) {
       console.error('=== ERROR en deleteByUsuarioId ===');

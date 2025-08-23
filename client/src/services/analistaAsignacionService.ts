@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { asociacionPrioridadService, AnalistaPrioridad } from './asociacionPrioridadService';
+import { obtenerEmpresaSeleccionada } from '@/utils/empresaUtils';
 
 export interface AnalistaAsignado {
   analista_id: number;
@@ -13,9 +14,9 @@ export interface AnalistaAsignado {
 export const analistaAsignacionService = {
   /**
    * Asigna automáticamente un analista a una solicitud basándose en las prioridades configuradas
-   * @param empresaId ID de la empresa de la solicitud
-   * @param sucursalId ID de la sucursal (opcional)
-   * @returns Analista asignado o null si no se encuentra uno disponible
+   * Reglas:
+   *  - El analista debe tener una asociación (cualquier prioridad) con la misma empresa del usuario autenticado
+   *  - Solo se consideran entradas cuya empresa coincida; prioridades de otras empresas no aplican
    */
   asignarAnalistaAutomatico: async (
     empresaId: number,
@@ -23,8 +24,13 @@ export const analistaAsignacionService = {
   ): Promise<AnalistaAsignado | null> => {
     try {
       console.log('🔍 Iniciando asignación automática de analista...');
-      console.log('Empresa ID:', empresaId);
+      console.log('Empresa ID (solicitud):', empresaId);
       console.log('Sucursal ID:', sucursalId);
+
+      // Empresa seleccionada por el usuario autenticado (con fallback al parámetro)
+      const empresaSel = obtenerEmpresaSeleccionada();
+      const empresaUsuarioId = empresaSel?.id || empresaId;
+      console.log('Empresa del usuario autenticado usada para filtro:', empresaUsuarioId);
 
       // Obtener todos los analistas con sus prioridades
       const analistas = await asociacionPrioridadService.getAnalistasWithPriorities();
@@ -36,16 +42,18 @@ export const analistaAsignacionService = {
 
       console.log('📊 Analistas disponibles:', analistas.length);
 
-      // Filtrar analistas que tengan prioridades configuradas para esta empresa/sucursal
+      // Filtrar analistas: deben pertenecer a la empresa del usuario autenticado
       const analistasElegibles = analistas.filter(analista => {
-        // Verificar si el analista tiene prioridades configuradas
-        const tienePrioridades = analista.nivel_prioridad_1 || analista.nivel_prioridad_2 || analista.nivel_prioridad_3;
-        
-        if (!tienePrioridades) {
+        // Solo considerar filas cuya empresa coincida con la del usuario
+        if (!analista.empresa_id || analista.empresa_id !== empresaUsuarioId) {
           return false;
         }
 
-        // Verificar si alguna de las prioridades coincide con la empresa o sucursal
+        // Verificar si el analista tiene prioridades configuradas
+        const tienePrioridades = analista.nivel_prioridad_1 || analista.nivel_prioridad_2 || analista.nivel_prioridad_3;
+        if (!tienePrioridades) return false;
+
+        // Verificar tipos de prioridad válidos dentro de esta asociación
         const prioridades = [
           { nivel: 1, valor: analista.nivel_prioridad_1 },
           { nivel: 2, valor: analista.nivel_prioridad_2 },
@@ -54,14 +62,15 @@ export const analistaAsignacionService = {
 
         return prioridades.some(prioridad => {
           if (!prioridad.valor) return false;
-          
           switch (prioridad.valor) {
-            case 'empresa':
-              return analista.empresa_id === empresaId;
+            case 'cliente':
+              // Empresa ya coincide por la fila
+              return true;
             case 'sucursal':
-              return sucursalId && analista.sucursal_id === sucursalId;
+              return sucursalId != null && analista.sucursal_id === sucursalId;
             case 'solicitudes':
-              return true; // Siempre elegible para solicitudes generales
+              // Debe ser de la misma empresa igualmente
+              return true;
             default:
               return false;
           }
@@ -69,52 +78,30 @@ export const analistaAsignacionService = {
       });
 
       if (analistasElegibles.length === 0) {
-        console.log('❌ No se encontraron analistas elegibles para esta empresa/sucursal');
+        console.log('❌ No se encontraron analistas elegibles para la empresa del usuario');
         return null;
       }
 
       console.log('✅ Analistas elegibles encontrados:', analistasElegibles.length);
 
-      // Ordenar analistas por prioridad y cantidad de solicitudes
+      // Ordenar analistas por prioridad y por menor cantidad de asignadas
       const analistasOrdenados = analistasElegibles.sort((a, b) => {
-        // Primero por prioridad más alta (nivel 1 > nivel 2 > nivel 3)
         const prioridadA = a.nivel_prioridad_1 ? 1 : a.nivel_prioridad_2 ? 2 : a.nivel_prioridad_3 ? 3 : 4;
         const prioridadB = b.nivel_prioridad_1 ? 1 : b.nivel_prioridad_2 ? 2 : b.nivel_prioridad_3 ? 3 : 4;
-        
-        if (prioridadA !== prioridadB) {
-          return prioridadA - prioridadB;
-        }
-
-        // Si tienen la misma prioridad, ordenar por menor cantidad de solicitudes
-        const solicitudesA = a.cantidad_solicitudes || 0;
-        const solicitudesB = b.cantidad_solicitudes || 0;
-        return solicitudesA - solicitudesB;
+        if (prioridadA !== prioridadB) return prioridadA - prioridadB;
+        const asignadasA = a.cantidad_asignadas ?? a.cantidad_solicitudes ?? 0;
+        const asignadasB = b.cantidad_asignadas ?? b.cantidad_solicitudes ?? 0;
+        return asignadasA - asignadasB;
       });
 
-      console.log('📋 Analistas ordenados por prioridad:', analistasOrdenados);
-
-      // Seleccionar el mejor analista disponible
       const mejorAnalista = analistasOrdenados[0];
-      
-      if (!mejorAnalista) {
-        console.log('❌ No se pudo seleccionar un analista');
-        return null;
-      }
+      if (!mejorAnalista) return null;
 
-      // Determinar el nivel de prioridad y tipo
       let prioridadNivel = 0;
       let prioridadTipo = '';
-
-      if (mejorAnalista.nivel_prioridad_1) {
-        prioridadNivel = 1;
-        prioridadTipo = mejorAnalista.nivel_prioridad_1;
-      } else if (mejorAnalista.nivel_prioridad_2) {
-        prioridadNivel = 2;
-        prioridadTipo = mejorAnalista.nivel_prioridad_2;
-      } else if (mejorAnalista.nivel_prioridad_3) {
-        prioridadNivel = 3;
-        prioridadTipo = mejorAnalista.nivel_prioridad_3;
-      }
+      if (mejorAnalista.nivel_prioridad_1) { prioridadNivel = 1; prioridadTipo = mejorAnalista.nivel_prioridad_1; }
+      else if (mejorAnalista.nivel_prioridad_2) { prioridadNivel = 2; prioridadTipo = mejorAnalista.nivel_prioridad_2; }
+      else if (mejorAnalista.nivel_prioridad_3) { prioridadNivel = 3; prioridadTipo = mejorAnalista.nivel_prioridad_3; }
 
       const analistaAsignado: AnalistaAsignado = {
         analista_id: mejorAnalista.usuario_id,
@@ -126,15 +113,6 @@ export const analistaAsignacionService = {
       };
 
       console.log('✅ Analista asignado:', analistaAsignado);
-
-      // Ya no es necesario actualizar manualmente la cantidad de solicitudes
-      // ya que ahora contamos las solicitudes reales desde la tabla hum_solicitudes
-      // await analistaAsignacionService.actualizarCantidadSolicitudes(
-      //   mejorAnalista.usuario_id,
-      //   mejorAnalista.empresa_id,
-      //   mejorAnalista.sucursal_id
-      // );
-
       return analistaAsignado;
 
     } catch (error) {
@@ -142,64 +120,6 @@ export const analistaAsignacionService = {
       return null;
     }
   },
-
-  /**
-   * Actualiza la cantidad de solicitudes asignadas a un analista
-   * NOTA: Este método ya no se usa ya que ahora contamos las solicitudes reales
-   * desde la tabla hum_solicitudes en lugar de mantener un contador manual
-   */
-  /*
-  actualizarCantidadSolicitudes: async (
-    usuarioId: number,
-    empresaId?: number,
-    sucursalId?: number
-  ): Promise<void> => {
-    try {
-      console.log('🔄 Actualizando cantidad de solicitudes...');
-      console.log('Usuario ID:', usuarioId);
-      console.log('Empresa ID:', empresaId);
-      console.log('Sucursal ID:', sucursalId);
-
-      // Obtener la cantidad actual de solicitudes
-      const { data: prioridades, error: selectError } = await supabase
-        .from('analista_prioridades')
-        .select('cantidad_solicitudes')
-        .eq('usuario_id', usuarioId)
-        .eq('empresa_id', empresaId || null)
-        .eq('sucursal_id', sucursalId || null)
-        .single();
-
-      if (selectError && selectError.code !== 'PGRST116') { // PGRST116 = no rows returned
-        console.error('Error al obtener cantidad de solicitudes:', selectError);
-        return;
-      }
-
-      const cantidadActual = prioridades?.cantidad_solicitudes || 0;
-      const nuevaCantidad = cantidadActual + 1;
-
-      console.log('Cantidad actual:', cantidadActual);
-      console.log('Nueva cantidad:', nuevaCantidad);
-
-      // Actualizar la cantidad de solicitudes
-      const { error: updateError } = await supabase
-        .from('analista_prioridades')
-        .update({ cantidad_solicitudes: nuevaCantidad })
-        .eq('usuario_id', usuarioId)
-        .eq('empresa_id', empresaId || null)
-        .eq('sucursal_id', sucursalId || null);
-
-      if (updateError) {
-        console.error('Error al actualizar cantidad de solicitudes:', updateError);
-        return;
-      }
-
-      console.log('✅ Cantidad de solicitudes actualizada correctamente');
-
-    } catch (error) {
-      console.error('❌ Error al actualizar cantidad de solicitudes:', error);
-    }
-  },
-  */
 
   /**
    * Obtiene el analista asignado a una solicitud específica
@@ -216,7 +136,6 @@ export const analistaAsignacionService = {
         return null;
       }
 
-      // Obtener información del analista
       const { data: analista, error: analistaError } = await supabase
         .from('gen_usuarios')
         .select('id, primer_nombre, primer_apellido, username')
