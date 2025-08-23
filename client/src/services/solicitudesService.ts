@@ -133,7 +133,7 @@ export const solicitudesService = {
       const solicitudesConAnalistas = await Promise.all(
         (data || []).map(async (solicitud) => {
           let analista = undefined;
-
+          
           if (solicitud.analista_id) {
             try {
               const { data: analistaData, error: analistaError } =
@@ -141,8 +141,8 @@ export const solicitudesService = {
                   .from("gen_usuarios")
                   .select("id, primer_nombre, primer_apellido, username, email")
                   .eq("id", solicitud.analista_id)
-                  .single();
-
+                .single();
+              
               if (!analistaError && analistaData) {
                 analista = {
                   id: analistaData.id,
@@ -213,7 +213,7 @@ export const solicitudesService = {
       const solicitudesConAnalistas = await Promise.all(
         (data || []).map(async (solicitud) => {
           let analista = undefined;
-
+          
           if (solicitud.analista_id) {
             try {
               const { data: analistaData, error: analistaError } =
@@ -221,8 +221,8 @@ export const solicitudesService = {
                   .from("gen_usuarios")
                   .select("id, primer_nombre, primer_apellido, username, email")
                   .eq("id", solicitud.analista_id)
-                  .single();
-
+                .single();
+              
               if (!analistaError && analistaData) {
                 analista = {
                   id: analistaData.id,
@@ -293,7 +293,7 @@ export const solicitudesService = {
 
       // Obtener información del analista por separado
       let analista = undefined;
-
+      
       if (data.analista_id) {
         try {
           const { data: analistaData, error: analistaError } = await supabase
@@ -301,7 +301,7 @@ export const solicitudesService = {
             .select("id, primer_nombre, primer_apellido, username, email")
             .eq("id", data.analista_id)
             .single();
-
+          
           if (!analistaError && analistaData) {
             analista = {
               id: analistaData.id,
@@ -336,18 +336,18 @@ export const solicitudesService = {
       console.log(
         "🔍 Creando solicitud con asignación automática de analista..."
       );
-
+      
       // Asignar analista automáticamente si no se especifica uno
       let analistaId = solicitud.analista_id;
       let estadoFinal = solicitud.estado;
-
+      
       if (!analistaId && solicitud.empresa_id) {
         console.log("🔄 Asignando analista automáticamente...");
         const analistaAsignado =
           await analistaAsignacionService.asignarAnalistaAutomatico(
             solicitud.empresa_id
           );
-
+        
         if (analistaAsignado) {
           analistaId = analistaAsignado.analista_id;
           estadoFinal = "ASIGNADO"; // Cambiar estado a ASIGNADO cuando se asigna analista
@@ -486,7 +486,7 @@ export const solicitudesService = {
 
       // Obtener información del analista por separado
       let analista = undefined;
-
+      
       if (data.analista_id) {
         try {
           const { data: analistaData, error: analistaError } = await supabase
@@ -494,7 +494,7 @@ export const solicitudesService = {
             .select("id, primer_nombre, primer_apellido, username, email")
             .eq("id", data.analista_id)
             .single();
-
+          
           if (!analistaError && analistaData) {
             analista = {
               id: analistaData.id,
@@ -776,15 +776,15 @@ export const solicitudesService = {
       console.log(
         "🔍 Creando solicitud con plantilla y asignación automática de analista..."
       );
-
+      
       // Asignar analista automáticamente
       console.log("🔄 Asignando analista automáticamente...");
       const analistaAsignado =
         await analistaAsignacionService.asignarAnalistaAutomatico(empresaId);
-
+      
       let analistaId: number | undefined;
       let estadoFinal = "PENDIENTE"; // Estado por defecto
-
+      
       if (analistaAsignado) {
         analistaId = analistaAsignado.analista_id;
         estadoFinal = "ASIGNADO"; // Cambiar estado a ASIGNADO cuando se asigna analista
@@ -968,7 +968,7 @@ export const solicitudesService = {
 
       // Obtener información del analista por separado
       let analista = undefined;
-
+      
       if (data.analista_id) {
         try {
           const { data: analistaData, error: analistaError } = await supabase
@@ -976,7 +976,7 @@ export const solicitudesService = {
             .select("id, primer_nombre, primer_apellido, username, email")
             .eq("id", data.analista_id)
             .single();
-
+          
           if (!analistaError && analistaData) {
             analista = {
               id: analistaData.id,
@@ -1105,7 +1105,7 @@ export const solicitudesService = {
 
       console.log("🔍 Solicitud anterior:", solicitudAnterior);
 
-      const updateData: any = {
+      const updateData: any = { 
         estado: newStatus,
         updated_at: new Date().toISOString(),
       };
@@ -1299,7 +1299,7 @@ export const solicitudesService = {
         "PENDIENTE DOCUMENTOS",
         observacion
       );
-
+      
       if (success) {
         // Log adicional específico para contacto
         try {
@@ -1329,7 +1329,7 @@ export const solicitudesService = {
   async approve(id: number, observacion?: string): Promise<boolean> {
     try {
       const success = await this.updateStatus(id, "APROBADA", observacion);
-
+      
       if (success) {
         return success;
       } else {
@@ -1345,7 +1345,7 @@ export const solicitudesService = {
   async reject(id: number, observacion?: string): Promise<boolean> {
     try {
       const success = await this.updateStatus(id, "RECHAZADA", observacion);
-
+      
       if (success) {
         // Log adicional específico para rechazo
         try {
@@ -1488,4 +1488,4 @@ export const solicitudesService = {
       return false;
     }
   },
-};
+}; 

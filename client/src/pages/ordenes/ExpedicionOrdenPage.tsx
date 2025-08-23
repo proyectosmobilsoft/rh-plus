@@ -99,6 +99,7 @@ const ExpedicionOrdenPage = () => {
 
   const handleCreate = () => {
     setSelectedSolicitud(undefined);
+    setReadOnlyView(false);
     setActiveTab("registro");
   };
 

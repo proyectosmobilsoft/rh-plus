@@ -11,6 +11,7 @@ import { useLoading } from '@/contexts/LoadingContext';
 import { Can } from '@/contexts/PermissionsContext';
 import { useRegisterView } from '@/hooks/useRegisterView';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { solicitudesLogsService, type SolicitudLog } from '@/services/solicitudesLogsService';
 // import SolicitudForm from '@/components/solicitudes/SolicitudForm';
 
 interface SolicitudesListProps {
@@ -63,6 +64,8 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   const [desertoSolicitudId, setDesertoSolicitudId] = useState<number | null>(null);
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedSolicitudForView, setSelectedSolicitudForView] = useState<Solicitud | null>(null);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [logs, setLogs] = useState<SolicitudLog[]>([]);
   const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
   const [cancelingSolicitudId, setCancelingSolicitudId] = useState<number | null>(null);
 
@@ -233,7 +236,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   // Asegurar que al salir de la pantalla se libere el loading global y se limpien diálogos
   useEffect(() => {
     return () => {
-      try { stopLoading(); } catch {}
+      try { stopLoading(); } catch { }
       setConfirmApproveOpen(false);
       setConfirmContactOpen(false);
       setConfirmStandByOpen(false);
@@ -266,8 +269,8 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
         return <Badge className="bg-indigo-300 hover:bg-indigo-400 text-indigo-900 border-indigo-500">En Proceso</Badge>;
       case 'DESERTO':
         return <Badge className="bg-red-300 hover:bg-red-400 text-red-900 border-red-500">Deserto</Badge>;
-             case 'CANCELADA':
-         return <Badge className="bg-red-300 hover:bg-red-400 text-red-900 border-red-500">Cancelada</Badge>;
+      case 'CANCELADA':
+        return <Badge className="bg-red-300 hover:bg-red-400 text-red-900 border-red-500">Cancelada</Badge>;
       default:
         return <Badge variant="outline">{formatEstado(estado || 'Sin estado')}</Badge>;
     }
@@ -292,8 +295,8 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
         return 'bg-indigo-100';
       case 'DESERTO':
         return 'bg-red-100';
-             case 'CANCELADA':
-         return 'bg-red-100';
+      case 'CANCELADA':
+        return 'bg-red-100';
       default:
         return '';
     }
@@ -329,11 +332,11 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   // Función para verificar si la solicitud está en STAND BY
   const isStandBy = (estado: string) => estado?.toUpperCase() === 'STAND BY';
 
-     // Función para verificar si la solicitud está en estado DESERTO
-   const isDeserto = (estado: string) => estado?.toUpperCase() === 'DESERTO';
+  // Función para verificar si la solicitud está en estado DESERTO
+  const isDeserto = (estado: string) => estado?.toUpperCase() === 'DESERTO';
 
-   // Función para verificar si la solicitud está en estado CANCELADA
-   const isCancelada = (estado: string) => estado?.toUpperCase() === 'CANCELADA';
+  // Función para verificar si la solicitud está en estado CANCELADA
+  const isCancelada = (estado: string) => estado?.toUpperCase() === 'CANCELADA';
 
   const getDisplayValue = (value: string | undefined, defaultValue: string = 'No especificado') => {
     return value && value.trim() !== '' ? value : defaultValue;
@@ -342,7 +345,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   // Función para renderizar la plantilla en modo de solo lectura
   const renderPlantilla = (estructura: any, datos: any) => {
     console.log('🔍 renderPlantilla llamado con:', { estructura, datos });
-    
+
     if (!estructura || !estructura.secciones) {
       console.log('❌ No hay estructura o secciones:', { estructura });
       return (
@@ -529,7 +532,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     }
   };
 
-  const handleContactConfirm = () => {
+  const handleContactConfirm = async () => {
     if (selectedSolicitudId) {
       console.log('🔍 handleContactConfirm llamado para solicitud ID:', selectedSolicitudId);
       console.log('🔍 Llamando a startLoading()...');
@@ -542,6 +545,58 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
       setSelectedSolicitudId(null);
       // NO limpiar contactingSolicitudId aquí, se limpiará cuando se complete la operación
       // El loading se detendrá cuando se complete la operación en el componente padre
+    }
+  };
+
+  // Cargar timeline cuando se abra el modal y exista una solicitud seleccionada
+  useEffect(() => {
+    const cargarLogs = async () => {
+      if (viewModalOpen && selectedSolicitudForView?.id) {
+        try {
+          setLogsLoading(true);
+          const data = await solicitudesLogsService.getLogsBySolicitud(selectedSolicitudForView.id);
+          setLogs(data);
+        } catch (e) {
+          console.warn('No se pudieron cargar los logs de la solicitud:', e);
+          setLogs([]);
+        } finally {
+          setLogsLoading(false);
+        }
+      } else if (!viewModalOpen) {
+        setLogs([]);
+      }
+    };
+    cargarLogs();
+  }, [viewModalOpen, selectedSolicitudForView?.id]);
+
+  const mapAccionLabel = (accion?: string) => {
+    if (!accion) return 'Acción';
+    switch (accion) {
+      case 'CREAR_SOLICITUD': return 'Creación de solicitud';
+      case 'ASIGNAR_ANALISTA': return 'Asignación de analista';
+      case 'CAMBIAR_ESTADO': return 'Cambio de estado';
+      case 'CONTACTAR': return 'Marcado como contactado';
+      case 'PUT_STANDBY': return 'Puesta en Stand By';
+      case 'REACTIVAR': return 'Reactivación';
+      case 'EDITAR_SOLICITUD': return 'Edición de solicitud';
+      case 'APROBAR_SOLICITUD': return 'Aprobación';
+      case 'RECHAZAR_SOLICITUD': return 'Rechazo';
+      case 'ELIMINAR_SOLICITUD': return 'Eliminación';
+      default: return accion;
+    }
+  };
+
+  const mapAccionBadgeClass = (accion?: string) => {
+    switch (accion) {
+      case 'CREAR_SOLICITUD': return 'bg-green-50 text-green-700 border-green-200';
+      case 'ASIGNAR_ANALISTA': return 'bg-blue-50 text-blue-700 border-blue-200';
+      case 'CAMBIAR_ESTADO': return 'bg-purple-50 text-purple-700 border-purple-200';
+      case 'CONTACTAR': return 'bg-cyan-50 text-cyan-700 border-cyan-200';
+      case 'PUT_STANDBY': return 'bg-gray-50 text-gray-700 border-gray-200';
+      case 'REACTIVAR': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+      case 'APROBAR_SOLICITUD': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+      case 'RECHAZAR_SOLICITUD': return 'bg-rose-50 text-rose-700 border-rose-200';
+      default: return 'bg-slate-50 text-slate-700 border-slate-200';
     }
   };
 
@@ -698,7 +753,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
                         {/* Botón Visualizar - siempre visible */}
                         <Can action="accion-visualizar-solicitud">
-                          <DropdownMenuItem onClick={() => onView(solicitud)} className="cursor-pointer">
+                          <DropdownMenuItem onClick={() => { handleViewClick(solicitud); onView(solicitud); }} className="cursor-pointer">
                             <Eye className="h-4 w-4 mr-2 text-blue-600" />
                             Visualizar
                           </DropdownMenuItem>
@@ -717,7 +772,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                         {/* Botón Contactado - solo visible en estado ASIGNADO */}
                         {solicitud.estado === 'ASIGNADO' && !isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
                           <Can action="accion-contactar-solicitud">
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               onClick={() => handleContactClick(solicitud.id)}
                               disabled={contactingSolicitudId === solicitud.id}
                               className="cursor-pointer"
@@ -731,7 +786,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                         {/* Botón Stand By / Reactivar */}
                         {!isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && isStandBy(solicitud.estado) && (
                           <Can action="accion-reactivar-solicitud">
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               onClick={() => handleReactivate(solicitud.id!)}
                               disabled={reactivatingSolicitudId === solicitud.id}
                               className="cursor-pointer"
@@ -784,7 +839,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                     <span>
                       {
                         // Intentar obtener el número de documento del JSON de la plantilla primero
-                        solicitud.estructura_datos?.numero_documento || 
+                        solicitud.estructura_datos?.numero_documento ||
                         solicitud.estructura_datos?.documento ||
                         solicitud.estructura_datos?.cedula ||
                         solicitud.estructura_datos?.identificacion ||
@@ -988,7 +1043,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
         </AlertDialogContent>
       </AlertDialog>
 
-                           {/* Modal de Visualización de Solicitud */}
+      {/* Modal de Visualización de Solicitud */}
       <AlertDialog open={viewModalOpen} onOpenChange={setViewModalOpen}>
         <AlertDialogContent className="sm:max-w-[96vw] w-[96vw] h-[92vh] overflow-hidden relative p-0">
           {/* Botón X en la esquina superior derecha */}
@@ -1016,19 +1071,68 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-              {selectedSolicitudForView ? (
-                selectedSolicitudForView.estructura_datos ? (
-                  <div className="bg-white rounded-lg border border-gray-200 p-6">
-                    {renderPlantilla(selectedSolicitudForView.estructura_datos, selectedSolicitudForView.estructura_datos)}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <FileText className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                    <p className="font-medium">No hay plantilla disponible</p>
-                    <p className="text-sm">Esta solicitud no tiene estructura de plantilla configurada</p>
-                  </div>
-                )
-              ) : null}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                  {selectedSolicitudForView ? (
+                    selectedSolicitudForView.estructura_datos ? (
+                      <div className="bg-white rounded-lg border border-gray-200 p-6">
+                        {renderPlantilla(selectedSolicitudForView.estructura_datos, selectedSolicitudForView.estructura_datos)}
+                        {/* Timeline */}
+                        <div className="lg:pl-6 lg:border-l lg:border-gray-200">
+                          <div className="bg-white rounded-lg border border-gray-200">
+                            <div className="p-4 border-b flex items-center gap-2">
+                              <Clock className="h-4 w-4 text-cyan-600" />
+                              <span className="font-semibold text-gray-800">Historial de la solicitud</span>
+                            </div>
+                            <div className="p-4 max-h-[70vh] overflow-y-auto">
+                              {logsLoading ? (
+                                <div className="flex items-center justify-center py-10 text-gray-500 text-sm">Cargando historial...</div>
+                              ) : logs.length === 0 ? (
+                                <div className="text-gray-500 text-sm">Sin registros de historial</div>
+                              ) : (
+                                <div className="ml-2 border-l-2 border-cyan-200 pl-4 space-y-4">
+                                  {logs.map((log) => (
+                                    <div key={log.id} className="relative">
+                                      <span className="absolute -left-[9px] top-1 h-3 w-3 rounded-full bg-cyan-600 border-2 border-white"></span>
+                                      <div className="flex items-center justify-between">
+                                        <Badge variant="outline" className={`text-xs ${mapAccionBadgeClass(log.accion)}`}>
+                                          {mapAccionLabel(log.accion)}
+                                        </Badge>
+                                        <span className="text-[11px] text-gray-500">{formatDateTime(log.fecha_accion)}</span>
+                                      </div>
+                                      {(log.estado_anterior || log.estado_nuevo) && (
+                                        <div className="mt-1 text-xs text-gray-600">
+                                          {log.estado_anterior ? <span>De <strong>{log.estado_anterior}</strong> </span> : null}
+                                          {log.estado_nuevo ? <span>→ A <strong>{log.estado_nuevo}</strong></span> : null}
+                                        </div>
+                                      )}
+                                      {log.usuario && (
+                                        <div className="mt-1 text-xs text-gray-500">Por: {`${log.usuario.primer_nombre || ''} ${log.usuario.primer_apellido || ''}`.trim() || log.usuario.username}</div>
+                                      )}
+                                      {log.observacion && (
+                                        <div className="mt-2 text-xs text-gray-700 bg-gray-50 border border-gray-200 rounded px-3 py-2 whitespace-pre-line">{log.observacion}</div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <FileText className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                        <p className="font-medium">No hay plantilla disponible</p>
+                        <p className="text-sm">Esta solicitud no tiene estructura de plantilla configurada</p>
+                      </div>
+                    )
+                  ) : null}
+                </div>
+
+
+              </div>
             </div>
 
             <div className="px-6 py-4 border-t bg-white/80 backdrop-blur">
@@ -1036,6 +1140,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                 <AlertDialogCancel onClick={() => {
                   setViewModalOpen(false);
                   setSelectedSolicitudForView(null);
+                  setLogs([]);
                 }} className="px-6 py-2">
                   Cerrar
                 </AlertDialogCancel>
