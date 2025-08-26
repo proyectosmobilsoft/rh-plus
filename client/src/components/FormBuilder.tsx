@@ -227,14 +227,14 @@ const FormBuilder: React.FC<{
 
   // Notificar cambios en los campos
   useEffect(() => {
-    if (onFieldsChange) {
-      // Extraer todos los campos de todas las secciones
+    if (onFieldsChange && sections.length > 0 && isInitialized) {
+      // Solo notificar cambios si hay secciones, no es la inicialización y ya se inicializó
       const allFields = sections.flatMap(section => 
         section.campos.filter(f => f.activo !== false)
       );
       onFieldsChange(allFields);
     }
-  }, [sections, onFieldsChange]);
+  }, [sections, onFieldsChange, isInitialized]);
 
   const handleFieldChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
