@@ -64,9 +64,18 @@ export const tiposDocumentosService = {
   // Crear un nuevo tipo de documento
   async create(data: CreateTipoDocumentoData): Promise<TipoDocumento> {
     console.log('🔍 tiposDocumentosService.create - Creando nuevo tipo de documento:', data);
+    
+    // Preparar los datos para la inserción
+    const insertData: any = { ...data, activo: data.activo ?? true };
+    
+    // Si no lleva fecha de vigencia o la fecha está vacía, no incluir el campo fecha_vigencia
+    if (!data.lleva_fecha_vigencia || !data.fecha_vigencia || data.fecha_vigencia.trim() === '') {
+      delete insertData.fecha_vigencia;
+    }
+    
     const { data: newTipo, error } = await supabase
       .from('tipos_documentos')
-      .insert([{ ...data, activo: data.activo ?? true }])
+      .insert([insertData])
       .select()
       .single();
 
@@ -81,9 +90,17 @@ export const tiposDocumentosService = {
 
   // Actualizar un tipo de documento
   async update(id: number, data: UpdateTipoDocumentoData): Promise<TipoDocumento> {
+    // Preparar los datos para la actualización
+    const updateData: any = { ...data, updated_at: new Date().toISOString() };
+    
+    // Si no lleva fecha de vigencia o la fecha está vacía, no incluir el campo fecha_vigencia
+    if (!data.lleva_fecha_vigencia || !data.fecha_vigencia || data.fecha_vigencia.trim() === '') {
+      delete updateData.fecha_vigencia;
+    }
+    
     const { data: updatedTipo, error } = await supabase
       .from('tipos_documentos')
-      .update({ ...data, updated_at: new Date().toISOString() })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();
@@ -95,11 +112,11 @@ export const tiposDocumentosService = {
     return updatedTipo;
   },
 
-  // Eliminar un tipo de documento (soft delete)
+  // Eliminar un tipo de documento
   async delete(id: number): Promise<void> {
     const { error } = await supabase
       .from('tipos_documentos')
-      .update({ activo: false, updated_at: new Date().toISOString() })
+      .delete()
       .eq('id', id);
 
     if (error) {
