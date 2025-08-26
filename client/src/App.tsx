@@ -105,7 +105,7 @@ import QrWhatsAppPage from './pages/empresa/QrWhatsAppPage';
 import AcercaEmpresaPage from './pages/empresa/AcercaEmpresaPage';
 import ConfiguracionesGlobalesPage from './pages/configuraciones/ConfiguracionesGlobalesPage';
 import EmailMasivoPage from './pages/maestro/EmailMasivoPage';
-import EstructuraFinancieraPage from './pages/maestro/EstructuraFinancieraPage';
+import CentrosCostoPage from './pages/maestro/CentrosCostoPage';
 
 // Página pública para visualizar QR
 import QRViewer from './pages/QRViewer';
@@ -469,9 +469,9 @@ function App() {
                 <EmailMasivoPage />
               </ProtectedRoute>
             } />
-            <Route path="/maestro/estructura-financiera" element={
+            <Route path="/maestro/centros-costo" element={
               <ProtectedRoute>
-                <EstructuraFinancieraPage />
+                <CentrosCostoPage />
               </ProtectedRoute>
             } />
 
