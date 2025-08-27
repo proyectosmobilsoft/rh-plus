@@ -65,6 +65,7 @@ import { qrService, QRCodeData, QRConfiguracion } from '@/services/qrService';
 import { whatsappService, WhatsAppMessage, WhatsAppResponse } from '@/services/whatsappService';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLoading } from '@/contexts/LoadingContext';
+import { emailService } from '@/services/emailService';
 
 interface CandidatoConEmpresa extends Candidato {
   empresa_nombre?: string;
@@ -123,19 +124,19 @@ Saludos cordiales.`);
   
   const [selectedTemplate, setSelectedTemplate] = useState<string>('default');
 
-  const [asuntoEmail, setAsuntoEmail] = useState('Tu código QR de certificación - {{empresa}}');
-  const [mensajeEmail, setMensajeEmail] = useState(`Estimado/a {{nombre}},
+  const [asuntoEmail, setAsuntoEmail] = useState('Tu código QR de certificación - empresa');
+  const [mensajeEmail, setMensajeEmail] = useState(`Estimado/a nombre,
 
 Nos complace informarte que tu código QR de certificación ha sido generado exitosamente.
 
-Este código contiene tu información verificada y te permitirá acceder a las instalaciones de {{empresa}} de manera segura.
+Este código contiene tu información verificada y te permitirá acceder a las instalaciones de empresa de manera segura.
 
 Información incluida:
-- Nombre: {{nombre}}
-- Cédula: {{cedula}}
-- Email: {{email}}
-- Empresa: {{empresa}}
-- Fecha de generación: {{fecha}}
+- Nombre: nombre
+- Cédula: cedula
+- Email: email
+- Empresa: empresa
+- Fecha de generación: fecha
 
 Atentamente,
 Equipo de Recursos Humanos`);
@@ -541,13 +542,386 @@ Equipo de Recursos Humanos`);
   };
 
   const sendEmail = async () => {
-    const candidatosSeleccionados = candidatos.filter(c => selectedCandidatos.includes(c.id!));
+    if (selectedCandidatos.length === 0) {
+      toast({
+        title: "Error",
+        description: "No hay candidatos seleccionados",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!asuntoEmail.trim() || !mensajeEmail.trim()) {
+      toast({
+        title: "Error",
+        description: "El asunto y mensaje son obligatorios",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    startLoading();
     
-    // Simular envío de email
+    try {
+    const candidatosSeleccionados = candidatos.filter(c => selectedCandidatos.includes(c.id!));
+      let emailsEnviados = 0;
+      let emailsFallidos = 0;
+      const errores: string[] = [];
+
+      // Enviar email a cada candidato seleccionado
+      for (const candidato of candidatosSeleccionados) {
+        try {
+          const nombreCompleto = `${candidato.primer_nombre} ${candidato.segundo_nombre || ''} ${candidato.primer_apellido} ${candidato.segundo_apellido || ''}`.trim();
+          
+          // Verificar que el candidato tenga QR generado
+          if (!candidato.qrData || !candidato.qrData.qr_image_url) {
+            errores.push(`${candidato.email}: No tiene código QR generado`);
+            emailsFallidos++;
+            continue;
+          }
+
+          // Debug: Verificar que la imagen QR esté disponible
+          console.log(`🔍 Debug QR para ${candidato.email}:`, {
+            tieneQRData: !!candidato.qrData,
+            tieneImagenURL: !!candidato.qrData.qr_image_url,
+            imagenURL: candidato.qrData.qr_image_url?.substring(0, 100) + '...',
+            tipoImagen: candidato.qrData.qr_image_url?.startsWith('data:image/') ? 'Base64 válido' : 'Formato incorrecto',
+            estructuraCompleta: candidato.qrData,
+            candidatoCompleto: candidato
+          });
+
+          console.log(`📤 Enviando correo a: ${candidato.email}`);
+
+          // Reemplazar variables en el asunto y mensaje (sin llaves)
+          const asuntoProcesado = asuntoEmail
+            .replace(/nombre/g, nombreCompleto)
+            .replace(/cedula/g, candidato.numero_documento || '')
+            .replace(/email/g, candidato.email || '')
+            .replace(/empresa/g, candidato.empresa_nombre || '')
+            .replace(/fecha/g, new Date().toLocaleDateString('es-ES'));
+
+          const mensajeProcesado = mensajeEmail
+            .replace(/nombre/g, nombreCompleto)
+            .replace(/cedula/g, candidato.numero_documento || '')
+            .replace(/email/g, candidato.email || '')
+            .replace(/empresa/g, candidato.empresa_nombre || '')
+            .replace(/fecha/g, new Date().toLocaleDateString('es-ES'));
+
+          // Crear mensaje HTML con el código QR incrustado correctamente
+          const mensajeHTML = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${asuntoProcesado}</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f4f4f4;
+    }
+    .container {
+      background-color: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+      border-bottom: 2px solid #059669;
+      padding-bottom: 20px;
+    }
+    .logo {
+      font-size: 24px;
+      font-weight: bold;
+      color: #059669;
+      margin-bottom: 10px;
+    }
+    .qr-section {
+      text-align: center;
+      margin: 30px 0;
+      padding: 30px;
+      background-color: white;
+      border-radius: 12px;
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+    .qr-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1f2937;
+      margin-bottom: 8px;
+    }
+    .qr-subtitle {
+      font-size: 14px;
+      color: #6b7280;
+      margin-bottom: 25px;
+    }
+    .qr-container {
+      display: inline-block;
+      padding: 20px;
+      background-color: white;
+      border-radius: 12px;
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+      margin-bottom: 20px;
+    }
+    .qr-image {
+      width: 250px;
+      height: 250px;
+      display: block;
+      margin: 0 auto;
+      border-radius: 8px;
+    }
+    .qr-info {
+      margin-top: 20px;
+      text-align: left;
+      max-width: 400px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .qr-info-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .qr-info-item:last-child {
+      border-bottom: none;
+    }
+    .qr-info-label {
+      font-weight: 600;
+      color: #374151;
+      font-size: 14px;
+    }
+    .qr-info-value {
+      color: #6b7280;
+      font-size: 14px;
+    }
+    .qr-notice {
+      background-color: #fef3c7;
+      border: 1px solid #f59e0b;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 20px 0;
+      text-align: center;
+    }
+    .qr-notice-icon {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+    .qr-notice-text {
+      color: #92400e;
+      font-size: 14px;
+      margin: 0;
+    }
+    .footer {
+      text-align: center;
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid #e5e7eb;
+      color: #6b7280;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">RH Compensamos</div>
+      <h1>${asuntoProcesado}</h1>
+    </div>
+    
+    <div class="content">
+      ${mensajeProcesado.replace(/\n/g, '<br>')}
+    </div>
+    
+    <div class="qr-section">
+      <div class="qr-title">Tu Código QR</div>
+      <div class="qr-subtitle">Aquí tienes tu código QR personalizado:</div>
+      
+      <div class="qr-notice">
+        <div class="qr-notice-icon">📱</div>
+        <p class="qr-notice-text">
+          <strong>Tu código QR está adjunto a este correo</strong><br>
+          Descarga la imagen adjunta para usar tu código QR
+        </p>
+      </div>
+      
+      <div class="qr-info">
+        <div class="qr-info-item">
+          <span class="qr-info-label">Generado para:</span>
+          <span class="qr-info-value">${nombreCompleto}</span>
+        </div>
+        <div class="qr-info-item">
+          <span class="qr-info-label">Documento:</span>
+          <span class="qr-info-value">${candidato.numero_documento}</span>
+        </div>
+        <div class="qr-info-item">
+          <span class="qr-info-label">Empresa:</span>
+          <span class="qr-info-value">${candidato.empresa_nombre || 'N/A'}</span>
+        </div>
+        <div class="qr-info-item">
+          <span class="qr-info-label">Fecha de generación:</span>
+          <span class="qr-info-value">${new Date(candidato.qrData.fecha_generacion || '').toLocaleDateString('es-ES')}</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="footer">
+      <p>Este es un correo automático, no respondas a este mensaje.</p>
+      <p>© 2024 RH Compensamos. Todos los derechos reservados.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+          // Debug: Verificar el HTML generado
+          console.log(`📧 HTML generado para ${candidato.email}:`, {
+            asunto: asuntoProcesado,
+            mensaje: mensajeProcesado,
+            imagenQRIncluida: mensajeHTML.includes('data:image/'),
+            longitudHTML: mensajeHTML.length,
+            srcImagen: mensajeHTML.includes('src="data:image/'),
+            imagenCompleta: candidato.qrData.qr_image_url?.substring(0, 50) + '...'
+          });
+
+          // Debug adicional: Verificar que la imagen esté en el HTML
+          const imagenEnHTML = mensajeHTML.includes(candidato.qrData.qr_image_url);
+          console.log(`🔍 Verificación imagen en HTML:`, {
+            imagenEncontrada: imagenEnHTML,
+            longitudImagen: candidato.qrData.qr_image_url?.length,
+            posicionEnHTML: mensajeHTML.indexOf(candidato.qrData.qr_image_url)
+          });
+
+          // Preparar el adjunto del código QR usando el servicio de descarga
+          try {
+            // Convertir la imagen base64 a Blob para adjuntarla
+            const base64Data = candidato.qrData.qr_image_url;
+            const byteCharacters = atob(base64Data.split(',')[1]);
+            const byteNumbers = new Array(byteCharacters.length);
+            
+            for (let i = 0; i < byteCharacters.length; i++) {
+              byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: 'image/png' });
+            
+            // Convertir Blob a base64 para el adjunto
+            const reader = new FileReader();
+            const base64Promise = new Promise<string>((resolve) => {
+              reader.onload = () => {
+                const result = reader.result as string;
+                resolve(result.split(',')[1]); // Solo la parte base64 sin el prefijo
+              };
+            });
+            
+            reader.readAsDataURL(blob);
+            const base64Content = await base64Promise;
+
+            const qrAttachment = {
+              filename: `QR_${candidato.numero_documento}_${nombreCompleto.replace(/\s+/g, '_')}.png`,
+              content: base64Data,
+              contentType: 'image/png'
+            };
+            console.log("qrAttachment", qrAttachment);
+            
+
+            console.log(`📎 Adjunto preparado para ${candidato.email}:`, {
+              filename: qrAttachment.filename,
+              contentType: qrAttachment.contentType,
+              contentLength: qrAttachment.content.length
+            });
+
+            // Enviar email usando el servicio con adjunto
+            const resultado = await emailService.sendEmail({
+              to: candidato.email || '',
+              subject: asuntoProcesado,
+              html: mensajeHTML,
+              text: mensajeProcesado.replace(/<[^>]*>/g, ''), // Versión texto sin HTML
+              from: 'noreply@rhcompensamos.com',
+              attachments: [qrAttachment]
+            });
+
+            if (resultado.success) {
+              emailsEnviados++;
+              console.log(`✅ Email enviado exitosamente a: ${candidato.email}`);
+            } else {
+              emailsFallidos++;
+              errores.push(`${candidato.email}: ${resultado.error || 'Error desconocido'}`);
+              console.error(`❌ Error enviando email a ${candidato.email}:`, resultado.error);
+            }
+
+          } catch (attachmentError) {
+            console.error(`❌ Error preparando adjunto para ${candidato.email}:`, attachmentError);
+            
+            // Si falla la preparación del adjunto, enviar sin adjunto
+            const resultado = await emailService.sendEmail({
+              to: candidato.email || '',
+              subject: asuntoProcesado,
+              html: mensajeHTML,
+              text: mensajeProcesado.replace(/<[^>]*>/g, ''),
+              from: 'noreply@rhcompensamos.com'
+            });
+
+            if (resultado.success) {
+              emailsEnviados++;
+              console.log(`✅ Email enviado sin adjunto a: ${candidato.email}`);
+            } else {
+              emailsFallidos++;
+              errores.push(`${candidato.email}: ${resultado.error || 'Error desconocido'}`);
+              console.error(`❌ Error enviando email a ${candidato.email}:`, resultado.error);
+            }
+          }
+          
+        } catch (error) {
+          emailsFallidos++;
+          errores.push(`${candidato.email}: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+          console.error(`❌ Error procesando candidato ${candidato.email}:`, error);
+        }
+      }
+
+      // Mostrar resultado del envío
+      if (emailsEnviados > 0) {
     toast({
-      title: "Enviado", 
-      description: `QR enviado por email a ${candidatosSeleccionados.length} candidatos`,
-    });
+          title: "Éxito",
+          description: `Se enviaron ${emailsEnviados} emails exitosamente${emailsFallidos > 0 ? `, ${emailsFallidos} fallaron` : ''}`,
+        });
+      }
+
+      if (emailsFallidos > 0) {
+        toast({
+          title: "Advertencia",
+          description: `${emailsFallidos} emails fallaron. Revisa la consola para más detalles.`,
+          variant: "destructive"
+        });
+        
+        // Mostrar errores en consola para debugging
+        console.error('Errores en envío de emails:', errores);
+      }
+
+      // Limpiar selección después del envío
+      setSelectedCandidatos([]);
+      setSelectAll(false);
+
+    } catch (error) {
+      console.error('Error en envío masivo de emails:', error);
+      toast({
+        title: "Error",
+        description: "Error al enviar los emails. Revisa la consola para más detalles.",
+        variant: "destructive"
+      });
+    } finally {
+      stopLoading();
+    }
   };
 
   const getEstadoBadge = (activo?: boolean) => {
@@ -1001,7 +1375,12 @@ Equipo de Recursos Humanos`);
                             </div>
                           </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-900">{candidato.numero_documento}</TableCell>
-                          <TableCell className="px-4 py-3 text-sm text-gray-900">{nombreCompleto}</TableCell>
+                          <TableCell className="px-4 py-3 text-sm text-gray-900">
+                            <div>
+                              <div className="font-medium">{nombreCompleto}</div>
+                              <div className="text-xs text-gray-500 mt-1">{candidato.email || 'Sin email'}</div>
+                            </div>
+                          </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-500">{candidato.empresa_nombre}</TableCell>
                           <TableCell className="px-4 py-3">
                             {getEstadoBadge(candidato.activo)}
@@ -1233,7 +1612,7 @@ Equipo de Recursos Humanos`);
                     className="mt-1"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Variables: {'{'}nombre{'}'}, {'{'}cedula{'}'}, {'{'}email{'}'}, {'{'}empresa{'}'}, {'{'}fecha{'}'}
+                     Variables: nombre, cedula, email, empresa, fecha
                   </p>
                 </div>
                 <TooltipProvider>

@@ -13,6 +13,11 @@ export interface EmailData {
   html: string;
   text?: string;
   from: string;
+  attachments?: {
+    content: string;
+    filename: string;
+    contentType: string;
+  }[];
 }
 
 export const sendEmail = async (emailData: EmailData): Promise<{ success: boolean; error?: string }> => {
@@ -24,24 +29,31 @@ export const sendEmail = async (emailData: EmailData): Promise<{ success: boolea
     console.log('📧 Simulando envío de correo:', {
       to: emailData.to,
       subject: emailData.subject,
-      from: emailData.from
+      from: emailData.from,
+      attachments: emailData.attachments ? `${emailData.attachments.length} archivos adjuntos` : 'Sin adjuntos'
     });
     
     // Aquí puedes integrar con un servicio real de email
-    // Ejemplo con EmailJS:
+    // Ejemplo con SendGrid:
     /*
-    const response = await emailjs.send(
-      'YOUR_SERVICE_ID',
-      'YOUR_TEMPLATE_ID',
-      {
-        to_email: emailData.to,
-        to_name: emailData.to.split('@')[0],
-        subject: emailData.subject,
-        message: emailData.html,
-        from_email: emailData.from
-      },
-      'YOUR_USER_ID'
-    );
+    const sgMail = require('@sendgrid/mail');
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+    
+    const msg = {
+      to: emailData.to,
+      from: emailData.from,
+      subject: emailData.subject,
+      html: emailData.html,
+      text: emailData.text,
+      attachments: emailData.attachments?.map(att => ({
+        content: att.content,
+        filename: att.filename,
+        type: att.contentType,
+        disposition: 'attachment'
+      }))
+    };
+    
+    await sgMail.send(msg);
     */
     
     // Simular delay de envío

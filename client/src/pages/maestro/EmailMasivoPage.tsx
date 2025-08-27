@@ -958,7 +958,7 @@ export default function EmailMasivoPage() {
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-10"
                     />
-                  </div>
+                              </div>
 
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
                     <SelectTrigger>
@@ -983,7 +983,7 @@ export default function EmailMasivoPage() {
                     </SelectContent>
                   </Select>
 
-                  <Button
+                              <Button 
                     variant="outline"
                     onClick={() => {
                       setSearchTerm("");
@@ -994,9 +994,9 @@ export default function EmailMasivoPage() {
                   >
                     <Filter className="w-4 h-4" />
                     Limpiar filtros
-                  </Button>
-                </div>
-              </div>
+                              </Button>
+                            </div>
+                          </div>
 
               <div className="p-6">
               {/* Tabla de campañas */}
@@ -1049,7 +1049,7 @@ export default function EmailMasivoPage() {
                                   </TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
-                            </div>
+                              </div>
                           </TableCell>
                           <TableCell className="px-4 py-3">
                             <Badge 
@@ -1070,15 +1070,15 @@ export default function EmailMasivoPage() {
                             {campaign.asunto_personalizado}
                           </TableCell>
                           <TableCell className="px-4 py-3">
-                            <Badge className={`${getEstadoColor(campaign.estado)} font-medium`}>
-                              {campaign.estado}
-                            </Badge>
+                                  <Badge className={`${getEstadoColor(campaign.estado)} font-medium`}>
+                                    {campaign.estado}
+                                  </Badge>
                           </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-500">
                             <div className="flex items-center space-x-2">
                               <span className="text-gray-700 font-medium">
                                 {campaign.enviados_count}/{campaign.destinatarios_count}
-                              </span>
+                                  </span>
                               <span className="text-xs text-gray-400">enviados</span>
                             </div>
                             {campaign.tipo === 'gmail' && campaign.tipo_destinatario && (
@@ -1091,24 +1091,24 @@ export default function EmailMasivoPage() {
                           </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-500">
                             <div className="flex items-center space-x-1" title="Fecha de creación de la campaña">
-                              <Calendar className="w-3 h-3" />
-                              <span>{new Date(campaign.created_at).toLocaleDateString('es-ES', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}</span>
-                            </div>
+                                    <Calendar className="w-3 h-3" />
+                                    <span>{new Date(campaign.created_at).toLocaleDateString('es-ES', {
+                                      year: 'numeric',
+                                      month: 'short',
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}</span>
+                                  </div>
                           </TableCell>
                         </TableRow>
                       ))
                     )}
                   </TableBody>
                 </Table>
+                </div>
               </div>
             </div>
-          </div>
           </TabsContent>
 
           {/* Tab de Nueva Campaña */}
@@ -1138,132 +1138,132 @@ export default function EmailMasivoPage() {
                           Selecciona la plantilla base
                         </CardDescription>
                       </CardHeader>
-                      <CardContent className="p-6">
-                        <div className="space-y-4">
-                          <div>
-                            <Label htmlFor="template-select" className="text-sm font-medium text-gray-700">
-                              Plantilla
-                            </Label>
-                            <Select
-                              value={selectedTemplate?.id?.toString() || ''}
-                              onValueChange={(value) => {
-                                if (value === 'estandar') {
-                                  // Plantilla estándar con contenido básico
-                                  setSelectedTemplate({
-                                    id: 0,
-                                    nombre: 'Plantilla Estándar',
-                                    asunto: 'Mensaje de RH Compensamos',
-                                    contenido_html: '',
-                                    variables: ['nombre', 'email', 'empresa', 'fecha', 'contraseña'],
-                                    activo: true,
-                                    created_at: '',
-                                    updated_at: ''
-                                  });
-                                  setCampaignData(prev => ({
-                                    ...prev,
-                                    asunto: 'Mensaje de RH Compensamos',
-                                    contenido: 'Hola {{nombre}},\n\nEsperamos que este mensaje te encuentre bien.\n\nSaludos,\nEl equipo de RH Compensamos'
-                                  }));
-                                } else if (value === 'cero') {
-                                  // Plantilla de cero
-                                  setSelectedTemplate({
-                                    id: -1,
-                                    nombre: 'De Cero',
-                                    asunto: '',
-                                    contenido_html: '',
-                                    variables: ['nombre', 'email', 'empresa', 'fecha', 'contraseña'],
-                                    activo: true,
-                                    created_at: '',
-                                    updated_at: ''
-                                  });
-                                  setCampaignData(prev => ({
-                                    ...prev,
-                                    asunto: '',
-                                    contenido: ''
-                                  }));
-                                } else if (value.startsWith('gmail-')) {
-                                  // Plantilla de Gmail
-                                  const gmailTemplateId = parseInt(value.replace('gmail-', ''));
-                                  const gmailTemplate = gmailTemplates.find(t => t.id === gmailTemplateId);
-                                  if (gmailTemplate) {
-                                    setSelectedTemplate(gmailTemplate);
-                                    const textoSimple = htmlToText(gmailTemplate.contenido_html);
-                                    setCampaignData(prev => ({
-                                      ...prev,
-                                      asunto: gmailTemplate.asunto,
-                                      contenido: textoSimple
-                                    }));
-                                  }
-                                } else {
-                                  // Plantilla regular de la base de datos
-                                  handleTemplateSelect(value);
-                                }
-                              }}
-                            >
-                              <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Selecciona una plantilla" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="estandar">
-                                  <div className="flex items-center space-x-2">
-                                    <Megaphone className="h-4 w-4" />
-                                    <span>Plantilla Estándar</span>
-                                  </div>
-                                </SelectItem>
-                                <SelectItem value="cero">
-                                  <div className="flex items-center space-x-2">
-                                    <Plus className="h-4 w-4" />
-                                    <span>De Cero</span>
-                                  </div>
-                                </SelectItem>
-                                <Separator />
-                                {/* Plantillas de Gmail filtradas por destinatario */}
-                                {gmailTemplates
-                                  .filter(template => 
-                                    template.tipo_destinatario === selectedDestinatarios || 
-                                    template.tipo_destinatario === 'ambos'
-                                  )
-                                  .map((template) => (
-                                    <SelectItem key={`gmail-${template.id}`} value={`gmail-${template.id}`}>
-                                      <div className="flex items-center space-x-2">
-                                        <Mail className="h-4 w-4" />
-                                        <span>{template.nombre}</span>
-                                        <Badge variant="outline" className="text-xs">Gmail</Badge>
-                                      </div>
-                                    </SelectItem>
-                                  ))}
-                                <Separator />
-                                {/* Plantillas regulares */}
-                                {templates.map((template) => (
-                                  <SelectItem key={template.id} value={template.id.toString()}>
-                                    <div className="flex items-center space-x-2">
-                                      <Megaphone className="h-4 w-4" />
-                                      <span>{template.nombre}</span>
-                                    </div>
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          
-                          {selectedTemplate && (
-                            <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                              <div className="flex items-center justify-between mb-3">
-                                <h4 className="font-semibold text-slate-900">{selectedTemplate.nombre}</h4>
-                                <Badge variant="secondary" className="text-xs bg-slate-200 text-slate-700">
-                                  {selectedTemplate.variables.length} variables
-                                </Badge>
-                              </div>
-                              {selectedTemplate.asunto && (
-                                <p className="text-sm text-slate-600">
-                                  <strong>Asunto:</strong> {selectedTemplate.asunto}
-                                </p>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
+               <CardContent className="p-6">
+                 <div className="space-y-4">
+                   <div>
+                     <Label htmlFor="template-select" className="text-sm font-medium text-gray-700">
+                       Plantilla
+                     </Label>
+                     <Select
+                       value={selectedTemplate?.id?.toString() || ''}
+                                               onValueChange={(value) => {
+                          if (value === 'estandar') {
+                            // Plantilla estándar con contenido básico
+                            setSelectedTemplate({
+                              id: 0,
+                              nombre: 'Plantilla Estándar',
+                              asunto: 'Mensaje de RH Compensamos',
+                              contenido_html: '',
+                              variables: ['nombre', 'email', 'empresa', 'fecha', 'contraseña'],
+                              activo: true,
+                              created_at: '',
+                              updated_at: ''
+                            });
+                            setCampaignData(prev => ({
+                              ...prev,
+                              asunto: 'Mensaje de RH Compensamos',
+                              contenido: 'Hola {{nombre}},\n\nEsperamos que este mensaje te encuentre bien.\n\nSaludos,\nEl equipo de RH Compensamos'
+                            }));
+                          } else if (value === 'cero') {
+                            // Plantilla de cero
+                            setSelectedTemplate({
+                              id: -1,
+                              nombre: 'De Cero',
+                              asunto: '',
+                              contenido_html: '',
+                              variables: ['nombre', 'email', 'empresa', 'fecha', 'contraseña'],
+                              activo: true,
+                              created_at: '',
+                              updated_at: ''
+                            });
+                            setCampaignData(prev => ({
+                              ...prev,
+                              asunto: '',
+                              contenido: ''
+                            }));
+                          } else if (value.startsWith('gmail-')) {
+                            // Plantilla de Gmail
+                            const gmailTemplateId = parseInt(value.replace('gmail-', ''));
+                            const gmailTemplate = gmailTemplates.find(t => t.id === gmailTemplateId);
+                            if (gmailTemplate) {
+                              setSelectedTemplate(gmailTemplate);
+                              const textoSimple = htmlToText(gmailTemplate.contenido_html);
+                              setCampaignData(prev => ({
+                                ...prev,
+                                asunto: gmailTemplate.asunto,
+                                contenido: textoSimple
+                              }));
+                            }
+                          } else {
+                            // Plantilla regular de la base de datos
+                            handleTemplateSelect(value);
+                          }
+                        }}
+                     >
+                       <SelectTrigger className="w-full">
+                         <SelectValue placeholder="Selecciona una plantilla" />
+                       </SelectTrigger>
+                       <SelectContent>
+                         <SelectItem value="estandar">
+                           <div className="flex items-center space-x-2">
+                             <Megaphone className="h-4 w-4" />
+                             <span>Plantilla Estándar</span>
+                           </div>
+                         </SelectItem>
+                         <SelectItem value="cero">
+                           <div className="flex items-center space-x-2">
+                             <Plus className="h-4 w-4" />
+                             <span>De Cero</span>
+                           </div>
+                         </SelectItem>
+                         <Separator />
+                         {/* Plantillas de Gmail filtradas por destinatario */}
+                         {gmailTemplates
+                           .filter(template => 
+                             template.tipo_destinatario === selectedDestinatarios || 
+                             template.tipo_destinatario === 'ambos'
+                           )
+                           .map((template) => (
+                             <SelectItem key={`gmail-${template.id}`} value={`gmail-${template.id}`}>
+                               <div className="flex items-center space-x-2">
+                                 <Mail className="h-4 w-4" />
+                                 <span>{template.nombre}</span>
+                                 <Badge variant="outline" className="text-xs">Gmail</Badge>
+                               </div>
+                             </SelectItem>
+                           ))}
+                         <Separator />
+                         {/* Plantillas regulares */}
+                         {templates.map((template) => (
+                           <SelectItem key={template.id} value={template.id.toString()}>
+                             <div className="flex items-center space-x-2">
+                               <Megaphone className="h-4 w-4" />
+                               <span>{template.nombre}</span>
+                             </div>
+                           </SelectItem>
+                         ))}
+                       </SelectContent>
+                     </Select>
+                   </div>
+                   
+                   {selectedTemplate && (
+                                         <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-semibold text-slate-900">{selectedTemplate.nombre}</h4>
+                        <Badge variant="secondary" className="text-xs bg-slate-200 text-slate-700">
+                          {selectedTemplate.variables.length} variables
+                        </Badge>
+                      </div>
+                      {selectedTemplate.asunto && (
+                        <p className="text-sm text-slate-600">
+                          <strong>Asunto:</strong> {selectedTemplate.asunto}
+                        </p>
+                      )}
+                    </div>
+                   )}
+                 </div>
+               </CardContent>
+             </Card>
 
                     {/* Selección de Destinatarios */}
                     <Card className="shadow-sm border border-gray-200 bg-white">
@@ -1276,8 +1276,8 @@ export default function EmailMasivoPage() {
                           Define tu audiencia objetivo
                         </CardDescription>
                       </CardHeader>
-                      <CardContent className="p-6">
-                        <div className="space-y-4">
+               <CardContent className="p-6">
+                 <div className="space-y-4">
                    <div>
                      <Label htmlFor="destinatarios-select" className="text-sm font-medium text-gray-700">
                        Tipo de Destinatarios
@@ -1312,20 +1312,20 @@ export default function EmailMasivoPage() {
                      </Select>
                    </div>
                    
-                          <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                            <div className="flex items-center space-x-3 mb-2">
-                              <Users className="h-4 w-4 text-slate-600" />
-                              <span className="text-sm font-semibold text-slate-900">
-                                {selectedDestinatarios === 'candidatos' ? 'Candidatos' :
-                                 selectedDestinatarios === 'empleadores' ? 'Empleadores' : 'Candidatos y Empleadores'}
-                              </span>
-                            </div>
-                            <p className="text-xs text-slate-600">
-                              {selectedDestinatarios === 'candidatos' ? 'Personas buscando empleo' :
-                               selectedDestinatarios === 'empleadores' ? 'Empresas buscando talento' : 
-                               'Todos los usuarios registrados'}
-                            </p>
-                          </div>
+                                       <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                      <div className="flex items-center space-x-3 mb-2">
+                        <Users className="h-4 w-4 text-slate-600" />
+                        <span className="text-sm font-semibold text-slate-900">
+                          {selectedDestinatarios === 'candidatos' ? 'Candidatos' :
+                           selectedDestinatarios === 'empleadores' ? 'Empleadores' : 'Candidatos y Empleadores'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600">
+                        {selectedDestinatarios === 'candidatos' ? 'Personas buscando empleo' :
+                         selectedDestinatarios === 'empleadores' ? 'Empresas buscando talento' : 
+                         'Todos los usuarios registrados'}
+                      </p>
+                    </div>
 
                    {/* Tipo de Selección */}
                    <div>
