@@ -312,19 +312,21 @@ export default function CentrosCostoPage() {
                      <TableHead className="px-4 py-3">Código</TableHead>
                      <TableHead className="px-4 py-3">Nombre</TableHead>
                      <TableHead className="px-4 py-3">Sucursal</TableHead>
+                     <TableHead className="px-4 py-3">Área de Negocios</TableHead>
+                     <TableHead className="px-4 py-3">Porcentaje</TableHead>
                      <TableHead className="px-4 py-3">Estado</TableHead>
                    </TableRow>
                  </TableHeader>
                  <TableBody>
                    {loading ? (
                      <TableRow>
-                       <TableCell colSpan={5} className="h-24 text-center">
+                       <TableCell colSpan={7} className="h-24 text-center">
                          Cargando centros de costo...
                        </TableCell>
                      </TableRow>
                    ) : filteredCentrosCosto.length === 0 ? (
                      <TableRow>
-                       <TableCell colSpan={5} className="h-24 text-center">
+                       <TableCell colSpan={7} className="h-24 text-center">
                          No hay centros de costo disponibles.
                        </TableCell>
                      </TableRow>
@@ -486,6 +488,20 @@ export default function CentrosCostoPage() {
                              <span className="text-gray-400">Sin sucursal</span>
                            )}
                          </TableCell>
+                         <TableCell className="px-4 py-3 text-sm text-gray-500">
+                           {centro.area_negocio ? (
+                             <span className="text-gray-700">{centro.area_negocio}</span>
+                           ) : (
+                             <span className="text-gray-400">Sin área</span>
+                           )}
+                         </TableCell>
+                         <TableCell className="px-4 py-3 text-sm text-gray-500">
+                           {centro.porcentaje_estructura ? (
+                             <span className="text-gray-700 font-medium">{centro.porcentaje_estructura.toFixed(2)}%</span>
+                           ) : (
+                             <span className="text-gray-400">Sin porcentaje</span>
+                           )}
+                         </TableCell>
                          <TableCell className="px-4 py-3">
                            <Badge variant={centro.activo ? "default" : "secondary"} className={centro.activo ? "bg-green-100 text-green-800 border-green-200" : "bg-gray-200 text-gray-600 border-gray-300"}>
                              {centro.activo ? "Activo" : "Inactivo"}
@@ -524,6 +540,8 @@ function CentroCostoForm({ editingCentroCosto, onSaved, sucursales }: CentroCost
     codigo: '',
     nombre: '',
     sucursal_id: undefined,
+    area_negocio: undefined,
+    porcentaje_estructura: undefined,
     activo: true
   });
   const [loading, setLoading] = useState(false);
@@ -535,16 +553,20 @@ function CentroCostoForm({ editingCentroCosto, onSaved, sucursales }: CentroCost
          codigo: editingCentroCosto.codigo,
          nombre: editingCentroCosto.nombre,
          sucursal_id: editingCentroCosto.sucursal_id,
+         area_negocio: editingCentroCosto.area_negocio || '',
+         porcentaje_estructura: editingCentroCosto.porcentaje_estructura,
          activo: editingCentroCosto.activo
        });
-    } else {
-             setFormData({
+         } else {
+              setFormData({
          codigo: '',
          nombre: '',
          sucursal_id: undefined,
+         area_negocio: undefined,
+         porcentaje_estructura: undefined,
          activo: true
        });
-    }
+     }
   }, [editingCentroCosto]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -636,6 +658,46 @@ function CentroCostoForm({ editingCentroCosto, onSaved, sucursales }: CentroCost
                    ))}
                  </SelectContent>
                </Select>
+             </div>
+
+                           <div className="space-y-2">
+                <Label htmlFor="area_negocio">Área de Negocios</Label>
+                <Select
+                  value={formData.area_negocio || '0'}
+                  onValueChange={(value) => setFormData({ ...formData, area_negocio: value === '0' ? undefined : value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccione área de negocio" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">Sin área de negocio</SelectItem>
+                    <SelectItem value="Administración">Administración</SelectItem>
+                    <SelectItem value="Comercial">Comercial</SelectItem>
+                    <SelectItem value="Finanzas">Finanzas</SelectItem>
+                    <SelectItem value="Recursos Humanos">Recursos Humanos</SelectItem>
+                    <SelectItem value="Tecnología">Tecnología</SelectItem>
+                    <SelectItem value="Operaciones">Operaciones</SelectItem>
+                    <SelectItem value="Marketing">Marketing</SelectItem>
+                    <SelectItem value="Logística">Logística</SelectItem>
+                    <SelectItem value="Calidad">Calidad</SelectItem>
+                    <SelectItem value="Seguridad">Seguridad</SelectItem>
+                    <SelectItem value="Mantenimiento">Mantenimiento</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+             <div className="space-y-2">
+               <Label htmlFor="porcentaje_estructura">Porcentaje de Estructura (%)</Label>
+               <Input
+                 id="porcentaje_estructura"
+                 type="number"
+                 min="0"
+                 max="100"
+                 step="0.01"
+                 value={formData.porcentaje_estructura || ''}
+                 onChange={(e) => setFormData({ ...formData, porcentaje_estructura: e.target.value ? parseFloat(e.target.value) : undefined })}
+                 placeholder="0.00"
+               />
              </div>
 
             

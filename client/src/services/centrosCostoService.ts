@@ -5,6 +5,8 @@ export interface CentroCosto {
   codigo: string;
   nombre: string;
   sucursal_id?: number;
+  area_negocio?: string;
+  porcentaje_estructura?: number;
   activo: boolean;
   created_at?: string;
   updated_at?: string;
@@ -19,6 +21,8 @@ export interface CreateCentroCostoData {
   codigo: string;
   nombre: string;
   sucursal_id?: number;
+  area_negocio?: string;
+  porcentaje_estructura?: number;
   activo: boolean;
 }
 
@@ -26,6 +30,8 @@ export interface UpdateCentroCostoData {
   codigo?: string;
   nombre?: string;
   sucursal_id?: number;
+  area_negocio?: string;
+  porcentaje_estructura?: number;
   activo?: boolean;
 }
 

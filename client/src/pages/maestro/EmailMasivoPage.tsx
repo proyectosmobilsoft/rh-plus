@@ -9,6 +9,8 @@ import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { 
   Mail, 
   Users, 
@@ -24,7 +26,9 @@ import {
   Code,
   GripVertical,
   Calendar,
-  Megaphone
+  Megaphone,
+  Search,
+  Filter
 } from 'lucide-react';
 import { supabase } from '@/services/supabaseClient';
 import { emailTemplatesService } from '@/services/emailTemplatesService';
@@ -139,6 +143,11 @@ export default function EmailMasivoPage() {
     contenido: '',
     destinatarios: [] as any[]
   });
+
+  // Estados para filtros
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
 
   useEffect(() => {
     const initializeData = async () => {
@@ -863,6 +872,32 @@ export default function EmailMasivoPage() {
     }
   };
 
+  // Lógica de filtrado para campañas
+  const allCampaigns = [
+    ...gmailCampaigns.map(campaign => ({
+      ...campaign,
+      tipo: 'gmail' as const
+    })),
+    ...campaigns.map(campaign => ({
+      ...campaign,
+      tipo: 'email' as const
+    }))
+  ];
+
+  const filteredCampaigns = allCampaigns
+    .filter(campaign => {
+      const matchesSearch = 
+        campaign.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        campaign.asunto_personalizado?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesStatus = statusFilter === "all" ? true : campaign.estado === statusFilter;
+
+      const matchesType = typeFilter === "all" ? true : campaign.tipo === typeFilter;
+
+      return matchesSearch && matchesStatus && matchesType;
+    })
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -908,169 +943,172 @@ export default function EmailMasivoPage() {
                   <div className="w-8 h-8 bg-orange-100 rounded flex items-center justify-center">
                     <Users className="w-5 h-5 text-orange-600" />
                   </div>
-                  <div>
                   <span className="text-lg font-semibold text-gray-700">CAMPAÑAS RECIENTES</span>
-                    <p className="text-xs text-gray-500 mt-1">Ordenadas por fecha (más recientes primero)</p>
+                </div>
+              </div>
+
+              {/* Filtros */}
+              <div className="p-4 border-b bg-gray-50">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      placeholder="Buscar por nombre, asunto..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
                   </div>
+
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filtrar por estado" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos los estados</SelectItem>
+                      <SelectItem value="enviada">Solo enviadas</SelectItem>
+                      <SelectItem value="pendiente">Solo pendientes</SelectItem>
+                      <SelectItem value="enviando">Solo enviando</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={typeFilter} onValueChange={setTypeFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filtrar por tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos los tipos</SelectItem>
+                      <SelectItem value="gmail">Solo Gmail</SelectItem>
+                      <SelectItem value="email">Solo Email</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSearchTerm("");
+                      setStatusFilter("all");
+                      setTypeFilter("all");
+                    }}
+                    className="flex items-center gap-2"
+                  >
+                    <Filter className="w-4 h-4" />
+                    Limpiar filtros
+                  </Button>
                 </div>
               </div>
 
               <div className="p-6">
-                <div className="space-y-6">
-                  {/* Campañas ordenadas por fecha descendente (más recientes primero) */}
-                  {/* Campañas de Gmail */}
-                  {gmailCampaigns.length > 0 && (
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                        <Mail className="h-5 w-5 text-cyan-600" />
-                        <span>Campañas de Gmail</span>
-                      </h3>
-                      <div className="space-y-3">
-                        {gmailCampaigns.map((campaign) => (
-                          <div 
-                            key={`gmail-${campaign.id}`} 
-                            className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 hover:shadow-sm bg-white transition-all duration-200 cursor-pointer group"
-                            onClick={() => handleViewCampaignSentInfo(campaign, 'gmail')}
-                            title="Click para ver detalles de la campaña"
-                          >
-                            <div className="flex items-center space-x-4">
-                              <div className="p-2 bg-gray-100 rounded-lg">
-                                {getEstadoIcon(campaign.estado)}
-                              </div>
-                              <div>
-                                <div className="flex items-center space-x-2">
-                                  <h3 className="font-semibold text-gray-900">{campaign.nombre}</h3>
-                                  <Badge variant="outline" className="text-xs bg-cyan-100 text-cyan-700 border-cyan-200">
-                                    Gmail
-                                  </Badge>
-                                </div>
-                                <p className="text-sm text-gray-600">{campaign.asunto_personalizado}</p>
-                                <div className="flex items-center space-x-4 mt-1">
-                                  <Badge className={`${getEstadoColor(campaign.estado)} font-medium`}>
-                                    {campaign.estado}
-                                  </Badge>
-                                  <Badge variant="secondary" className="text-xs bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-100 cursor-default">
-                                    {campaign.tipo_destinatario}
-                                  </Badge>
-                                  <span className="text-xs text-gray-500">
-                                    {campaign.enviados_count}/{campaign.destinatarios_count} enviados
-                                  </span>
-                                  <div className="flex items-center space-x-1 text-xs text-gray-500" title="Fecha de creación de la campaña">
-                                    <Calendar className="w-3 h-3" />
-                                    <span>{new Date(campaign.created_at).toLocaleDateString('es-ES', {
-                                      year: 'numeric',
-                                      month: 'short',
-                                      day: 'numeric',
-                                      hour: '2-digit',
-                                      minute: '2-digit'
-                                    })}</span>
-                                  </div>
-                                </div>
-                              </div>
+              {/* Tabla de campañas */}
+              <div className="overflow-x-auto rounded-lg shadow-sm">
+                <Table className="min-w-[1000px] w-full text-xs">
+                  <TableHeader className="bg-cyan-50">
+                    <TableRow className="text-left font-semibold text-gray-700">
+                      <TableHead className="px-2 py-1 text-teal-600">Acciones</TableHead>
+                      <TableHead className="px-4 py-3">Tipo</TableHead>
+                      <TableHead className="px-4 py-3">Nombre</TableHead>
+                      <TableHead className="px-4 py-3">Asunto</TableHead>
+                      <TableHead className="px-4 py-3">Estado</TableHead>
+                      <TableHead className="px-4 py-3">Destinatarios</TableHead>
+                      <TableHead className="px-4 py-3">Fecha Creación</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="h-24 text-center">
+                          Cargando campañas...
+                        </TableCell>
+                      </TableRow>
+                    ) : filteredCampaigns.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="h-24 text-center">
+                          No hay campañas disponibles.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredCampaigns.map((campaign) => (
+                        <TableRow key={campaign.id} className="hover:bg-gray-50">
+                          <TableCell className="px-2 py-1">
+                            <div className="flex flex-row gap-1 items-center">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleViewCampaignSentInfo(campaign, campaign.tipo === 'gmail' ? 'gmail' : 'email')}
+                                      aria-label="Ver detalles de la campaña"
+                                      className="h-8 w-8"
+                                    >
+                                      <Eye className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Ver detalles</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
                             </div>
+                          </TableCell>
+                          <TableCell className="px-4 py-3">
+                            <Badge 
+                              variant="outline" 
+                              className={`text-xs ${
+                                campaign.tipo === 'gmail' 
+                                  ? 'bg-cyan-100 text-cyan-700 border-cyan-200' 
+                                  : 'bg-purple-100 text-purple-700 border-purple-200'
+                              }`}
+                            >
+                              {campaign.tipo === 'gmail' ? 'Gmail' : 'Email'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="px-4 py-3 text-sm text-gray-900 font-medium">
+                            {campaign.nombre}
+                          </TableCell>
+                          <TableCell className="px-4 py-3 text-sm text-gray-600 max-w-xs truncate" title={campaign.asunto_personalizado}>
+                            {campaign.asunto_personalizado}
+                          </TableCell>
+                          <TableCell className="px-4 py-3">
+                            <Badge className={`${getEstadoColor(campaign.estado)} font-medium`}>
+                              {campaign.estado}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="px-4 py-3 text-sm text-gray-500">
                             <div className="flex items-center space-x-2">
-                              <div className="text-xs text-gray-400 group-hover:text-gray-600 transition-colors">
-                                Click para ver detalles
-                              </div>
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleViewCampaignSentInfo(campaign, 'gmail');
-                                }}
-                                title="Ver qué se envió y a quién"
-                                className="text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
+                              <span className="text-gray-700 font-medium">
+                                {campaign.enviados_count}/{campaign.destinatarios_count}
+                              </span>
+                              <span className="text-xs text-gray-400">enviados</span>
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {gmailCampaigns.length > 0 && campaigns.length > 0 && (
-                    <hr className="border-gray-300" />
-                  )}
-
-                  {/* Campañas regulares */}
-                  {campaigns.length > 0 && (
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                        <Megaphone className="h-5 w-5 text-purple-600" />
-                        <span>Campañas Regulares</span>
-                      </h3>
-                      <div className="space-y-3">
-                        {campaigns.map((campaign) => (
-                          <div 
-                            key={campaign.id} 
-                            className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 hover:shadow-sm bg-white transition-all duration-200 cursor-pointer group"
-                            onClick={() => handleViewCampaignSentInfo(campaign, 'email')}
-                            title="Click para ver detalles de la campaña"
-                          >
-                            <div className="flex items-center space-x-4">
-                              <div className="p-2 bg-gray-100 rounded-lg">
-                                {getEstadoIcon(campaign.estado)}
+                            {campaign.tipo === 'gmail' && campaign.tipo_destinatario && (
+                              <div className="mt-1">
+                                <Badge variant="secondary" className="text-xs bg-slate-100 text-slate-700 border-slate-200">
+                                  {campaign.tipo_destinatario}
+                                </Badge>
                               </div>
-                              <div>
-                                <h3 className="font-semibold text-gray-900">{campaign.nombre}</h3>
-                                <p className="text-sm text-gray-600">{campaign.asunto_personalizado}</p>
-                                <div className="flex items-center space-x-4 mt-1">
-                                  <Badge className={`${getEstadoColor(campaign.estado)} font-medium`}>
-                                    {campaign.estado}
-                                  </Badge>
-                                  <span className="text-xs text-gray-500">
-                                    {campaign.enviados_count}/{campaign.destinatarios_count} enviados
-                                  </span>
-                                  <div className="flex items-center space-x-1 text-xs text-gray-500" title="Fecha de creación de la campaña">
-                                    <Calendar className="w-3 h-3" />
-                                    <span>{new Date(campaign.created_at).toLocaleDateString('es-ES', {
-                                      year: 'numeric',
-                                      month: 'short',
-                                      day: 'numeric',
-                                      hour: '2-digit',
-                                      minute: '2-digit'
-                                    })}</span>
-                                  </div>
-                                </div>
-                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell className="px-4 py-3 text-sm text-gray-500">
+                            <div className="flex items-center space-x-1" title="Fecha de creación de la campaña">
+                              <Calendar className="w-3 h-3" />
+                              <span>{new Date(campaign.created_at).toLocaleDateString('es-ES', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}</span>
                             </div>
-                            <div className="flex items-center space-x-2">
-                              <div className="text-xs text-gray-400 group-hover:text-gray-600 transition-colors">
-                                Click para ver detalles
-                              </div>
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleViewCampaignSentInfo(campaign, 'email');
-                                }}
-                                title="Ver qué se envió y a quién"
-                                className="text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Mensaje cuando no hay campañas */}
-                  {campaigns.length === 0 && gmailCampaigns.length === 0 && (
-                    <div className="text-center py-12">
-                      <Mail className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600 font-medium">No hay campañas creadas aún</p>
-                      <p className="text-gray-500 text-sm mt-2">Crea tu primera campaña para comenzar</p>
-                    </div>
-                  )}
-                </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
               </div>
             </div>
+          </div>
           </TabsContent>
 
           {/* Tab de Nueva Campaña */}
@@ -1100,132 +1138,132 @@ export default function EmailMasivoPage() {
                           Selecciona la plantilla base
                         </CardDescription>
                       </CardHeader>
-               <CardContent className="p-6">
-                 <div className="space-y-4">
-                   <div>
-                     <Label htmlFor="template-select" className="text-sm font-medium text-gray-700">
-                       Plantilla
-                     </Label>
-                     <Select
-                       value={selectedTemplate?.id?.toString() || ''}
-                                               onValueChange={(value) => {
-                          if (value === 'estandar') {
-                            // Plantilla estándar con contenido básico
-                            setSelectedTemplate({
-                              id: 0,
-                              nombre: 'Plantilla Estándar',
-                              asunto: 'Mensaje de RH Compensamos',
-                              contenido_html: '',
-                              variables: ['nombre', 'email', 'empresa', 'fecha', 'contraseña'],
-                              activo: true,
-                              created_at: '',
-                              updated_at: ''
-                            });
-                            setCampaignData(prev => ({
-                              ...prev,
-                              asunto: 'Mensaje de RH Compensamos',
-                              contenido: 'Hola {{nombre}},\n\nEsperamos que este mensaje te encuentre bien.\n\nSaludos,\nEl equipo de RH Compensamos'
-                            }));
-                          } else if (value === 'cero') {
-                            // Plantilla de cero
-                            setSelectedTemplate({
-                              id: -1,
-                              nombre: 'De Cero',
-                              asunto: '',
-                              contenido_html: '',
-                              variables: ['nombre', 'email', 'empresa', 'fecha', 'contraseña'],
-                              activo: true,
-                              created_at: '',
-                              updated_at: ''
-                            });
-                            setCampaignData(prev => ({
-                              ...prev,
-                              asunto: '',
-                              contenido: ''
-                            }));
-                          } else if (value.startsWith('gmail-')) {
-                            // Plantilla de Gmail
-                            const gmailTemplateId = parseInt(value.replace('gmail-', ''));
-                            const gmailTemplate = gmailTemplates.find(t => t.id === gmailTemplateId);
-                            if (gmailTemplate) {
-                              setSelectedTemplate(gmailTemplate);
-                              const textoSimple = htmlToText(gmailTemplate.contenido_html);
-                              setCampaignData(prev => ({
-                                ...prev,
-                                asunto: gmailTemplate.asunto,
-                                contenido: textoSimple
-                              }));
-                            }
-                          } else {
-                            // Plantilla regular de la base de datos
-                            handleTemplateSelect(value);
-                          }
-                        }}
-                     >
-                       <SelectTrigger className="w-full">
-                         <SelectValue placeholder="Selecciona una plantilla" />
-                       </SelectTrigger>
-                       <SelectContent>
-                         <SelectItem value="estandar">
-                           <div className="flex items-center space-x-2">
-                             <Megaphone className="h-4 w-4" />
-                             <span>Plantilla Estándar</span>
-                           </div>
-                         </SelectItem>
-                         <SelectItem value="cero">
-                           <div className="flex items-center space-x-2">
-                             <Plus className="h-4 w-4" />
-                             <span>De Cero</span>
-                           </div>
-                         </SelectItem>
-                         <Separator />
-                         {/* Plantillas de Gmail filtradas por destinatario */}
-                         {gmailTemplates
-                           .filter(template => 
-                             template.tipo_destinatario === selectedDestinatarios || 
-                             template.tipo_destinatario === 'ambos'
-                           )
-                           .map((template) => (
-                             <SelectItem key={`gmail-${template.id}`} value={`gmail-${template.id}`}>
-                               <div className="flex items-center space-x-2">
-                                 <Mail className="h-4 w-4" />
-                                 <span>{template.nombre}</span>
-                                 <Badge variant="outline" className="text-xs">Gmail</Badge>
-                               </div>
-                             </SelectItem>
-                           ))}
-                         <Separator />
-                         {/* Plantillas regulares */}
-                         {templates.map((template) => (
-                           <SelectItem key={template.id} value={template.id.toString()}>
-                             <div className="flex items-center space-x-2">
-                               <Megaphone className="h-4 w-4" />
-                               <span>{template.nombre}</span>
-                             </div>
-                           </SelectItem>
-                         ))}
-                       </SelectContent>
-                     </Select>
-                   </div>
-                   
-                   {selectedTemplate && (
-                                         <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-semibold text-slate-900">{selectedTemplate.nombre}</h4>
-                        <Badge variant="secondary" className="text-xs bg-slate-200 text-slate-700">
-                          {selectedTemplate.variables.length} variables
-                        </Badge>
-                      </div>
-                      {selectedTemplate.asunto && (
-                        <p className="text-sm text-slate-600">
-                          <strong>Asunto:</strong> {selectedTemplate.asunto}
-                        </p>
-                      )}
-                    </div>
-                   )}
-                 </div>
-               </CardContent>
-             </Card>
+                      <CardContent className="p-6">
+                        <div className="space-y-4">
+                          <div>
+                            <Label htmlFor="template-select" className="text-sm font-medium text-gray-700">
+                              Plantilla
+                            </Label>
+                            <Select
+                              value={selectedTemplate?.id?.toString() || ''}
+                              onValueChange={(value) => {
+                                if (value === 'estandar') {
+                                  // Plantilla estándar con contenido básico
+                                  setSelectedTemplate({
+                                    id: 0,
+                                    nombre: 'Plantilla Estándar',
+                                    asunto: 'Mensaje de RH Compensamos',
+                                    contenido_html: '',
+                                    variables: ['nombre', 'email', 'empresa', 'fecha', 'contraseña'],
+                                    activo: true,
+                                    created_at: '',
+                                    updated_at: ''
+                                  });
+                                  setCampaignData(prev => ({
+                                    ...prev,
+                                    asunto: 'Mensaje de RH Compensamos',
+                                    contenido: 'Hola {{nombre}},\n\nEsperamos que este mensaje te encuentre bien.\n\nSaludos,\nEl equipo de RH Compensamos'
+                                  }));
+                                } else if (value === 'cero') {
+                                  // Plantilla de cero
+                                  setSelectedTemplate({
+                                    id: -1,
+                                    nombre: 'De Cero',
+                                    asunto: '',
+                                    contenido_html: '',
+                                    variables: ['nombre', 'email', 'empresa', 'fecha', 'contraseña'],
+                                    activo: true,
+                                    created_at: '',
+                                    updated_at: ''
+                                  });
+                                  setCampaignData(prev => ({
+                                    ...prev,
+                                    asunto: '',
+                                    contenido: ''
+                                  }));
+                                } else if (value.startsWith('gmail-')) {
+                                  // Plantilla de Gmail
+                                  const gmailTemplateId = parseInt(value.replace('gmail-', ''));
+                                  const gmailTemplate = gmailTemplates.find(t => t.id === gmailTemplateId);
+                                  if (gmailTemplate) {
+                                    setSelectedTemplate(gmailTemplate);
+                                    const textoSimple = htmlToText(gmailTemplate.contenido_html);
+                                    setCampaignData(prev => ({
+                                      ...prev,
+                                      asunto: gmailTemplate.asunto,
+                                      contenido: textoSimple
+                                    }));
+                                  }
+                                } else {
+                                  // Plantilla regular de la base de datos
+                                  handleTemplateSelect(value);
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Selecciona una plantilla" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="estandar">
+                                  <div className="flex items-center space-x-2">
+                                    <Megaphone className="h-4 w-4" />
+                                    <span>Plantilla Estándar</span>
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="cero">
+                                  <div className="flex items-center space-x-2">
+                                    <Plus className="h-4 w-4" />
+                                    <span>De Cero</span>
+                                  </div>
+                                </SelectItem>
+                                <Separator />
+                                {/* Plantillas de Gmail filtradas por destinatario */}
+                                {gmailTemplates
+                                  .filter(template => 
+                                    template.tipo_destinatario === selectedDestinatarios || 
+                                    template.tipo_destinatario === 'ambos'
+                                  )
+                                  .map((template) => (
+                                    <SelectItem key={`gmail-${template.id}`} value={`gmail-${template.id}`}>
+                                      <div className="flex items-center space-x-2">
+                                        <Mail className="h-4 w-4" />
+                                        <span>{template.nombre}</span>
+                                        <Badge variant="outline" className="text-xs">Gmail</Badge>
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                <Separator />
+                                {/* Plantillas regulares */}
+                                {templates.map((template) => (
+                                  <SelectItem key={template.id} value={template.id.toString()}>
+                                    <div className="flex items-center space-x-2">
+                                      <Megaphone className="h-4 w-4" />
+                                      <span>{template.nombre}</span>
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          
+                          {selectedTemplate && (
+                            <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                              <div className="flex items-center justify-between mb-3">
+                                <h4 className="font-semibold text-slate-900">{selectedTemplate.nombre}</h4>
+                                <Badge variant="secondary" className="text-xs bg-slate-200 text-slate-700">
+                                  {selectedTemplate.variables.length} variables
+                                </Badge>
+                              </div>
+                              {selectedTemplate.asunto && (
+                                <p className="text-sm text-slate-600">
+                                  <strong>Asunto:</strong> {selectedTemplate.asunto}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
 
                     {/* Selección de Destinatarios */}
                     <Card className="shadow-sm border border-gray-200 bg-white">
@@ -1238,8 +1276,8 @@ export default function EmailMasivoPage() {
                           Define tu audiencia objetivo
                         </CardDescription>
                       </CardHeader>
-               <CardContent className="p-6">
-                 <div className="space-y-4">
+                      <CardContent className="p-6">
+                        <div className="space-y-4">
                    <div>
                      <Label htmlFor="destinatarios-select" className="text-sm font-medium text-gray-700">
                        Tipo de Destinatarios
@@ -1274,20 +1312,20 @@ export default function EmailMasivoPage() {
                      </Select>
                    </div>
                    
-                                       <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <Users className="h-4 w-4 text-slate-600" />
-                        <span className="text-sm font-semibold text-slate-900">
-                          {selectedDestinatarios === 'candidatos' ? 'Candidatos' :
-                           selectedDestinatarios === 'empleadores' ? 'Empleadores' : 'Candidatos y Empleadores'}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-600">
-                        {selectedDestinatarios === 'candidatos' ? 'Personas buscando empleo' :
-                         selectedDestinatarios === 'empleadores' ? 'Empresas buscando talento' : 
-                         'Todos los usuarios registrados'}
-                      </p>
-                    </div>
+                          <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                            <div className="flex items-center space-x-3 mb-2">
+                              <Users className="h-4 w-4 text-slate-600" />
+                              <span className="text-sm font-semibold text-slate-900">
+                                {selectedDestinatarios === 'candidatos' ? 'Candidatos' :
+                                 selectedDestinatarios === 'empleadores' ? 'Empleadores' : 'Candidatos y Empleadores'}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-600">
+                              {selectedDestinatarios === 'candidatos' ? 'Personas buscando empleo' :
+                               selectedDestinatarios === 'empleadores' ? 'Empresas buscando talento' : 
+                               'Todos los usuarios registrados'}
+                            </p>
+                          </div>
 
                    {/* Tipo de Selección */}
                    <div>
