@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Save, UserCheck, ImagePlus, Trash2 } from "lucide-react";
+import { ArrowLeft, Save, UserCheck, ImagePlus, Trash2, Eye, EyeOff, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { usuariosService, UsuarioData } from "@/services/usuariosService";
@@ -31,9 +31,18 @@ const editUsuarioSchema = z.object({
     if (!password || password === "") return true; // Permitir contraseña vacía (no cambiar)
     return password.length >= 8 && /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password);
   }, "Contraseña debe tener al menos 8 caracteres con mayúsculas, minúsculas y números"),
+  confirmPassword: z.string().optional(),
   perfilIds: z.array(z.number()).min(1, "Debe seleccionar al menos un perfil"),
   activo: z.boolean().default(true),
   foto_base64: z.string().optional(),
+}).refine((data) => {
+  if (data.password && data.password !== "" && data.password !== data.confirmPassword) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Las contraseñas no coinciden",
+  path: ["confirmPassword"],
 });
 
 type FormData = z.infer<typeof editUsuarioSchema>;
@@ -55,6 +64,7 @@ interface Usuario {
   email: string;
   username: string;
   activo: boolean;
+  password?: string;
   perfiles: Array<{
     id: number;
     nombre: string;
@@ -69,6 +79,13 @@ const EditarUsuarioPage = () => {
   const queryClient = useQueryClient();
   const [selectedPerfiles, setSelectedPerfiles] = useState<number[]>([]);
   const [fieldErrors, setFieldErrors] = useState<{[key: string]: string}>({});
+  const [showPassword, setShowPassword] = useState<boolean>(true);
+  const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(true);
+  
+  // Debug: Log de estados para verificar que se estén inicializando correctamente
+  console.log('🔍 DEBUG EditarUsuarioPage - Estados iniciales:');
+  console.log('  showPassword:', showPassword);
+  console.log('  showConfirmPassword:', showConfirmPassword);
   const params = useParams();
   const userId = parseInt(params.id || "0");
 
@@ -103,6 +120,7 @@ const EditarUsuarioPage = () => {
         email: user.email,
         username: user.username,
         activo: user.activo,
+        password: user.password || "",
         perfiles: user.gen_usuario_roles?.map((ur: any) => ({
           id: ur.rol_id,
           nombre: ur.gen_roles?.nombre || "Sin nombre"
@@ -136,6 +154,7 @@ const EditarUsuarioPage = () => {
       email: "",
       username: "",
       password: "",
+      confirmPassword: "",
       perfilIds: [],
       activo: true,
     },
@@ -157,7 +176,8 @@ const EditarUsuarioPage = () => {
         telefono: usuario.telefono || "",
         email: usuario.email,
         username: usuario.username,
-        password: "",
+        password: usuario.password || "",
+        confirmPassword: usuario.password || "",
         perfilIds: usuario.perfiles.map(p => p.id),
         activo: usuario.activo,
         foto_base64: usuario.foto_base64 || "",
@@ -206,7 +226,8 @@ const EditarUsuarioPage = () => {
       
       console.log('📤 Datos mapeados para el servicio:', usuarioData);
       
-      const password = data.password && data.password.trim() !== "" ? data.password : undefined;
+      // Solo actualizar la contraseña si se ha cambiado (no es igual a la actual)
+      const password = data.password && data.password !== usuario.password ? data.password : undefined;
       
       return await usuariosService.updateUsuario(
         userId,
@@ -390,6 +411,7 @@ const EditarUsuarioPage = () => {
                   </div>
                 </div>
               </div>
+
               {/* Información personal */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
@@ -513,26 +535,79 @@ const EditarUsuarioPage = () => {
                 </div>
               </div>
 
-              {/* Contraseña con indicador de fortaleza */}
+              {/* Contraseñas siempre visibles */}
               <div>
-                <Label htmlFor="password">Nueva Contraseña (opcional)</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Dejar vacío para mantener la actual"
-                  {...register("password")}
-                  className={errors.password ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
-                />
-                {errors.password && (
-                  <p className="text-sm text-red-500 mt-1">
-                    {errors.password.message}
-                  </p>
-                )}
-                {passwordValue && (
-                  <PasswordStrengthIndicator password={passwordValue} />
-                )}
-                <p className="text-sm text-gray-500 mt-1">
-                  Deja este campo vacío si no deseas cambiar la contraseña
+                <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                  <Lock className="w-5 h-5 text-cyan-600" />
+                  Credenciales de Acceso
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="password">Nueva Contraseña (opcional)</Label>
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Dejar vacío para mantener la actual"
+                        {...register("password")}
+                        className={`pr-10 ${errors.password ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                        title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                      >
+                        {showPassword ? (
+                          <Eye className="h-4 w-4" />
+                        ) : (
+                          <EyeOff className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
+                    {errors.password && (
+                      <p className="text-sm text-red-500 mt-1">
+                        {errors.password.message}
+                      </p>
+                    )}
+                    {passwordValue && (
+                      <PasswordStrengthIndicator password={passwordValue} />
+                    )}
+                  </div>
+
+                  <div>
+                    <Label htmlFor="confirmPassword">Confirmar Contraseña</Label>
+                    <div className="relative">
+                      <Input
+                        id="confirmPassword"
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="Confirmar nueva contraseña"
+                        {...register("confirmPassword")}
+                        className={`pr-10 ${errors.confirmPassword ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                        title={showConfirmPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                      >
+                        {showConfirmPassword ? (
+                          <Eye className="h-4 w-4" />
+                        ) : (
+                          <EyeOff className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
+                    {errors.confirmPassword && (
+                      <p className="text-sm text-red-500 mt-1">
+                        {errors.confirmPassword.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                
+                <p className="text-sm text-gray-500 mt-2">
+                  Deja los campos de contraseña vacíos si no deseas cambiar la contraseña actual
                 </p>
               </div>
 

@@ -11,7 +11,7 @@ export interface UsuarioData {
   email: string;
   username: string;
   activo?: boolean;
-  password_hash?: string;
+  password?: string;
   foto_base64?: string;
   ultimo_acceso?: string;
   createdAt?: string;
@@ -34,6 +34,7 @@ export const usuariosService = {
         email,
         username,
         activo,
+        password,
         foto_base64,
         created_at,
         gen_usuario_roles ( id, rol_id, created_at, gen_roles ( id, nombre ) ),
@@ -89,22 +90,15 @@ export const usuariosService = {
     
     console.log('✅ Username y email únicos verificados para creación');
     
-    // 1. Generar hash de la contraseña
-    const { data: hashData, error: hashError } = await supabase.rpc('hash_password', {
-      password_to_hash: password
-    });
-    
-    if (hashError) {
-      // Si no existe la función RPC, usar un hash simple
-      const simpleHash = btoa(password); // Base64 encoding como fallback
-      const userDataWithHash = {
-        ...usuarioData,
-        password_hash: simpleHash
-      };
+    // 1. Guardar la contraseña como texto plano
+    const userDataWithPassword = {
+      ...usuarioData,
+      password: password
+    };
       
       const { data: newUser, error: userError } = await supabase
         .from('gen_usuarios')
-        .insert(userDataWithHash)
+        .insert(userDataWithPassword)
         .select()
         .single();
       if (userError) throw userError;
@@ -122,34 +116,6 @@ export const usuariosService = {
       }
 
       return newUser;
-    } else {
-      // Usar el hash generado por la función RPC
-      const userDataWithHash = {
-        ...usuarioData,
-        password_hash: hashData
-      };
-      
-      const { data: newUser, error: userError } = await supabase
-        .from('gen_usuarios')
-        .insert(userDataWithHash)
-        .select()
-        .single();
-      if (userError) throw userError;
-
-      // 2. Asignar roles
-      if (rolesIds.length > 0) {
-        const rolesToInsert = rolesIds.map(rol_id => ({ usuario_id: newUser.id, rol_id }));
-        await supabase.from('gen_usuario_roles').insert(rolesToInsert);
-      }
-
-      // 3. Asignar empresas
-      if (empresaIds.length > 0) {
-        const empresasToInsert = empresaIds.map(empresa_id => ({ usuario_id: newUser.id, empresa_id }));
-        await supabase.from('gen_usuario_empresas').insert(empresasToInsert);
-      }
-
-      return newUser;
-    }
   },
 
   // Actualizar un usuario y sus relaciones
@@ -209,19 +175,9 @@ export const usuariosService = {
     
     let finalUsuarioData = { ...usuarioData };
     
-    // Si se proporciona una nueva contraseña, hashearla
+    // Si se proporciona una nueva contraseña, guardarla como texto plano
     if (password && password.trim() !== '') {
-      const { data: hashData, error: hashError } = await supabase.rpc('hash_password', {
-        password_to_hash: password
-      });
-      
-      if (hashError) {
-        console.warn('No se pudo usar hash_password RPC, usando fallback:', hashError);
-        // Fallback: usar base64
-        finalUsuarioData.password_hash = btoa(password);
-      } else {
-        finalUsuarioData.password_hash = hashData;
-      }
+      finalUsuarioData.password = password;
     }
     
     // 1. Actualizar datos del usuario

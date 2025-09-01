@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useNavigate } from "react-router-dom";
 import { plantillasService } from '@/services/plantillasService';
 import { useLoading } from '@/contexts/LoadingContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { 
-  Plus, Edit3, Trash2, Save, X, Eye, FileText
+  Plus, Edit3, Trash2, Save, X, Eye, FileText, Download
 } from 'lucide-react';
+import html2canvas from 'html2canvas';
 
 // Normaliza opciones desde string | string[] a string[] seguro
 const toOptionsArray = (options?: string | string[]): string[] => {
@@ -98,18 +100,22 @@ const FormBuilder: React.FC<{
   const [formDesc, setFormDesc] = useState(initialDescription);
   const [sections, setSections] = useState<FormSection[]>([]);
   const [currentSection, setCurrentSection] = useState<FormSection>(createDefaultSection());
+  const [isExporting, setIsExporting] = useState(false);
+  const previewRef = useRef<HTMLDivElement>(null);
   const [currentField, setCurrentField] = useState<FormField>(createDefaultField());
   const [showJson, setShowJson] = useState(false);
   const [selectedSectionIdx, setSelectedSectionIdx] = useState<number | null>(null);
   const [selectedFieldIdx, setSelectedFieldIdx] = useState<number | null>(null);
   const [draggedSectionIdx, setDraggedSectionIdx] = useState<number | null>(null);
   const [draggedFieldIdx, setDraggedFieldIdx] = useState<number | null>(null);
+  const [resizingFieldId, setResizingFieldId] = useState<string | null>(null);
+  const [selectedFieldForMove, setSelectedFieldForMove] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [activeTab, setActiveTab] = useState("seccion");
   const { startLoading, stopLoading } = useLoading();
 
 
-  const navigate = !readOnly ? (() => { try { return useNavigate(); } catch { return () => {}; } })() : null;
+  const navigate = !readOnly ? (() => { try { return useNavigate(); } catch { return () => { }; } })() : null;
 
   // Inicializar campos precargados con IDs únicos
   useEffect(() => {
@@ -139,6 +145,13 @@ const FormBuilder: React.FC<{
               dimension = match ? parseInt(match[1]) : 12;
             }
             if (!dimension) dimension = 12;
+
+            // Validar que la dimensión no exceda 12
+            if (dimension > 12) {
+              dimension = 12;
+            } else if (dimension < 1) {
+              dimension = 1;
+            }
             return {
               ...f,
               id: f.id || uuidv4(),
@@ -239,9 +252,27 @@ const FormBuilder: React.FC<{
   const handleFieldChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     let newValue: any = value;
+
     if (type === 'checkbox') {
       newValue = (e.target as HTMLInputElement).checked;
     }
+
+    // Validación especial para el campo dimension
+    if (name === 'dimension') {
+      const numValue = parseInt(value);
+      if (!isNaN(numValue)) {
+        // Si el valor es mayor a 12, lo ajustamos automáticamente a 12
+        if (numValue > 12) {
+          newValue = 12;
+        } else if (numValue < 1) {
+          // También aseguramos que no sea menor a 1
+          newValue = 1;
+        } else {
+          newValue = numValue;
+        }
+      }
+    }
+
     setCurrentField(f => ({
       ...f,
       [name]: newValue,
@@ -254,6 +285,36 @@ const FormBuilder: React.FC<{
       ...s,
       [name]: value,
     }));
+  };
+
+  // Función para exportar la vista previa como imagen
+  const exportAsImage = async () => {
+    if (!previewRef.current) return;
+    
+    setIsExporting(true);
+    try {
+      const canvas = await html2canvas(previewRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2, // Mejor calidad
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        width: previewRef.current.scrollWidth,
+        height: previewRef.current.scrollHeight
+      });
+      
+      // Crear un enlace de descarga
+      const link = document.createElement('a');
+      link.download = `plantilla-${formName || 'formulario'}-${new Date().toISOString().split('T')[0]}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      
+    } catch (error) {
+      console.error('Error al exportar como imagen:', error);
+      // Aquí podrías mostrar un toast de error
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const addSection = (e: React.FormEvent) => {
@@ -377,28 +438,293 @@ const FormBuilder: React.FC<{
       setDraggedSectionIdx(idx);
     } else {
       if (draggedFieldIdx === null || draggedFieldIdx === idx) return;
-      // Implementar drag and drop de campos dentro de secciones si es necesario
+        
+        // Implementar drag and drop de campos dentro de secciones
+        if (selectedSectionIdx !== null) {
+          setSections(prev => {
+            const updated = [...prev];
+            const section = updated[selectedSectionIdx];
+            const campos = [...section.campos];
+            
+            // Remover el campo arrastrado
+            const [draggedField] = campos.splice(draggedFieldIdx, 1);
+            
+            // Insertar en la nueva posición
+            campos.splice(idx, 0, draggedField);
+            
+            // Actualizar el orden de todos los campos
+            const reorderedCampos = campos.map((campo, index) => ({
+              ...campo,
+              order: index + 1
+            }));
+            
+            updated[selectedSectionIdx] = {
+              ...section,
+              campos: reorderedCampos
+            };
+            
+            return updated;
+          });
+          setDraggedFieldIdx(idx);
+        }
     }
   };
 
   const onDragEnd = () => {
     setDraggedSectionIdx(null);
     setDraggedFieldIdx(null);
+    // No limpiar la selección del campo para mantener la funcionalidad de edición
+  };
+
+  // Función para redimensionar campos
+  const handleFieldResize = (fieldId: string, newDimension: number) => {
+    setSections(prev => {
+      const updated = [...prev];
+      for (let sectionIdx = 0; sectionIdx < updated.length; sectionIdx++) {
+        const section = updated[sectionIdx];
+        const fieldIdx = section.campos.findIndex(f => f.id === fieldId);
+        if (fieldIdx !== -1) {
+          // Validar que la nueva dimensión esté entre 1 y 12
+          const clampedDimension = Math.max(1, Math.min(12, newDimension));
+          updated[sectionIdx] = {
+            ...section,
+            campos: section.campos.map((f, i) =>
+              i === fieldIdx ? { ...f, dimension: clampedDimension } : f
+            )
+          };
+          break;
+        }
+      }
+      return updated;
+    });
   };
 
   const renderField = (f: FormField, i: number) => {
     const gridColumnSpan = `span ${f.dimension}`;
+    
+         // Crear el contenedor del campo con estado de redimensionamiento
+     const renderFieldContainer = (children: React.ReactNode) => (
+              <div 
+          key={f.id} 
+          className={`field-container ${resizingFieldId === f.id ? 'field-resizing' : ''}`}
+                     style={{ 
+             gridColumn: gridColumnSpan, 
+             padding: 6,
+             minWidth: 0,
+             position: 'relative',
+             border: resizingFieldId === f.id ? '2px solid #3b82f6' : '1px solid #e5e7eb',
+             borderRadius: '6px',
+             backgroundColor: resizingFieldId === f.id ? '#eff6ff' : '#ffffff',
+             boxShadow: resizingFieldId === f.id ? '0 4px 12px rgba(59, 130, 246, 0.2)' : '0 1px 3px rgba(0,0,0,0.1)',
+             cursor: 'pointer',
+             transition: 'all 0.2s ease-in-out'
+           }}
+          
+                     onClick={(e) => {
+             e.preventDefault();
+             e.stopPropagation();
+             
+             // Si ya está seleccionado, deseleccionarlo
+             if (selectedFieldForMove === f.id) {
+               setSelectedFieldForMove(null);
+             } else {
+               // Seleccionar este campo y deseleccionar otros
+               setSelectedFieldForMove(f.id);
+             }
+           }}
+        >
+        {/* Contenido del campo */}
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          {children}
+        </div>
+        
+                          {/* Icono de selección para mover (solo visible cuando se hace clic) */}
+         {selectedFieldForMove === f.id && (
+           <div 
+             className="move-handle"
+             style={{
+               position: 'absolute',
+               top: '50%',
+               left: '50%',
+               transform: 'translate(-50%, -50%)',
+               width: '32px',
+               height: '32px',
+               backgroundColor: 'rgba(59, 130, 246, 0.95)',
+               borderRadius: '50%',
+               cursor: 'grab',
+               zIndex: 15,
+               display: 'flex',
+               alignItems: 'center',
+               justifyContent: 'center',
+               border: '3px solid white',
+               boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+               animation: 'pulse 2s infinite'
+             }}
+             onMouseDown={(e) => {
+               e.preventDefault();
+               e.stopPropagation();
+               // Aquí se activaría el drag & drop para mover
+             }}
+           >
+             {/* Icono de mover */}
+             <svg 
+               width="16" 
+               height="16" 
+               viewBox="0 0 24 24" 
+               fill="none" 
+               stroke="white" 
+               strokeWidth="2"
+             >
+               <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+             </svg>
+           </div>
+         )}
+
+         {/* Handle de redimensionamiento izquierdo */}
+         <div 
+           className="resize-handle-left"
+           style={{
+             position: 'absolute',
+             top: '50%',
+             left: '2px',
+             transform: 'translateY(-50%)',
+             width: '16px',
+             height: '24px',
+             backgroundColor: 'rgba(239, 68, 68, 0.9)',
+             borderRadius: '4px 0 0 4px',
+             cursor: 'w-resize',
+             zIndex: 10,
+             opacity: selectedFieldForMove === f.id ? 1 : 0,
+             transition: 'all 0.2s ease-in-out',
+             display: 'flex',
+             alignItems: 'center',
+             justifyContent: 'center',
+             border: '2px solid white',
+             boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+           }}
+           onMouseDown={(e) => {
+             e.preventDefault();
+             e.stopPropagation();
+             
+             setResizingFieldId(f.id);
+             
+             const startX = e.clientX;
+             const startDimension = f.dimension;
+             const gridWidth = 12;
+             const containerWidth = e.currentTarget.closest('.grid-container')?.clientWidth || 800;
+             const columnWidth = containerWidth / gridWidth;
+             
+             const handleMouseMove = (moveEvent: MouseEvent) => {
+               const deltaX = startX - moveEvent.clientX; // Invertido para el lado izquierdo
+               const deltaColumns = Math.round(deltaX / columnWidth);
+               const newDimension = Math.max(1, Math.min(12, startDimension + deltaColumns));
+               
+               if (newDimension !== f.dimension) {
+                 handleFieldResize(f.id, newDimension);
+               }
+             };
+             
+             const handleMouseUp = () => {
+               document.removeEventListener('mousemove', handleMouseMove);
+               document.removeEventListener('mouseup', handleMouseUp);
+               setResizingFieldId(null);
+             };
+             
+             document.addEventListener('mousemove', handleMouseMove);
+             document.addEventListener('mouseup', handleMouseUp);
+           }}
+         >
+           {/* Icono de redimensionar izquierdo */}
+           <svg 
+             width="8" 
+             height="8" 
+             viewBox="0 0 24 24" 
+             fill="none" 
+             stroke="white" 
+             strokeWidth="2"
+           >
+             <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+           </svg>
+         </div>
+
+         {/* Handle de redimensionamiento derecho */}
+         <div 
+           className="resize-handle-right"
+           style={{
+             position: 'absolute',
+             top: '50%',
+             right: '2px',
+             transform: 'translateY(-50%)',
+             width: '16px',
+             height: '24px',
+             backgroundColor: 'rgba(34, 197, 94, 0.9)',
+             borderRadius: '0 4px 4px 0',
+             cursor: 'e-resize',
+             zIndex: 10,
+             opacity: selectedFieldForMove === f.id ? 1 : 0,
+             transition: 'all 0.2s ease-in-out',
+             display: 'flex',
+             alignItems: 'center',
+             justifyContent: 'center',
+             border: '2px solid white',
+             boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+           }}
+           onMouseDown={(e) => {
+             e.preventDefault();
+             e.stopPropagation();
+             
+             setResizingFieldId(f.id);
+             
+             const startX = e.clientX;
+             const startDimension = f.dimension;
+             const gridWidth = 12;
+             const containerWidth = e.currentTarget.closest('.grid-container')?.clientWidth || 800;
+             const columnWidth = containerWidth / gridWidth;
+             
+             const handleMouseMove = (moveEvent: MouseEvent) => {
+               const deltaX = moveEvent.clientX - startX;
+               const deltaColumns = Math.round(deltaX / columnWidth);
+               const newDimension = Math.max(1, Math.min(12, startDimension + deltaColumns));
+               
+               if (newDimension !== f.dimension) {
+                 handleFieldResize(f.id, newDimension);
+               }
+             };
+             
+             const handleMouseUp = () => {
+               document.removeEventListener('mousemove', handleMouseMove);
+               document.removeEventListener('mouseup', handleMouseUp);
+               setResizingFieldId(null);
+             };
+             
+             document.addEventListener('mousemove', handleMouseMove);
+             document.addEventListener('mouseup', handleMouseUp);
+           }}
+         >
+           {/* Icono de redimensionar derecho */}
+           <svg 
+             width="8" 
+             height="8" 
+             viewBox="0 0 24 24" 
+             fill="none" 
+             stroke="white" 
+             strokeWidth="2"
+           >
+             <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+           </svg>
+         </div>
+          
+
+        </div>
+      );
+
     switch (f.type) {
       case 'text':
       case 'number':
       case 'email':
       case 'date':
-        return (
-          <div key={f.id} style={{ 
-            gridColumn: gridColumnSpan, 
-            padding: 6,
-            minWidth: 0
-          }}>
+        return renderFieldContainer(
+          <>
             <label style={{ fontWeight: 500, fontSize: 13, marginBottom: 4, display: 'block' }}>{f.label}{f.required && ' *'}</label>
             <input 
               type={f.type} 
@@ -411,15 +737,11 @@ const FormBuilder: React.FC<{
                 fontSize: 13
               }} 
             />
-          </div>
+          </>
         );
       case 'textarea':
-        return (
-          <div key={f.id} style={{ 
-            gridColumn: gridColumnSpan, 
-            padding: 6,
-            minWidth: 0
-          }}>
+        return renderFieldContainer(
+          <>
             <label style={{ fontWeight: 500, fontSize: 13, marginBottom: 4, display: 'block' }}>{f.label}{f.required && ' *'}</label>
             <textarea 
               className="form-builder-input"
@@ -432,15 +754,11 @@ const FormBuilder: React.FC<{
                 minHeight: '60px'
               }} 
             />
-          </div>
+          </>
         );
       case 'select':
-        return (
-          <div key={f.id} style={{ 
-            gridColumn: gridColumnSpan, 
-            padding: 6,
-            minWidth: 0
-          }}>
+        return renderFieldContainer(
+          <>
             <label style={{ fontWeight: 500, fontSize: 13, marginBottom: 4, display: 'block' }}>{f.label}{f.required && ' *'}</label>
             <select name={f.name} style={{ 
               width: '100%', 
@@ -453,15 +771,10 @@ const FormBuilder: React.FC<{
                 <option key={idx} value={opt}>{opt}</option>
               ))}
             </select>
-          </div>
+          </>
         );
       case 'checkbox':
-        return (
-          <div key={f.id} style={{ 
-            gridColumn: gridColumnSpan, 
-            padding: 6,
-            minWidth: 0
-          }}>
+        return renderFieldContainer(
             <div style={{ display: 'flex', alignItems: 'center' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', width: '100%' }}>
                   <input 
@@ -472,44 +785,26 @@ const FormBuilder: React.FC<{
                 />
                 <span style={{ fontWeight: 500, fontSize: 13 }}>{f.label}{f.required && ' *'}</span>
               </label>
-            </div>
           </div>
         );
       case 'radio':
-        return (
-          <div key={f.id} style={{ 
-            gridColumn: gridColumnSpan, 
-            padding: 6,
-            minWidth: 0
-          }}>
+        return renderFieldContainer(
+          <>
             <label style={{ fontWeight: 500, fontSize: 13, marginBottom: 4, display: 'block' }}>{f.label}{f.required && ' *'}</label><br />
             {toOptionsArray(f.options).map((opt: string, idx: number) => (
               <label key={idx} style={{ marginRight: 8, fontSize: 12 }}>
                 <input type="radio" name={f.name} value={opt} style={{ marginRight: 4 }} /> {opt}
               </label>
             ))}
-          </div>
+          </>
         );
       case 'title':
-        return (
-          <div key={f.id} style={{ 
-            gridColumn: gridColumnSpan, 
-            padding: 6, 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center',
-            minWidth: 0
-          }}>
-            <h3 style={{ fontSize: 18, color: '#000', fontWeight: 700, margin: 0 }}>{f.label}</h3>
-          </div>
+        return renderFieldContainer(
+          <h3 style={{ fontSize: 18, color: '#000', fontWeight: 700, margin: 0, textAlign: 'center' }}>{f.label}</h3>
         );
       case 'foreignKey':
-        return (
-          <div key={f.id} style={{ 
-            gridColumn: gridColumnSpan, 
-            padding: 6,
-            minWidth: 0
-          }}>
+        return renderFieldContainer(
+          <>
             <label style={{ fontWeight: 500, fontSize: 13, marginBottom: 4, display: 'block' }}>{f.label}{f.required && ' *'}</label>
             <select name={f.name} style={{ 
               width: '100%', 
@@ -522,15 +817,11 @@ const FormBuilder: React.FC<{
                 <option key={idx} value={opt}>{opt}</option>
               ))}
             </select>
-          </div>
+          </>
         );
       case 'percent':
-        return (
-          <div key={f.id} style={{ 
-            gridColumn: gridColumnSpan, 
-            padding: 6,
-            minWidth: 0
-          }}>
+        return renderFieldContainer(
+          <>
             <label style={{ fontWeight: 500, fontSize: 13, marginBottom: 4, display: 'block' }}>{f.label}{f.required && ' *'}</label>
             <div style={{ display: 'flex', alignItems: 'center' }}>
               <input type="number" name={f.name} min={0} max={100} style={{ 
@@ -542,7 +833,7 @@ const FormBuilder: React.FC<{
               }} />
               <span style={{ marginLeft: 4, fontWeight: 600, color: '#000', fontSize: 13 }}>%</span>
             </div>
-          </div>
+          </>
         );
       default:
         return null;
@@ -607,6 +898,87 @@ const FormBuilder: React.FC<{
           .json-container {
             max-height: 400px !important;
             overflow: auto !important;
+          }
+
+          /* Estilos para drag & drop en vista previa */
+          .field-draggable {
+            transition: all 0.2s ease-in-out;
+          }
+          
+          .field-draggable:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+          }
+          
+          .field-draggable:active {
+            cursor: grabbing !important;
+          }
+          
+          .field-dragging {
+            opacity: 0.5;
+            transform: scale(0.95);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+          }
+          
+                     /* Estilos para los handles de redimensionamiento */
+           .resize-handle-left,
+           .resize-handle-right {
+             transition: all 0.2s ease-in-out;
+           }
+           
+           .resize-handle-left:hover,
+           .resize-handle-right:hover {
+             transform: scale(1.1);
+             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+           }
+           
+           /* Estilos para el handle de mover */
+           .move-handle {
+             transition: all 0.2s ease-in-out;
+           }
+           
+           .move-handle:hover {
+             transform: translate(-50%, -50%) scale(1.1);
+             box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+           }
+           
+           /* Animación de pulso para el handle de mover */
+           @keyframes pulse {
+             0%, 100% {
+               transform: translate(-50%, -50%) scale(1);
+               opacity: 1;
+             }
+             50% {
+               transform: translate(-50%, -50%) scale(1.05);
+               opacity: 0.8;
+             }
+           }
+          
+                     /* Grid de fondo mejorado y más visible */
+           .grid-container {
+             background-image: 
+               linear-gradient(to right, rgba(59, 130, 246, 0.15) 1px, transparent 1px),
+               linear-gradient(to bottom, rgba(59, 130, 246, 0.1) 1px, transparent 1px);
+             background-size: calc(100% / 12) 100%, 100% 100%;
+             position: relative;
+           }
+           
+           /* Campo en modo redimensionamiento */
+           .field-resizing {
+             border: 2px solid #3b82f6 !important;
+             background-color: #eff6ff !important;
+             box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2) !important;
+             transform: scale(1.02);
+           }
+           
+           /* Líneas de columnas sin números */
+           .column-line {
+             position: absolute;
+             top: 0;
+             height: 100%;
+             border-left: 2px solid rgba(59, 130, 246, 0.2);
+             pointer-events: none;
+             z-index: 1;
           }
         `}
       </style>
@@ -722,9 +1094,11 @@ const FormBuilder: React.FC<{
             <div className="mb-6">
               <div className="grid w-full grid-cols-3 bg-cyan-100/60 p-1 rounded-lg">
                 <button
-                  onClick={() => setActiveTab("seccion")}
-                  className={`px-4 py-2 rounded-md transition-all duration-300 text-sm font-medium ${
-                    activeTab === "seccion" 
+                     onClick={() => {
+                       setActiveTab("seccion");
+                       setSelectedFieldForMove(null); // Limpiar selección al cambiar de tab
+                     }}
+                     className={`px-4 py-2 rounded-md transition-all duration-300 text-sm font-medium ${activeTab === "seccion"
                       ? "bg-cyan-600 text-white shadow-md" 
                       : "text-gray-600 hover:text-gray-800"
                   }`}
@@ -732,9 +1106,11 @@ const FormBuilder: React.FC<{
                   Agregar Sección
                 </button>
                 <button
-                  onClick={() => setActiveTab("campo")}
-                  className={`px-4 py-2 rounded-md transition-all duration-300 text-sm font-medium ${
-                    activeTab === "campo" 
+                     onClick={() => {
+                       setActiveTab("campo");
+                       setSelectedFieldForMove(null); // Limpiar selección al cambiar de tab
+                     }}
+                     className={`px-4 py-2 rounded-md transition-all duration-300 text-sm font-medium ${activeTab === "campo"
                       ? "bg-cyan-600 text-white shadow-md" 
                       : "text-gray-600 hover:text-gray-800"
                   }`}
@@ -742,9 +1118,11 @@ const FormBuilder: React.FC<{
                   Agregar Campo
                 </button>
                 <button
-                  onClick={() => setActiveTab("vista")}
-                  className={`px-4 py-2 rounded-md transition-all duration-300 text-sm font-medium ${
-                    activeTab === "vista" 
+                     onClick={() => {
+                       setActiveTab("vista");
+                       setSelectedFieldForMove(null); // Limpiar selección al cambiar de tab
+                     }}
+                     className={`px-4 py-2 rounded-md transition-all duration-300 text-sm font-medium ${activeTab === "vista"
                       ? "bg-cyan-600 text-white shadow-md" 
                       : "text-gray-600 hover:text-gray-800"
                   }`}
@@ -774,7 +1152,7 @@ const FormBuilder: React.FC<{
                     </div>
                   )}
                   
-                  <form onSubmit={(e) => e.preventDefault()} className="space-y-3">
+                    <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">Título de la Sección</label>
                       <input 
@@ -850,7 +1228,7 @@ const FormBuilder: React.FC<{
                     </div>
                   ) : (
                     <form onSubmit={(e) => e.preventDefault()} className="space-y-3">
-                      {/* Fila: Tipo de Campo + Orden + Label (12 cols) */}
+                        {/* Fila: Tipo de Campo + Orden + Label + Requerido (12 cols) */}
                       <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                         <div className="md:col-span-3">
                           <label className="block text-sm font-medium text-gray-700 mb-1.5">Tipo de Campo</label>
@@ -880,7 +1258,7 @@ const FormBuilder: React.FC<{
                             autoComplete="off" 
                           />
                         </div>
-                        <div className="md:col-span-7">
+                          <div className="md:col-span-5">
                           <label className="block text-sm font-medium text-gray-700 mb-1.5">Label</label>
                           <input 
                             className="w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm" 
@@ -890,18 +1268,32 @@ const FormBuilder: React.FC<{
                             autoComplete="off"
                           />
                         </div>
+                          <div className="md:col-span-2 flex items-end">
+                            <div className="w-full space-y-2">
+                              <label className="block text-sm font-medium text-gray-700">Requerido</label>
+                              <button
+                                type="button"
+                                onClick={() => setCurrentField(f => ({ ...f, required: !f.required }))}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 ${currentField.required ? 'bg-cyan-600' : 'bg-gray-200'
+                                  }`}
+                              >
+                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition duration-200 ease-in-out ${currentField.required ? 'translate-x-6' : 'translate-x-1'
+                                  }`} />
+                              </button>
+                            </div>
+                        </div>
                       </div>
 
-                      {/* Segunda fila consolidada arriba; no se requiere bloque extra de opciones */}
+                        {/* Segunda fila: Placeholder/Opciones + Tamaño (12 cols) */}
                       {currentField.type !== 'title' && (
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
                           <div className="md:col-span-5">
                             <label className="block text-sm font-medium text-gray-700 mb-1.5">
                               {currentField.type === 'select' || currentField.type === 'radio' || currentField.type === 'foreignKey' ? 'Opciones (separadas por coma)' : 'Placeholder'}
                             </label>
                             {currentField.type === 'select' || currentField.type === 'radio' || currentField.type === 'foreignKey' ? (
                               <input 
-                                className="w-full px-2 py-0.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-xs" 
+                                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
                                 name="options" 
                                 placeholder="Opciones (separadas por coma)" 
                                 value={currentField.options as any} 
@@ -915,14 +1307,16 @@ const FormBuilder: React.FC<{
                                 value={currentField.placeholder} 
                                 onChange={handleFieldChange} 
                                 autoComplete="off"
-                                
                               />
                             )}
                           </div>
-                          <div className="md:col-span-3">
-                            <label className="block text-sm font-medium text-gray-700 mb-1.5">Tamaño (1-12)</label>
+                            <div className="md:col-span-7">
+                              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                Tamaño (1-12)
+                              </label>
+                              <div className="space-y-2">
                             <input 
-                              className="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm" 
+                                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm transition-colors duration-200"
                               name="dimension" 
                               type="number" 
                               min={1} 
@@ -930,24 +1324,20 @@ const FormBuilder: React.FC<{
                               value={currentField.dimension} 
                               onChange={handleFieldChange} 
                               autoComplete="off" 
+                                  placeholder="1-12"
                             />
+                                <div className="flex items-center justify-between text-xs text-gray-500">
+                                  <span>Mín: 1</span>
+                                  <span className="text-cyan-600 font-medium">Actual: {currentField.dimension}</span>
+                                  <span>Máx: 12</span>
                           </div>
-                          <div className="md:col-span-4 flex items-center h-full">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                              <input 
-                                name="required" 
-                                type="checkbox" 
-                                checked={currentField.required} 
-                                onChange={handleFieldChange}
-                                className="w-4 h-4 text-cyan-600 border-gray-300 rounded focus:ring-cyan-500"
-                              />
-                              <span className="text-sm font-medium text-gray-700">Campo requerido</span>
-                            </label>
+                                <p className="text-xs text-gray-500 leading-relaxed">
+                                  Determina cuántas columnas ocupa el campo.
+                                </p>
+                              </div>
                           </div>
                         </div>
                       )}
-                      
-                      {/* Segunda fila consolidada arriba; no se requiere bloque extra de opciones */}
 
                       <div className="flex items-center justify-end pt-3">
                         {selectedFieldIdx === null ? (
@@ -1001,10 +1391,42 @@ const FormBuilder: React.FC<{
             {activeTab === "vista" && (
               <div className="mb-6">
                 <div className="bg-white rounded-lg border border-gray-200 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                     <span className="text-2xl mr-2">👁️</span>
                     Vista Previa del Formulario
                   </h3>
+                    <Button
+                      onClick={exportAsImage}
+                      disabled={isExporting || sections.filter(s => s.activo !== false).length === 0}
+                      className="bg-cyan-600 hover:bg-cyan-700 text-white flex items-center gap-2"
+                      size="sm"
+                    >
+                      {isExporting ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          Exportando...
+                        </>
+                      ) : (
+                        <>
+                          <Download className="h-4 w-4" />
+                          Exportar como Imagen
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                     
+                     <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                       <p className="text-blue-800 text-sm mb-2">
+                         💡 <strong>Funcionalidades disponibles:</strong>
+                       </p>
+                       <ul className="text-blue-700 text-xs space-y-1">
+                         <li>🖱️ <strong>Seleccionar campo:</strong> Haz clic en cualquier campo para mostrar los controles de edición</li>
+                         <li>📏 <strong>Redimensionar:</strong> Usa los iconos rojo (izquierda) y verde (derecha) para cambiar el tamaño del campo</li>
+                         <li>🔄 <strong>Mover:</strong> Usa el icono azul del centro para arrastrar y reorganizar campos</li>
+                         <li>📐 <strong>Grid visual:</strong> Las líneas azules muestran las 12 columnas disponibles</li>
+                       </ul>
+                     </div>
                   
                   {sections.filter(s => s.activo !== false).length === 0 ? (
                     <div className="text-center py-8">
@@ -1017,7 +1439,7 @@ const FormBuilder: React.FC<{
                       </p>
                     </div>
                   ) : (
-                    <div className="space-y-6">
+                    <div ref={previewRef} className="space-y-6">
                       {sections.filter(s => s.activo !== false).map((section, sectionIdx) => (
                         <div key={section.id} className="border border-gray-200 rounded-lg p-4">
                           <div className="flex items-center gap-2 mb-4 p-3 bg-gray-50 rounded-lg">
@@ -1032,11 +1454,53 @@ const FormBuilder: React.FC<{
                               Esta sección no tiene campos configurados
                             </div>
                           ) : (
-                            <div className="grid grid-cols-12 gap-4">
+                                                                <div className="relative">
+                                   {/* Grid de fondo sin números, solo líneas visuales */}
+                                   <div className="absolute inset-0 grid grid-cols-12 gap-4 pointer-events-none z-0">
+                                     {Array.from({ length: 12 }, (_, colIndex) => (
+                                       <div
+                                         key={colIndex}
+                                         className="column-line"
+                                         style={{ gridColumn: `${colIndex + 1} / span 1` }}
+                                       />
+                                     ))}
+                                   </div>
+                                 
+                                 {/* Contenedor de campos con drag & drop */}
+                                 <div className="grid grid-cols-12 gap-4 relative z-10 grid-container">
                               {(() => {
                                 const camposActivos = section.campos.filter(f => f.activo !== false).sort((a, b) => a.order - b.order);
-                                return camposActivos.map(renderField);
+                                     return camposActivos.map((field, fieldIdx) => (
+                                       <div
+                                         key={field.id}
+                                         draggable
+                                         onDragStart={(e) => {
+                                           e.dataTransfer.effectAllowed = 'move';
+                                           onDragStart(fieldIdx, false);
+                                         }}
+                                         onDragOver={(e) => {
+                                           e.preventDefault();
+                                           e.dataTransfer.dropEffect = 'move';
+                                         }}
+                                         onDrop={(e) => {
+                                           e.preventDefault();
+                                           if (draggedFieldIdx !== null && selectedSectionIdx === sectionIdx) {
+                                             onDragOver(fieldIdx, false);
+                                           }
+                                         }}
+                                         className={`field-draggable transition-all duration-200 ${
+                                           draggedFieldIdx === fieldIdx ? 'field-dragging' : ''
+                                         }`}
+                                         style={{
+                                           gridColumn: `span ${field.dimension}`,
+                                           cursor: 'grab'
+                                         }}
+                                       >
+                                         {renderField(field, fieldIdx)}
+                                       </div>
+                                     ));
                               })()}
+                                 </div>
                             </div>
                           )}
                         </div>

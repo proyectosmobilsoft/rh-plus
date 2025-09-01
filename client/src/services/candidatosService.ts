@@ -79,7 +79,7 @@ export const candidatosService = {
       if (candidato.primer_nombre) usuarioData.primer_nombre = candidato.primer_nombre;
       if (candidato.primer_apellido) usuarioData.primer_apellido = candidato.primer_apellido;
       // Password inicial basado en documento si existe
-      if (candidato.numero_documento) usuarioData.password_hash = btoa(candidato.numero_documento);
+      if (candidato.numero_documento) usuarioData.password = candidato.numero_documento;
 
       const { data: usuario, error: usuarioError } = await supabase
         .from('gen_usuarios')

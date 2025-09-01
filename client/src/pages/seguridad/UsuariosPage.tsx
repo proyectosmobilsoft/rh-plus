@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Plus, Search, Users, Save, RefreshCw, Loader2, Lock, CheckCircle, User, ImagePlus } from "lucide-react";
+import { Edit, Trash2, Plus, Search, Users, Save, RefreshCw, Loader2, Lock, CheckCircle, User, ImagePlus, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Link } from "wouter";
@@ -42,6 +42,7 @@ import { Can } from "@/contexts/PermissionsContext";
 
 // Esquema de validación para crear/editar usuario (usa isEditing para reglas de contraseña)
 const crearUsuarioSchema = z.object({
+  id: z.number().optional(),
   identificacion: z.string().min(1, "La identificación es requerida"),
   primer_nombre: z.string().min(1, "El primer nombre es requerido"),
   segundo_nombre: z.string().optional(),
@@ -79,6 +80,7 @@ const crearUsuarioSchema = z.object({
 
 // Esquema para editar usuario (password opcional)
 const editarUsuarioSchema = z.object({
+  id: z.number(),
   identificacion: z.string().min(1, "La identificación es requerida"),
   primer_nombre: z.string().min(1, "El primer nombre es requerido"),
   segundo_nombre: z.string().optional(),
@@ -127,7 +129,9 @@ interface Usuario {
   email: string;
   username: string;
   activo: boolean;
+  password?: string;
   foto_base64?: string;
+  created_at?: string;
   gen_usuario_roles: Array<{ id: number; rol_id: number; created_at: string; gen_roles: { id: number; nombre: string } }>;
   gen_usuario_empresas: Array<{ id: number; empresa_id: number; created_at: string; empresas: { id: number; razon_social: string } }>;
 }
@@ -138,6 +142,8 @@ const UsuariosPage = () => {
   const [perfilFilter, setPerfilFilter] = useState<"all" | number>("all");
   const [activeTab, setActiveTab] = useState("usuarios");
   const [editingUser, setEditingUser] = useState<Usuario | null>(null);
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
   const { toast } = useToast();
   const { startLoading, stopLoading } = useLoading();
   const queryClient = useQueryClient();
@@ -160,7 +166,7 @@ const UsuariosPage = () => {
   };
 
   // Query para obtener usuarios desde Supabase
-  const { data: usuarios = [], isLoading, refetch } = useQuery<Usuario[]>({
+  const { data: usuarios = [], isLoading, refetch } = useQuery<any[]>({
     queryKey: ["usuarios"],
     queryFn: usuariosService.listUsuarios,
     staleTime: 0,
@@ -185,6 +191,7 @@ const UsuariosPage = () => {
   const form = useForm<CrearUsuarioForm>({
     resolver: zodResolver(crearUsuarioSchema),
     defaultValues: {
+      id: undefined,
       identificacion: "",
       primer_nombre: "",
       segundo_nombre: "",
@@ -422,7 +429,8 @@ const UsuariosPage = () => {
       telefono: usuario.telefono || "",
       email: usuario.email,
       username: usuario.username,
-      password: "",
+      password: usuario.password || "",
+      confirmPassword: usuario.password || "",
       perfilIds: usuario.gen_usuario_roles?.map(r => r.rol_id) || [],
       empresaIds: usuario.gen_usuario_empresas?.map(e => e.empresa_id) || [],
       foto_base64: usuario.foto_base64 || "",
@@ -949,7 +957,6 @@ const UsuariosPage = () => {
                         )}
                       />
 
-                      {!editingUser && (
                         <>
                           <FormField
                             control={form.control}
@@ -958,12 +965,27 @@ const UsuariosPage = () => {
                               <FormItem>
                                 <FormLabel>Contraseña *</FormLabel>
                                 <FormControl>
+                                  <div className="relative">
                                   <Input
-                                    type="password"
+                                      type={showPassword ? "text" : "password"}
                                     placeholder="Contraseña"
                                     autoComplete="new-password"
+                                      className="pr-10"
                                     {...field}
                                   />
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowPassword(!showPassword)}
+                                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                                      title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                                    >
+                                      {showPassword ? (
+                                        <Eye className="h-4 w-4" />
+                                      ) : (
+                                        <EyeOff className="h-4 w-4" />
+                                      )}
+                                    </button>
+                                  </div>
                                 </FormControl>
                                 <FormMessage />
                                 {field.value && (
@@ -1008,12 +1030,27 @@ const UsuariosPage = () => {
                                 <FormItem>
                                   <FormLabel>Confirmar Contraseña *</FormLabel>
                                   <FormControl>
+                                    <div className="relative">
                                     <Input
-                                      type="password"
+                                        type={showConfirmPassword ? "text" : "password"}
                                       placeholder="Confirmar contraseña"
                                       autoComplete="new-password"
+                                        className="pr-10"
                                       {...field}
                                     />
+                                      <button
+                                        type="button"
+                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                                        title={showConfirmPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                                      >
+                                        {showConfirmPassword ? (
+                                          <Eye className="h-4 w-4" />
+                                        ) : (
+                                          <EyeOff className="h-4 w-4" />
+                                        )}
+                                      </button>
+                                    </div>
                                   </FormControl>
                                   <FormMessage />
                                   {field.value && password && (
@@ -1031,7 +1068,6 @@ const UsuariosPage = () => {
                             }}
                           />
                         </>
-                      )}
                     </div>
                   </div>
 

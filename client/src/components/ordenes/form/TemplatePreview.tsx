@@ -3,11 +3,206 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface TemplatePreviewProps {
-  configuracion: Record<string, { visible: boolean; required: boolean }>;
+  configuracion?: Record<string, { visible: boolean; required: boolean }>;
+  estructuraFormulario?: any;
 }
 
+export function TemplatePreview({ configuracion, estructuraFormulario }: TemplatePreviewProps) {
+  // Si tenemos estructura_formulario, la usamos; si no, usamos la configuración antigua
+  if (estructuraFormulario?.secciones) {
+    return <TemplateFormPreview estructuraFormulario={estructuraFormulario} />;
+  }
+
+  // Fallback a la vista previa antigua
+  return <LegacyTemplatePreview configuracion={configuracion || {}} />;
+}
+
+// Componente para la nueva estructura de plantilla
+function TemplateFormPreview({ estructuraFormulario }: { estructuraFormulario: any }) {
+  const renderField = (campo: any) => {
+    const isRequired = campo.required;
+    const fieldId = campo.nombre || campo.id || `field-${Math.random()}`;
+
+    switch (campo.tipo) {
+      case "text":
+      case "email":
+      case "number":
+        return (
+          <div key={fieldId} className="space-y-2 w-full">
+            <Label htmlFor={fieldId} className="text-sm font-medium block">
+              {campo.label} {isRequired && <span className="text-red-500">*</span>}
+            </Label>
+            <Input
+              id={fieldId}
+              type={campo.tipo}
+              placeholder={`Ingrese ${campo.label.toLowerCase()}`}
+              disabled
+              className="bg-gray-50 text-sm w-full"
+            />
+          </div>
+        );
+
+      case "date":
+        return (
+          <div key={fieldId} className="space-y-2 w-full">
+            <Label htmlFor={fieldId} className="text-sm font-medium block">
+              {campo.label} {isRequired && <span className="text-red-500">*</span>}
+            </Label>
+            <Input
+              id={fieldId}
+              type="date"
+              disabled
+              className="bg-gray-50 text-sm w-full"
+            />
+          </div>
+        );
+
+      case "select":
+        return (
+          <div key={fieldId} className="space-y-2 w-full">
+            <Label htmlFor={fieldId} className="text-sm font-medium block">
+              {campo.label} {isRequired && <span className="text-red-500">*</span>}
+            </Label>
+            <Select disabled>
+              <SelectTrigger className="bg-gray-50 text-sm w-full">
+                <SelectValue placeholder={`Seleccione ${campo.label.toLowerCase()}`} />
+              </SelectTrigger>
+              <SelectContent>
+                {campo.opciones?.map((option: string) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        );
+
+      case "textarea":
+        return (
+          <div key={fieldId} className="space-y-2 w-full">
+            <Label htmlFor={fieldId} className="text-sm font-medium block">
+              {campo.label} {isRequired && <span className="text-red-500">*</span>}
+            </Label>
+            <Textarea
+              id={fieldId}
+              placeholder={`Ingrese ${campo.label.toLowerCase()}`}
+              disabled
+              className="bg-gray-50 text-sm min-h-[60px] max-h-[100px] resize-none w-full"
+              rows={2}
+            />
+          </div>
+        );
+
+      case "checkbox":
+        return (
+          <div key={fieldId} className="space-y-2 w-full">
+            <div className="flex items-center space-x-2">
+              <Checkbox id={fieldId} disabled />
+              <Label htmlFor={fieldId} className="text-sm font-medium">
+                {campo.label} {isRequired && <span className="text-red-500">*</span>}
+              </Label>
+            </div>
+          </div>
+        );
+
+      default:
+        return (
+          <div key={fieldId} className="space-y-2 w-full">
+            <Label htmlFor={fieldId} className="text-sm font-medium block">
+              {campo.label} {isRequired && <span className="text-red-500">*</span>}
+            </Label>
+            <Input
+              id={fieldId}
+              type="text"
+              placeholder={`Campo ${campo.tipo}`}
+              disabled
+              className="bg-gray-50 text-sm w-full"
+            />
+          </div>
+        );
+    }
+  };
+
+  const renderSection = (seccion: any) => {
+    return (
+      <div key={seccion.titulo || seccion.id} className="space-y-4 p-4 border rounded-lg bg-gray-50 w-full">
+        <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">
+          {seccion.titulo}
+        </h3>
+        
+        <div className="flex flex-wrap gap-4 w-full">
+          {seccion.campos?.map((campo: any) => {
+            // Normalizar dimensiones grandes a valores manejables
+            let dimension = parseInt(campo.dimension) || 1;
+            
+            // Si la dimensión es muy grande, la normalizamos
+            if (dimension > 12) {
+              if (dimension >= 200) {
+                dimension = 12; // Ancho completo para campos muy grandes
+              } else if (dimension >= 100) {
+                dimension = 8; // 2/3 del ancho para campos grandes
+              } else if (dimension >= 50) {
+                dimension = 6; // 1/2 del ancho para campos medianos
+              } else if (dimension >= 20) {
+                dimension = 6; // 1/2 del ancho para campos pequeños-grandes
+              }
+            }
+
+            // Calcular el ancho del campo basado en la dimensión normalizada
+            let fieldWidth = "w-full";
+            if (dimension >= 12) {
+              fieldWidth = "w-full";
+            } else if (dimension >= 8) {
+              fieldWidth = "w-full md:w-2/3 lg:w-2/3";
+            } else if (dimension >= 6) {
+              fieldWidth = "w-full md:w-1/2 lg:w-1/2";
+            } else if (dimension >= 4) {
+              fieldWidth = "w-full md:w-1/3 lg:w-1/3";
+            } else {
+              fieldWidth = "w-full md:w-1/4 lg:w-1/4";
+            }
+
+            return (
+              <div 
+                key={campo.nombre || campo.id} 
+                className={`${fieldWidth} flex-shrink-0`}
+              >
+                {renderField(campo)}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-6 w-full">
+      <div className="border-b pb-4">
+        <h3 className="text-lg font-semibold">Vista Previa del Formulario</h3>
+        <p className="text-sm text-gray-600">
+          Estructura de la plantilla con secciones
+        </p>
+      </div>
+
+      <div className="space-y-6 w-full">
+        {estructuraFormulario.secciones?.map(renderSection)}
+      </div>
+
+      <div className="text-xs text-gray-500 mt-4">
+        <p>* Campos obligatorios</p>
+        <p>Los campos están deshabilitados en la vista previa</p>
+      </div>
+    </div>
+  );
+}
+
+// Componente legacy para compatibilidad
+function LegacyTemplatePreview({ configuracion }: { configuracion: Record<string, { visible: boolean; required: boolean }> }) {
 const CAMPOS_DISPONIBLES = [
   { key: "nombreTrabajador", label: "Nombre del Trabajador", type: "text" },
   { key: "cedulaTrabajador", label: "Cédula del Trabajador", type: "text" },
@@ -23,7 +218,6 @@ const CAMPOS_DISPONIBLES = [
   { key: "observaciones", label: "Observaciones", type: "textarea" }
 ];
 
-export function TemplatePreview({ configuracion }: TemplatePreviewProps) {
   const renderField = (campo: any) => {
     const config = configuracion[campo.key];
     if (!config?.visible) return null;
@@ -35,7 +229,7 @@ export function TemplatePreview({ configuracion }: TemplatePreviewProps) {
       case "email":
         return (
           <div key={campo.key} className="space-y-2">
-            <Label htmlFor={campo.key}>
+            <Label htmlFor={campo.key} className="text-sm font-medium">
               {campo.label} {isRequired && <span className="text-red-500">*</span>}
             </Label>
             <Input
@@ -43,7 +237,7 @@ export function TemplatePreview({ configuracion }: TemplatePreviewProps) {
               type={campo.type}
               placeholder={`Ingrese ${campo.label.toLowerCase()}`}
               disabled
-              className="bg-gray-50"
+              className="bg-gray-50 text-sm"
             />
           </div>
         );
@@ -51,14 +245,14 @@ export function TemplatePreview({ configuracion }: TemplatePreviewProps) {
       case "date":
         return (
           <div key={campo.key} className="space-y-2">
-            <Label htmlFor={campo.key}>
+            <Label htmlFor={campo.key} className="text-sm font-medium">
               {campo.label} {isRequired && <span className="text-red-500">*</span>}
             </Label>
             <Input
               id={campo.key}
               type="date"
               disabled
-              className="bg-gray-50"
+              className="bg-gray-50 text-sm"
             />
           </div>
         );
@@ -66,11 +260,11 @@ export function TemplatePreview({ configuracion }: TemplatePreviewProps) {
       case "select":
         return (
           <div key={campo.key} className="space-y-2">
-            <Label htmlFor={campo.key}>
+            <Label htmlFor={campo.key} className="text-sm font-medium">
               {campo.label} {isRequired && <span className="text-red-500">*</span>}
             </Label>
             <Select disabled>
-              <SelectTrigger className="bg-gray-50">
+              <SelectTrigger className="bg-gray-50 text-sm">
                 <SelectValue placeholder={`Seleccione ${campo.label.toLowerCase()}`} />
               </SelectTrigger>
               <SelectContent>
@@ -87,15 +281,15 @@ export function TemplatePreview({ configuracion }: TemplatePreviewProps) {
       case "textarea":
         return (
           <div key={campo.key} className="space-y-2">
-            <Label htmlFor={campo.key}>
+            <Label htmlFor={campo.key} className="text-sm font-medium">
               {campo.label} {isRequired && <span className="text-red-500">*</span>}
             </Label>
             <Textarea
               id={campo.key}
               placeholder={`Ingrese ${campo.label.toLowerCase()}`}
               disabled
-              className="bg-gray-50"
-              rows={3}
+              className="bg-gray-50 text-sm min-h-[60px] max-h-[100px] resize-none"
+              rows={2}
             />
           </div>
         );
@@ -106,7 +300,7 @@ export function TemplatePreview({ configuracion }: TemplatePreviewProps) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full">
       <div className="border-b pb-4">
         <h3 className="text-lg font-semibold">Vista Previa del Formulario</h3>
         <p className="text-sm text-gray-600">
@@ -114,7 +308,7 @@ export function TemplatePreview({ configuracion }: TemplatePreviewProps) {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
         {CAMPOS_DISPONIBLES.map(renderField)}
       </div>
 

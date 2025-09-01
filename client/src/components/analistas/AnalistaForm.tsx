@@ -292,7 +292,7 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
         const payload = {
           username: data.username || '',
           email: data.email || '',
-          password_hash: data.password || '',
+          password: data.password || '',
           primer_nombre: data.primer_nombre || '',
           segundo_nombre: data.segundo_nombre || '',
           primer_apellido: data.primer_apellido || '',

@@ -28,7 +28,8 @@ import {
   Calendar,
   Megaphone,
   Search,
-  Filter
+  Filter,
+  X
 } from 'lucide-react';
 import { supabase } from '@/services/supabaseClient';
 import { emailTemplatesService } from '@/services/emailTemplatesService';
@@ -128,7 +129,9 @@ export default function EmailMasivoPage() {
   const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | GmailTemplate | null>(null);
   const [previewMode, setPreviewMode] = useState(false);
   const [showHtmlPreview, setShowHtmlPreview] = useState(false);
-  const [selectedDestinatarios, setSelectedDestinatarios] = useState<'candidatos' | 'empleadores' | 'ambos'>('candidatos');
+  const [selectedDestinatarios, setSelectedDestinatarios] = useState<'candidatos' | 'empleadores' | 'ambos' | 'manual'>('candidatos');
+  const [emailsManuales, setEmailsManuales] = useState<string>('');
+  const [isEditingEmails, setIsEditingEmails] = useState<boolean>(false);
   const [recipients, setRecipients] = useState<EmailRecipient[]>([]);
   const [selectedRecipients, setSelectedRecipients] = useState<number[]>([]);
   const [selectionType, setSelectionType] = useState<'todos' | 'especificos'>('todos');
@@ -329,9 +332,43 @@ export default function EmailMasivoPage() {
     setSelectedRecipients([]);
   };
 
+  // Función para procesar emails manuales
+  const procesarEmailsManuales = (): EmailRecipient[] => {
+    if (!emailsManuales.trim()) return [];
+    
+    // Dividir por comas, espacios y saltos de línea, luego limpiar
+    const emails = emailsManuales
+      .split(/[,\s\n]+/)
+      .map(email => email.trim())
+      .filter(email => {
+        // Validación más robusta de email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return email && emailRegex.test(email);
+      });
+    
+    // Convertir a formato EmailRecipient
+    return emails.map((email, index) => ({
+      id: -(index + 1), // IDs negativos para distinguir de la base de datos
+      email: email,
+      nombre: email.split('@')[0], // Usar la parte antes del @ como nombre
+      empresa: null,
+      tipo: 'manual',
+      activo: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }));
+  };
+
   const getFilteredRecipients = () => {
     console.log('🔍 Filtrando destinatarios...');
     console.log('Tipo seleccionado:', selectedDestinatarios);
+    
+    if (selectedDestinatarios === 'manual') {
+      const emailsManuales = procesarEmailsManuales();
+      console.log('📧 Emails manuales procesados:', emailsManuales.length);
+      return emailsManuales;
+    }
+    
     console.log('Total de destinatarios:', recipients.length);
     
     const filtered = recipients.filter(r => {
@@ -356,11 +393,27 @@ export default function EmailMasivoPage() {
   // Limpiar selección cuando cambie el tipo de destinatarios
   useEffect(() => {
     setSelectedRecipients([]);
+    if (selectedDestinatarios !== 'manual') {
+      setEmailsManuales('');
+      setIsEditingEmails(false);
+    } else {
+      // Si se selecciona manual, activar el modo edición por defecto
+      setIsEditingEmails(true);
+    }
   }, [selectedDestinatarios]);
 
-  // Recargar destinatarios cuando cambie el tipo de destinatarios
+  // Manejar cuando se limpia completamente emailsManuales
   useEffect(() => {
+    if (!emailsManuales.trim()) {
+      setIsEditingEmails(false);
+    }
+  }, [emailsManuales]);
+
+  // Recargar destinatarios cuando cambie el tipo de destinatarios (excepto para manual)
+  useEffect(() => {
+    if (selectedDestinatarios !== 'manual') {
     cargarDestinatarios();
+    }
   }, [selectedDestinatarios]);
 
   // Funciones para drag and drop
@@ -1124,152 +1177,16 @@ export default function EmailMasivoPage() {
               </div>
 
               <div className="p-6">
-                <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
-                  {/* Panel izquierdo - Configuración */}
-                  <div className="xl:col-span-1 space-y-6">
-                    {/* Selector de Plantillas */}
-                    <Card className="shadow-sm border border-gray-200 bg-white">
-                      <CardHeader className="bg-cyan-600 text-white rounded-t-lg">
-                        <CardTitle className="flex items-center space-x-3 text-lg">
-                          <Megaphone className="h-5 w-5" />
-                          <span>Plantilla</span>
-                        </CardTitle>
-                        <CardDescription className="text-cyan-100">
-                          Selecciona la plantilla base
-                        </CardDescription>
-                      </CardHeader>
-               <CardContent className="p-6">
-                 <div className="space-y-4">
-                   <div>
-                     <Label htmlFor="template-select" className="text-sm font-medium text-gray-700">
-                       Plantilla
-                     </Label>
-                     <Select
-                       value={selectedTemplate?.id?.toString() || ''}
-                                               onValueChange={(value) => {
-                          if (value === 'estandar') {
-                            // Plantilla estándar con contenido básico
-                            setSelectedTemplate({
-                              id: 0,
-                              nombre: 'Plantilla Estándar',
-                              asunto: 'Mensaje de RH Compensamos',
-                              contenido_html: '',
-                              variables: ['nombre', 'email', 'empresa', 'fecha', 'contraseña'],
-                              activo: true,
-                              created_at: '',
-                              updated_at: ''
-                            });
-                            setCampaignData(prev => ({
-                              ...prev,
-                              asunto: 'Mensaje de RH Compensamos',
-                              contenido: 'Hola {{nombre}},\n\nEsperamos que este mensaje te encuentre bien.\n\nSaludos,\nEl equipo de RH Compensamos'
-                            }));
-                          } else if (value === 'cero') {
-                            // Plantilla de cero
-                            setSelectedTemplate({
-                              id: -1,
-                              nombre: 'De Cero',
-                              asunto: '',
-                              contenido_html: '',
-                              variables: ['nombre', 'email', 'empresa', 'fecha', 'contraseña'],
-                              activo: true,
-                              created_at: '',
-                              updated_at: ''
-                            });
-                            setCampaignData(prev => ({
-                              ...prev,
-                              asunto: '',
-                              contenido: ''
-                            }));
-                          } else if (value.startsWith('gmail-')) {
-                            // Plantilla de Gmail
-                            const gmailTemplateId = parseInt(value.replace('gmail-', ''));
-                            const gmailTemplate = gmailTemplates.find(t => t.id === gmailTemplateId);
-                            if (gmailTemplate) {
-                              setSelectedTemplate(gmailTemplate);
-                              const textoSimple = htmlToText(gmailTemplate.contenido_html);
-                              setCampaignData(prev => ({
-                                ...prev,
-                                asunto: gmailTemplate.asunto,
-                                contenido: textoSimple
-                              }));
-                            }
-                          } else {
-                            // Plantilla regular de la base de datos
-                            handleTemplateSelect(value);
-                          }
-                        }}
-                     >
-                       <SelectTrigger className="w-full">
-                         <SelectValue placeholder="Selecciona una plantilla" />
-                       </SelectTrigger>
-                       <SelectContent>
-                         <SelectItem value="estandar">
-                           <div className="flex items-center space-x-2">
-                             <Megaphone className="h-4 w-4" />
-                             <span>Plantilla Estándar</span>
-                           </div>
-                         </SelectItem>
-                         <SelectItem value="cero">
-                           <div className="flex items-center space-x-2">
-                             <Plus className="h-4 w-4" />
-                             <span>De Cero</span>
-                           </div>
-                         </SelectItem>
-                         <Separator />
-                         {/* Plantillas de Gmail filtradas por destinatario */}
-                         {gmailTemplates
-                           .filter(template => 
-                             template.tipo_destinatario === selectedDestinatarios || 
-                             template.tipo_destinatario === 'ambos'
-                           )
-                           .map((template) => (
-                             <SelectItem key={`gmail-${template.id}`} value={`gmail-${template.id}`}>
-                               <div className="flex items-center space-x-2">
-                                 <Mail className="h-4 w-4" />
-                                 <span>{template.nombre}</span>
-                                 <Badge variant="outline" className="text-xs">Gmail</Badge>
-                               </div>
-                             </SelectItem>
-                           ))}
-                         <Separator />
-                         {/* Plantillas regulares */}
-                         {templates.map((template) => (
-                           <SelectItem key={template.id} value={template.id.toString()}>
-                             <div className="flex items-center space-x-2">
-                               <Megaphone className="h-4 w-4" />
-                               <span>{template.nombre}</span>
-                             </div>
-                           </SelectItem>
-                         ))}
-                       </SelectContent>
-                     </Select>
-                   </div>
-                   
-                   {selectedTemplate && (
-                                         <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-semibold text-slate-900">{selectedTemplate.nombre}</h4>
-                        <Badge variant="secondary" className="text-xs bg-slate-200 text-slate-700">
-                          {selectedTemplate.variables.length} variables
-                        </Badge>
-                      </div>
-                      {selectedTemplate.asunto && (
-                        <p className="text-sm text-slate-600">
-                          <strong>Asunto:</strong> {selectedTemplate.asunto}
-                        </p>
-                      )}
-                    </div>
-                   )}
-                 </div>
-               </CardContent>
-             </Card>
+                                <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+
+                  <div className="xl:col-span-12 space-y-6">
+                    <Separator className="my-6" />
 
                     {/* Selección de Destinatarios */}
                     <Card className="shadow-sm border border-gray-200 bg-white">
                       <CardHeader className="bg-cyan-600 text-white rounded-t-lg">
-                        <CardTitle className="flex items-center space-x-3 text-lg">
-                          <Users className="h-5 w-5" />
+                        <CardTitle className="flex items-center space-x-3 text-base">
+                          <Users className="h-4 w-4" />
                           <span>Destinatarios</span>
                         </CardTitle>
                         <CardDescription className="text-cyan-100">
@@ -1277,7 +1194,9 @@ export default function EmailMasivoPage() {
                         </CardDescription>
                       </CardHeader>
                <CardContent className="p-6">
-                 <div className="space-y-4">
+                 <div className="space-y-6">
+                   {/* Primera fila: Tipo de Destinatarios y Tipo de Selección */}
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                    <div>
                      <Label htmlFor="destinatarios-select" className="text-sm font-medium text-gray-700">
                        Tipo de Destinatarios
@@ -1308,26 +1227,16 @@ export default function EmailMasivoPage() {
                              <span>Ambos</span>
                            </div>
                          </SelectItem>
+                           <SelectItem value="manual">
+                             <div className="flex items-center space-x-2">
+                               <Mail className="h-4 w-4" />
+                               <span>Envío Manual</span>
+                           </div>
+                         </SelectItem>
                        </SelectContent>
                      </Select>
                    </div>
                    
-                                       <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <Users className="h-4 w-4 text-slate-600" />
-                        <span className="text-sm font-semibold text-slate-900">
-                          {selectedDestinatarios === 'candidatos' ? 'Candidatos' :
-                           selectedDestinatarios === 'empleadores' ? 'Empleadores' : 'Candidatos y Empleadores'}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-600">
-                        {selectedDestinatarios === 'candidatos' ? 'Personas buscando empleo' :
-                         selectedDestinatarios === 'empleadores' ? 'Empresas buscando talento' : 
-                         'Todos los usuarios registrados'}
-                      </p>
-                    </div>
-
-                   {/* Tipo de Selección */}
                    <div>
                      <Label className="text-sm font-medium text-gray-700">
                        Tipo de Selección
@@ -1345,12 +1254,163 @@ export default function EmailMasivoPage() {
                          variant={selectionType === 'especificos' ? 'default' : 'outline'}
                          size="sm"
                          onClick={() => setSelectionType('especificos')}
-                         className={selectionType === 'especificos' ? 'bg-teal-400 hover:bg-teal-500 text-white' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}
+                           className={selectionType === 'especificos' ? 'bg-teal-400 hover:bg-teal-500 text-gray-700 hover:bg-gray-50' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}
                        >
                          Específicos
                        </Button>
+                       </div>
                      </div>
                    </div>
+                   
+                   {/* Input para emails manuales */}
+                   {selectedDestinatarios === 'manual' && (
+                     <div>
+                       <Label htmlFor="emails-manuales" className="text-sm font-medium text-gray-700">
+                         Emails de Destinatarios
+                       </Label>
+                       
+                       {/* Modo edición o visualización */}
+                       {isEditingEmails ? (
+                         <div className="space-y-3">
+                           <Textarea
+                             id="emails-manuales"
+                             placeholder="Ingresa los emails separados por comas, espacios o saltos de línea. Ejemplo: usuario1@email.com, usuario2@email.com"
+                             value={emailsManuales}
+                             onChange={(e) => setEmailsManuales(e.target.value)}
+                             className="w-full mt-2"
+                             rows={4}
+                           />
+                           <p className="text-xs text-gray-500">
+                             Puedes ingresar múltiples emails separados por comas, espacios o saltos de línea
+                           </p>
+                           
+                           {/* Indicador de procesamiento en tiempo real */}
+                           {emailsManuales.trim() && (
+                             <div className="flex items-center gap-2">
+                               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                               <span className="text-xs text-green-600">
+                                 Procesando emails en tiempo real...
+                               </span>
+                             </div>
+                           )}
+                           
+                           <div className="flex gap-2">
+                             <Button
+                               size="sm"
+                               onClick={() => setIsEditingEmails(false)}
+                               className="bg-cyan-600 hover:bg-cyan-700 text-white"
+                             >
+                               Guardar
+                             </Button>
+                             <Button
+                               variant="outline"
+                               size="sm"
+                               onClick={() => {
+                                 setIsEditingEmails(false);
+                                 setEmailsManuales('');
+                               }}
+                               className="border-gray-300 text-gray-700 hover:bg-gray-50"
+                             >
+                               Cancelar
+                             </Button>
+                           </div>
+                         </div>
+                       ) : (
+                         <div className="space-y-3">
+                           {/* Badges inline que reemplazan el texto */}
+                           {emailsManuales.trim() && procesarEmailsManuales().length > 0 ? (
+                             <div className="mt-2">
+                               <div className="flex flex-wrap gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg min-h-[60px]">
+                                 {procesarEmailsManuales().map((emailData, index) => (
+                                   <Badge 
+                                     key={index}
+                                     variant="secondary" 
+                                     className="bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors flex items-center gap-2 px-3 py-1"
+                                   >
+                                     <Mail className="h-3 w-3" />
+                                     <span className="text-xs">{emailData.email}</span>
+                                     <button
+                                       type="button"
+                                       onClick={() => {
+                                         const emails = procesarEmailsManuales();
+                                         const emailsFiltrados = emails.filter((_, i) => i !== index);
+                                         const nuevoTexto = emailsFiltrados.map(e => e.email).join(', ');
+                                         setEmailsManuales(nuevoTexto);
+                                       }}
+                                       className="ml-1 hover:bg-gray-400 hover:text-white rounded-full w-4 h-4 flex items-center justify-center transition-colors"
+                                       title="Remover email"
+                                     >
+                                       <X className="h-3 w-3" />
+                                     </button>
+                                   </Badge>
+                                 ))}
+                               </div>
+                               
+                               <div className="flex justify-between items-center">
+                                 <span className="text-xs text-gray-600">
+                                   {procesarEmailsManuales().length} email{procesarEmailsManuales().length !== 1 ? 's' : ''} válido{procesarEmailsManuales().length !== 1 ? 's' : ''} detectado{procesarEmailsManuales().length !== 1 ? 's' : ''}
+                                 </span>
+                                 <div className="flex gap-2">
+                                   <Button
+                                     variant="outline"
+                                     size="sm"
+                                     onClick={() => setIsEditingEmails(true)}
+                                     className="border-gray-300 text-gray-700 hover:bg-gray-50 text-xs"
+                                   >
+                                     Editar
+                                   </Button>
+                                   <Button
+                                     variant="outline"
+                                     size="sm"
+                                     onClick={() => setEmailsManuales('')}
+                                     className="border-red-300 text-red-700 hover:bg-red-50 text-xs"
+                                   >
+                                     Limpiar todos
+                                   </Button>
+                                 </div>
+                               </div>
+                             </div>
+                           ) : (
+                             <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg min-h-[60px] flex items-center justify-center">
+                               <div className="text-center">
+                                 <p className="text-xs text-blue-700 mb-2">
+                                   💡 No hay emails ingresados
+                                 </p>
+                                 <Button
+                                   variant="outline"
+                                   size="sm"
+                                   onClick={() => setIsEditingEmails(true)}
+                                   className="border-blue-300 text-blue-700 hover:bg-blue-50 text-xs"
+                                 >
+                                   Agregar Emails
+                                 </Button>
+                               </div>
+                             </div>
+                           )}
+                         </div>
+                       )}
+                     </div>
+                   )}
+                   
+                                       <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                      <div className="flex items-center space-x-3 mb-2">
+                        <Users className="h-4 w-4 text-slate-600" />
+                        <span className="text-sm font-semibold text-slate-900">
+                          {selectedDestinatarios === 'candidatos' ? 'Candidatos' :
+                           selectedDestinatarios === 'empleadores' ? 'Empleadores' : 
+                           selectedDestinatarios === 'manual' ? 'Envío Manual' :
+                           'Candidatos y Empleadores'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600">
+                        {selectedDestinatarios === 'candidatos' ? 'Personas buscando empleo' :
+                         selectedDestinatarios === 'empleadores' ? 'Empresas buscando talento' : 
+                         selectedDestinatarios === 'manual' ? 'Emails ingresados manualmente' :
+                         'Todos los usuarios registrados'}
+                      </p>
+                    </div>
+
+
 
                    {/* Selección Específica de Destinatarios */}
                    {selectionType === 'especificos' && (
@@ -1455,13 +1515,13 @@ export default function EmailMasivoPage() {
           </div>
 
                   {/* Panel central - Editor de campaña */}
-                  <div className="xl:col-span-3 space-y-6">
+                  <div className="xl:col-span-12 space-y-6">
                     <Card className="shadow-sm border border-gray-200 bg-white">
                       <CardHeader className="bg-cyan-600 text-white rounded-t-lg">
                         <div className="flex items-center justify-between">
                           <div>
-                            <CardTitle className="flex items-center space-x-3 text-xl">
-                              <Send className="h-6 w-6" />
+                            <CardTitle className="flex items-center space-x-3 text-base">
+                              <Send className="h-4 w-4" />
                               <span>Editor de Campaña</span>
                             </CardTitle>
                             <CardDescription className="text-cyan-100">
@@ -1490,6 +1550,132 @@ export default function EmailMasivoPage() {
                       </CardHeader>
               <CardContent className="p-6">
                 <div className="space-y-6">
+                  {/* Selector de Plantilla */}
+                  <div className="w-full">
+                    <Label htmlFor="template-select" className="text-sm font-semibold text-slate-700 mb-2 block">
+                      Plantilla
+                    </Label>
+                    <Select
+                      value={selectedTemplate?.id?.toString() || ''}
+                      onValueChange={(value) => {
+                        if (value === 'estandar') {
+                          // Plantilla estándar con contenido básico
+                          setSelectedTemplate({
+                            id: 0,
+                            nombre: 'Plantilla Estándar',
+                            asunto: 'Mensaje de RH Compensamos',
+                            contenido_html: '',
+                            variables: ['nombre', 'email', 'empresa', 'fecha', 'contraseña'],
+                            activo: true,
+                            created_at: '',
+                            updated_at: ''
+                          });
+                          setCampaignData(prev => ({
+                            ...prev,
+                            asunto: 'Mensaje de RH Compensamos',
+                            contenido: 'Hola {{nombre}},\n\nEsperamos que este mensaje te encuentre bien.\n\nSaludos,\nEl equipo de RH Compensamos'
+                          }));
+                        } else if (value === 'cero') {
+                          // Plantilla de cero
+                          setSelectedTemplate({
+                            id: -1,
+                            nombre: 'De Cero',
+                            asunto: '',
+                            contenido_html: '',
+                            variables: ['nombre', 'email', 'empresa', 'fecha', 'contraseña'],
+                            activo: true,
+                            created_at: '',
+                            updated_at: ''
+                          });
+                          setCampaignData(prev => ({
+                            ...prev,
+                            asunto: '',
+                            contenido: ''
+                          }));
+                        } else if (value.startsWith('gmail-')) {
+                          // Plantilla de Gmail
+                          const gmailTemplateId = parseInt(value.replace('gmail-', ''));
+                          const gmailTemplate = gmailTemplates.find(t => t.id === gmailTemplateId);
+                          if (gmailTemplate) {
+                            setSelectedTemplate(gmailTemplate);
+                            const textoSimple = htmlToText(gmailTemplate.contenido_html);
+                            setCampaignData(prev => ({
+                              ...prev,
+                              asunto: gmailTemplate.asunto,
+                              contenido: textoSimple
+                            }));
+                          }
+                        } else {
+                          // Plantilla regular de la base de datos
+                          handleTemplateSelect(value);
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Selecciona una plantilla" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="estandar">
+                          <div className="flex items-center space-x-2">
+                            <Megaphone className="h-4 w-4" />
+                            <span>Plantilla Estándar</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="cero">
+                          <div className="flex items-center space-x-2">
+                            <Plus className="h-4 w-4" />
+                            <span>De Cero</span>
+                          </div>
+                        </SelectItem>
+                        <Separator />
+                        {/* Plantillas de Gmail filtradas por destinatario */}
+                        {gmailTemplates
+                          .filter(template => 
+                            template.tipo_destinatario === selectedDestinatarios || 
+                            template.tipo_destinatario === 'ambos'
+                          )
+                          .map((template) => (
+                            <SelectItem key={`gmail-${template.id}`} value={`gmail-${template.id}`}>
+                              <div className="flex items-center space-x-2">
+                                <Mail className="h-4 w-4" />
+                                <span>{template.nombre}</span>
+                                <Badge variant="outline" className="text-xs">Gmail</Badge>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        <Separator />
+                        {/* Plantillas regulares */}
+                        {templates.map((template) => (
+                          <SelectItem key={template.id} value={template.id.toString()}>
+                            <div className="flex items-center space-x-2">
+                              <Megaphone className="h-4 w-4" />
+                              <span>{template.nombre}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    
+                    {/* Información de la plantilla seleccionada */}
+                    {selectedTemplate && (
+                      <div className="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-semibold text-slate-900 text-sm">{selectedTemplate.nombre}</h4>
+                          <Badge variant="secondary" className="text-xs bg-slate-200 text-slate-700">
+                            {selectedTemplate.variables.length} variables
+                          </Badge>
+                        </div>
+                        {selectedTemplate.asunto && (
+                          <p className="text-xs text-slate-600">
+                            <strong>Asunto:</strong> {selectedTemplate.asunto}
+                          </p>
+                        )}
+                      </div>
+                                         )}
+                   </div>
+
+                   <Separator className="my-6" />
+
                   {/* Información básica */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                          <div>
@@ -1517,6 +1703,8 @@ export default function EmailMasivoPage() {
                        />
                      </div>
                   </div>
+
+                  <Separator className="my-6" />
 
                   {/* Editor de contenido */}
                                      <div>
@@ -1657,6 +1845,8 @@ export default function EmailMasivoPage() {
                     )}
                   </div>
 
+                  <Separator className="my-6" />
+
                   {/* Variables siempre visibles */}
                   <div className="mt-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
                     <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center space-x-2">
@@ -1714,6 +1904,8 @@ export default function EmailMasivoPage() {
                     </div>
                   </div>
 
+                  <Separator className="my-6" />
+
                   {/* Botones de acción */}
                   <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
                     <Button 
@@ -1757,7 +1949,16 @@ export default function EmailMasivoPage() {
                            return;
                          }
                          
-                         if (selectionType === 'especificos' && selectedRecipients.length === 0) {
+                         // Validar emails manuales si se seleccionó envío manual
+                         if (selectedDestinatarios === 'manual') {
+                           const emailsValidos = procesarEmailsManuales();
+                           if (emailsValidos.length === 0) {
+                             toast.error('Ingresa al menos un email válido para el envío manual');
+                             return;
+                           }
+                         }
+                         
+                         if (selectionType === 'especificos' && selectedRecipients.length === 0 && selectedDestinatarios !== 'manual') {
                            toast.error('Selecciona al menos un destinatario');
                            return;
                          }
@@ -1808,9 +2009,16 @@ export default function EmailMasivoPage() {
                              }
                              
                              // Enviar correos automáticamente
-                             const destinatariosAEnviar = selectionType === 'todos' 
+                             let destinatariosAEnviar;
+                             if (selectedDestinatarios === 'manual') {
+                               // Para envío manual, siempre usar los emails procesados
+                               destinatariosAEnviar = getFilteredRecipients();
+                             } else {
+                               // Para otros tipos, usar la lógica normal
+                               destinatariosAEnviar = selectionType === 'todos' 
                                ? getFilteredRecipients() 
                                : recipients.filter(r => selectedRecipients.includes(r.id));
+                             }
                              
                              console.log('🚀 Iniciando envío automático de correos...');
                              await enviarCorreos(
@@ -1831,6 +2039,7 @@ export default function EmailMasivoPage() {
                              setSelectedTemplate(null);
                              setSelectedRecipients([]);
                              setSelectionType('todos');
+                             setEmailsManuales('');
                              cargarGmailCampaigns();
                            } else {
                              // Determinar el template_id basado en el tipo de plantilla
@@ -1871,9 +2080,16 @@ export default function EmailMasivoPage() {
                              }
                              
                              // Enviar correos automáticamente
-                             const destinatariosAEnviar = selectionType === 'todos' 
+                             let destinatariosAEnviar;
+                             if (selectedDestinatarios === 'manual') {
+                               // Para envío manual, siempre usar los emails procesados
+                               destinatariosAEnviar = getFilteredRecipients();
+                             } else {
+                               // Para otros tipos, usar la lógica normal
+                               destinatariosAEnviar = selectionType === 'todos' 
                                ? getFilteredRecipients() 
                                : recipients.filter(r => selectedRecipients.includes(r.id));
+                             }
                              
                              console.log('🚀 Iniciando envío automático de correos...');
                              await enviarCorreos(
@@ -1894,7 +2110,13 @@ export default function EmailMasivoPage() {
                              setSelectedTemplate(null);
                              setSelectedRecipients([]);
                              setSelectionType('todos');
+                             setEmailsManuales('');
                              cargarCampaigns();
+                           }
+                           
+                           // Limpiar emails manuales después del envío exitoso
+                           if (selectedDestinatarios === 'manual') {
+                             setEmailsManuales('');
                            }
                            
                            toast.success('Campaña creada exitosamente');

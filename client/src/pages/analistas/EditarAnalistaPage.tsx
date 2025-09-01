@@ -110,7 +110,7 @@ export default function EditarAnalistaPage() {
         activo: data.activo,
       };
       if (data.password) {
-        payload.password_hash = data.password; // Aquí deberías hashear la contraseña en producción
+        payload.password = data.password; // Aquí deberías hashear la contraseña en producción
       }
       await analystsService.update(Number(id), payload);
       toast.success('Analista actualizado exitosamente');

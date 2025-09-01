@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Save, UserPlus, User, Lock, Users, ImagePlus, Trash2 } from "lucide-react";
+import { ArrowLeft, Save, UserPlus, User, Lock, Users, ImagePlus, Trash2, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
@@ -73,6 +73,7 @@ const CrearUsuarioPage = () => {
 
   // Estado para manejar errores específicos de campos
   const [fieldErrors, setFieldErrors] = useState<{[key: string]: string}>({});
+  const [showPassword, setShowPassword] = useState<boolean>(false);
 
   // Función para limpiar errores de campos cuando el usuario comience a escribir
   const handleFieldChange = (fieldName: string) => {
@@ -374,13 +375,27 @@ const CrearUsuarioPage = () => {
               {/* Contraseña con indicador de fortaleza */}
               <div>
                 <Label htmlFor="password">Contraseña *</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••••••••"
-                  {...register("password")}
-                  className={errors.password ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••••••••"
+                    {...register("password")}
+                    className={`pr-10 ${errors.password ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                    title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                  >
+                    {showPassword ? (
+                      <Eye className="h-4 w-4" />
+                    ) : (
+                      <EyeOff className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
                 {errors.password && (
                   <p className="text-sm text-red-500 mt-1">
                     {errors.password.message}

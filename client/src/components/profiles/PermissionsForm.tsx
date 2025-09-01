@@ -143,12 +143,6 @@ export function PermissionsForm({ selectedPermissions, onPermissionsChange }: Pe
 
   return (
     <div className="space-y-6">
-      <div className="bg-gradient-to-r from-cyan-400 to-cyan-500 text-white p-4 rounded-t-lg">
-        <h3 className="text-lg font-semibold text-center">Gestiona los Permisos</h3>
-        <p className="text-center text-cyan-50 text-sm mt-1">
-          Formularios que se le habilitaran a los usuarios con este rol
-        </p>
-      </div>
 
       <div className="p-4 border rounded-lg bg-gray-50">
         <div className="flex gap-2 items-end">

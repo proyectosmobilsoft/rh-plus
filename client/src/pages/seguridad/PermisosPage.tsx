@@ -11,12 +11,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLoading } from "@/contexts/LoadingContext";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '@/components/ui/select';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -203,10 +203,10 @@ const PermisosPage: React.FC = () => {
         modulo_id: moduloParaConfigurar?.id || 0,
       };
       // setPermisosDisponibles(prev => [...prev, nuevoPermiso]); // Eliminado
-      
+
       // Agregar el nuevo permiso a la lista del módulo
       setPermisosDelModulo(prev => [...prev, nuevoPermiso]);
-      
+
       toast({
         title: 'Permiso creado',
         description: 'El nuevo permiso se creó exitosamente.',
@@ -237,7 +237,7 @@ const PermisosPage: React.FC = () => {
   const handleConfigurarPermisos = async (modulo: Modulo) => {
     setModuloParaConfigurar(modulo);
     setShowConfigModal(true);
-    
+
     // Cargar los permisos asociados al módulo
     try {
       const permisos = await queryClient.fetchQuery({
@@ -248,12 +248,12 @@ const PermisosPage: React.FC = () => {
             .select('*')
             .eq('modulo_id', modulo.id)
             .eq('activo', true);
-          
+
           if (error) throw error;
           return data || [];
         }
       });
-      
+
       setPermisosDelModulo(permisos);
     } catch (error) {
       console.error('Error al cargar permisos:', error);
@@ -277,7 +277,7 @@ const PermisosPage: React.FC = () => {
 
   const confirmarEliminacionModulo = async () => {
     if (!moduloParaEliminar) return;
-    
+
     try {
       startLoading();
       await deleteModulo(moduloParaEliminar.id);
@@ -302,7 +302,7 @@ const PermisosPage: React.FC = () => {
   // Handlers para permisos
   const handleCrearPermiso = (data: PermisoForm) => {
     if (!editingModulo) return;
-    
+
     // Operar solo en memoria. Al guardar módulo se sincroniza en BD
     if (editingPermiso) {
       // Actualizar permiso existente en memoria - AQUÍ se modifica la tabla
@@ -316,17 +316,17 @@ const PermisosPage: React.FC = () => {
       }));
     } else {
       // Crear nuevo permiso en memoria
-      const temp: any = { 
-        id: undefined, 
-        nombre: data.nombre, 
-        code: data.code, 
-        descripcion: data.descripcion, 
-        activo: true, 
-        _status: 'new' 
+      const temp: any = {
+        id: undefined,
+        nombre: data.nombre,
+        code: data.code,
+        descripcion: data.descripcion,
+        activo: true,
+        _status: 'new'
       };
       setPermisosDelModulo(prev => [...prev, temp]);
     }
-    
+
     // Reset del formulario y estado del permiso, pero mantener el módulo activo
     permisoForm.reset();
     setEditingPermiso(null);
@@ -553,7 +553,7 @@ const PermisosPage: React.FC = () => {
                                             size="icon"
                                             aria-label="Inactivar módulo"
                                           >
-                                            <Pause className="h-5 w-5 text-orange-600 hover:text-orange-800 transition-colors" />
+                                            <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
                                           </Button>
                                         </AlertDialogTrigger>
                                       </TooltipTrigger>
@@ -702,68 +702,68 @@ const PermisosPage: React.FC = () => {
             <CardContent className="p-6">
               <Form {...moduloForm}>
                 <form onSubmit={moduloForm.handleSubmit(handleCrearModulo)} className="space-y-6">
-                   {/* Información del Módulo */}
-                   <div className="p-4 border rounded-lg bg-slate-50 mb-4">
-                     <h3 className="text-base font-bold text-gray-700 mb-2 flex items-center gap-2">
-                       <Shield className="w-5 h-5 text-cyan-600" />
-                       Información del Módulo
-                     </h3>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                       <FormField
-                         control={moduloForm.control}
-                         name="nombre"
-                         render={({ field }) => (
-                           <FormItem>
-                             <FormLabel>Nombre *</FormLabel>
-                             <FormControl>
-                               <Input placeholder="Nombre del módulo" {...field} />
-                             </FormControl>
-                             <FormMessage />
-                           </FormItem>
-                         )}
-                       />
-                       <FormField
-                         control={moduloForm.control}
-                         name="descripcion"
-                         render={({ field }) => (
-                           <FormItem>
-                             <FormLabel>Descripción</FormLabel>
-                             <FormControl>
-                               <Textarea placeholder="Descripción del módulo" {...field} />
-                             </FormControl>
-                             <FormMessage />
-                           </FormItem>
-                         )}
-                       />
-                     </div>
-                   </div>
+                  {/* Información del Módulo */}
+                  <div className="p-4 border rounded-lg bg-slate-50 mb-4">
+                    <h3 className="text-base font-bold text-gray-700 mb-2 flex items-center gap-2">
+                      <Shield className="w-5 h-5 text-cyan-600" />
+                      Información del Módulo
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={moduloForm.control}
+                        name="nombre"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Nombre *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Nombre del módulo" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={moduloForm.control}
+                        name="descripcion"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Descripción</FormLabel>
+                            <FormControl>
+                              <Textarea placeholder="Descripción del módulo" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
 
-                   {/* Botones de acción */}
-                   <div className="flex justify-end gap-2">
-                     <Can action="accion-cancelar-modulo">
-                       <Button
-                         type="button"
-                         variant="outline"
-                         onClick={handleCancelarModulo}
-                       >
-                         Cancelar
-                       </Button>
-                     </Can>
-                     <Can action="accion-guardar-modulo">
-                       <Button
-                         type="submit"
-                         disabled={isCreating || isUpdating}
-                       >
-                         {editingModulo ? "Actualizar" : "Crear"}
-                       </Button>
-                     </Can>
-                   </div>
-                 </form>
-               </Form>
-             </CardContent>
-           </Card>
-         </TabsContent>
-       </Tabs>
+                  {/* Botones de acción */}
+                  <div className="flex justify-end gap-2">
+                    <Can action="accion-cancelar-modulo">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleCancelarModulo}
+                      >
+                        Cancelar
+                      </Button>
+                    </Can>
+                    <Can action="accion-guardar-modulo">
+                      <Button
+                        type="submit"
+                        disabled={isCreating || isUpdating}
+                      >
+                        {editingModulo ? "Actualizar" : "Crear"}
+                      </Button>
+                    </Can>
+                  </div>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Modal para crear nuevo permiso */}
       {showPermisoModal && (
@@ -1025,7 +1025,7 @@ const PermisosPage: React.FC = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel 
+            <AlertDialogCancel
               onClick={() => {
                 setShowDeleteConfirmModal(false);
                 setModuloParaEliminar(null);

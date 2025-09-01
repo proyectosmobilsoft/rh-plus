@@ -62,7 +62,7 @@ export default function CrearAnalistaPage() {
       const payload = {
         username: data.username,
         email: data.email,
-        password_hash: data.password, // Aquí deberías hashear la contraseña en producción
+        password: data.password, // Aquí deberías hashear la contraseña en producción
         primer_nombre: data.primer_nombre,
         segundo_nombre: data.segundo_nombre,
         primer_apellido: data.primer_apellido,

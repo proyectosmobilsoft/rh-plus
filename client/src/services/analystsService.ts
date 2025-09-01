@@ -4,7 +4,7 @@ export interface Analyst {
   id?: number;
   username: string;
   email: string;
-  password_hash?: string;
+  password?: string;
   primer_nombre?: string;
   segundo_nombre?: string;
   primer_apellido?: string;
@@ -29,10 +29,10 @@ export const analystsService = {
   },
   // Guardar analista
   create: async (analyst: Analyst): Promise<Analyst | null> => {
-    const { password_hash, ...rest } = analyst;
+    const { password, ...rest } = analyst;
     const insertData = {
       ...rest,
-      password_hash: password_hash || '',
+              password: password || '',
       rol_id: ANALISTA_ROLE_ID,
     };
     const { data, error } = await supabase.from('gen_usuarios').insert([insertData]).select();
