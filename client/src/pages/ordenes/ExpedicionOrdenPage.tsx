@@ -32,6 +32,7 @@ const ExpedicionOrdenPage = () => {
   // Estados disponibles para el filtro
   const estadosDisponibles = [
     { value: 'PENDIENTE', label: 'Pendiente' },
+    { value: 'PENDIENTE ASIGNACION', label: 'Pendiente Asignación' },
     { value: 'ASIGNADO', label: 'Asignado' },
     { value: 'PENDIENTE DOCUMENTOS', label: 'Pendiente Documentos' },
     { value: 'EN_PROCESO', label: 'En Proceso' },
@@ -236,6 +237,24 @@ const ExpedicionOrdenPage = () => {
     }
   };
 
+  const handleAssign = async (id: number, analistaId: number) => {
+    setIsLoading(true);
+    try {
+      const success = await solicitudesService.assignAnalyst(id, analistaId, 'Analista asignado por el usuario');
+      if (success) {
+        toast.success('Analista asignado exitosamente');
+        fetchSolicitudes(); // Recargar la lista
+      } else {
+        toast.error('Error al asignar el analista');
+      }
+    } catch (error) {
+      console.error('Error al asignar analista:', error);
+      toast.error('Error al asignar el analista');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleView = async (solicitud: Solicitud) => {
     setSelectedSolicitud(solicitud);
     setReadOnlyView(true);
@@ -412,6 +431,7 @@ const ExpedicionOrdenPage = () => {
                   onReactivate={handleReactivate}
                   onDeserto={handleDeserto}
                   onCancel={handleCancel}
+                  onAssign={handleAssign}
                   isLoading={isLoading}
                 />
               )}

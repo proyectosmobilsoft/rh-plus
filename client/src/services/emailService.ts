@@ -262,41 +262,174 @@ class EmailService {
     `;
   }
 
-  // Enviar email usando Gmail SMTP
+  // Enviar email usando servicio profesional (SendGrid/Mailgun)
   async sendEmail(emailData: EmailData): Promise<{ success: boolean; message: string }> {
-    if (!this.config) {
-      throw new Error('Configuración de email no establecida');
-    }
-
     try {
-      // Usar Supabase Edge Functions para enviar email
+      // Opción 1: Usar SendGrid (Recomendado para producción)
+      if (import.meta.env.VITE_SENDGRID_API_KEY) {
+        return await this.sendWithSendGrid(emailData);
+      }
+      
+      // Opción 2: Usar Mailgun (Alternativa)
+      if (import.meta.env.VITE_MAILGUN_API_KEY) {
+        return await this.sendWithMailgun(emailData);
+      }
+      
+      // Opción 3: Fallback a Supabase Edge Functions (Gmail SMTP)
+      if (this.config) {
+        return await this.sendWithSupabase(emailData);
+      }
+      
+      throw new Error('No hay configuración de email disponible');
+    } catch (error) {
+      console.error('Error enviando email:', error);
+      return {
+        success: false,
+        message: 'Error al enviar el email'
+      };
+    }
+  }
+
+  // Enviar con SendGrid (Más confiable para dominios corporativos)
+  private async sendWithSendGrid(emailData: EmailData): Promise<{ success: boolean; message: string }> {
+    try {
+      // Importar SendGrid dinámicamente
+      const sgMail = await import('@sendgrid/mail');
+      
+      // Configurar API Key
+      sgMail.default.setApiKey(import.meta.env.VITE_SENDGRID_API_KEY!);
+
+      // Preparar mensaje
+      const msg = {
+        to: emailData.to,
+        from: {
+          email: 'noreply@rhcompensamos.com',
+          name: 'RH Compensamos'
+        },
+        replyTo: 'soporte@rhcompensamos.com',
+        subject: emailData.subject,
+        html: emailData.html,
+        text: emailData.text || emailData.html.replace(/<[^>]*>/g, ''),
+        // Headers adicionales para mejor deliverabilidad
+        headers: {
+          'X-Mailer': 'RH Compensamos System',
+          'X-Priority': '3',
+          'X-MSMail-Priority': 'Normal'
+        },
+        // Configuración de tracking
+        trackingSettings: {
+          clickTracking: {
+            enable: true,
+            enableText: false
+          },
+          openTracking: {
+            enable: true
+          }
+        }
+      };
+
+      // Enviar email
+      await sgMail.default.send(msg);
+
+      console.log('✅ Email enviado exitosamente con SendGrid a:', emailData.to);
+      
+      return {
+        success: true,
+        message: 'Email enviado correctamente con SendGrid'
+      };
+    } catch (error: any) {
+      console.error('❌ Error SendGrid:', error);
+      
+      // Manejar errores específicos de SendGrid
+      if (error.response) {
+        const { status, body } = error.response;
+        console.error('SendGrid API Error:', { status, body });
+        
+        return {
+          success: false,
+          message: `Error SendGrid (${status}): ${body?.errors?.[0]?.message || 'Error desconocido'}`
+        };
+      }
+      
+      return {
+        success: false,
+        message: 'Error al enviar con SendGrid'
+      };
+    }
+  }
+
+  // Enviar con Mailgun (Alternativa confiable)
+  private async sendWithMailgun(emailData: EmailData): Promise<{ success: boolean; message: string }> {
+    try {
+      const formData = new FormData();
+      formData.append('from', 'RH Compensamos <noreply@rhcompensamos.com>');
+      formData.append('to', emailData.to);
+      formData.append('subject', emailData.subject);
+      formData.append('html', emailData.html);
+      if (emailData.text) {
+        formData.append('text', emailData.text);
+      }
+
+      const response = await fetch(`https://api.mailgun.net/v3/${import.meta.env.VITE_MAILGUN_DOMAIN}/messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${btoa(`api:${import.meta.env.VITE_MAILGUN_API_KEY}`)}`,
+        },
+        body: formData
+      });
+
+      if (response.ok) {
+        return {
+          success: true,
+          message: 'Email enviado correctamente con Mailgun'
+        };
+      } else {
+        const errorData = await response.text();
+        console.error('Mailgun error:', errorData);
+        return {
+          success: false,
+          message: 'Error al enviar con Mailgun'
+        };
+      }
+    } catch (error) {
+      console.error('Mailgun error:', error);
+      return {
+        success: false,
+        message: 'Error al enviar con Mailgun'
+      };
+    }
+  }
+
+  // Fallback: Enviar con Supabase Edge Functions (Gmail SMTP)
+  private async sendWithSupabase(emailData: EmailData): Promise<{ success: boolean; message: string }> {
+    try {
       const { data, error } = await supabase.functions.invoke('smooth-responder', {
         body: {
           to: emailData.to,
           subject: emailData.subject,
           html: emailData.html,
           text: emailData.text,
-          gmail: this.config.gmail,
-          password: this.config.password,
-          appPassword: this.config.appPassword
+          gmail: this.config!.gmail,
+          password: this.config!.password,
+          appPassword: this.config!.appPassword
         }
       });
 
       if (error) {
         return {
           success: false,
-          message: 'Error al enviar el email'
+          message: 'Error al enviar el email con Gmail SMTP'
         };
       }
 
       return {
         success: true,
-        message: 'Email enviado correctamente'
+        message: 'Email enviado correctamente con Gmail SMTP'
       };
     } catch (error) {
       return {
         success: false,
-        message: 'Error al enviar el email'
+        message: 'Error al enviar el email con Gmail SMTP'
       };
     }
   }

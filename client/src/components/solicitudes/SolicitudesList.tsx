@@ -24,6 +24,7 @@ interface SolicitudesListProps {
   onReactivate: (id: number) => void;
   onDeserto: (id: number) => void;
   onCancel: (id: number) => void;
+  onAssign: (id: number, analistaId: number) => void;
   isLoading?: boolean;
 }
 
@@ -37,6 +38,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   onReactivate,
   onDeserto,
   onCancel,
+  onAssign,
   isLoading = false
 }) => {
   const { startLoading, stopLoading } = useLoading();
@@ -68,6 +70,9 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   const [logs, setLogs] = useState<SolicitudLog[]>([]);
   const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
   const [cancelingSolicitudId, setCancelingSolicitudId] = useState<number | null>(null);
+  const [confirmAssignOpen, setConfirmAssignOpen] = useState(false);
+  const [assigningSolicitudId, setAssigningSolicitudId] = useState<number | null>(null);
+  const [suggestedAnalyst, setSuggestedAnalyst] = useState<{analista_id: number, analista_nombre: string} | null>(null);
 
   // Detener loading global cuando se complete una operación de Contacto
   useEffect(() => {
@@ -255,6 +260,8 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     switch (estado?.toUpperCase()) {
       case 'PENDIENTE':
         return <Badge className="bg-yellow-300 hover:bg-yellow-400 text-yellow-900 border-yellow-500">Pendiente</Badge>;
+      case 'PENDIENTE ASIGNACION':
+        return <Badge className="bg-amber-300 hover:bg-amber-400 text-amber-900 border-amber-500">Pendiente Asignación</Badge>;
       case 'ASIGNADO':
         return <Badge className="bg-blue-300 hover:bg-blue-400 text-blue-900 border-blue-500">Asignado</Badge>;
       case 'PENDIENTE DOCUMENTOS':
@@ -281,6 +288,8 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     switch (estado?.toUpperCase()) {
       case 'PENDIENTE':
         return 'bg-yellow-100';
+      case 'PENDIENTE ASIGNACION':
+        return 'bg-amber-100'; // Cambiado a amber para mejor diferenciación
       case 'ASIGNADO':
         return 'bg-blue-100';
       case 'PENDIENTE DOCUMENTOS':
@@ -702,6 +711,46 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     }
   };
 
+  const handleAssignClick = async (id: number | undefined) => {
+    if (id) {
+      setSelectedSolicitudId(id);
+      setAssigningSolicitudId(id);
+      
+      // Obtener la solicitud para acceder a la empresa
+      const solicitud = solicitudes.find(s => s.id === id);
+      if (solicitud && solicitud.empresa_id) {
+        try {
+          // Importar el servicio de solicitudes
+          const { solicitudesService } = await import('@/services/solicitudesService');
+          const suggested = await solicitudesService.getSuggestedAnalyst(solicitud.empresa_id);
+          setSuggestedAnalyst(suggested);
+        } catch (error) {
+          console.error('Error obteniendo analista sugerido:', error);
+          setSuggestedAnalyst(null);
+        }
+      }
+      
+      setConfirmAssignOpen(true);
+    }
+  };
+
+  const handleAssignConfirm = () => {
+    if (selectedSolicitudId && suggestedAnalyst) {
+      console.log('🔍 handleAssignConfirm llamado para solicitud ID:', selectedSolicitudId);
+      console.log('🔍 Analista a asignar:', suggestedAnalyst);
+      console.log('🔍 Llamando a startLoading()...');
+      startLoading(); // Activar loading global
+      
+      // Llamar a la función de asignación
+      onAssign(selectedSolicitudId, suggestedAnalyst.analista_id);
+      
+      setConfirmAssignOpen(false);
+      setSelectedSolicitudId(null);
+      setAssigningSolicitudId(null);
+      setSuggestedAnalyst(null);
+    }
+  };
+
   if (solicitudes.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
@@ -758,6 +807,16 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                             Visualizar
                           </DropdownMenuItem>
                         </Can>
+
+                        {/* Botón Asignar Solicitud - solo visible en estado PENDIENTE ASIGNACION */}
+                        {solicitud.estado === 'PENDIENTE ASIGNACION' && !isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                          <Can action="accion-asignar-solicitud">
+                            <DropdownMenuItem onClick={() => handleAssignClick(solicitud.id)} className="cursor-pointer">
+                              <User className="h-4 w-4 mr-2 text-blue-600" />
+                              Asignar Solicitud
+                            </DropdownMenuItem>
+                          </Can>
+                        )}
 
                         {/* Botón Aprobar - solo visible en estado PENDIENTE */}
                         {solicitud.estado === 'PENDIENTE' && !isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
@@ -1175,6 +1234,59 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
               className="bg-red-600 hover:bg-red-700"
             >
               Sí, Cancelar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirmación de Asignación de Analista */}
+      <AlertDialog open={confirmAssignOpen} onOpenChange={setConfirmAssignOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Asignar analista a la solicitud?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se asignará la siguiente solicitud al analista sugerido:
+              <br />
+              <br />
+              {suggestedAnalyst ? (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-center gap-2">
+                    <User className="h-5 w-5 text-blue-600" />
+                    <span className="font-semibold text-blue-800">
+                      {suggestedAnalyst.analista_nombre}
+                    </span>
+                  </div>
+                  <p className="text-sm text-blue-600 mt-1">
+                    ID: {suggestedAnalyst.analista_id}
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <p className="text-red-600 font-medium">
+                    No se pudo obtener un analista sugerido
+                  </p>
+                </div>
+              )}
+              <br />
+              <span className="text-sm text-muted-foreground">
+                Esta acción cambiará el estado de la solicitud a "ASIGNADO".
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setConfirmAssignOpen(false);
+              setAssigningSolicitudId(null);
+              setSuggestedAnalyst(null);
+            }}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleAssignConfirm}
+              className="bg-blue-600 hover:bg-blue-700"
+              disabled={!suggestedAnalyst}
+            >
+              Asignar Analista
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

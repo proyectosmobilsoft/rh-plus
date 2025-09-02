@@ -381,28 +381,14 @@ export const solicitudesService = {
         "🔍 Creando solicitud con asignación automática de analista..."
       );
       
-      // Asignar analista automáticamente si no se especifica uno
+      // NO asignar analista automáticamente - dejar en "Pendiente Asignacion"
       let analistaId = solicitud.analista_id;
       let estadoFinal = solicitud.estado;
       
-      if (!analistaId && solicitud.empresa_id) {
-        console.log("🔄 Asignando analista automáticamente...");
-        const analistaAsignado =
-          await analistaAsignacionService.asignarAnalistaAutomatico(
-            solicitud.empresa_id
-          );
-        
-        if (analistaAsignado) {
-          analistaId = analistaAsignado.analista_id;
-          estadoFinal = "ASIGNADO"; // Cambiar estado a ASIGNADO cuando se asigna analista
-          console.log(
-            "✅ Analista asignado automáticamente:",
-            analistaAsignado.analista_nombre
-          );
-          console.log("🔄 Estado de solicitud cambiado a: ASIGNADO");
-        } else {
-          console.log("⚠️ No se pudo asignar analista automáticamente");
-        }
+      // Si no hay analista asignado, poner en estado "Pendiente Asignacion"
+      if (!analistaId) {
+        estadoFinal = "Pendiente Asignacion";
+        console.log("🔄 Solicitud creada sin analista - Estado: Pendiente Asignacion");
       }
 
       // Si viene estructura_datos, intentar crear candidato con documento y email (obligatorios)
@@ -902,26 +888,11 @@ export const solicitudesService = {
         "🔍 Creando solicitud con plantilla y asignación automática de analista..."
       );
       
-      // Asignar analista automáticamente
-      console.log("🔄 Asignando analista automáticamente...");
-      const analistaAsignado =
-        await analistaAsignacionService.asignarAnalistaAutomatico(empresaId);
-      
+      // NO asignar analista automáticamente - dejar en "Pendiente Asignacion"
       let analistaId: number | undefined;
-      let estadoFinal = "PENDIENTE"; // Estado por defecto
+      let estadoFinal = "Pendiente Asignacion"; // Estado por defecto
       
-      if (analistaAsignado) {
-        analistaId = analistaAsignado.analista_id;
-        estadoFinal = "ASIGNADO"; // Cambiar estado a ASIGNADO cuando se asigna analista
-        console.log(
-          "✅ Analista asignado automáticamente:",
-          analistaAsignado.analista_nombre
-        );
-        console.log("🔄 Estado de solicitud cambiado a: ASIGNADO");
-      } else {
-        console.log("⚠️ No se pudo asignar analista automáticamente");
-        console.log("🔄 Estado de solicitud se mantiene como: PENDIENTE");
-      }
+      console.log("🔄 Solicitud creada sin analista - Estado: Pendiente Asignacion");
 
       const solicitudData = {
         empresa_id: empresaId,
@@ -1588,6 +1559,7 @@ export const solicitudesService = {
         .from("hum_solicitudes")
         .update({
           analista_id: analistaId,
+          estado: "ASIGNADO", // Cambiar estado a ASIGNADO cuando se asigna analista
           updated_at: new Date().toISOString(),
         })
         .eq("id", id);
@@ -1603,6 +1575,7 @@ export const solicitudesService = {
           solicitud_id: id,
           usuario_id: getUsuarioId(),
           accion: ACCIONES_SISTEMA.ASIGNAR_ANALISTA,
+          estado_anterior: "Pendiente Asignacion",
           estado_nuevo: "ASIGNADO",
           observacion:
             observacion || `Analista ${analistaId} asignado manualmente`,
@@ -1615,6 +1588,17 @@ export const solicitudesService = {
     } catch (error) {
       console.error("Error in assignAnalyst:", error);
       return false;
+    }
+  },
+
+  // Obtener analista sugerido para asignación
+  async getSuggestedAnalyst(empresaId: number): Promise<{analista_id: number, analista_nombre: string} | null> {
+    try {
+      const analistaAsignado = await analistaAsignacionService.asignarAnalistaAutomatico(empresaId);
+      return analistaAsignado;
+    } catch (error) {
+      console.error("Error getting suggested analyst:", error);
+      return null;
     }
   },
 

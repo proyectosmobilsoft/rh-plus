@@ -402,7 +402,7 @@ const UsuariosPage = () => {
       }
       
       // Si se puede eliminar, proceder con la eliminación
-      deleteUserMutation.mutate(id);
+    deleteUserMutation.mutate(id);
     } catch (error: any) {
       toast({
         title: "Error al verificar eliminación",
