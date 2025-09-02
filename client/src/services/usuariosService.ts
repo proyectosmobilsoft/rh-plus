@@ -234,7 +234,94 @@ export const usuariosService = {
     return data;
   },
 
-  // Eliminar un usuario permanentemente
+  // Eliminar un usuario (inactivar primero, luego eliminar permanentemente)
+  async deleteUsuario(id: number) {
+    // Primero verificar si el usuario está inactivo
+    const { data: usuario, error: fetchError } = await supabase
+      .from('gen_usuarios')
+      .select('activo, primer_nombre, primer_apellido')
+      .eq('id', id)
+      .single();
+    
+    if (fetchError) throw fetchError;
+    
+    if (usuario?.activo === true) {
+      throw new Error('No se puede eliminar un usuario activo. Primero debe inactivarlo.');
+    }
+
+    // Verificar si el usuario tiene relaciones con candidatos activos
+    const { data: candidatosRelacionados, error: candidatosError } = await supabase
+      .from('candidatos')
+      .select('id, primer_nombre, primer_apellido, activo')
+      .eq('usuario_id', id)
+      .eq('activo', true);
+    
+    if (candidatosError) {
+      console.error('Error verificando candidatos relacionados:', candidatosError);
+      throw new Error('Error al verificar las relaciones del usuario');
+    }
+
+    if (candidatosRelacionados && candidatosRelacionados.length > 0) {
+      const candidatosNombres = candidatosRelacionados
+        .map(c => `${c.primer_nombre} ${c.primer_apellido}`)
+        .join(', ');
+      
+      throw new Error(
+        `No se puede eliminar el usuario "${usuario.primer_nombre} ${usuario.primer_apellido}" porque está relacionado con candidatos activos: ${candidatosNombres}. ` +
+        `Primero debe inactivar o eliminar estos candidatos.`
+      );
+    }
+
+    // Verificar si el usuario tiene relaciones con solicitudes activas
+    const { data: solicitudesRelacionadas, error: solicitudesError } = await supabase
+      .from('hum_solicitudes')
+      .select('id, estado')
+      .eq('analista_id', id)
+      .in('estado', ['pendiente', 'en_proceso', 'aprobada']);
+    
+    if (solicitudesError) {
+      console.error('Error verificando solicitudes relacionadas:', solicitudesError);
+      throw new Error('Error al verificar las relaciones del usuario');
+    }
+
+    if (solicitudesRelacionadas && solicitudesRelacionadas.length > 0) {
+      throw new Error(
+        `No se puede eliminar el usuario "${usuario.primer_nombre} ${usuario.primer_apellido}" porque tiene solicitudes activas (${solicitudesRelacionadas.length} solicitudes). ` +
+        `Primero debe completar o cancelar estas solicitudes.`
+      );
+    }
+    
+    // Si no hay relaciones activas, proceder con la eliminación permanente
+    try {
+      const { data, error } = await supabase
+        .from('gen_usuarios')
+        .delete()
+        .eq('id', id);
+      
+      if (error) {
+        // Manejar errores de restricción de clave foránea
+        if (error.code === '23503') {
+          throw new Error(
+            `No se puede eliminar el usuario "${usuario.primer_nombre} ${usuario.primer_apellido}" porque tiene datos relacionados en el sistema. ` +
+            `Contacte al administrador para revisar todas las relaciones.`
+          );
+        }
+        throw error;
+      }
+      
+      return data;
+    } catch (error: any) {
+      if (error.code === '23503') {
+        throw new Error(
+          `No se puede eliminar el usuario "${usuario.primer_nombre} ${usuario.primer_apellido}" porque tiene datos relacionados en el sistema. ` +
+          `Contacte al administrador para revisar todas las relaciones.`
+        );
+      }
+      throw error;
+    }
+  },
+
+  // Eliminar un usuario permanentemente (sin verificar estado)
   async deleteUsuarioPermanent(id: number) {
     const { data, error } = await supabase
       .from('gen_usuarios')
@@ -242,6 +329,91 @@ export const usuariosService = {
       .eq('id', id);
     if (error) throw error;
     return data;
+  },
+
+  // Verificar si un usuario puede ser eliminado (sin relaciones activas)
+  async canDeleteUsuario(id: number) {
+    try {
+      // Verificar si el usuario está activo
+      const { data: usuario, error: fetchError } = await supabase
+        .from('gen_usuarios')
+        .select('activo, primer_nombre, primer_apellido')
+        .eq('id', id)
+        .single();
+      
+      if (fetchError) throw fetchError;
+      
+      if (usuario?.activo === true) {
+        return {
+          canDelete: false,
+          reason: 'El usuario está activo. Primero debe inactivarlo.',
+          details: null
+        };
+      }
+
+      // Verificar candidatos activos
+      const { data: candidatosRelacionados, error: candidatosError } = await supabase
+        .from('candidatos')
+        .select(`
+          id, 
+          primer_nombre, 
+          primer_apellido, 
+          segundo_nombre,
+          segundo_apellido,
+          email,
+          telefono,
+          activo,
+          created_at
+        `)
+        .eq('usuario_id', id)
+        .eq('activo', true);
+      
+      if (candidatosError) throw candidatosError;
+
+      if (candidatosRelacionados && candidatosRelacionados.length > 0) {
+        return {
+          canDelete: false,
+          reason: 'El usuario tiene candidatos activos relacionados.',
+          details: candidatosRelacionados.map(c => ({
+            id: c.id,
+            nombre: `${c.primer_nombre} ${c.primer_apellido}`,
+            email: c.email,
+            telefono: c.telefono,
+            fechaCreacion: c.created_at
+          }))
+        };
+      }
+
+      // Verificar solicitudes activas
+      const { data: solicitudesRelacionadas, error: solicitudesError } = await supabase
+        .from('hum_solicitudes')
+        .select('id, estado')
+        .eq('analista_id', id)
+        .in('estado', ['pendiente', 'en_proceso', 'aprobada']);
+      
+      if (solicitudesError) throw solicitudesError;
+
+      if (solicitudesRelacionadas && solicitudesRelacionadas.length > 0) {
+        return {
+          canDelete: false,
+          reason: `El usuario tiene ${solicitudesRelacionadas.length} solicitudes activas.`,
+          details: null
+        };
+      }
+
+      return {
+        canDelete: true,
+        reason: null,
+        details: null
+      };
+    } catch (error) {
+      console.error('Error verificando si se puede eliminar usuario:', error);
+      return {
+        canDelete: false,
+        reason: 'Error al verificar las relaciones del usuario.',
+        details: null
+      };
+    }
   },
 
   // Actualizar último acceso del usuario

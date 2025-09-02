@@ -144,6 +144,11 @@ const UsuariosPage = () => {
   const [editingUser, setEditingUser] = useState<Usuario | null>(null);
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
+  
+  // Estados para el modal informativo de eliminación
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<Usuario | null>(null);
+  const [candidatosRelacionados, setCandidatosRelacionados] = useState<any[]>([]);
   const { toast } = useToast();
   const { startLoading, stopLoading } = useLoading();
   const queryClient = useQueryClient();
@@ -373,8 +378,41 @@ const UsuariosPage = () => {
 
   // Handlers
   const handleEliminarUsuario = async (id: number) => {
-    deleteUserMutation.mutate(id);
+    try {
+      // Buscar el usuario en la lista
+      const usuario = usuarios.find(u => u.id === id);
+      if (!usuario) {
+        toast({
+          title: "Error",
+          description: "Usuario no encontrado",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Verificar si se puede eliminar antes de proceder
+      const canDeleteResult = await usuariosService.canDeleteUsuario(id);
+      
+      if (!canDeleteResult.canDelete) {
+        // Configurar el modal con la información del usuario y candidatos
+        setUserToDelete(usuario);
+        setCandidatosRelacionados(canDeleteResult.details || []);
+        setShowDeleteModal(true);
+        return;
+      }
+      
+      // Si se puede eliminar, proceder con la eliminación
+      deleteUserMutation.mutate(id);
+    } catch (error: any) {
+      toast({
+        title: "Error al verificar eliminación",
+        description: error.message || "Error al verificar si se puede eliminar el usuario",
+        variant: "destructive",
+      });
+    }
   };
+
+
 
   const handleActivarUsuario = async (id: number) => {
     activateUserMutation.mutate(id);
@@ -1161,6 +1199,104 @@ const UsuariosPage = () => {
           </Card>
         </TabsContent>
 </Tabs>
+
+      {/* Modal informativo para usuario con candidatos relacionados */}
+      <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+        <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <Users className="w-5 h-5" />
+              Candidatos activos relacionados
+            </DialogTitle>
+            <DialogDescription>
+              No se puede eliminar el usuario porque tiene candidatos activos relacionados.
+            </DialogDescription>
+          </DialogHeader>
+
+          {userToDelete && candidatosRelacionados.length > 0 && (
+            <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+              {/* Información de candidatos relacionados */}
+              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <h4 className="font-semibold text-yellow-800 mb-3 flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  Candidatos activos relacionados ({candidatosRelacionados.length})
+                </h4>
+                <p className="text-sm text-yellow-700 mb-4">
+                  Los siguientes candidatos están activos y mantienen una relación con el usuario que desea eliminar:
+                </p>
+                <div className="max-h-60 overflow-y-auto space-y-3 pr-2">
+                  {candidatosRelacionados.map((candidato, index) => (
+                    <div key={index} className="p-4 bg-white rounded-lg border border-yellow-200 shadow-sm">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="font-semibold text-gray-900 text-lg">{candidato.nombre}</span>
+                            <Badge variant="outline" className="text-green-700 border-green-300 bg-green-50">
+                              Activo
+                            </Badge>
+                          </div>
+                          <div className="text-sm text-gray-600 space-y-2">
+                            {candidato.email && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-500">📧</span>
+                                <span className="font-medium">{candidato.email}</span>
+                              </div>
+                            )}
+                            {candidato.telefono && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-500">📱</span>
+                                <span className="font-medium">{candidato.telefono}</span>
+                              </div>
+                            )}
+                            {candidato.fechaCreacion && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-500">📅</span>
+                                <span className="font-medium">Creado: {new Date(candidato.fechaCreacion).toLocaleDateString('es-ES')}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Mensaje informativo */}
+              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-start space-x-2">
+                  <div className="text-red-500 mt-0.5">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-red-800">No se puede eliminar</h4>
+                    <p className="text-sm text-red-700 mt-1">
+                      Para poder eliminar este usuario, primero debe inactivar o eliminar todos los candidatos activos relacionados.
+                      Los candidatos listados arriba están actualmente activos y mantienen una relación con este usuario.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex-shrink-0 gap-2 pt-4 border-t">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteModal(false);
+                setUserToDelete(null);
+                setCandidatosRelacionados([]);
+              }}
+              className="ml-auto"
+            >
+              Cerrar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 </div>
 );
 };

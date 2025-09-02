@@ -98,7 +98,23 @@ export interface Solicitud {
 export const solicitudesService = {
   getAll: async (): Promise<Solicitud[]> => {
     try {
-      const { data, error } = await supabase
+      // Obtener la empresa seleccionada del localStorage
+      let empresaId: number | undefined;
+      try {
+        const empresaData = localStorage.getItem('empresaData');
+        if (empresaData) {
+          const empresa = JSON.parse(empresaData);
+          empresaId = empresa.id;
+          console.log("🏢 Filtrando solicitudes por empresa:", empresa.razon_social, "ID:", empresaId);
+        } else {
+          console.log("🏢 No hay empresa seleccionada, mostrando todas las solicitudes");
+        }
+      } catch (error) {
+        console.warn("Error al obtener empresa del localStorage:", error);
+      }
+
+      // Construir la consulta base
+      let query = supabase
         .from("hum_solicitudes")
         .select(
           `
@@ -121,8 +137,14 @@ export const solicitudesService = {
             ciudad
           )
         `
-        )
-        .order("created_at", { ascending: false });
+        );
+
+      // Aplicar filtro por empresa si existe
+      if (empresaId) {
+        query = query.eq('empresa_id', empresaId);
+      }
+
+      const { data, error } = await query.order("created_at", { ascending: false });
 
       if (error) {
         console.error("Error fetching solicitudes:", error);
@@ -177,7 +199,23 @@ export const solicitudesService = {
 
   getByStatus: async (estado: string): Promise<Solicitud[]> => {
     try {
-      const { data, error } = await supabase
+      // Obtener la empresa seleccionada del localStorage
+      let empresaId: number | undefined;
+      try {
+        const empresaData = localStorage.getItem('empresaData');
+        if (empresaData) {
+          const empresa = JSON.parse(empresaData);
+          empresaId = empresa.id;
+          console.log("🏢 Filtrando solicitudes por estado y empresa:", estado, empresa.razon_social, "ID:", empresaId);
+        } else {
+          console.log("🏢 No hay empresa seleccionada, mostrando todas las solicitudes del estado:", estado);
+        }
+      } catch (error) {
+        console.warn("Error al obtener empresa del localStorage:", error);
+      }
+
+      // Construir la consulta base
+      let query = supabase
         .from("hum_solicitudes")
         .select(
           `
@@ -201,8 +239,14 @@ export const solicitudesService = {
           )
         `
         )
-        .eq("estado", estado)
-        .order("created_at", { ascending: false });
+        .eq("estado", estado);
+
+      // Aplicar filtro por empresa si existe
+      if (empresaId) {
+        query = query.eq('empresa_id', empresaId);
+      }
+
+      const { data, error } = await query.order("created_at", { ascending: false });
 
       if (error) {
         console.error("Error fetching solicitudes by status:", error);
@@ -373,14 +417,95 @@ export const solicitudesService = {
             numero_documento: String(numeroDocumento),
             email: String(email),
           };
+
+          // Función para extraer nombres de manera inteligente
+          const extractNames = (data: Record<string, any>) => {
+            // Buscar nombre completo en múltiples variaciones
+            const nombreCompleto = data.nombre_completo || data.nombrecompleto || 
+                                 data.nombres || data.nombre || data.nombres_completos ||
+                                 data.nombre_y_apellidos || data.nombre_apellidos ||
+                                 data.nombre_completo_candidato || data.nombre_candidato;
+            
+            if (nombreCompleto && typeof nombreCompleto === 'string' && nombreCompleto.trim()) {
+              const partes = nombreCompleto.trim().split(/\s+/).filter(parte => parte.length > 0);
+              
+              if (partes.length >= 2) {
+                // Lógica mejorada para separar nombres y apellidos
+                if (partes.length === 2) {
+                  // Solo 2 partes: nombre apellido
+                  return {
+                    primer_nombre: partes[0],
+                    segundo_nombre: '',
+                    primer_apellido: partes[1],
+                    segundo_apellido: ''
+                  };
+                } else if (partes.length === 3) {
+                  // 3 partes: nombre apellido1 apellido2
+                  return {
+                    primer_nombre: partes[0],
+                    segundo_nombre: '',
+                    primer_apellido: partes[1],
+                    segundo_apellido: partes[2]
+                  };
+                } else if (partes.length === 4) {
+                  // 4 partes: nombre1 nombre2 apellido1 apellido2
+                  return {
+                    primer_nombre: partes[0],
+                    segundo_nombre: partes[1],
+                    primer_apellido: partes[2],
+                    segundo_apellido: partes[3]
+                  };
+                } else {
+                  // Más de 4 partes: tomar los primeros 2 como nombres y los últimos 2 como apellidos
+                  return {
+                    primer_nombre: partes[0],
+                    segundo_nombre: partes[1],
+                    primer_apellido: partes[partes.length - 2],
+                    segundo_apellido: partes[partes.length - 1]
+                  };
+                }
+              }
+            }
+            
+            // Si no hay nombre completo, buscar campos individuales
+            return {
+              primer_nombre: data.primer_nombre || data.primer_nombre_candidato || '',
+              segundo_nombre: data.segundo_nombre || data.segundo_nombre_candidato || '',
+              primer_apellido: data.primer_apellido || data.primer_apellido_candidato || '',
+              segundo_apellido: data.segundo_apellido || data.segundo_apellido_candidato || ''
+            };
+          };
+
+          // Función para extraer teléfono de manera inteligente
+          const extractPhone = (data: Record<string, any>) => {
+            return data.telefono || data.celular || data.phone || data.movil || 
+                   data.numero_telefono || data.numero_celular || data.contacto ||
+                   data.telefono_candidato || data.celular_candidato || data.telefono_contacto;
+          };
+
+          // Extraer nombres y teléfono
+          const nombres = extractNames(d);
+          const telefono = extractPhone(d);
+
+          // Log para debugging
+          console.log("🔍 Datos extraídos de la solicitud:", {
+            nombres,
+            telefono,
+            datosOriginales: d
+          });
+
+          // Agregar nombres extraídos
+          if (nombres.primer_nombre) candidatoPayload.primer_nombre = nombres.primer_nombre;
+          if (nombres.segundo_nombre) candidatoPayload.segundo_nombre = nombres.segundo_nombre;
+          if (nombres.primer_apellido) candidatoPayload.primer_apellido = nombres.primer_apellido;
+          if (nombres.segundo_apellido) candidatoPayload.segundo_apellido = nombres.segundo_apellido;
+          if (telefono) candidatoPayload.telefono = String(telefono);
+
+          console.log("📝 Payload del candidato a crear:", candidatoPayload);
+
           // Opcionales si existen en el JSON
           const map: Record<string, keyof Candidato> = {
             tipo_documento: "tipo_documento",
-            primer_nombre: "primer_nombre",
-            segundo_nombre: "segundo_nombre",
-            primer_apellido: "primer_apellido",
-            segundo_apellido: "segundo_apellido",
-            telefono: "telefono",
             direccion: "direccion",
             ciudad: "ciudad",
             empresa_id: "empresa_id",
@@ -883,13 +1008,94 @@ export const solicitudesService = {
             numero_documento: String(numeroDocumento),
             email: String(email),
           };
+          // Función para extraer nombres de manera inteligente (misma lógica que en create)
+          const extractNames = (data: Record<string, any>) => {
+            // Buscar nombre completo en múltiples variaciones
+            const nombreCompleto = data.nombre_completo || data.nombrecompleto || 
+                                 data.nombres || data.nombre || data.nombres_completos ||
+                                 data.nombre_y_apellidos || data.nombre_apellidos ||
+                                 data.nombre_completo_candidato || data.nombre_candidato;
+            
+            if (nombreCompleto && typeof nombreCompleto === 'string' && nombreCompleto.trim()) {
+              const partes = nombreCompleto.trim().split(/\s+/).filter(parte => parte.length > 0);
+              
+              if (partes.length >= 2) {
+                // Lógica mejorada para separar nombres y apellidos
+                if (partes.length === 2) {
+                  // Solo 2 partes: nombre apellido
+                  return {
+                    primer_nombre: partes[0],
+                    segundo_nombre: '',
+                    primer_apellido: partes[1],
+                    segundo_apellido: ''
+                  };
+                } else if (partes.length === 3) {
+                  // 3 partes: nombre apellido1 apellido2
+                  return {
+                    primer_nombre: partes[0],
+                    segundo_nombre: '',
+                    primer_apellido: partes[1],
+                    segundo_apellido: partes[2]
+                  };
+                } else if (partes.length === 4) {
+                  // 4 partes: nombre1 nombre2 apellido1 apellido2
+                  return {
+                    primer_nombre: partes[0],
+                    segundo_nombre: partes[1],
+                    primer_apellido: partes[2],
+                    segundo_apellido: partes[3]
+                  };
+                } else {
+                  // Más de 4 partes: tomar los primeros 2 como nombres y los últimos 2 como apellidos
+                  return {
+                    primer_nombre: partes[0],
+                    segundo_nombre: partes[1],
+                    primer_apellido: partes[partes.length - 2],
+                    segundo_apellido: partes[partes.length - 1]
+                  };
+                }
+              }
+            }
+            
+            // Si no hay nombre completo, buscar campos individuales
+            return {
+              primer_nombre: data.primer_nombre || data.primer_nombre_candidato || '',
+              segundo_nombre: data.segundo_nombre || data.segundo_nombre_candidato || '',
+              primer_apellido: data.primer_apellido || data.primer_apellido_candidato || '',
+              segundo_apellido: data.segundo_apellido || data.segundo_apellido_candidato || ''
+            };
+          };
+
+          // Función para extraer teléfono de manera inteligente
+          const extractPhone = (data: Record<string, any>) => {
+            return data.telefono || data.celular || data.phone || data.movil || 
+                   data.numero_telefono || data.numero_celular || data.contacto ||
+                   data.telefono_candidato || data.celular_candidato || data.telefono_contacto;
+          };
+
+          // Extraer nombres y teléfono
+          const nombres = extractNames(d);
+          const telefono = extractPhone(d);
+
+          // Log para debugging
+          console.log("🔍 Datos extraídos de la solicitud (plantilla):", {
+            nombres,
+            telefono,
+            datosOriginales: d
+          });
+
+          // Agregar nombres extraídos
+          if (nombres.primer_nombre) candidatoPayload.primer_nombre = nombres.primer_nombre;
+          if (nombres.segundo_nombre) candidatoPayload.segundo_nombre = nombres.segundo_nombre;
+          if (nombres.primer_apellido) candidatoPayload.primer_apellido = nombres.primer_apellido;
+          if (nombres.segundo_apellido) candidatoPayload.segundo_apellido = nombres.segundo_apellido;
+          if (telefono) candidatoPayload.telefono = String(telefono);
+
+          console.log("📝 Payload del candidato a crear (plantilla):", candidatoPayload);
+
+          // Mapear otros campos opcionales
           const map: Record<string, keyof Candidato> = {
             tipo_documento: "tipo_documento",
-            primer_nombre: "primer_nombre",
-            segundo_nombre: "segundo_nombre",
-            primer_apellido: "primer_apellido",
-            segundo_apellido: "segundo_apellido",
-            telefono: "telefono",
             direccion: "direccion",
             ciudad: "ciudad",
             empresa_id: "empresa_id",

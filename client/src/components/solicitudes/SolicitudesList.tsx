@@ -852,7 +852,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                         solicitud.estructura_datos?.email ||
                         solicitud.estructura_datos?.correo_electronico ||
                         solicitud.estructura_datos?.correo ||
-                        getDisplayValue(solicitud.lugar_expedicion, 'Sin Email')
+                        getDisplayValue(solicitud.candidatos?.email, 'Sin Email')
                       }
                     </span>
                   </div>

@@ -62,6 +62,7 @@ const createDefaultField = (): FormField => ({
   id: uuidv4(),
   type: 'text',
   label: '',
+  nombre: '', // Se generará automáticamente cuando se escriba el label
   placeholder: '',
   required: false,
   order: 1,
@@ -167,7 +168,9 @@ const FormBuilder: React.FC<{
             };
           })
         }));
-        setSections(processedSections);
+        // Aplicar corrección de nombres duplicados
+        const fixedSections = fixDuplicateNames(processedSections);
+        setSections(fixedSections);
       } else {
         // Migración: convertir campos planos a una sección por defecto
         const camposActivos = dataToProcess.filter((f: any) => f.activo !== false);
@@ -180,7 +183,9 @@ const FormBuilder: React.FC<{
             activo: f.activo !== false,
             order: f.order || 1
           }));
-          setSections([defaultSection]);
+          // Aplicar corrección de nombres duplicados
+          const fixedSections = fixDuplicateNames([defaultSection]);
+          setSections(fixedSections);
         }
       }
     } else {
@@ -249,6 +254,67 @@ const FormBuilder: React.FC<{
     }
   }, [sections, onFieldsChange, isInitialized]);
 
+  // Función para generar nombre automático basado en el label
+  const generateFieldName = (label: string): string => {
+    return label
+      .trim()
+      // Convertir tildes y caracteres especiales
+      .replace(/á/g, 'a')
+      .replace(/é/g, 'e')
+      .replace(/í/g, 'i')
+      .replace(/ó/g, 'o')
+      .replace(/ú/g, 'u')
+      .replace(/ñ/g, 'n')
+      .replace(/Á/g, 'a')
+      .replace(/É/g, 'e')
+      .replace(/Í/g, 'i')
+      .replace(/Ó/g, 'o')
+      .replace(/Ú/g, 'u')
+      .replace(/Ñ/g, 'n')
+      // Convertir a minúsculas
+      .toLowerCase()
+      // Remover caracteres especiales que no sean letras, números o espacios
+      .replace(/[^a-z0-9\s]/g, '')
+      // Reemplazar espacios con guiones bajos
+      .replace(/\s+/g, '_')
+      // Reemplazar múltiples guiones bajos con uno solo
+      .replace(/_{2,}/g, '_')
+      // Remover guiones bajos al inicio y final
+      .replace(/^_|_$/g, '');
+  };
+
+  // Función para corregir nombres duplicados en una plantilla
+  const fixDuplicateNames = (sections: FormSection[]): FormSection[] => {
+    const usedNames = new Set<string>();
+    
+    return sections.map(section => ({
+      ...section,
+      campos: section.campos.map(field => {
+        let finalName = field.nombre || '';
+        
+        // Si no tiene nombre o está vacío, generarlo del label
+        if (!finalName && field.label) {
+          finalName = generateFieldName(field.label);
+        }
+        
+        // Si el nombre ya está en uso, agregar un sufijo numérico
+        let counter = 1;
+        let uniqueName = finalName;
+        while (usedNames.has(uniqueName)) {
+          uniqueName = `${finalName}_${counter}`;
+          counter++;
+        }
+        
+        usedNames.add(uniqueName);
+        
+        return {
+          ...field,
+          nombre: uniqueName
+        };
+      })
+    }));
+  };
+
   const handleFieldChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     let newValue: any = value;
@@ -273,10 +339,20 @@ const FormBuilder: React.FC<{
       }
     }
 
-    setCurrentField(f => ({
-      ...f,
-      [name]: newValue,
-    }));
+    // Si se está cambiando el label, generar automáticamente el nombre
+    if (name === 'label' && value) {
+      const generatedName = generateFieldName(value);
+      setCurrentField(f => ({
+        ...f,
+        [name]: newValue,
+        nombre: generatedName, // Generar nombre automáticamente
+      }));
+    } else {
+      setCurrentField(f => ({
+        ...f,
+        [name]: newValue,
+      }));
+    }
   };
 
   const handleSectionChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -357,7 +433,14 @@ const FormBuilder: React.FC<{
   const selectField = (sectionIdx: number, fieldIdx: number) => {
     setSelectedSectionIdx(sectionIdx);
     setSelectedFieldIdx(fieldIdx);
-    setCurrentField({ ...sections[sectionIdx].campos[fieldIdx] });
+    const field = { ...sections[sectionIdx].campos[fieldIdx] };
+    
+    // Si el campo no tiene nombre o está vacío, generarlo automáticamente basado en el label
+    if (!field.nombre && field.label) {
+      field.nombre = generateFieldName(field.label);
+    }
+    
+    setCurrentField(field);
     setActiveTab("campo"); // Cambiar al tab de edición de campo
   };
 
@@ -1556,9 +1639,22 @@ const FormBuilder: React.FC<{
           </div>
         </div>
 
-        {/* Botón de guardar */}
+        {/* Botones de acción */}
         {!hideInternalSaveButton && (
-          <div className="flex justify-end mb-6">
+          <div className="flex justify-between mb-6">
+            {/* Botón para corregir nombres duplicados */}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                const fixedSections = fixDuplicateNames(sections);
+                setSections(fixedSections);
+              }}
+              className="flex items-center gap-2"
+            >
+              <Edit3 className="w-4 h-4" />
+              Corregir Nombres Duplicados
+            </Button>
             <button
               type="button"
               onClick={async () => {
