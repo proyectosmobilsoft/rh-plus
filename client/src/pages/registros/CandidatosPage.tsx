@@ -30,7 +30,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { User, Search, Plus, Edit, Trash2, FileText, Download, Eye, Filter, Lock, CheckCircle } from 'lucide-react';
+import { User, Search, Plus, Edit, Trash2, FileText, Download, Eye, Filter, Lock, CheckCircle, FolderOpen } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { candidatosService, type DocumentoCandidato } from '@/services/candidatosService';
 import { useCompanies } from '@/hooks/useCompanies';
@@ -42,6 +42,7 @@ import { supabase } from '@/services/supabaseClient';
 import { useTiposCandidatos } from '@/hooks/useTiposCandidatos';
 import { useNavigate } from 'react-router-dom';
 import { Can } from "@/contexts/PermissionsContext";
+import DocumentosCandidatoViewer from '@/components/candidatos/DocumentosCandidatoViewer';
 
 interface Candidato {
   id: number;
@@ -87,6 +88,10 @@ const CandidatosPage = () => {
   const [buscandoCandidato, setBuscandoCandidato] = useState(false);
   const [modalConfirmacionOpen, setModalConfirmacionOpen] = useState(false);
   const [candidatoAEliminar, setCandidatoAEliminar] = useState<any>(null);
+  
+  // Estados para el modal de documentos
+  const [modalDocumentosCandidatoOpen, setModalDocumentosCandidatoOpen] = useState(false);
+  const [candidatoSeleccionado, setCandidatoSeleccionado] = useState<any>(null);
 
   // Hooks
   const { data: empresasData = [], isLoading: loadingEmpresas } = useCompanies('empresa');
@@ -169,6 +174,12 @@ const CandidatosPage = () => {
   const confirmarEliminacion = (candidato: any) => {
     setCandidatoAEliminar(candidato);
     setModalConfirmacionOpen(true);
+  };
+
+  // Función para abrir el modal de documentos del candidato
+  const handleVerDocumentos = (candidato: any) => {
+    setCandidatoSeleccionado(candidato);
+    setModalDocumentosCandidatoOpen(true);
   };
 
   // Función para descargar documento
@@ -682,6 +693,29 @@ const CandidatosPage = () => {
                                 </Tooltip>
                               </TooltipProvider>
                             </Can>
+                            
+                            {/* Botón para ver documentos */}
+                            <Can action="ver_documentos_candidatos">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleVerDocumentos(candidato)}
+                                      aria-label="Ver documentos del candidato"
+                                      className="h-8 w-8"
+                                    >
+                                      <FolderOpen className="h-4 w-4 text-blue-600 hover:text-blue-800 transition-colors" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Ver Documentos</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </Can>
+                            
                             {candidato.activo ? (
                               <Can action="accion-inactivar-candidato">
                                 <AlertDialog>
@@ -1147,6 +1181,19 @@ const CandidatosPage = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Modal para visualizar documentos del candidato */}
+      {candidatoSeleccionado && (
+        <DocumentosCandidatoViewer
+          candidatoId={candidatoSeleccionado.id}
+          candidatoNombre={`${candidatoSeleccionado.primer_nombre} ${candidatoSeleccionado.segundo_nombre || ''} ${candidatoSeleccionado.primer_apellido} ${candidatoSeleccionado.segundo_apellido || ''}`.trim()}
+          isOpen={modalDocumentosCandidatoOpen}
+          onClose={() => {
+            setModalDocumentosCandidatoOpen(false);
+            setCandidatoSeleccionado(null);
+          }}
+        />
+      )}
     </div>
   );
 };

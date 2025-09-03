@@ -67,6 +67,7 @@ export type Permission =
   | "crear_candidatos"
   | "editar_candidatos"
   | "eliminar_candidatos"
+  | "ver_documentos_candidatos"
   | "ver_informacion_personal"
   | "editar_informacion_personal";
 
@@ -134,6 +135,7 @@ export const rolePermissions: Record<UserRole, Permission[]> = {
     "crear_candidatos",
     "editar_candidatos",
     "eliminar_candidatos",
+    "ver_documentos_candidatos",
 
     // Nueva Plantilla (Galería)
     "ver_galeria_formularios"
@@ -158,6 +160,7 @@ export const rolePermissions: Record<UserRole, Permission[]> = {
     
     // Candidatos - solo visualización
     "ver_candidatos",
+    "ver_documentos_candidatos",
     
     // Clientes - solo visualización
     "ver_clientes",
@@ -176,6 +179,7 @@ export const rolePermissions: Record<UserRole, Permission[]> = {
     "ver_candidatos",
     "crear_candidatos",
     "editar_candidatos",
+    "ver_documentos_candidatos",
     
     // Órdenes - solo ver sus órdenes
     "ver_ordenes",
