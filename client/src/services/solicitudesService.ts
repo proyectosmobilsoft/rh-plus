@@ -100,6 +100,8 @@ export const solicitudesService = {
     try {
       // Obtener la empresa seleccionada del localStorage
       let empresaId: number | undefined;
+      let analistaId: number | undefined;
+      
       try {
         const empresaData = localStorage.getItem('empresaData');
         if (empresaData) {
@@ -111,6 +113,20 @@ export const solicitudesService = {
         }
       } catch (error) {
         console.warn("Error al obtener empresa del localStorage:", error);
+      }
+
+      // Obtener el analista autenticado del localStorage
+      try {
+        const userData = localStorage.getItem('userData');
+        if (userData) {
+          const user = JSON.parse(userData);
+          analistaId = user.id;
+          console.log("👤 Filtrando solicitudes por analista:", user.username, "ID:", analistaId);
+        } else {
+          console.log("👤 No hay usuario autenticado, mostrando todas las solicitudes");
+        }
+      } catch (error) {
+        console.warn("Error al obtener usuario del localStorage:", error);
       }
 
       // Construir la consulta base
@@ -139,9 +155,25 @@ export const solicitudesService = {
         `
         );
 
-      // Aplicar filtro por empresa si existe
+      // Aplicar filtros según la lógica de negocio
+      // PRIORIDAD 1: Empresa (siempre filtrar por empresa si existe)
+      // PRIORIDAD 2: Analista (filtrar adicionalmente por analista si existe userData)
+      
       if (empresaId) {
+        // SIEMPRE filtrar por empresa si existe
         query = query.eq('empresa_id', empresaId);
+        console.log("🏢 Filtrando por empresa:", empresaId);
+        
+        if (analistaId) {
+          // Si además hay usuario autenticado, filtrar también por analista
+          query = query.eq('analista_id', analistaId);
+          console.log("👤 Filtrando adicionalmente por analista:", analistaId);
+        } else {
+          console.log("🏢 Mostrando todas las solicitudes de la empresa");
+        }
+      } else {
+        // Solo si NO hay empresa: modo admin (mostrar todas las solicitudes)
+        console.log("🔓 Modo admin: no hay empresa, mostrando todas las solicitudes");
       }
 
       const { data, error } = await query.order("created_at", { ascending: false });
@@ -201,6 +233,8 @@ export const solicitudesService = {
     try {
       // Obtener la empresa seleccionada del localStorage
       let empresaId: number | undefined;
+      let analistaId: number | undefined;
+      
       try {
         const empresaData = localStorage.getItem('empresaData');
         if (empresaData) {
@@ -212,6 +246,20 @@ export const solicitudesService = {
         }
       } catch (error) {
         console.warn("Error al obtener empresa del localStorage:", error);
+      }
+
+      // Obtener el analista autenticado del localStorage
+      try {
+        const userData = localStorage.getItem('userData');
+        if (userData) {
+          const user = JSON.parse(userData);
+          analistaId = user.id;
+          console.log("👤 Filtrando solicitudes por estado y analista:", estado, user.username, "ID:", analistaId);
+        } else {
+          console.log("👤 No hay usuario autenticado, mostrando todas las solicitudes del estado:", estado);
+        }
+      } catch (error) {
+        console.warn("Error al obtener usuario del localStorage:", error);
       }
 
       // Construir la consulta base
@@ -241,9 +289,25 @@ export const solicitudesService = {
         )
         .eq("estado", estado);
 
-      // Aplicar filtro por empresa si existe
+      // Aplicar filtros según la lógica de negocio
+      // PRIORIDAD 1: Empresa (siempre filtrar por empresa si existe)
+      // PRIORIDAD 2: Analista (filtrar adicionalmente por analista si existe userData)
+      
       if (empresaId) {
+        // SIEMPRE filtrar por empresa si existe
         query = query.eq('empresa_id', empresaId);
+        console.log("🏢 Filtrando por empresa:", empresaId, "del estado:", estado);
+        
+        if (analistaId) {
+          // Si además hay usuario autenticado, filtrar también por analista
+          query = query.eq('analista_id', analistaId);
+          console.log("👤 Filtrando adicionalmente por analista:", analistaId, "del estado:", estado);
+        } else {
+          console.log("🏢 Mostrando todas las solicitudes de la empresa del estado:", estado);
+        }
+      } else {
+        // Solo si NO hay empresa: modo admin (mostrar todas las solicitudes del estado)
+        console.log("🔓 Modo admin: no hay empresa, mostrando todas las solicitudes del estado:", estado);
       }
 
       const { data, error } = await query.order("created_at", { ascending: false });
