@@ -27,6 +27,7 @@ const PlantillasPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState("listado");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("active");
+  const [empresaAutenticada, setEmpresaAutenticada] = useState<string>("");
   
   // Estados para modales de confirmación
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -34,6 +35,17 @@ const PlantillasPage: React.FC = () => {
   const [showDeactivateModal, setShowDeactivateModal] = useState(false);
   const [showDefaultModal, setShowDefaultModal] = useState(false);
   const [templateToAction, setTemplateToAction] = useState<Plantilla | null>(null);
+
+  // Obtener nombre de la empresa del localStorage
+  React.useEffect(() => {
+    const empresaData = localStorage.getItem('empresaData');
+    if (empresaData) {
+      const empresa = JSON.parse(empresaData);
+      setEmpresaAutenticada(empresa.nombre || 'Empresa');
+    } else {
+      setEmpresaAutenticada('Sistema');
+    }
+  }, []);
 
   // Cargar plantillas desde Supabase
   React.useEffect(() => {
@@ -406,12 +418,13 @@ const PlantillasPage: React.FC = () => {
                   </Can>
                 </div>
               ) : (
-                <Table className="min-w-[800px] w-full text-xs">
+                <Table className="min-w-[1000px] w-full text-xs">
                   <TableHeader className="bg-cyan-50">
                     <TableRow className="text-left font-semibold text-gray-700">
                       <TableHead className="px-2 py-1 text-teal-600">Acciones</TableHead>
                       <TableHead className="px-4 py-3">Nombre</TableHead>
                       <TableHead className="px-4 py-3">Descripción</TableHead>
+                      <TableHead className="px-4 py-3">Empresa</TableHead>
                       <TableHead className="px-4 py-3">Estado</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -615,6 +628,9 @@ const PlantillasPage: React.FC = () => {
                         </TableCell>
                         <TableCell className="px-4 py-3 text-sm text-gray-500">
                           {template.descripcion || "Sin descripción"}
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-sm text-gray-500">
+                          {template.empresa_nombre || 'Sin empresa'}
                         </TableCell>
                         <TableCell className="px-4 py-3">
                           <Badge 

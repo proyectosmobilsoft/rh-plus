@@ -22,21 +22,64 @@ export interface Plantilla {
   estructura_formulario?: any;
   es_default?: boolean;
   activa?: boolean;
+  id_empresa?: number;
+  empresa_nombre?: string; // Nombre de la empresa asociada
   created_at?: string;
   updated_at?: string;
 }
 
 /**
- * Obtiene todas las plantillas de solicitudes
+ * Obtiene todas las plantillas de solicitudes filtradas por empresa autenticada
+ * Si no hay empresa en localStorage, muestra todas las plantillas
  */
 export const getAllPlantillas = async (): Promise<Plantilla[]> => {
   const { startLoading, stopLoading } = getLoadingContext();
   
   try {
     startLoading();
+    
+    // Obtener datos de la empresa del localStorage
+    const empresaData = localStorage.getItem('empresaData');
+    
+    if (!empresaData) {
+      console.log('🔍 No se encontraron datos de empresa en localStorage, mostrando todas las plantillas');
+      
+      // Si no hay empresa, mostrar todas las plantillas con JOIN a empresas
+      const { data, error } = await supabase
+        .from('plantillas_solicitudes')
+        .select(`
+          *,
+          empresas!fk_plantillas_solicitudes_empresa(razon_social)
+        `)
+        .order('nombre');
+
+      if (error) {
+        console.error('Error al obtener todas las plantillas:', error);
+        return [];
+      }
+
+      // Mapear los datos para incluir el nombre de la empresa
+      const plantillasConEmpresa = data?.map(plantilla => ({
+        ...plantilla,
+        empresa_nombre: plantilla.empresas?.razon_social || 'Sin empresa'
+      })) || [];
+
+      console.log('✅ Todas las plantillas obtenidas:', plantillasConEmpresa?.length || 0);
+      return plantillasConEmpresa;
+    }
+    
+    const empresa = JSON.parse(empresaData);
+    const empresaId = empresa.id;
+    
+    console.log('🔍 Obteniendo plantillas para empresa ID:', empresaId);
+    
     const { data, error } = await supabase
       .from('plantillas_solicitudes')
-      .select('*')
+      .select(`
+        *,
+        empresas!fk_plantillas_solicitudes_empresa(razon_social)
+      `)
+      .eq('id_empresa', empresaId)
       .order('nombre');
 
     if (error) {
@@ -44,7 +87,14 @@ export const getAllPlantillas = async (): Promise<Plantilla[]> => {
       return [];
     }
 
-    return data || [];
+    // Mapear los datos para incluir el nombre de la empresa
+    const plantillasConEmpresa = data?.map(plantilla => ({
+      ...plantilla,
+      empresa_nombre: plantilla.empresas?.razon_social || 'Sin empresa'
+    })) || [];
+
+    console.log('✅ Plantillas obtenidas:', plantillasConEmpresa?.length || 0);
+    return plantillasConEmpresa;
   } catch (error) {
     console.error('Error en getAllPlantillas:', error);
     return [];
@@ -244,9 +294,30 @@ export const createPlantilla = async (plantilla: Partial<Plantilla>): Promise<Pl
   
   try {
     startLoading();
+    
+    // Obtener datos de la empresa del localStorage
+    const empresaData = localStorage.getItem('empresaData');
+    
+    let plantillaConEmpresa = { ...plantilla };
+    
+    if (empresaData) {
+      const empresa = JSON.parse(empresaData);
+      const empresaId = empresa.id;
+      
+      console.log('📝 Creando plantilla para empresa ID:', empresaId);
+      
+      // Agregar el id_empresa a la plantilla
+      plantillaConEmpresa = {
+        ...plantilla,
+        id_empresa: empresaId
+      };
+    } else {
+      console.log('📝 Creando plantilla sin empresa específica (modo administrador)');
+    }
+    
     const { data, error } = await supabase
       .from('plantillas_solicitudes')
-      .insert([plantilla])
+      .insert([plantillaConEmpresa])
       .select()
       .single();
     
@@ -255,6 +326,7 @@ export const createPlantilla = async (plantilla: Partial<Plantilla>): Promise<Pl
       return null;
     }
     
+    console.log('✅ Plantilla creada exitosamente:', data);
     return data;
   } catch (error) {
     console.error('Error en createPlantilla:', error);
@@ -272,18 +344,47 @@ export const updatePlantilla = async (id: number, plantilla: Partial<Plantilla>)
   
   try {
     startLoading();
-    const { data, error } = await supabase
+    
+    // Obtener datos de la empresa del localStorage
+    const empresaData = localStorage.getItem('empresaData');
+    
+    let plantillaConEmpresa = {
+      ...plantilla,
+      updated_at: new Date().toISOString()
+    };
+    
+    let query = supabase
       .from('plantillas_solicitudes')
-      .update({ ...plantilla, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single();
+      .update(plantillaConEmpresa)
+      .eq('id', id);
+    
+    if (empresaData) {
+      const empresa = JSON.parse(empresaData);
+      const empresaId = empresa.id;
+      
+      console.log('📝 Actualizando plantilla ID:', id, 'para empresa ID:', empresaId);
+      
+      // Agregar el id_empresa a la plantilla
+      plantillaConEmpresa = {
+        ...plantilla,
+        id_empresa: empresaId,
+        updated_at: new Date().toISOString()
+      };
+      
+      // Asegurar que solo se actualice si pertenece a la empresa
+      query = query.eq('id_empresa', empresaId);
+    } else {
+      console.log('📝 Actualizando plantilla ID:', id, 'sin restricción de empresa (modo administrador)');
+    }
+    
+    const { data, error } = await query.select().single();
     
     if (error) {
       console.error('Error al actualizar plantilla:', error);
       return null;
     }
     
+    console.log('✅ Plantilla actualizada exitosamente:', data);
     return data;
   } catch (error) {
     console.error('Error en updatePlantilla:', error);
@@ -301,16 +402,35 @@ export const deletePlantilla = async (id: number): Promise<boolean> => {
   
   try {
     startLoading();
-    const { error } = await supabase
+    
+    // Obtener datos de la empresa del localStorage
+    const empresaData = localStorage.getItem('empresaData');
+    
+    let query = supabase
       .from('plantillas_solicitudes')
       .delete()
       .eq('id', id);
+    
+    if (empresaData) {
+      const empresa = JSON.parse(empresaData);
+      const empresaId = empresa.id;
+      
+      console.log('🗑️ Eliminando plantilla ID:', id, 'de empresa ID:', empresaId);
+      
+      // Solo eliminar si pertenece a la empresa
+      query = query.eq('id_empresa', empresaId);
+    } else {
+      console.log('🗑️ Eliminando plantilla ID:', id, 'sin restricción de empresa (modo administrador)');
+    }
+    
+    const { error } = await query;
     
     if (error) {
       console.error('Error al eliminar plantilla:', error);
       return false;
     }
     
+    console.log('✅ Plantilla eliminada exitosamente');
     return true;
   } catch (error) {
     console.error('Error en deletePlantilla:', error);
@@ -329,13 +449,28 @@ export const activatePlantilla = async (id: number): Promise<boolean> => {
   
   try {
     startLoading();
-    console.log('📝 Actualizando plantilla con ID:', id, 'a activa: true');
     
-    const { data, error } = await supabase
+    // Obtener datos de la empresa del localStorage
+    const empresaData = localStorage.getItem('empresaData');
+    
+    let query = supabase
       .from('plantillas_solicitudes')
       .update({ activa: true, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select();
+      .eq('id', id);
+    
+    if (empresaData) {
+      const empresa = JSON.parse(empresaData);
+      const empresaId = empresa.id;
+      
+      console.log('📝 Activando plantilla ID:', id, 'para empresa ID:', empresaId);
+      
+      // Solo activar si pertenece a la empresa
+      query = query.eq('id_empresa', empresaId);
+    } else {
+      console.log('📝 Activando plantilla ID:', id, 'sin restricción de empresa (modo administrador)');
+    }
+    
+    const { data, error } = await query.select();
     
     console.log('📊 Respuesta de Supabase:', { data, error });
     
@@ -363,13 +498,28 @@ export const deactivatePlantilla = async (id: number): Promise<boolean> => {
   
   try {
     startLoading();
-    console.log('📝 Actualizando plantilla con ID:', id, 'a activa: false');
     
-    const { data, error } = await supabase
+    // Obtener datos de la empresa del localStorage
+    const empresaData = localStorage.getItem('empresaData');
+    
+    let query = supabase
       .from('plantillas_solicitudes')
       .update({ activa: false, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select();
+      .eq('id', id);
+    
+    if (empresaData) {
+      const empresa = JSON.parse(empresaData);
+      const empresaId = empresa.id;
+      
+      console.log('📝 Inactivando plantilla ID:', id, 'para empresa ID:', empresaId);
+      
+      // Solo inactivar si pertenece a la empresa
+      query = query.eq('id_empresa', empresaId);
+    } else {
+      console.log('📝 Inactivando plantilla ID:', id, 'sin restricción de empresa (modo administrador)');
+    }
+    
+    const { data, error } = await query.select();
     
     console.log('📊 Respuesta de Supabase:', { data, error });
     
@@ -390,7 +540,7 @@ export const deactivatePlantilla = async (id: number): Promise<boolean> => {
 
 /**
  * Establece una plantilla como predeterminada
- * Primero remueve el estado de predeterminada de todas las plantillas
+ * Primero remueve el estado de predeterminada de todas las plantillas de la empresa
  * Luego establece la plantilla especificada como predeterminada
  */
 export const setDefaultPlantilla = async (id: number): Promise<boolean> => {
@@ -400,30 +550,66 @@ export const setDefaultPlantilla = async (id: number): Promise<boolean> => {
   try {
     startLoading();
     
-    console.log('📝 Removiendo estado predeterminada de todas las plantillas...');
-    // Primero, remover el estado de predeterminada de todas las plantillas
-    const { error: errorRemoveDefault } = await supabase
-      .from('plantillas_solicitudes')
-      .update({ es_default: false, updated_at: new Date().toISOString() })
-      .eq('es_default', true);
+    // Obtener datos de la empresa del localStorage
+    const empresaData = localStorage.getItem('empresaData');
     
-    if (errorRemoveDefault) {
-      console.error('❌ Error al remover estado predeterminada:', errorRemoveDefault);
-      return false;
-    }
-    
-    console.log('✅ Estado predeterminada removido de todas las plantillas');
-    
-    console.log('📝 Estableciendo plantilla con ID:', id, 'como predeterminada...');
-    // Luego, establecer la plantilla especificada como predeterminada
-    const { error: errorSetDefault } = await supabase
-      .from('plantillas_solicitudes')
-      .update({ es_default: true, updated_at: new Date().toISOString() })
-      .eq('id', id);
-    
-    if (errorSetDefault) {
-      console.error('❌ Error al establecer plantilla como predeterminada:', errorSetDefault);
-      return false;
+    if (empresaData) {
+      const empresa = JSON.parse(empresaData);
+      const empresaId = empresa.id;
+      
+      console.log('📝 Removiendo estado predeterminada de todas las plantillas de la empresa ID:', empresaId);
+      // Primero, remover el estado de predeterminada de todas las plantillas de la empresa
+      const { error: errorRemoveDefault } = await supabase
+        .from('plantillas_solicitudes')
+        .update({ es_default: false, updated_at: new Date().toISOString() })
+        .eq('es_default', true)
+        .eq('id_empresa', empresaId);
+      
+      if (errorRemoveDefault) {
+        console.error('❌ Error al remover estado predeterminada:', errorRemoveDefault);
+        return false;
+      }
+      
+      console.log('✅ Estado predeterminada removido de todas las plantillas de la empresa');
+      
+      console.log('📝 Estableciendo plantilla con ID:', id, 'como predeterminada para empresa ID:', empresaId);
+      // Luego, establecer la plantilla especificada como predeterminada
+      const { error: errorSetDefault } = await supabase
+        .from('plantillas_solicitudes')
+        .update({ es_default: true, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .eq('id_empresa', empresaId); // Solo establecer como predeterminada si pertenece a la empresa
+      
+      if (errorSetDefault) {
+        console.error('❌ Error al establecer plantilla como predeterminada:', errorSetDefault);
+        return false;
+      }
+    } else {
+      console.log('📝 Removiendo estado predeterminada de todas las plantillas (modo administrador)');
+      // Primero, remover el estado de predeterminada de todas las plantillas
+      const { error: errorRemoveDefault } = await supabase
+        .from('plantillas_solicitudes')
+        .update({ es_default: false, updated_at: new Date().toISOString() })
+        .eq('es_default', true);
+      
+      if (errorRemoveDefault) {
+        console.error('❌ Error al remover estado predeterminada:', errorRemoveDefault);
+        return false;
+      }
+      
+      console.log('✅ Estado predeterminada removido de todas las plantillas');
+      
+      console.log('📝 Estableciendo plantilla con ID:', id, 'como predeterminada (modo administrador)');
+      // Luego, establecer la plantilla especificada como predeterminada
+      const { error: errorSetDefault } = await supabase
+        .from('plantillas_solicitudes')
+        .update({ es_default: true, updated_at: new Date().toISOString() })
+        .eq('id', id);
+      
+      if (errorSetDefault) {
+        console.error('❌ Error al establecer plantilla como predeterminada:', errorSetDefault);
+        return false;
+      }
     }
     
     console.log('✅ Plantilla establecida como predeterminada exitosamente');

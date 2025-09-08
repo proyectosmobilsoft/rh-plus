@@ -19,11 +19,11 @@ interface SolicitudesListProps {
   onEdit: (solicitud: Solicitud) => void;
   onView: (solicitud: Solicitud) => void;
   onApprove: (id: number) => void;
-  onContact: (id: number) => void;
+  onContact: (id: number, observacion: string) => void;
   onStandBy: (id: number, observacion: string) => void;
   onReactivate: (id: number) => void;
-  onDeserto: (id: number) => void;
-  onCancel: (id: number) => void;
+  onDeserto: (id: number, observacion: string) => void;
+  onCancel: (id: number, observacion: string) => void;
   onAssign: (id: number, analistaId: number) => void;
   isLoading?: boolean;
 }
@@ -61,6 +61,9 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   const [selectedSolicitudId, setSelectedSolicitudId] = useState<number | null>(null);
   const [contactingSolicitudId, setContactingSolicitudId] = useState<number | null>(null);
   const [standByObservacion, setStandByObservacion] = useState('');
+  const [contactObservacion, setContactObservacion] = useState('');
+  const [desertoObservacion, setDesertoObservacion] = useState('');
+  const [cancelObservacion, setCancelObservacion] = useState('');
   const [solicitudesStandBy, setSolicitudesStandBy] = useState<Map<number, string>>(new Map());
   const [reactivatingSolicitudId, setReactivatingSolicitudId] = useState<number | null>(null);
   const [desertoSolicitudId, setDesertoSolicitudId] = useState<number | null>(null);
@@ -542,16 +545,17 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   };
 
   const handleContactConfirm = async () => {
-    if (selectedSolicitudId) {
+    if (selectedSolicitudId && contactObservacion.trim()) {
       console.log('🔍 handleContactConfirm llamado para solicitud ID:', selectedSolicitudId);
       console.log('🔍 Llamando a startLoading()...');
       startLoading(); // Activar loading global
-      console.log('🔍 Llamando a onContact con ID:', selectedSolicitudId);
-      onContact(selectedSolicitudId);
+      console.log('🔍 Llamando a onContact con ID:', selectedSolicitudId, 'y observación:', contactObservacion);
+      onContact(selectedSolicitudId, contactObservacion);
       console.log('🔍 onContact ejecutado');
 
       setConfirmContactOpen(false);
       setSelectedSolicitudId(null);
+      setContactObservacion('');
       // NO limpiar contactingSolicitudId aquí, se limpiará cuando se complete la operación
       // El loading se detendrá cuando se complete la operación en el componente padre
     }
@@ -631,16 +635,17 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   };
 
   const handleDesertoConfirm = () => {
-    if (selectedSolicitudId) {
+    if (selectedSolicitudId && desertoObservacion.trim()) {
       console.log('🔍 handleDesertoConfirm llamado para solicitud ID:', selectedSolicitudId);
       console.log('🔍 Llamando a startLoading()...');
       startLoading(); // Activar loading global
-      console.log('🔍 Llamando a onDeserto con ID:', selectedSolicitudId);
-      onDeserto(selectedSolicitudId);
+      console.log('🔍 Llamando a onDeserto con ID:', selectedSolicitudId, 'y observación:', desertoObservacion);
+      onDeserto(selectedSolicitudId, desertoObservacion);
       console.log('🔍 onDeserto ejecutado');
 
       setConfirmDesertoOpen(false);
       setSelectedSolicitudId(null);
+      setDesertoObservacion('');
       // NO limpiar desertoSolicitudId aquí, se limpiará cuando se complete la operación
       // El loading se detendrá cuando se complete la operación en el componente padre
     }
@@ -695,17 +700,18 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   };
 
   const handleCancelConfirm = () => {
-    if (selectedSolicitudId) {
+    if (selectedSolicitudId && cancelObservacion.trim()) {
       console.log('🔍 handleCancelConfirm llamado para solicitud ID:', selectedSolicitudId);
       console.log('🔍 Llamando a startLoading()...');
       startLoading(); // Activar loading global
-      console.log('🔍 Llamando a onCancel con ID:', selectedSolicitudId);
-      onCancel(selectedSolicitudId);
+      console.log('🔍 Llamando a onCancel con ID:', selectedSolicitudId, 'y observación:', cancelObservacion);
+      onCancel(selectedSolicitudId, cancelObservacion);
       console.log('🔍 onCancel ejecutado');
 
       setConfirmCancelOpen(false);
       setSelectedSolicitudId(null);
       setCancelingSolicitudId(null);
+      setCancelObservacion('');
       // NO limpiar cancelingSolicitudId aquí, se limpiará cuando se complete la operación
       // El loading se detendrá cuando se complete la operación en el componente padre
     }
@@ -980,7 +986,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
       {/* Confirmación de contacto */}
       <AlertDialog open={confirmContactOpen} onOpenChange={setConfirmContactOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle>¿Marcar como contactado?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -991,16 +997,34 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
               </span>
             </AlertDialogDescription>
           </AlertDialogHeader>
+
+          <div className="py-4">
+            <label htmlFor="contactObservacion" className="block text-sm font-medium text-gray-700 mb-2">
+              Observación (requerida)
+            </label>
+            <Textarea
+              id="contactObservacion"
+              value={contactObservacion}
+              onChange={(e) => setContactObservacion(e.target.value)}
+              placeholder="Ingrese detalles del contacto realizado..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              rows={4}
+              required
+            />
+          </div>
+
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => {
               setConfirmContactOpen(false);
               setContactingSolicitudId(null);
+              setContactObservacion('');
             }}>
               Cancelar
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleContactConfirm}
               className="bg-blue-600 hover:bg-blue-700"
+              disabled={!contactObservacion.trim()}
             >
               Confirmar Contacto
             </AlertDialogAction>
@@ -1079,7 +1103,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
       {/* Confirmación de Deserto */}
       <AlertDialog open={confirmDesertoOpen} onOpenChange={setConfirmDesertoOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle>¿Marcar como Deserto?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -1090,11 +1114,32 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
               </span>
             </AlertDialogDescription>
           </AlertDialogHeader>
+
+          <div className="py-4">
+            <label htmlFor="desertoObservacion" className="block text-sm font-medium text-gray-700 mb-2">
+              Observación (requerida)
+            </label>
+            <Textarea
+              id="desertoObservacion"
+              value={desertoObservacion}
+              onChange={(e) => setDesertoObservacion(e.target.value)}
+              placeholder="Ingrese la razón por la cual se marca como deserto..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+              rows={4}
+              required
+            />
+          </div>
+
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => {
+              setDesertoObservacion('');
+            }}>
+              Cancelar
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDesertoConfirm}
               className="bg-red-600 hover:bg-red-700"
+              disabled={!desertoObservacion.trim()}
             >
               Marcar como Deserto
             </AlertDialogAction>
@@ -1211,7 +1256,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
       {/* Confirmación de Cancelación */}
       <AlertDialog open={confirmCancelOpen} onOpenChange={setConfirmCancelOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle>¿Cancelar solicitud?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -1222,16 +1267,34 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
               </span>
             </AlertDialogDescription>
           </AlertDialogHeader>
+
+          <div className="py-4">
+            <label htmlFor="cancelObservacion" className="block text-sm font-medium text-gray-700 mb-2">
+              Observación (requerida)
+            </label>
+            <Textarea
+              id="cancelObservacion"
+              value={cancelObservacion}
+              onChange={(e) => setCancelObservacion(e.target.value)}
+              placeholder="Ingrese la razón por la cual se cancela la solicitud..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+              rows={4}
+              required
+            />
+          </div>
+
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => {
               setConfirmCancelOpen(false);
               setCancelingSolicitudId(null);
+              setCancelObservacion('');
             }}>
               No Cancelar
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleCancelConfirm}
               className="bg-red-600 hover:bg-red-700"
+              disabled={!cancelObservacion.trim()}
             >
               Sí, Cancelar
             </AlertDialogAction>

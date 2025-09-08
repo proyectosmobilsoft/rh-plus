@@ -165,10 +165,10 @@ const ExpedicionOrdenPage = () => {
     }
   };
 
-  const handleContact = async (id: number) => {
+  const handleContact = async (id: number, observacion: string) => {
     setIsLoading(true);
     try {
-      const success = await solicitudesService.contact(id, 'Solicitud contactada por el usuario');
+      const success = await solicitudesService.contact(id, observacion);
       if (success) {
         toast.success('Solicitud marcada como contactada');
         fetchSolicitudes(); // Recargar la lista
@@ -201,10 +201,10 @@ const ExpedicionOrdenPage = () => {
      }
    };
 
-     const handleDeserto = async (id: number) => {
+     const handleDeserto = async (id: number, observacion: string) => {
     setIsLoading(true);
     try {
-      const success = await solicitudesService.updateStatus(id, 'DESERTO', 'Solicitud marcada como deserto por el usuario');
+      const success = await solicitudesService.updateStatus(id, 'DESERTO', observacion);
       if (success) {
         toast.success('Solicitud marcada como deserto exitosamente');
         fetchSolicitudes(); // Recargar la lista
@@ -219,10 +219,10 @@ const ExpedicionOrdenPage = () => {
     }
   };
 
-  const handleCancel = async (id: number) => {
+  const handleCancel = async (id: number, observacion: string) => {
     setIsLoading(true);
     try {
-      const success = await solicitudesService.updateStatus(id, 'CANCELADA', 'Solicitud cancelada por el usuario');
+      const success = await solicitudesService.updateStatus(id, 'CANCELADA', observacion);
       if (success) {
         toast.success('Solicitud cancelada exitosamente');
         fetchSolicitudes(); // Recargar la lista

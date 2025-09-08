@@ -2114,45 +2114,69 @@ export default function UbicacionesPage() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-5 bg-cyan-100/60 p-1 rounded-lg">
-          <TabsTrigger
-            value="paises"
-            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
-          >
-            <Globe className="w-4 h-4 mr-2" />
-            Países
-          </TabsTrigger>
-          <TabsTrigger
-            value="departamentos"
-            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
-          >
-            <MapPin className="w-4 h-4 mr-2" />
-            Departamentos
-          </TabsTrigger>
-          <TabsTrigger
-            value="regionales"
-            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
-          >
-            <Users className="w-4 h-4 mr-2" />
-            Regionales
-          </TabsTrigger>
-          <TabsTrigger
-            value="ciudades"
-            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
-          >
-            <Building2 className="w-4 h-4 mr-2" />
-            Ciudades
-          </TabsTrigger>
-          <TabsTrigger
-            value="sucursales"
-            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
-          >
-            <Building2 className="w-4 h-4 mr-2" />
-            Sucursales
-          </TabsTrigger>
+          <Can action="vista-paises">
+            <TabsTrigger
+              value="paises"
+              className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+            >
+              <Globe className="w-4 h-4 mr-2" />
+              Países
+            </TabsTrigger>
+          </Can>
+          <Can action="vista-departamentos">
+            <TabsTrigger
+              value="departamentos"
+              className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+            >
+              <MapPin className="w-4 h-4 mr-2" />
+              Departamentos
+            </TabsTrigger>
+          </Can>
+          <Can action="vista-regionales">
+            <TabsTrigger
+              value="regionales"
+              className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+            >
+              <Users className="w-4 h-4 mr-2" />
+              Regionales
+            </TabsTrigger>
+          </Can>
+          <Can action="vista-ciudades">
+            <TabsTrigger
+              value="ciudades"
+              className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+            >
+              <Building2 className="w-4 h-4 mr-2" />
+              Ciudades
+            </TabsTrigger>
+          </Can>
+          <Can action="vista-sucursales">
+            <TabsTrigger
+              value="sucursales"
+              className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+            >
+              <Building2 className="w-4 h-4 mr-2" />
+              Sucursales
+            </TabsTrigger>
+          </Can>
         </TabsList>
 
         <TabsContent value={activeTab} className="mt-6">
-          <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="w-full">
+          {(() => {
+            const getPermissionForTab = (tab: string) => {
+              switch (tab) {
+                case 'paises': return 'vista-paises';
+                case 'departamentos': return 'vista-departamentos';
+                case 'regionales': return 'vista-regionales';
+                case 'ciudades': return 'vista-ciudades';
+                case 'sucursales': return 'vista-sucursales';
+                default: return 'vista-paises';
+              }
+            };
+
+            return (
+              <Can action={getPermissionForTab(activeTab)}>
+                <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2 bg-cyan-100/60 p-1 rounded-lg">
               <TabsTrigger
                 value="listado"
@@ -2306,7 +2330,10 @@ export default function UbicacionesPage() {
               </AlertDialogContent>
             </AlertDialog>
 
-          </Tabs>
+                </Tabs>
+              </Can>
+            );
+          })()}
         </TabsContent>
       </Tabs>
     </div>
