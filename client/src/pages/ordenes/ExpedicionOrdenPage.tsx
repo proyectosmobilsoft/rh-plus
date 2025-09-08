@@ -1,7 +1,8 @@
 
 import { useState, useEffect } from 'react';
-import { FileText, Plus, Filter, Users, Building, DollarSign, CheckCircle, Clock, AlertCircle, Loader2 } from "lucide-react";
+import { FileText, Plus, Filter, Users, Building, DollarSign, CheckCircle, Clock, AlertCircle, Loader2, Download } from "lucide-react";
 import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogDescription } from "@/components/ui/dialog";
@@ -15,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Plantilla } from '@/services/plantillasService';
 import { empresasService, Empresa } from '@/services/empresasService';
+import { Can } from '@/contexts/PermissionsContext';
 
 const ExpedicionOrdenPage = () => {
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
@@ -266,6 +268,167 @@ const ExpedicionOrdenPage = () => {
     console.log('Plantilla seleccionada:', plantilla);
   };
 
+  const handleExportToExcel = () => {
+    try {
+      // Preparar los datos para exportar - exactamente como se muestran en el listado
+      const datosParaExportar = solicitudesFiltradas.map((solicitud) => {
+        // Función helper para obtener valor de display
+        const getDisplayValue = (value: string | undefined, defaultValue: string = 'No especificado') => {
+          return value && value.trim() !== '' ? value : defaultValue;
+        };
+
+        // Función para formatear fecha
+        const formatDate = (dateString: string | undefined) => {
+          if (!dateString) return 'No especificada';
+          try {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('es-ES', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric'
+            });
+          } catch (error) {
+            return 'Fecha inválida';
+          }
+        };
+
+        // Función para formatear hora
+        const formatDateTime = (dateString: string | undefined) => {
+          if (!dateString) return 'No especificada';
+          try {
+            const date = new Date(dateString);
+            return date.toLocaleTimeString('es-ES', {
+              hour: '2-digit',
+              minute: '2-digit'
+            });
+          } catch (error) {
+            return 'Hora inválida';
+          }
+        };
+
+        // Obtener número de documento (igual que en el listado)
+        const numeroDocumento = 
+          solicitud.estructura_datos?.numero_documento ||
+          solicitud.estructura_datos?.documento ||
+          solicitud.estructura_datos?.cedula ||
+          solicitud.estructura_datos?.identificacion ||
+          getDisplayValue(solicitud.candidatos?.numero_documento, 'Sin número');
+
+        // Obtener email (igual que en el listado)
+        const email = 
+          solicitud.estructura_datos?.email ||
+          solicitud.estructura_datos?.correo_electronico ||
+          solicitud.estructura_datos?.correo ||
+          'Sin Email';
+
+        // Obtener empresa (igual que en el listado)
+        const empresaNombre = getDisplayValue(solicitud.empresas?.razon_social, 'Sin empresa');
+        const empresaCiudad = getDisplayValue(solicitud.empresas?.ciudad, 'Sin ciudad');
+
+        // Obtener analista (igual que en el listado)
+        const analistaNombre = solicitud.analista?.nombre || 'Sin asignar';
+        const analistaEmail = solicitud.analista?.email || 'Sin email';
+
+        // Obtener estado formateado (igual que en el listado)
+        const formatEstado = (estado: string) => {
+          return estado.charAt(0).toUpperCase() + estado.slice(1).toLowerCase();
+        };
+        const estadoFormateado = formatEstado(solicitud.estado || 'Sin estado');
+
+        return {
+          'CONSECUTIVO': `#${solicitud.id}`,
+          'DOCUMENTO': numeroDocumento,
+          'EMAIL': email,
+          'EMPRESA': empresaNombre,
+          'CIUDAD EMPRESA': empresaCiudad,
+          'ANALISTA ASIGNADO': analistaNombre,
+          'EMAIL ANALISTA': analistaEmail,
+          'ESTADO': estadoFormateado,
+          'FECHA MODIFICACIÓN': formatDate(solicitud.updated_at),
+          'HORA MODIFICACIÓN': formatDateTime(solicitud.updated_at)
+        };
+      });
+
+      // Crear el libro de trabajo
+      const wb = XLSX.utils.book_new();
+      
+      // Crear la hoja de trabajo
+      const ws = XLSX.utils.json_to_sheet(datosParaExportar);
+      
+      // Configurar el ancho de las columnas
+      const colWidths = [
+        { wch: 12 },  // CONSECUTIVO
+        { wch: 15 },  // DOCUMENTO
+        { wch: 25 },  // EMAIL
+        { wch: 30 },  // EMPRESA
+        { wch: 20 },  // CIUDAD EMPRESA
+        { wch: 20 },  // ANALISTA ASIGNADO
+        { wch: 25 },  // EMAIL ANALISTA
+        { wch: 18 },  // ESTADO
+        { wch: 15 },  // FECHA MODIFICACIÓN
+        { wch: 15 }   // HORA MODIFICACIÓN
+      ];
+      ws['!cols'] = colWidths;
+
+      // Aplicar formato a los headers (mayúsculas, negrita, fondo pálido)
+      const headerRange = XLSX.utils.decode_range(ws['!ref'] || 'A1:J1');
+      for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
+        if (!ws[cellAddress]) continue;
+        
+        // Aplicar formato al header
+        ws[cellAddress].s = {
+          font: { bold: true },
+          fill: { fgColor: { rgb: "F0F0F0" } }, // Fondo gris pálido
+          alignment: { horizontal: "center", vertical: "center" },
+          border: {
+            top: { style: "thin", color: { rgb: "000000" } },
+            bottom: { style: "thin", color: { rgb: "000000" } },
+            left: { style: "thin", color: { rgb: "000000" } },
+            right: { style: "thin", color: { rgb: "000000" } }
+          }
+        };
+      }
+
+      // Aplicar formato a las filas de datos
+      const dataRange = XLSX.utils.decode_range(ws['!ref'] || 'A1:J1');
+      for (let row = 1; row <= dataRange.e.r; row++) {
+        for (let col = dataRange.s.c; col <= dataRange.e.c; col++) {
+          const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
+          if (!ws[cellAddress]) continue;
+          
+          // Aplicar formato a las celdas de datos
+          ws[cellAddress].s = {
+            alignment: { vertical: "center" },
+            border: {
+              top: { style: "thin", color: { rgb: "CCCCCC" } },
+              bottom: { style: "thin", color: { rgb: "CCCCCC" } },
+              left: { style: "thin", color: { rgb: "CCCCCC" } },
+              right: { style: "thin", color: { rgb: "CCCCCC" } }
+            }
+          };
+        }
+      }
+
+      // Agregar la hoja al libro
+      XLSX.utils.book_append_sheet(wb, ws, 'Solicitudes');
+
+      // Generar el nombre del archivo con fecha y hora
+      const fechaActual = new Date();
+      const fechaFormateada = fechaActual.toISOString().split('T')[0];
+      const horaFormateada = fechaActual.toTimeString().split(' ')[0].replace(/:/g, '-');
+      const nombreArchivo = `Solicitudes_${fechaFormateada}_${horaFormateada}.xlsx`;
+
+      // Descargar el archivo
+      XLSX.writeFile(wb, nombreArchivo);
+      
+      toast.success(`Archivo Excel exportado exitosamente: ${nombreArchivo}`);
+    } catch (error) {
+      console.error('Error al exportar a Excel:', error);
+      toast.error('Error al exportar el archivo Excel');
+    }
+  };
+
   // Filtrado de solicitudes
   const solicitudesFiltradas = solicitudes.filter(solicitud => {
     const matchesSearch =
@@ -356,6 +519,17 @@ const ExpedicionOrdenPage = () => {
                 >
                   Adicionar Solicitud
                 </Button>
+                <Can action="exportar-solicitudes">
+                  <Button
+                    onClick={handleExportToExcel}
+                    className="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1"
+                    size="sm"
+                    disabled={solicitudesFiltradas.length === 0}
+                  >
+                    <Download className="w-4 h-4 mr-1" />
+                    Exportar Excel
+                  </Button>
+                </Can>
               </div>
             </div>
 
