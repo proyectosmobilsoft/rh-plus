@@ -106,6 +106,7 @@ import AcercaEmpresaPage from './pages/empresa/AcercaEmpresaPage';
 import ConfiguracionesGlobalesPage from './pages/configuraciones/ConfiguracionesGlobalesPage';
 import EmailMasivoPage from './pages/maestro/EmailMasivoPage';
 import CentrosCostoPage from './pages/maestro/CentrosCostoPage';
+import ActividadesEconomicasPage from './pages/maestro/ActividadesEconomicasPage';
 
 // Página pública para visualizar QR
 import QRViewer from './pages/QRViewer';
@@ -466,6 +467,11 @@ function App() {
             <Route path="/maestro/centros-costo" element={
               <ProtectedRoute>
                 <CentrosCostoPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/maestro/actividades-economicas" element={
+              <ProtectedRoute>
+                <ActividadesEconomicasPage />
               </ProtectedRoute>
             } />
 

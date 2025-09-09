@@ -10,6 +10,7 @@ import {
   Activity,
   Users,
   Building,
+  Building2,
   User,
   Briefcase,
   QrCode,
@@ -60,6 +61,7 @@ const menuItems = [
       { title: "Plantillas", path: "/maestro/plantillas", icon: <Layers className="h-4 w-4" /> },
       { title: "Ubicaciones", path: "/maestro/ubicaciones", icon: <MapPin className="h-4 w-4" /> },
       { title: "Centros de Costos", path: "/maestro/centros-costo", icon: <Building className="h-4 w-4" /> },
+      { title: "Actividades Económicas", path: "/maestro/actividades-economicas", icon: <Building2 className="h-4 w-4" /> },
       { title: "Correos Masivos", path: "/maestro/correos-masivos", icon: <Mail className="h-4 w-4" /> },
     ],
   },
@@ -171,6 +173,7 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
     '/maestro/plantillas': ['vista-plantillas'],
     '/maestro/ubicaciones': ['vista-ubicaciones'],
     '/maestro/centros-costo': ['vista-centros-costo'],
+    '/maestro/actividades-economicas': ['vista-actividades-economicas'],
     '/maestro/correos-masivos': ['vista-correos-masivos'],
 
     // Registros

@@ -20,6 +20,7 @@ import {
   import { Upload, Check, FileText } from "lucide-react";
   import { useState, useEffect } from "react";
   import { useToast } from "@/components/ui/use-toast";
+  import { actividadesEconomicasService } from "@/services/actividadesEconomicasService";
   
   interface CompanyBusinessInfoProps {
     form: UseFormReturn<CreateEmpresaDTO>;
@@ -28,6 +29,20 @@ import {
   
   export function CompanyBusinessInfo({ form, existingDocuments }: CompanyBusinessInfoProps) {
     const { toast } = useToast();
+    
+    // Obtener actividades económicas
+    const { data: actividadesEconomicas = [], isLoading: loadingActividades } = useQuery({
+      queryKey: ['actividades-economicas'],
+      queryFn: async () => {
+        try {
+          return await actividadesEconomicasService.getAll();
+        } catch (error) {
+          console.error('Error al cargar actividades económicas:', error);
+          return [];
+        }
+      },
+      staleTime: 5 * 60 * 1000, // 5 minutos
+    });
     const [uploadedFiles, setUploadedFiles] = useState<{[key: string]: string}>({});
   
     const { data: codigosCIIU=[] } = useQuery({
@@ -159,29 +174,36 @@ import {
           name="actividad_economica"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Actividad Económica (CIIU)</FormLabel>
+              <FormLabel>Actividad Económica</FormLabel>
               <FormControl>
-                <select
-                  {...field}
-                  className="w-full border rounded p-2"
-                  onChange={e => field.onChange(e.target.value)}
+                <Select
+                  value={field.value}
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    // Buscar la actividad seleccionada para actualizar el nombre
+                    const actividad = actividadesEconomicas.find(a => a.id.toString() === value);
+                    if (actividad) {
+                      form.setValue('actividad_nombre', actividad.nombre);
+                    }
+                  }}
+                  disabled={loadingActividades}
                 >
-                  <option value="">Seleccione código CIIU</option>
-                  <option value="0111">0111 - Cultivo de cereales</option>
-                  <option value="0112">0112 - Cultivo de arroz</option>
-                  <option value="0113">0113 - Cultivo de hortalizas</option>
-                  <option value="0141">0141 - Cría de ganado bovino</option>
-                  <option value="1011">1011 - Procesamiento y conservación de carne</option>
-                  <option value="1071">1071 - Elaboración de productos de panadería</option>
-                  <option value="2011">2011 - Fabricación de sustancias químicas</option>
-                  <option value="4711">4711 - Comercio al por menor</option>
-                  <option value="6201">6201 - Actividades de desarrollo de sistemas informáticos</option>
-                  <option value="8411">8411 - Actividades de la administración pública</option>
-                  <option value="8511">8511 - Educación preescolar</option>
-                  <option value="8610">8610 - Actividades de hospitales</option>
-                  <option value="9311">9311 - Gestión de instalaciones deportivas</option>
-                  <option value="9602">9602 - Peluquería y otros tratamientos de belleza</option>
-                </select>
+                  <SelectTrigger>
+                    <SelectValue placeholder={loadingActividades ? "Cargando..." : "Seleccione una actividad económica"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {actividadesEconomicas.map((actividad) => (
+                      <SelectItem key={actividad.id} value={actividad.id.toString()}>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{actividad.codigo} - {actividad.nombre}</span>
+                          {actividad.descripcion && (
+                            <span className="text-sm text-gray-500">{actividad.descripcion}</span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </FormControl>
               <FormMessage />
             </FormItem>

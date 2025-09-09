@@ -15,6 +15,7 @@ import { useQuery } from '@tanstack/react-query';
 import { plantillasService } from '@/services/plantillasService';
 import { empresaService } from '@/services/empresaService';
 import { regimenTributarioService } from '@/services/regimenTributarioService';
+import { actividadesEconomicasService } from '@/services/actividadesEconomicasService';
 import { useToast } from '@/hooks/use-toast';
 import FormRenderer from '@/components/FormRenderer';
 import { Company } from '@/types/company';
@@ -160,6 +161,24 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
         return result;
       } catch (error) {
         console.error('Error al cargar regímenes tributarios:', error);
+        throw error;
+      }
+    },
+    retry: 3,
+    retryDelay: 1000,
+  });
+
+  // Obtener actividades económicas de la base de datos
+  const { data: actividadesEconomicas = [], isLoading: loadingActividades } = useQuery({
+    queryKey: ['actividades-economicas'],
+    queryFn: async () => {
+      try {
+        console.log('Iniciando carga de actividades económicas...');
+        const result = await actividadesEconomicasService.getAll();
+        console.log('Resultado de actividadesEconomicasService.getAll():', result);
+        return result;
+      } catch (error) {
+        console.error('Error al cargar actividades económicas:', error);
         throw error;
       }
     },
@@ -1043,41 +1062,41 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
                               console.log('=== SELECTOR ACTIVIDAD ECONÓMICA ===');
                               console.log('Valor actividad_economica en form:', form.watch("actividad_economica"));
                               console.log('Valor actividad_nombre en form:', form.watch("actividad_nombre"));
+                              console.log('Actividades cargadas desde BD:', actividadesEconomicas);
                               console.log('=====================================');
                               return null;
                             })()}
-                            {[
-                              { codigo: "0111", descripcion: "Cultivo de cereales" },
-                              { codigo: "0112", descripcion: "Cultivo de arroz" },
-                              { codigo: "0113", descripcion: "Cultivo de hortalizas" },
-                              { codigo: "0141", descripcion: "Cría de ganado bovino" },
-                              { codigo: "1011", descripcion: "Procesamiento y conservación de carne" },
-                              { codigo: "1071", descripcion: "Elaboración de productos de panadería" },
-                              { codigo: "2011", descripcion: "Fabricación de sustancias químicas" },
-                              { codigo: "4711", descripcion: "Comercio al por menor" },
-                              { codigo: "6201", descripcion: "Actividades de desarrollo de sistemas informáticos" },
-                              { codigo: "8411", descripcion: "Actividades de la administración pública" },
-                              { codigo: "8511", descripcion: "Educación preescolar" },
-                              { codigo: "8610", descripcion: "Actividades de hospitales" },
-                              { codigo: "9311", descripcion: "Gestión de instalaciones deportivas" },
-                              { codigo: "9602", descripcion: "Peluquería y otros tratamientos de belleza" }
-                            ].map((actividad) => (
+                            {loadingActividades ? (
+                              <CommandItem disabled>
+                                <div className="flex items-center gap-2">
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
+                                  Cargando actividades económicas...
+                                </div>
+                              </CommandItem>
+                            ) : (
+                              actividadesEconomicas.map((actividad) => (
                               <CommandItem
-                                key={actividad.codigo}
-                                value={`${actividad.codigo} - ${actividad.descripcion}`}
+                                key={actividad.id}
+                                value={`${actividad.codigo} - ${actividad.nombre}`}
                                 onSelect={() => {
-                                  form.setValue("actividad_economica", actividad.codigo);
-                                  form.setValue("actividad_nombre", `${actividad.codigo} - ${actividad.descripcion}`);
+                                  form.setValue("actividad_economica", actividad.id.toString());
+                                  form.setValue("actividad_nombre", `${actividad.codigo} - ${actividad.nombre}`);
                                   setActividadEconomicaOpen(false);
                                 }}
                               >
                                 <Check
-                                  className={`mr-2 h-4 w-4 ${form.watch("actividad_economica") === actividad.codigo ? "opacity-100" : "opacity-0"
+                                  className={`mr-2 h-4 w-4 ${form.watch("actividad_economica") === actividad.id.toString() ? "opacity-100" : "opacity-0"
                                     }`}
                                 />
-                                <span className="font-normal">{actividad.codigo} - {actividad.descripcion}</span>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{actividad.codigo} - {actividad.nombre}</span>
+                                  {actividad.descripcion && (
+                                    <span className="text-sm text-gray-500">{actividad.descripcion}</span>
+                                  )}
+                                </div>
                               </CommandItem>
-                            ))}
+                            ))
+                            )}
                           </CommandGroup>
                         </CommandList>
                       </Command>
