@@ -200,9 +200,9 @@ function App() {
             } />
 
             <Route path="/cambiar-password" element={
-              <ProtectedRoute>
+              <PublicRoute>
                 <CambiarPassword />
-              </ProtectedRoute>
+              </PublicRoute>
             } />
             
             {/* Rutas adicionales de candidatos (sin sidebar) */}

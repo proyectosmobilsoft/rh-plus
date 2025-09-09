@@ -120,6 +120,22 @@ export default function LoginUnificado() {
 
       // Guardar datos de autenticación en localStorage (SIN authToken por ahora)
       const userData = passwordResult.userData;
+      console.log('🔍 userData completo recibido:', userData);
+      
+      // Validar si la contraseña es igual al número de identificación
+      console.log('🔍 Validando identificación:');
+      console.log('- userData.identificacion:', userData.identificacion);
+      console.log('- password ingresada:', password);
+      console.log('- ¿Son iguales?:', userData.identificacion && password === userData.identificacion);
+      
+      if (userData.identificacion && password === userData.identificacion) {
+        console.log('⚠️ Contraseña igual a identificación, redirigiendo a cambiar contraseña');
+        // Guardar userData temporalmente para la página de cambio de contraseña
+        localStorage.setItem('userData', JSON.stringify(userData));
+        // Redirigir a la página de cambio de contraseña
+        window.location.href = '/cambiar-password';
+        return;
+      }
       
       // Guardar solo userData en localStorage
       localStorage.setItem('userData', JSON.stringify(userData));

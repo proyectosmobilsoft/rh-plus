@@ -9,6 +9,7 @@ export interface LoginCredentials {
 export interface UserValidation {
   user: {
     id: number;
+    identificacion?: string;
     username: string;
     email: string;
     primer_nombre: string;
@@ -59,6 +60,7 @@ export const authService: AuthService = {
         return {
           user: {
             id: 1,
+            identificacion: '12345678',
             username: 'testuser',
             email: 'test@example.com',
             primer_nombre: 'Usuario',
@@ -79,6 +81,7 @@ export const authService: AuthService = {
         .from('gen_usuarios')
         .select(`
           id,
+          identificacion,
           username,
           email,
           primer_nombre,
@@ -114,6 +117,7 @@ export const authService: AuthService = {
       return {
         user: {
           id: data.id,
+          identificacion: data.identificacion,
           username: data.username,
           email: data.email,
           primer_nombre: data.primer_nombre,
@@ -135,6 +139,7 @@ export const authService: AuthService = {
         .from('gen_usuarios')
         .select(`
           id,
+          identificacion,
           username,
           email,
           primer_nombre,
@@ -233,6 +238,7 @@ export const authService: AuthService = {
           success: true,
           userData: {
             id: safeUserData.id,
+            identificacion: safeUserData.identificacion,
             username: safeUserData.username,
             email: safeUserData.email,
             primerNombre: safeUserData.primer_nombre,
