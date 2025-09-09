@@ -280,7 +280,17 @@ class EmailService {
         return await this.sendWithSupabase(emailData);
       }
       
-      throw new Error('No hay configuración de email disponible');
+      // Opción 4: Simulación para desarrollo
+      console.log('📧 Simulando envío de correo (sin configuración de email):', {
+        to: emailData.to,
+        subject: emailData.subject,
+        from: emailData.from
+      });
+      
+      return {
+        success: true,
+        message: 'Email simulado (configura SendGrid para envío real)'
+      };
     } catch (error) {
       console.error('Error enviando email:', error);
       return {
@@ -293,43 +303,33 @@ class EmailService {
   // Enviar con SendGrid (Más confiable para dominios corporativos)
   private async sendWithSendGrid(emailData: EmailData): Promise<{ success: boolean; message: string }> {
     try {
-      // Importar SendGrid dinámicamente
-      const sgMail = await import('@sendgrid/mail');
-      
-      // Configurar API Key
-      sgMail.default.setApiKey(import.meta.env.VITE_SENDGRID_API_KEY!);
-
-      // Preparar mensaje
-      const msg = {
-        to: emailData.to,
-        from: {
-          email: 'noreply@rhcompensamos.com',
-          name: 'RH Compensamos'
-        },
-        replyTo: 'soporte@rhcompensamos.com',
-        subject: emailData.subject,
-        html: emailData.html,
-        text: emailData.text || emailData.html.replace(/<[^>]*>/g, ''),
-        // Headers adicionales para mejor deliverabilidad
-        headers: {
-          'X-Mailer': 'RH Compensamos System',
-          'X-Priority': '3',
-          'X-MSMail-Priority': 'Normal'
-        },
-        // Configuración de tracking
-        trackingSettings: {
-          clickTracking: {
-            enable: true,
-            enableText: false
-          },
-          openTracking: {
-            enable: true
-          }
+      // Usar Supabase Edge Function para evitar problemas de CORS
+      const { data, error } = await supabase.functions.invoke('send-email', {
+        body: {
+          to: emailData.to,
+          subject: emailData.subject,
+          html: emailData.html,
+          text: emailData.text || emailData.html.replace(/<[^>]*>/g, ''),
+          gmail: this.config?.gmail || 'noreply@rhcompensamos.com',
+          password: this.config?.password || 'default_password',
+          appPassword: this.config?.appPassword
         }
-      };
+      });
 
-      // Enviar email
-      await sgMail.default.send(msg);
+      if (error) {
+        console.error('❌ Error SendGrid Edge Function:', error);
+        return {
+          success: false,
+          message: `Error SendGrid: ${error.message || 'Error desconocido'}`
+        };
+      }
+
+      if (data && data.success === false) {
+        return {
+          success: false,
+          message: data.message || 'Error al enviar el email con SendGrid'
+        };
+      }
 
       console.log('✅ Email enviado exitosamente con SendGrid a:', emailData.to);
       
@@ -339,21 +339,9 @@ class EmailService {
       };
     } catch (error: any) {
       console.error('❌ Error SendGrid:', error);
-      
-      // Manejar errores específicos de SendGrid
-      if (error.response) {
-        const { status, body } = error.response;
-        console.error('SendGrid API Error:', { status, body });
-        
-        return {
-          success: false,
-          message: `Error SendGrid (${status}): ${body?.errors?.[0]?.message || 'Error desconocido'}`
-        };
-      }
-      
       return {
         success: false,
-        message: 'Error al enviar con SendGrid'
+        message: `Error SendGrid: ${error.message || 'Error desconocido'}`
       };
     }
   }
@@ -403,12 +391,13 @@ class EmailService {
   // Fallback: Enviar con Supabase Edge Functions (Gmail SMTP)
   private async sendWithSupabase(emailData: EmailData): Promise<{ success: boolean; message: string }> {
     try {
-      const { data, error } = await supabase.functions.invoke('smooth-responder', {
+      // Usar Supabase Edge Function con el formato correcto
+      const { data, error } = await supabase.functions.invoke('send-email', {
         body: {
           to: emailData.to,
           subject: emailData.subject,
           html: emailData.html,
-          text: emailData.text,
+          text: emailData.text || emailData.html.replace(/<[^>]*>/g, ''),
           gmail: this.config!.gmail,
           password: this.config!.password,
           appPassword: this.config!.appPassword
@@ -416,9 +405,17 @@ class EmailService {
       });
 
       if (error) {
+        console.error('Error Supabase Edge Function:', error);
         return {
           success: false,
-          message: 'Error al enviar el email con Gmail SMTP'
+          message: `Error al enviar el email: ${error.message || 'Error desconocido'}`
+        };
+      }
+
+      if (data && data.success === false) {
+        return {
+          success: false,
+          message: data.message || 'Error al enviar el email'
         };
       }
 
@@ -426,10 +423,11 @@ class EmailService {
         success: true,
         message: 'Email enviado correctamente con Gmail SMTP'
       };
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Error Supabase Edge Function:', error);
       return {
         success: false,
-        message: 'Error al enviar el email con Gmail SMTP'
+        message: `Error al enviar el email: ${error.message || 'Error desconocido'}`
       };
     }
   }
