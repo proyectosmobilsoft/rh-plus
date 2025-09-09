@@ -199,12 +199,6 @@ function App() {
               </ProtectedRoute>
             } />
 
-            {/* Rutas de candidatos (sin layout) */}
-            <Route path="/perfil-candidato" element={
-              <ProtectedRoute>
-                <PerfilCandidato />
-              </ProtectedRoute>
-            } />
             <Route path="/cambiar-password" element={
               <ProtectedRoute>
                 <CambiarPassword />
@@ -631,6 +625,12 @@ function App() {
               </ProtectedRoute>
             } />
 
+            {/* Información Personal */}
+            <Route path="/perfil-candidato" element={
+              <ProtectedRoute>
+                <PerfilCandidato />
+              </ProtectedRoute>
+            } />
 
             </Route>
 

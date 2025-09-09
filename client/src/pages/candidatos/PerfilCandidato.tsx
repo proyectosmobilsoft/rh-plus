@@ -46,6 +46,30 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { ExperienciaLaboralTab } from '@/components/candidatos/ExperienciaLaboralTab';
 import { EducacionTab } from '@/components/candidatos/EducacionTab';
 
+// Componente para estilos CSS personalizados
+const ProgressStyles = () => (
+  <style jsx>{`
+    @keyframes shimmer {
+      0% {
+        transform: translateX(-100%);
+        opacity: 0;
+      }
+      50% {
+        opacity: 1;
+      }
+      100% {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+    }
+    
+    .progress-shimmer {
+      animation: shimmer 3s ease-in-out infinite;
+      width: 30%;
+    }
+  `}</style>
+);
+
 const perfilSchema = z.object({
   nombres: z.string().min(2, 'Los nombres son requeridos'),
   apellidos: z.string().min(2, 'Los apellidos son requeridos'),
@@ -943,105 +967,170 @@ export default function PerfilCandidato() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
-      <div className="max-w-6xl mx-auto">
-        
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Mi Perfil</h1>
-            <p className="text-gray-600">Administra tu información personal y profesional</p>
+    <div className="p-4 max-w-full mx-auto">
+      <ProgressStyles />
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-3xl font-extrabold text-cyan-800 flex items-center gap-2 mb-2">
+          <User className="w-8 h-8 text-cyan-600" />
+          Información Personal
+        </h1>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            onClick={handleCambiarPassword}
+            className="flex items-center space-x-2"
+          >
+            <Key className="w-4 h-4" />
+            <span>Cambiar Contraseña</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* Header similar al diseño de otras páginas */}
+      <div className="bg-white rounded-lg border mb-6">
+        <div className="flex items-center justify-between p-4 border-b">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-orange-100 rounded flex items-center justify-center">
+              <User className="w-5 h-5 text-orange-600" />
+            </div>
+            <div>
+              <span className="text-lg font-semibold text-gray-700">PERFIL PERSONAL</span>
+              <p className="text-sm text-gray-500">
+                {candidato ? `${candidato.nombres} ${candidato.apellidos}` : 'Gestiona tu información personal y profesional'}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-4">
             {isAutoSaving && (
-              <div className="flex items-center mt-2 text-sm text-cyan-600">
+              <div className="flex items-center text-sm text-cyan-600">
                 <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-cyan-600 mr-2"></div>
                 Guardando cambios...
               </div>
             )}
-          </div>
-          
-          {/* Progress Bar - Between Mi Perfil and Mi Cuenta */}
-          <div className="flex-1 max-w-md mx-8">
-            <div className="flex flex-col items-center space-y-2">
-              <span className="text-sm font-medium text-gray-700">Progreso del Perfil</span>
-              <div className="w-full">
-                <Progress 
-                  value={calcularProgresoPerfil()} 
-                  className={`h-3 ${getColorProgreso(calcularProgresoPerfil())}`} 
-                />
-              </div>
-              <div className="flex items-center space-x-2">
-                <span className={`text-lg font-bold ${getColorProgreso(calcularProgresoPerfil()).replace('bg-', 'text-')}`}>
-                  {calcularProgresoPerfil()}%
-                </span>
-                <span className="text-sm text-gray-500">
-                  {getTextoProgreso(calcularProgresoPerfil())}
-                </span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            {/* Menú de usuario */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="flex items-center space-x-2">
-                  <User className="w-4 h-4" />
-                  <span>Mi Cuenta</span>
-                  <ChevronDown className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={handleCambiarPassword}>
-                  <Key className="w-4 h-4 mr-2" />
-                  Cambiar Contraseña
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="text-red-600">
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Cerrar Sesión
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {candidato && (
+              <Badge variant={candidato.completado ? "default" : "secondary"} className="flex items-center space-x-1">
+                {candidato.completado ? (
+                  <>
+                    <CheckCircle className="w-3 h-3" />
+                    <span>Completado</span>
+                  </>
+                ) : (
+                  <>
+                    <Clock className="w-3 h-3" />
+                    <span>En Proceso</span>
+                  </>
+                )}
+              </Badge>
+            )}
           </div>
         </div>
 
-        {/* Profile Info Card */}
-        <Card className="mb-8">
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 bg-cyan-100 rounded-full flex items-center justify-center">
-                <User className="w-8 h-8 text-cyan-600" />
+        {/* Progress Bar */}
+        <div className="p-3 border-b bg-gray-50">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 bg-cyan-100 rounded-full flex items-center justify-center">
+                <div className="w-1.5 h-1.5 bg-cyan-600 rounded-full animate-pulse"></div>
               </div>
-              <div>
-                <h2 className="text-xl font-semibold">{candidato.nombres} {candidato.apellidos}</h2>
-                <p className="text-gray-600">{candidato.email}</p>
-                <p className="text-sm text-gray-500">
-                  {candidato.tipoDocumento}: {candidato.numeroDocumento}
-                </p>
-              </div>
+              <span className="text-sm font-medium text-gray-700">Progreso del Perfil</span>
             </div>
-          </CardContent>
-        </Card>
+            <div className="flex items-center space-x-2">
+              <span className={`text-sm font-bold ${getColorProgreso(calcularProgresoPerfil()).replace('bg-', 'text-')}`}>
+                {calcularProgresoPerfil()}%
+              </span>
+              <Badge variant="outline" className="text-xs px-2 py-0.5">
+                {getTextoProgreso(calcularProgresoPerfil())}
+              </Badge>
+            </div>
+          </div>
+          
+          {/* Barra de progreso compacta */}
+          <div className="relative">
+            <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+              {/* Progreso completado */}
+              <div 
+                className={`h-full transition-all duration-1000 ease-out rounded-full relative ${
+                  calcularProgresoPerfil() >= 80 ? 'bg-gradient-to-r from-green-500 to-emerald-500' :
+                  calcularProgresoPerfil() >= 60 ? 'bg-gradient-to-r from-cyan-500 to-teal-500' :
+                  calcularProgresoPerfil() >= 40 ? 'bg-gradient-to-r from-yellow-500 to-orange-500' :
+                  'bg-gradient-to-r from-red-400 to-pink-500'
+                }`}
+                style={{ 
+                  width: `${calcularProgresoPerfil()}%`
+                }}
+              >
+                {/* Efecto de brillo sutil */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-20 animate-pulse"></div>
+              </div>
+              
+              {/* Progreso restante con animación sutil */}
+              {calcularProgresoPerfil() < 100 && (
+                <div 
+                  className="absolute top-0 h-full bg-gradient-to-r from-gray-300 to-gray-400 rounded-full overflow-hidden"
+                  style={{ 
+                    left: `${calcularProgresoPerfil()}%`,
+                    width: `${100 - calcularProgresoPerfil()}%`
+                  }}
+                >
+                  {/* Efecto shimmer más sutil */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-10 progress-shimmer"></div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
 
-        {/* Main Form */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Información del Candidato</CardTitle>
-            <CardDescription>
-              Complete toda la información para mejorar sus oportunidades laborales
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <Tabs value={activeTab} onValueChange={setActiveTab}>
-                  <TabsList className="grid w-full grid-cols-5">
-                    <TabsTrigger value="personal">Personal</TabsTrigger>
-                    <TabsTrigger value="contacto">Contacto</TabsTrigger>
-                    <TabsTrigger value="profesional">Experiencia Laboral</TabsTrigger>
-                    <TabsTrigger value="educacion">Educacion</TabsTrigger>
-                    <TabsTrigger value="archivos">Archivos</TabsTrigger>
-                  </TabsList>
+      {/* Main Form */}
+      <div className="bg-white rounded-lg border">
+        <div className="p-4 border-b">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center">
+              <FileText className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <span className="text-lg font-semibold text-gray-700">INFORMACIÓN DEL CANDIDATO</span>
+              <p className="text-sm text-gray-500">Complete toda la información para mejorar sus oportunidades laborales</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <TabsList className="grid w-full grid-cols-5 bg-cyan-100/60 p-1 rounded-lg">
+                  <TabsTrigger 
+                    value="personal"
+                    className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+                  >
+                    Personal
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="contacto"
+                    className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+                  >
+                    Contacto
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="profesional"
+                    className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+                  >
+                    Experiencia Laboral
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="educacion"
+                    className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+                  >
+                    Educación
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="archivos"
+                    className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+                  >
+                    Archivos
+                  </TabsTrigger>
+                </TabsList>
 
                   <TabsContent value="personal" className="space-y-4">
                     <div className="grid md:grid-cols-2 gap-4">
@@ -1524,7 +1613,7 @@ export default function PerfilCandidato() {
                   <Button
                     type="submit"
                     disabled={isSaving}
-                    className="px-8"
+                    className="px-8 bg-cyan-600 hover:bg-cyan-700"
                   >
                     {isSaving ? (
                       <>
@@ -1541,8 +1630,7 @@ export default function PerfilCandidato() {
                 </div>
               </form>
             </Form>
-          </CardContent>
-        </Card>
+        </div>
       </div>
     </div>
   );

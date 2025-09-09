@@ -91,7 +91,12 @@ const menuItems = [
     path: "/analistas",
     subItems: [],
   },
-
+  {
+    title: "Información Personal",
+    icon: <User className="h-5 w-5" />,
+    path: "/perfil-candidato",
+    subItems: [],
+  },
   {
     title: "Configuración",
     icon: <Settings className="h-5 w-5" />,
@@ -186,10 +191,13 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
     // Analistas
     '/analistas': ['vista-analistas'],
 
+    // Información Personal
+    '/perfil-candidato': ['vista-informacion-personal'],
+
     // Acerca de la Empresa
     '/empresa/acerca': ['vista-acerca-empresa'],
 
-    // Acerca de la Empresa
+    // Configuración
     '/configuraciones/globales': ['vista-configuracion'],
 
     // Reportes
