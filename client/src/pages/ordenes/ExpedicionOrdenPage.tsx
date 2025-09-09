@@ -470,35 +470,21 @@ const ExpedicionOrdenPage = () => {
         </TabsList>
 
         <TabsContent value="registro" className="mt-6">
-          {!empresaData ? (
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center py-8">
-                  <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Error al cargar datos de empresa</h3>
-                  <p className="text-gray-600">
-                    No se pudieron cargar los datos de la empresa desde el almacenamiento local.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <PlantillasSelector
-              empresaId={empresaData.id}
-              onPlantillaSelect={handlePlantillaSelect}
-              selectedSolicitud={selectedSolicitud}
-              onSave={async () => {
-                // Pequeño delay para que el usuario vea el mensaje de éxito
-                await new Promise(resolve => setTimeout(resolve, 500));
-                setActiveTab("listado");
-                fetchSolicitudes();
-              }}
-              onCancel={() => {
-                setActiveTab("listado");
-              }}
-              readOnly={readOnlyView}
-            />
-          )}
+          <PlantillasSelector
+            empresaId={empresaData?.id}
+            onPlantillaSelect={handlePlantillaSelect}
+            selectedSolicitud={selectedSolicitud}
+            onSave={async () => {
+              // Pequeño delay para que el usuario vea el mensaje de éxito
+              await new Promise(resolve => setTimeout(resolve, 500));
+              setActiveTab("listado");
+              fetchSolicitudes();
+            }}
+            onCancel={() => {
+              setActiveTab("listado");
+            }}
+            readOnly={readOnlyView}
+          />
         </TabsContent>
 
         <TabsContent value="listado" className="mt-6">

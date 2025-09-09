@@ -99,21 +99,28 @@ export const asociacionPrioridadService = {
   // Obtener analistas con sus prioridades agrupadas
   getAnalistasWithPriorities: async (): Promise<AnalistaPrioridad[]> => {
     try {
-      const { data: rolesModulo10, error: rolesError } = await supabase
+      // Obtener roles que tienen el permiso 'rol_analista' en gen_roles_modulos
+      const { data: rolesConPermisoAnalista, error: rolesError } = await supabase
         .from('gen_roles_modulos')
-        .select('rol_id')
-        .eq('modulo_id', 10);
+        .select(`
+          rol_id,
+          selected_actions_codes
+        `)
+        .contains('selected_actions_codes', '["rol_analista"]');
 
       if (rolesError) {
-        console.error('Error al obtener roles del módulo 10:', rolesError);
+        console.error('Error al obtener roles con permiso rol_analista:', rolesError);
         return [];
       }
 
-      const rolIds = rolesModulo10?.map((r: any) => r.rol_id) || [];
+      const rolIds = rolesConPermisoAnalista?.map((r: any) => r.rol_id) || [];
 
       if (rolIds.length === 0) {
+        console.log('No se encontraron roles con permiso rol_analista');
         return [];
       }
+
+      console.log('Roles con permiso rol_analista:', rolIds);
 
       const { data: todosUsuarios, error: usuariosError } = await supabase
         .from('gen_usuarios')

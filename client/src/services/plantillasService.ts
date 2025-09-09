@@ -188,12 +188,18 @@ export const getAllPlantillasActivas = async (): Promise<Plantilla[]> => {
 /**
  * Obtiene las plantillas asociadas a una empresa específica
  */
-export const getPlantillasByEmpresa = async (empresaId: number): Promise<Plantilla[]> => {
+export const getPlantillasByEmpresa = async (empresaId: number | null | undefined): Promise<Plantilla[]> => {
   const { startLoading, stopLoading } = getLoadingContext();
   
   try {
     startLoading();
     console.log('🔍 Buscando plantillas para empresa ID:', empresaId);
+    
+    // Si no hay empresaId, obtener todas las plantillas activas
+    if (!empresaId) {
+      console.log('⚠️ No hay empresa ID proporcionado, obteniendo todas las plantillas activas...');
+      return await getAllPlantillasActivas();
+    }
     
     // Primero verificamos si existe la tabla empresas_plantillas
     const { data: tableExists, error: tableError } = await supabase

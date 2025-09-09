@@ -460,12 +460,14 @@ export const solicitudesService = {
       if (!candidatoIdFinal && solicitud.estructura_datos) {
         const d = solicitud.estructura_datos as Record<string, any>;
         const numeroDocumento =
-          d.numero_documento || d.documento || d.cedula || d.identificacion;
+          d.numero_documento || d.documento || d.cedula || d.cedula_ciudadania || d.identificacion;
         const email = d.email || d.correo_electronico || d.correo;
+        const telefono = d.telefono || d.celular || d.phone || d.movil;
         if (numeroDocumento && email) {
           const candidatoPayload: Partial<Candidato> = {
             numero_documento: String(numeroDocumento),
             email: String(email),
+            telefono: telefono ? String(telefono) : undefined,
           };
 
           // Función para extraer nombres de manera inteligente
@@ -1036,12 +1038,14 @@ export const solicitudesService = {
       const d = estructuraDatos || {};
       if (!candidatoIdFinal && d) {
         const numeroDocumento =
-          d.numero_documento || d.documento || d.cedula || d.identificacion;
+          d.numero_documento || d.documento || d.cedula || d.cedula_ciudadania || d.identificacion;
         const email = d.email || d.correo_electronico || d.correo;
+        const telefono = d.telefono || d.celular || d.phone || d.movil;
         if (numeroDocumento && email) {
           const candidatoPayload: Partial<Candidato> = {
             numero_documento: String(numeroDocumento),
             email: String(email),
+            telefono: telefono ? String(telefono) : undefined,
           };
           // Función para extraer nombres de manera inteligente (misma lógica que en create)
           const extractNames = (data: Record<string, any>) => {

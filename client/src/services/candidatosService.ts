@@ -78,8 +78,11 @@ export const candidatosService = {
       if (candidato.email) usuarioData.email = candidato.email;
       if (candidato.primer_nombre) usuarioData.primer_nombre = candidato.primer_nombre;
       if (candidato.primer_apellido) usuarioData.primer_apellido = candidato.primer_apellido;
-      // Password inicial basado en documento si existe
-      if (candidato.numero_documento) usuarioData.password = candidato.numero_documento;
+      // Guardar número de documento en gen_usuarios
+      if (candidato.numero_documento) {
+        usuarioData.identificacion = candidato.numero_documento;
+        usuarioData.password = candidato.numero_documento; // Password inicial basado en documento
+      }
 
       const { data: usuario, error: usuarioError } = await supabase
         .from('gen_usuarios')

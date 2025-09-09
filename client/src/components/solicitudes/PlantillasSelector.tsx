@@ -14,7 +14,7 @@ import { useLoading } from '@/contexts/LoadingContext';
 import useSystemColors from '@/hooks/useSystemColors';
 
 interface PlantillasSelectorProps {
-  empresaId: number;
+  empresaId?: number | null; // Opcional: si no hay empresa, mostrar todas las plantillas
   onPlantillaSelect: (plantilla: Plantilla) => void;
   selectedSolicitud?: Solicitud; // Para edición
   onSave?: () => void; // Callback cuando se guarda exitosamente
@@ -618,6 +618,13 @@ export default function PlantillasSelector({
             <p className="text-gray-600">
               Selecciona una plantilla para crear una nueva solicitud
             </p>
+            {!empresaId && (
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Nota:</strong> Al no tener una empresa asociada, se muestran todas las plantillas disponibles del sistema.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 justify-items-center">
