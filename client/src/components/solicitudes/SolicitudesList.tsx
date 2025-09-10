@@ -776,6 +776,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
               <TableHead className="text-center w-24">Consecutivo</TableHead>
               <TableHead>Documento</TableHead>
               <TableHead className="w-64">Empresa</TableHead>
+              <TableHead>Tipo Candidato</TableHead>
               <TableHead>Analista Asignado</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead>Modificación</TableHead>
@@ -928,6 +929,19 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                     <span className="text-sm text-muted-foreground">
                       {getDisplayValue(solicitud.empresas?.ciudad, 'Sin ciudad')}
                     </span>
+                  </div>
+                </TableCell>
+
+                <TableCell>
+                  <div className="flex flex-col">
+                    <span className="font-medium">
+                      {getDisplayValue(solicitud.tipos_candidatos?.nombre, 'Sin tipo')}
+                    </span>
+                    {solicitud.tipos_candidatos?.descripcion && (
+                      <span className="text-xs text-muted-foreground">
+                        {solicitud.tipos_candidatos.descripcion}
+                      </span>
+                    )}
                   </div>
                 </TableCell>
 

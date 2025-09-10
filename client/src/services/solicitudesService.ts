@@ -20,6 +20,7 @@ export interface Solicitud {
   empresa_id?: number;
   candidato_id?: number;
   plantilla_id?: number;
+  tipo_candidato_id?: number; // Relación con tipos_candidatos
   estado: string;
   previous_state?: string; // Estado anterior antes de Stand By
   fecha_solicitud?: string;
@@ -93,6 +94,12 @@ export interface Solicitud {
     nombre: string;
     email?: string;
   };
+  // Relación con tipo de candidato
+  tipos_candidatos?: {
+    id: number;
+    nombre: string;
+    descripcion?: string;
+  };
 }
 
 export const solicitudesService = {
@@ -151,6 +158,11 @@ export const solicitudesService = {
             razon_social,
             nit,
             ciudad
+          ),
+          tipos_candidatos!tipo_candidato_id (
+            id,
+            nombre,
+            descripcion
           )
         `
         );
@@ -284,6 +296,11 @@ export const solicitudesService = {
             razon_social,
             nit,
             ciudad
+          ),
+          tipos_candidatos!tipo_candidato_id (
+            id,
+            nombre,
+            descripcion
           )
         `
         )
@@ -386,6 +403,11 @@ export const solicitudesService = {
             razon_social,
             nit,
             ciudad
+          ),
+          tipos_candidatos!tipo_candidato_id (
+            id,
+            nombre,
+            descripcion
           )
         `
         )
@@ -651,6 +673,11 @@ export const solicitudesService = {
             razon_social,
             nit,
             ciudad
+          ),
+          tipos_candidatos!tipo_candidato_id (
+            id,
+            nombre,
+            descripcion
           )
         `
         )
@@ -996,6 +1023,11 @@ export const solicitudesService = {
             razon_social,
             nit,
             ciudad
+          ),
+          tipos_candidatos!tipo_candidato_id (
+            id,
+            nombre,
+            descripcion
           )
         `
         )
