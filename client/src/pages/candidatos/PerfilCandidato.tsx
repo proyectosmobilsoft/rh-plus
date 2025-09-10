@@ -314,7 +314,7 @@ export default function PerfilCandidato() {
       if (tipoError) throw tipoError;
       setTipoCandidato(tipoData);
 
-      // Cargar documentos requeridos para este tipo de candidato
+      // Cargar documentos asociados al tipo de candidato
       const { data: documentosData, error: documentosError } = await supabase
         .from('tipos_candidatos_documentos')
         .select(`
@@ -661,19 +661,24 @@ export default function PerfilCandidato() {
     
     // Calcular progreso de documentos requeridos
     if (documentosRequeridos.length > 0) {
-      // Distribuir 40% del progreso total entre los documentos
-      const pesoPorDocumento = Math.floor(40 / documentosRequeridos.length);
+      // Filtrar solo los documentos que son requeridos
+      const documentosRequeridosFiltrados = documentosRequeridos.filter(doc => doc.requerido);
       
-      // Contar solo los documentos que corresponden a los requeridos para este tipo de candidato
-      const documentosCompletados = existingDocuments.filter(doc => 
-        documentosRequeridos.some(req => req.tipo_documento_id === doc.tipo_documento_id)
-      ).length;
-      
-      puntajeTotal += documentosRequeridos.length * pesoPorDocumento;
-      puntajeCompletado += documentosCompletados * pesoPorDocumento;
-      
-      console.log('🔍 calcularProgresoPerfil - Peso por documento:', pesoPorDocumento);
-      console.log('🔍 calcularProgresoPerfil - Documentos completados vs requeridos:', documentosCompletados, '/', documentosRequeridos.length);
+      if (documentosRequeridosFiltrados.length > 0) {
+        // Distribuir 40% del progreso total entre los documentos requeridos
+        const pesoPorDocumento = Math.floor(40 / documentosRequeridosFiltrados.length);
+        
+        // Contar solo los documentos que corresponden a los requeridos para este tipo de candidato
+        const documentosCompletados = existingDocuments.filter(doc => 
+          documentosRequeridosFiltrados.some(req => req.tipo_documento_id === doc.tipo_documento_id)
+        ).length;
+        
+        puntajeTotal += documentosRequeridosFiltrados.length * pesoPorDocumento;
+        puntajeCompletado += documentosCompletados * pesoPorDocumento;
+        
+        console.log('🔍 calcularProgresoPerfil - Peso por documento:', pesoPorDocumento);
+        console.log('🔍 calcularProgresoPerfil - Documentos completados vs requeridos:', documentosCompletados, '/', documentosRequeridosFiltrados.length);
+      }
     }
     
     console.log('🔍 calcularProgresoPerfil - Documentos requeridos:', documentosRequeridos.length);
@@ -1413,7 +1418,7 @@ export default function PerfilCandidato() {
                         <div>
                           <h3 className="text-xl font-bold text-gray-900">Documentos</h3>
                           <p className="text-sm text-gray-600">
-                            {tipoCandidato ? `Documentos requeridos para: ${tipoCandidato.nombre}` : 'Cargando tipo de candidato...'}
+                            {tipoCandidato ? `Documentos asociados para: ${tipoCandidato.nombre}` : 'Cargando tipo de candidato...'}
                           </p>
                         </div>
                       </div>
@@ -1434,7 +1439,7 @@ export default function PerfilCandidato() {
                             <div className="space-y-4">
                               <h4 className="text-lg font-semibold text-gray-800 flex items-center">
                                 <Clock className="w-5 h-5 text-blue-600 mr-2" />
-                                Documentos requeridos ({documentosRequeridos.length})
+                                Documentos del tipo de candidato ({documentosRequeridos.length})
                               </h4>
                               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {documentosRequeridos.map((documentoRequerido) => {
@@ -1468,12 +1473,16 @@ export default function PerfilCandidato() {
                                               <span className="text-lg">{getDocumentIcon(documentoRequerido.tipos_documentos.nombre)}</span>
                                             </div>
                                             <div>
-                                              <span className="font-semibold text-gray-800">
-                                                {documentoRequerido.tipos_documentos.nombre}
-                                              </span>
-                                              {documentoRequerido.obligatorio && (
-                                                <span className="text-red-500 ml-1">*</span>
-                                              )}
+                                              <div className="flex items-center gap-2">
+                                                <span className="font-semibold text-gray-800">
+                                                  {documentoRequerido.tipos_documentos.nombre}
+                                                </span>
+                                                {documentoRequerido.requerido && (
+                                                  <Badge variant="destructive" className="text-xs px-2 py-0.5">
+                                                    Requerido
+                                                  </Badge>
+                                                )}
+                                              </div>
                                             </div>
                                           </div>
                                                                                      {isUploaded && (
@@ -1600,7 +1609,7 @@ export default function PerfilCandidato() {
                           {documentosRequeridos.length === 0 && (
                             <div className="text-center py-12">
                               <CheckCircle className="w-16 h-16 text-brand-lime mx-auto mb-4" />
-                              <p className="text-gray-600 text-lg">No hay documentos requeridos para este tipo de candidato.</p>
+                              <p className="text-gray-600 text-lg">No hay documentos asociados para este tipo de candidato.</p>
                             </div>
                           )}
                         </div>
