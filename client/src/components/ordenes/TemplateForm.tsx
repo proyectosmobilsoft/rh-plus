@@ -130,6 +130,7 @@ export function TemplateForm({ initialData, onSaved }: TemplateFormProps) {
       descripcion: initialData?.descripcion || "",
       esDefault: initialData?.es_default || false,
       activo: initialData?.activa !== undefined ? initialData.activa : true,
+      id_empresa: initialData?.id_empresa || null,
       configuracionCampos: {}
     }
   });
@@ -183,6 +184,7 @@ export function TemplateForm({ initialData, onSaved }: TemplateFormProps) {
         es_default: data.esDefault || false,
         estructura_formulario: fieldConfig,
         activa: true,
+        id_empresa: data.id_empresa || null,
       };
 
       // Determinar qué plantilla actualizar
@@ -218,12 +220,16 @@ export function TemplateForm({ initialData, onSaved }: TemplateFormProps) {
     try {
       setIsLoading(true);
       
+      // Obtener los valores del formulario
+      const formValues = form.getValues();
+      
       const payload = {
         nombre: plantillaNombre || data.nombre,
         descripcion: plantillaDescripcion || data.descripcion || undefined,
         estructura_formulario: data.estructura_formulario || JSON.stringify(data.fields, null, 2),
         es_default: false,
         activa: true,
+        id_empresa: formValues.id_empresa || null,
       };
 
       let result;
