@@ -117,7 +117,7 @@ export const verificarEstructuraDB = async () => {
     try {
       const { error: epError } = await supabase
         .from('empresas_plantillas')
-        .select('id')
+        .select('empresa_id, plantilla_id')
         .limit(1);
       
       empresasPlantillasExists = !epError;
@@ -187,6 +187,7 @@ export const getAllPlantillasActivas = async (): Promise<Plantilla[]> => {
 
 /**
  * Obtiene las plantillas asociadas a una empresa específica
+ * Solo devuelve plantillas de la empresa, sin fallbacks que muestren todas las plantillas
  */
 export const getPlantillasByEmpresa = async (empresaId: number | null | undefined): Promise<Plantilla[]> => {
   const { startLoading, stopLoading } = getLoadingContext();
@@ -195,10 +196,10 @@ export const getPlantillasByEmpresa = async (empresaId: number | null | undefine
     startLoading();
     console.log('🔍 Buscando plantillas para empresa ID:', empresaId);
     
-    // Si no hay empresaId, obtener todas las plantillas activas
+    // Si no hay empresaId, devolver array vacío
     if (!empresaId) {
-      console.log('⚠️ No hay empresa ID proporcionado, obteniendo todas las plantillas activas...');
-      return await getAllPlantillasActivas();
+      console.log('⚠️ No hay empresa ID proporcionado, devolviendo array vacío');
+      return [];
     }
     
     // Primero verificamos si existe la tabla empresas_plantillas
@@ -209,10 +210,31 @@ export const getPlantillasByEmpresa = async (empresaId: number | null | undefine
 
     if (tableError) {
       console.error('❌ Error al verificar tabla empresas_plantillas:', tableError);
-      console.log('🔄 Intentando obtener todas las plantillas activas...');
+      console.log('🔄 Intentando obtener plantillas por id_empresa...');
       
-      // Si no existe la tabla, obtenemos todas las plantillas activas
-      return await getAllPlantillasActivas();
+      // Si no existe la tabla, buscar por id_empresa en plantillas_solicitudes
+      const { data: plantillas, error } = await supabase
+        .from('plantillas_solicitudes')
+        .select(`
+          *,
+          empresas!fk_plantillas_solicitudes_empresa(razon_social, nit)
+        `)
+        .eq('id_empresa', empresaId)
+        .order('nombre');
+
+      if (error) {
+        console.error('❌ Error al obtener plantillas por id_empresa:', error);
+        return [];
+      }
+
+      // Mapear los datos para incluir el nombre de la empresa
+      const plantillasConEmpresa = plantillas?.map(plantilla => ({
+        ...plantilla,
+        empresa_nombre: plantilla.empresas?.razon_social || 'Sin empresa'
+      })) || [];
+
+      console.log('✅ Plantillas obtenidas por id_empresa:', plantillasConEmpresa?.length || 0);
+      return plantillasConEmpresa;
     }
 
     // Si la tabla existe, obtenemos las plantillas asignadas a la empresa
@@ -224,41 +246,49 @@ export const getPlantillasByEmpresa = async (empresaId: number | null | undefine
 
     if (errorAsignadas) {
       console.error('❌ Error al obtener plantillas asignadas:', errorAsignadas);
-      return await getAllPlantillasActivas();
+      return [];
     }
 
     console.log('📊 Plantillas asignadas encontradas:', plantillasAsignadas?.length || 0);
     console.log('📋 Datos de plantillas asignadas:', plantillasAsignadas);
 
-    // Si no hay plantillas asignadas, obtenemos todas las plantillas activas
+    // Si no hay plantillas asignadas, devolver array vacío
     if (!plantillasAsignadas || plantillasAsignadas.length === 0) {
       console.log('⚠️ No hay plantillas asignadas para la empresa ID:', empresaId);
-      console.log('🔄 Obteniendo todas las plantillas activas como fallback...');
-      return await getAllPlantillasActivas();
+      return [];
     }
 
     // Obtenemos los IDs de las plantillas asignadas
     const plantillaIds = plantillasAsignadas.map(pa => pa.plantilla_id);
     console.log('🆔 IDs de plantillas a buscar:', plantillaIds);
 
-    // Obtenemos las plantillas completas
+    // Obtenemos las plantillas completas con información de empresa
     const { data: plantillas, error } = await supabase
       .from('plantillas_solicitudes')
-      .select('*')
+      .select(`
+        *,
+        empresas!fk_plantillas_solicitudes_empresa(razon_social, nit)
+      `)
       .in('id', plantillaIds)
       .order('nombre');
 
     if (error) {
       console.error('❌ Error al obtener plantillas:', error);
-      return await getAllPlantillasActivas();
+      return [];
     }
 
-    console.log('✅ Plantillas obtenidas exitosamente:', plantillas?.length || 0);
-    console.log('📋 Plantillas:', plantillas);
-    return plantillas || [];
+    // Mapear los datos para incluir el nombre de la empresa
+    const plantillasConEmpresa = plantillas?.map(plantilla => ({
+      ...plantilla,
+      empresa_nombre: plantilla.empresas?.razon_social || 'Sin empresa'
+    })) || [];
+
+    console.log('✅ Plantillas obtenidas exitosamente:', plantillasConEmpresa?.length || 0);
+    console.log('📋 Plantillas:', plantillasConEmpresa);
+    return plantillasConEmpresa;
   } catch (error) {
     console.error('❌ Error en getPlantillasByEmpresa:', error);
-    return await getAllPlantillasActivas();
+    return [];
   } finally {
     stopLoading();
   }

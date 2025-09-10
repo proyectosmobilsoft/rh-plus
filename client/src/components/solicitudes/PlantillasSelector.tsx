@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FileText, CheckCircle, AlertCircle, ArrowLeft, Clock, User, Phone, Pause, Play, Edit, Plus, XCircle } from 'lucide-react';
+import { FileText, CheckCircle, AlertCircle, ArrowLeft, Clock, User, Phone, Pause, Play, Edit, Plus, XCircle, Building } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -271,7 +271,15 @@ export default function PlantillasSelector({
       const estructuraDB = await verificarEstructuraDB();
       console.log('📊 Estructura DB:', estructuraDB);
 
-      const data = await plantillasService.getByEmpresa(empresaId);
+      // Si hay empresaId, usar getByEmpresa que filtra por empresa
+      // Si no hay empresaId, usar getAll que muestra todas las plantillas
+      let data;
+      if (empresaId) {
+        data = await plantillasService.getByEmpresa(empresaId);
+      } else {
+        data = await plantillasService.getAll();
+      }
+      
       console.log('📦 Plantillas recibidas:', data);
       console.log('📊 Cantidad de plantillas:', data?.length || 0);
       setPlantillas(data);
@@ -627,18 +635,17 @@ export default function PlantillasSelector({
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 justify-items-center">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {plantillas.map((plantilla) => (
               <Card
                 key={plantilla.id}
-                className={`w-full max-w-xs bg-white shadow-md border border-gray-200 transition-all duration-200 ease-in-out ${plantilla.activa ? 'hover:border-blue-500 hover:shadow-lg hover:scale-[1.02] cursor-pointer group' : 'opacity-70'}`}
+                className={`h-56 bg-white shadow-md border border-gray-200 transition-all duration-200 ease-in-out flex flex-col ${plantilla.activa ? 'hover:border-blue-500 hover:shadow-lg hover:scale-[1.02] cursor-pointer group' : 'opacity-70'}`}
                 onClick={plantilla.activa ? () => handlePlantillaSelect(plantilla) : undefined}
               >
-                <CardHeader className="pb-4">
+                <CardHeader className="pb-2 flex-shrink-0">
                   <div className="flex items-center justify-between">
                     <FileText className="h-5 w-5 text-blue-600 group-hover:text-blue-700 transition-colors" />
                     <div className="flex items-center gap-2">
-
                       <Badge
                         variant={plantilla.activa ? "default" : "destructive"}
                         className={`text-xs font-medium px-2 py-0.5 ${plantilla.activa ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-800 border-red-200'}`}
@@ -647,24 +654,44 @@ export default function PlantillasSelector({
                       </Badge>
                     </div>
                   </div>
-                  <CardTitle className="text-lg font-bold text-gray-900 mt-2">
+                  <CardTitle className="text-sm font-semibold text-gray-900 mt-2 truncate" title={plantilla.nombre}>
                     {plantilla.nombre}
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="pt-3 flex flex-col justify-between flex-grow">
-                  {plantilla.descripcion && (
-                    <p className="text-xs text-gray-700 mb-4 line-clamp-2 min-h-[36px] flex-grow">
-                      {plantilla.descripcion}
+                
+                <CardContent className="pt-0 flex flex-col flex-grow">
+                  {/* Información de la empresa */}
+                  <div className="mb-3 p-2 bg-gray-50 rounded-md border flex-shrink-0">
+                    <div className="flex items-center gap-1 mb-1">
+                      <Building className="h-3 w-3 text-gray-500" />
+                      <span className="text-xs font-medium text-gray-600">Empresa:</span>
+                    </div>
+                    <p className="text-xs text-gray-700 font-medium truncate" title={plantilla.empresa_nombre || 'Sin empresa'}>
+                      {plantilla.empresa_nombre || 'Sin empresa'}
                     </p>
-                  ) || <p className="text-xs text-gray-700 mb-4 min-h-[36px] flex-grow h-0"></p>}
-                  <Button
-
-                    className="w-full bg-cyan-600 text-white hover:bg-cyan-700 flex items-center justify-center text-sm px-3 py-1.5 h-auto"
-                    disabled={!plantilla.activa}
-                  >
-                    <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
-                    Seleccionar Plantilla
-                  </Button>
+                  </div>
+                  
+                  {/* Descripción */}
+                  <div className="flex-grow mb-3">
+                    {plantilla.descripcion ? (
+                      <p className="text-xs text-gray-700 truncate" title={plantilla.descripcion}>
+                        {plantilla.descripcion}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-gray-400 italic">Sin descripción</p>
+                    )}
+                  </div>
+                  
+                  {/* Botón */}
+                  <div className="flex-shrink-0">
+                    <Button
+                      className="w-full bg-cyan-600 text-white hover:bg-cyan-700 flex items-center justify-center text-xs px-2 py-1.5 h-8"
+                      disabled={!plantilla.activa}
+                    >
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      Seleccionar
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}
