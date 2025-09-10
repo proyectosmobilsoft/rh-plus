@@ -39,6 +39,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from '@/services/supabaseClient';
 import { format, subDays, startOfMonth, endOfMonth } from "date-fns";
 import { es } from "date-fns/locale";
+import { Can } from '@/contexts/PermissionsContext';
 import {
   Users,
   Building,
@@ -396,9 +397,10 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="p-6 space-y-6 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
-      {/* Header del Dashboard */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
+    <Can action="vista-dashboard">
+      <div className="p-6 space-y-6 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
+        {/* Header del Dashboard */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
         <div>
           <p className="text-gray-600">Vista general del sistema y métricas clave</p>
         </div>
@@ -1130,14 +1132,15 @@ const Dashboard = () => {
       </Tabs>
 
       {/* Footer con información adicional */}
-      <div className="mt-8 p-6 bg-white rounded-lg border border-gray-200">
-        <div className="text-center">
-          <p className="text-sm text-gray-600">
-            Dashboard actualizado en tiempo real • Última actualización: {new Date().toLocaleString('es-ES')}
-          </p>
+        <div className="mt-8 p-6 bg-white rounded-lg border border-gray-200">
+          <div className="text-center">
+            <p className="text-sm text-gray-600">
+              Dashboard actualizado en tiempo real • Última actualización: {new Date().toLocaleString('es-ES')}
+            </p>
+          </div>
         </div>
       </div>
-    </div>
+    </Can>
   );
 };
 

@@ -7,6 +7,7 @@ export type Permission =
   | "ver_dashboard_admin"
   | "ver_dashboard_analista" 
   | "ver_dashboard_cliente"
+  | "vista_dashboard"
   
 
 
@@ -69,7 +70,10 @@ export type Permission =
   | "eliminar_candidatos"
   | "ver_documentos_candidatos"
   | "ver_informacion_personal"
-  | "editar_informacion_personal";
+  | "editar_informacion_personal"
+  
+  // Galería de formularios
+  | "ver_galeria_formularios";
 
 // Configuración de permisos por rol base
 export const rolePermissions: Record<UserRole, Permission[]> = {
@@ -77,6 +81,7 @@ export const rolePermissions: Record<UserRole, Permission[]> = {
     // Dashboard
     "ver_dashboard",
     "ver_dashboard_admin",
+    "vista_dashboard",
     
     // Seguridad - acceso completo
     "ver_usuarios",
@@ -145,6 +150,7 @@ export const rolePermissions: Record<UserRole, Permission[]> = {
     // Dashboard
     "ver_dashboard",
     "ver_dashboard_analista",
+    "vista_dashboard",
     
     // Órdenes - gestión limitada
     "ver_ordenes",
@@ -174,6 +180,7 @@ export const rolePermissions: Record<UserRole, Permission[]> = {
     // Dashboard
     "ver_dashboard",
     "ver_dashboard_cliente",
+    "vista_dashboard",
     
     // Candidatos - gestión de sus propios candidatos
     "ver_candidatos",
@@ -192,6 +199,7 @@ export const rolePermissions: Record<UserRole, Permission[]> = {
   candidato: [
     // Dashboard personal
     "ver_dashboard",
+    "vista_dashboard",
     
     // Solo información personal
     "ver_informacion_personal",
