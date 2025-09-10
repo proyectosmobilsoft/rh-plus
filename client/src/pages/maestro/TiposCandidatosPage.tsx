@@ -773,84 +773,93 @@ export default function TiposCandidatosPage() {
                   <div className="relative mb-4">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                     <Input
-                      placeholder="Buscar documentos..."
+                      placeholder="Buscar por nombre de documento..."
                       value={searchDocumentos}
                       onChange={(e) => setSearchDocumentos(e.target.value)}
                       className="pl-10"
                     />
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {(() => {
-                      const filteredDocumentos = tiposDocumentosActivos.filter(documento => 
-                        documento.nombre?.toLowerCase().includes(searchDocumentos.toLowerCase()) ||
-                        documento.descripcion?.toLowerCase().includes(searchDocumentos.toLowerCase())
-                      );
-                      
-                      if (filteredDocumentos.length === 0 && searchDocumentos) {
-                        return (
-                          <div className="col-span-full text-center py-8 text-gray-500">
-                            No se encontraron documentos que coincidan con "{searchDocumentos}"
-                          </div>
-                        );
-                      }
-                      
-                      return filteredDocumentos.map((documento: TipoDocumento) => {
-                        const documentoAsociado = documentosAsociados?.find(
-                          (dr: any) => dr.tipo_documento_id === documento.id
-                        );
-                        const isSelected = documentoAsociado ? true : false;
-                        const isRequerido = documentoAsociado?.requerido || false;
-                        const isLoading = loadingDocumentoId === documento.id;
+                  <div className="max-h-96 overflow-y-auto border rounded-lg p-4 bg-gray-50">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {(() => {
+                        // Función para normalizar texto (remover tildes y acentos)
+                        const normalizeText = (text: string) => {
+                          return text
+                            .toLowerCase()
+                            .normalize('NFD')
+                            .replace(/[\u0300-\u036f]/g, '');
+                        };
                         
-                        return (
-                          <div 
-                            key={documento.id} 
-                            className={`flex items-center space-x-3 p-3 border rounded-lg transition-all duration-200 ${
-                              isSelected 
-                                ? 'bg-cyan-50 border-cyan-200' 
-                                : 'border-gray-200'
-                            } ${isLoading ? 'opacity-70' : ''}`}
-                          >
-                            {/* Checkbox principal para seleccionar el documento */}
-                            {isLoading ? (
-                              <div className="h-4 w-4 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent" />
-                            ) : (
-                              <Checkbox
-                                checked={isSelected}
-                                onCheckedChange={(checked) => 
-                                  handleToggleDocumento(documento.id, checked === true)
-                                }
-                                disabled={isLoading}
-                              />
-                            )}
-                            
-                            {/* Información del documento */}
-                            <div className="flex-1">
-                              <div className="font-medium text-sm">{documento.nombre}</div>
-                              {documento.descripcion && (
-                                <div className="text-xs text-gray-500">{documento.descripcion}</div>
-                              )}
+                        const filteredDocumentos = tiposDocumentosActivos.filter(documento => 
+                          normalizeText(documento.nombre || '').includes(normalizeText(searchDocumentos))
+                        );
+                        
+                        if (filteredDocumentos.length === 0 && searchDocumentos) {
+                          return (
+                            <div className="col-span-full text-center py-8 text-gray-500">
+                              No se encontraron documentos que coincidan con "{searchDocumentos}"
                             </div>
-                            
-                            {/* Checkbox de "Requerido" solo cuando el documento está seleccionado */}
-                            {isSelected && (
-                              <div className="flex items-center space-x-2">
+                          );
+                        }
+                        
+                        return filteredDocumentos.map((documento: TipoDocumento) => {
+                          const documentoAsociado = documentosAsociados?.find(
+                            (dr: any) => dr.tipo_documento_id === documento.id
+                          );
+                          const isSelected = documentoAsociado ? true : false;
+                          const isRequerido = documentoAsociado?.requerido || false;
+                          const isLoading = loadingDocumentoId === documento.id;
+                          
+                          return (
+                            <div 
+                              key={documento.id} 
+                              className={`flex items-center space-x-3 p-3 border rounded-lg transition-all duration-200 bg-white ${
+                                isSelected 
+                                  ? 'bg-cyan-50 border-cyan-200' 
+                                  : 'border-gray-200'
+                              } ${isLoading ? 'opacity-70' : ''}`}
+                            >
+                              {/* Checkbox principal para seleccionar el documento */}
+                              {isLoading ? (
+                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent" />
+                              ) : (
                                 <Checkbox
-                                  checked={isRequerido}
+                                  checked={isSelected}
                                   onCheckedChange={(checked) => 
-                                    handleToggleRequerido(documento.id, checked === true)
+                                    handleToggleDocumento(documento.id, checked === true)
                                   }
                                   disabled={isLoading}
-                                  className="border-cyan-600"
                                 />
-                                <span className="text-xs text-cyan-600 font-medium">Requerido</span>
+                              )}
+                              
+                              {/* Información del documento */}
+                              <div className="flex-1">
+                                <div className="font-medium text-sm">{documento.nombre}</div>
+                                {documento.descripcion && (
+                                  <div className="text-xs text-gray-500">{documento.descripcion}</div>
+                                )}
                               </div>
-                            )}
-                          </div>
-                        );
-                      });
-                    })()}
+                              
+                              {/* Checkbox de "Requerido" solo cuando el documento está seleccionado */}
+                              {isSelected && (
+                                <div className="flex items-center space-x-2">
+                                  <Checkbox
+                                    checked={isRequerido}
+                                    onCheckedChange={(checked) => 
+                                      handleToggleRequerido(documento.id, checked === true)
+                                    }
+                                    disabled={isLoading}
+                                    className="border-cyan-600"
+                                  />
+                                  <span className="text-xs text-cyan-600 font-medium">Requerido</span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
                   </div>
                   {tiposDocumentosActivos.length === 0 && (
                     <div className="text-center py-8 text-gray-500">
