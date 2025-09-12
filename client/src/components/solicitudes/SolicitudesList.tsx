@@ -255,10 +255,15 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     };
   }, [stopLoading]);
 
-  const getStatusBadge = (estado: string) => {
+  const getStatusBadge = (estado: string, hasAnalista: boolean) => {
     const formatEstado = (estado: string) => {
       return estado.charAt(0).toUpperCase() + estado.slice(1).toLowerCase();
     };
+
+    // Si no tiene analista asignado y está en estado de asignación pendiente, mostrar badge morado especial
+    if (!hasAnalista && (estado?.toUpperCase() === 'PENDIENTE ASIGNACION' || estado?.toUpperCase() === 'PENDIENTE')) {
+      return <Badge className="bg-purple-400 hover:bg-purple-500 text-purple-900 border-purple-600">Sin Asignar</Badge>;
+    }
 
     switch (estado?.toUpperCase()) {
       case 'PENDIENTE':
@@ -286,8 +291,13 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     }
   };
 
-  // Función para obtener el color de fondo pálido de la fila según el estado
-  const getRowBackgroundColor = (estado: string) => {
+  // Función para obtener el color de fondo pálido de la fila según el estado y asignación de analista
+  const getRowBackgroundColor = (estado: string, hasAnalista: boolean) => {
+    // Si no tiene analista asignado y está en estado de asignación pendiente, aplicar color especial
+    if (!hasAnalista && (estado?.toUpperCase() === 'PENDIENTE ASIGNACION' || estado?.toUpperCase() === 'PENDIENTE')) {
+      return 'bg-purple-200';
+    }
+    
     switch (estado?.toUpperCase()) {
       case 'PENDIENTE':
         return 'bg-yellow-100';
@@ -349,6 +359,10 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
   // Función para verificar si la solicitud está en estado CANCELADA
   const isCancelada = (estado: string) => estado?.toUpperCase() === 'CANCELADA';
+
+  // Función para verificar si la solicitud está pendiente de asignación
+  const isPendienteAsignacion = (estado: string) => 
+    estado?.toUpperCase() === 'PENDIENTE ASIGNACION';
 
   const getDisplayValue = (value: string | undefined, defaultValue: string = 'No especificado') => {
     return value && value.trim() !== '' ? value : defaultValue;
@@ -776,7 +790,6 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
               <TableHead className="text-center w-24">Consecutivo</TableHead>
               <TableHead>Documento</TableHead>
               <TableHead className="w-64">Empresa</TableHead>
-              <TableHead>Tipo Candidato</TableHead>
               <TableHead>Analista Asignado</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead>Modificación</TableHead>
@@ -786,7 +799,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
             {solicitudes.map((solicitud) => (
               <TableRow
                 key={solicitud.id}
-                className={`${getRowBackgroundColor(solicitud.estado)}`}
+                className={`${getRowBackgroundColor(solicitud.estado, !!solicitud.analista)}`}
               >
                 <TableCell>
                   <div className="flex justify-start items-center">
@@ -816,7 +829,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                         </Can>
 
                         {/* Botón Asignar Solicitud - solo visible en estado PENDIENTE ASIGNACION */}
-                        {solicitud.estado === 'PENDIENTE ASIGNACION' && !isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                        {isPendienteAsignacion(solicitud.estado) && !isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
                           <Can action="accion-asignar-solicitud">
                             <DropdownMenuItem onClick={() => handleAssignClick(solicitud.id)} className="cursor-pointer">
                               <User className="h-4 w-4 mr-2 text-blue-600" />
@@ -932,18 +945,6 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                   </div>
                 </TableCell>
 
-                <TableCell>
-                  <div className="flex flex-col">
-                    <span className="font-medium">
-                      {getDisplayValue(solicitud.tipos_candidatos?.nombre, 'Sin tipo')}
-                    </span>
-                    {solicitud.tipos_candidatos?.descripcion && (
-                      <span className="text-xs text-muted-foreground">
-                        {solicitud.tipos_candidatos.descripcion}
-                      </span>
-                    )}
-                  </div>
-                </TableCell>
 
                 <TableCell>
                   <div className="flex flex-col">
@@ -964,7 +965,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                   </div>
                 </TableCell>
 
-                <TableCell>{getStatusBadge(solicitud.estado)}</TableCell>
+                <TableCell>{getStatusBadge(solicitud.estado, !!solicitud.analista)}</TableCell>
                 <TableCell>
                   <div className="flex flex-col">
                     <span className="text-sm">{formatDate(solicitud.updated_at)}</span>

@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Lock, Shield, AlertTriangle } from 'lucide-react';
+import { Eye, EyeOff, Lock, Shield, AlertTriangle, Check, X } from 'lucide-react';
 import { supabase } from '@/services/supabaseClient';
 
 import { Button } from '@/components/ui/button';
@@ -91,6 +91,16 @@ export default function CambiarPassword() {
       values.autorizacionDatos &&
       form.formState.isValid
     );
+  };
+
+  // Función para validar los requisitos de la contraseña
+  const validatePasswordRequirements = (password: string) => {
+    return {
+      minLength: password.length >= 8,
+      hasUppercase: /[A-Z]/.test(password),
+      hasLowercase: /[a-z]/.test(password),
+      hasNumber: /\d/.test(password),
+    };
   };
 
   // Función para obtener el progreso de completado
@@ -291,35 +301,123 @@ export default function CambiarPassword() {
                 <FormField
                   control={form.control}
                   name="confirmarPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Confirmar Nueva Contraseña</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                          <Input
-                            {...field}
-                            type={showConfirmPassword ? 'text' : 'password'}
-                            placeholder="Repita la nueva contraseña"
-                            className="pl-10 pr-10"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                            className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-                          >
-                            {showConfirmPassword ? (
-                              <EyeOff className="h-4 w-4" />
-                            ) : (
-                              <Eye className="h-4 w-4" />
+                  render={({ field }) => {
+                    const passwordNueva = form.watch('passwordNueva') || '';
+                    const confirmarPassword = field.value || '';
+                    const passwordsMatch = passwordNueva && confirmarPassword && passwordNueva === confirmarPassword;
+                    const passwordsMismatch = passwordNueva && confirmarPassword && passwordNueva !== confirmarPassword;
+                    
+                    return (
+                      <FormItem>
+                        <FormLabel>Confirmar Nueva Contraseña</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Lock className={`absolute left-3 top-3 h-4 w-4 ${
+                              passwordsMatch ? 'text-green-500' : 
+                              passwordsMismatch ? 'text-red-500' : 
+                              'text-gray-400'
+                            }`} />
+                            <Input
+                              {...field}
+                              type={showConfirmPassword ? 'text' : 'password'}
+                              placeholder="Repita la nueva contraseña"
+                              className={`pl-10 pr-10 ${
+                                passwordsMatch ? 'border-green-500 focus:border-green-500 focus:ring-green-500' :
+                                passwordsMismatch ? 'border-red-500 focus:border-red-500 focus:ring-red-500' :
+                                ''
+                              }`}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                              className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                            >
+                              {showConfirmPassword ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </button>
+                            {/* Indicador visual de coincidencia */}
+                            {passwordsMatch && (
+                              <div className="absolute right-10 top-3">
+                                <Check className="h-4 w-4 text-green-500" />
+                              </div>
                             )}
-                          </button>
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                            {passwordsMismatch && (
+                              <div className="absolute right-10 top-3">
+                                <X className="h-4 w-4 text-red-500" />
+                              </div>
+                            )}
+                          </div>
+                        </FormControl>
+                        {/* Mensaje dinámico */}
+                        {passwordsMatch && confirmarPassword && (
+                          <p className="text-sm text-green-600 flex items-center gap-1">
+                            <Check className="h-3 w-3" />
+                            Las contraseñas coinciden
+                          </p>
+                        )}
+                        {passwordsMismatch && (
+                          <p className="text-sm text-red-600 flex items-center gap-1">
+                            <X className="h-3 w-3" />
+                            Las contraseñas no coinciden
+                          </p>
+                        )}
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
                 />
+
+                {/* Sección de Requisitos de Contraseña */}
+                <div className="bg-green-50 p-3 rounded-lg">
+                  <p className="text-sm text-green-800 font-medium mb-2">Requisitos de la contraseña:</p>
+                  {(() => {
+                    const password = form.watch('passwordNueva') || '';
+                    const requirements = validatePasswordRequirements(password);
+                    
+                    return (
+                      <ul className="text-sm space-y-1">
+                        <li className={`flex items-center gap-2 ${requirements.minLength ? 'text-green-700' : 'text-red-600'}`}>
+                          {requirements.minLength ? (
+                            <Check className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <X className="h-4 w-4 text-red-500" />
+                          )}
+                          Mínimo 8 caracteres
+                        </li>
+                        <li className={`flex items-center gap-2 ${requirements.hasUppercase ? 'text-green-700' : 'text-red-600'}`}>
+                          {requirements.hasUppercase ? (
+                            <Check className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <X className="h-4 w-4 text-red-500" />
+                          )}
+                          Al menos una letra mayúscula
+                        </li>
+                        <li className={`flex items-center gap-2 ${requirements.hasLowercase ? 'text-green-700' : 'text-red-600'}`}>
+                          {requirements.hasLowercase ? (
+                            <Check className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <X className="h-4 w-4 text-red-500" />
+                          )}
+                          Al menos una letra minúscula
+                        </li>
+                        <li className={`flex items-center gap-2 ${requirements.hasNumber ? 'text-green-700' : 'text-red-600'}`}>
+                          {requirements.hasNumber ? (
+                            <Check className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <X className="h-4 w-4 text-red-500" />
+                          )}
+                          Al menos un número
+                        </li>
+                      </ul>
+                    );
+                  })()}
+                </div>
+
+                {/* Separador */}
+                <hr className="border-gray-200" />
 
                 {/* Campo de Avatar */}
                 <FormField
@@ -354,12 +452,18 @@ export default function CambiarPassword() {
                           <p className="text-sm text-gray-600 text-center">
                             Haz clic en la cámara para subir tu foto
                           </p>
+                          <p className="text-xs text-blue-600 text-center font-medium">
+                            La foto debe ser formal y elegante
+                          </p>
                         </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+
+                {/* Separador */}
+                <hr className="border-gray-200" />
 
                 {/* Campo de Autorización de Datos */}
                 <FormField
@@ -371,10 +475,11 @@ export default function CambiarPassword() {
                         <Checkbox
                           checked={field.value}
                           onCheckedChange={field.onChange}
+                          className="cursor-pointer"
                         />
                       </FormControl>
                       <div className="space-y-1 leading-none">
-                        <FormLabel className="text-sm font-normal">
+                        <FormLabel className="text-sm font-normal cursor-pointer">
                           Autorizo el uso de mis datos personales *
                         </FormLabel>
                         <p className="text-xs text-gray-600">
@@ -385,16 +490,6 @@ export default function CambiarPassword() {
                     </FormItem>
                   )}
                 />
-
-                <div className="bg-green-50 p-3 rounded-lg">
-                  <p className="text-sm text-green-800 font-medium mb-2">Requisitos de la contraseña:</p>
-                  <ul className="text-sm text-green-700 space-y-1">
-                    <li>• Mínimo 8 caracteres</li>
-                    <li>• Al menos una letra mayúscula</li>
-                    <li>• Al menos una letra minúscula</li>
-                    <li>• Al menos un número</li>
-                  </ul>
-                </div>
 
                 {/* Indicador de campos faltantes */}
                 {!isFormComplete() && (

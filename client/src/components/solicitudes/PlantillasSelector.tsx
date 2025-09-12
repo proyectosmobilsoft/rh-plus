@@ -272,14 +272,14 @@ export default function PlantillasSelector({
       const estructuraDB = await verificarEstructuraDB();
       console.log('📊 Estructura DB:', estructuraDB);
 
-      // Siempre usar getByEmpresa cuando hay empresaId para obtener solo plantillas de esa empresa
-      // Si no hay empresaId, devolver array vacío (no mostrar plantillas de otras empresas)
+      // Si hay empresaId, obtener solo plantillas de esa empresa
+      // Si no hay empresaId, mostrar todas las plantillas activas (usuario sin empresa asociada)
       let data;
       if (empresaId) {
         data = await plantillasService.getByEmpresa(empresaId, true); // Skip global loading, lo manejamos aquí
       } else {
-        console.log('⚠️ No hay empresaId proporcionado, no se mostrarán plantillas');
-        data = [];
+        console.log('📋 No hay empresaId proporcionado, mostrando todas las plantillas activas');
+        data = await plantillasService.getAllActivas();
       }
       
       console.log('📦 Plantillas recibidas:', data);

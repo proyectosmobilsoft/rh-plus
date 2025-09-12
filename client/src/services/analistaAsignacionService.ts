@@ -83,9 +83,37 @@ export const analistaAsignacionService = {
       }
 
       console.log('✅ Analistas elegibles encontrados:', analistasElegibles.length);
+      
+      // Log detallado de cada analista elegible
+      analistasElegibles.forEach(analista => {
+        const asignadas = analista.cantidad_asignadas ?? analista.cantidad_solicitudes ?? 0;
+        const limite = analista.cantidad_configurada ?? 0;
+        console.log(`📋 ${analista.usuario_nombre}: ${asignadas}/${limite} (${limite === 0 ? 'Sin límite' : `${limite - asignadas} disponibles`})`);
+      });
 
-      // Ordenar analistas por prioridad y por menor cantidad de asignadas
-      const analistasOrdenados = analistasElegibles.sort((a, b) => {
+      // Filtrar analistas que no hayan alcanzado su límite configurado
+      const analistasDisponibles = analistasElegibles.filter(analista => {
+        const asignadas = analista.cantidad_asignadas ?? analista.cantidad_solicitudes ?? 0;
+        const limite = analista.cantidad_configurada ?? 0;
+        
+        // Si no tiene límite configurado (0), permitir asignación
+        if (limite === 0) return true;
+        
+        // Verificar si aún puede recibir más solicitudes
+        const puedeRecibir = asignadas < limite;
+        
+        console.log(`📊 Analista ${analista.usuario_nombre}: ${asignadas}/${limite} solicitudes ${puedeRecibir ? '✅' : '❌'}`);
+        
+        return puedeRecibir;
+      });
+
+      if (analistasDisponibles.length === 0) {
+        console.log('❌ No hay analistas disponibles que no hayan alcanzado su límite');
+        return null;
+      }
+
+      // Ordenar analistas disponibles por prioridad y por menor cantidad de asignadas
+      const analistasOrdenados = analistasDisponibles.sort((a, b) => {
         const prioridadA = a.nivel_prioridad_1 ? 1 : a.nivel_prioridad_2 ? 2 : a.nivel_prioridad_3 ? 3 : 4;
         const prioridadB = b.nivel_prioridad_1 ? 1 : b.nivel_prioridad_2 ? 2 : b.nivel_prioridad_3 ? 3 : 4;
         if (prioridadA !== prioridadB) return prioridadA - prioridadB;
@@ -113,6 +141,7 @@ export const analistaAsignacionService = {
       };
 
       console.log('✅ Analista asignado:', analistaAsignado);
+      console.log(`📊 Detalles: ${mejorAnalista.usuario_nombre} - ${mejorAnalista.cantidad_asignadas}/${mejorAnalista.cantidad_configurada} solicitudes`);
       return analistaAsignado;
 
     } catch (error) {
