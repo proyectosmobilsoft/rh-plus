@@ -189,11 +189,13 @@ export const getAllPlantillasActivas = async (): Promise<Plantilla[]> => {
  * Obtiene las plantillas asociadas a una empresa específica
  * Solo devuelve plantillas de la empresa, sin fallbacks que muestren todas las plantillas
  */
-export const getPlantillasByEmpresa = async (empresaId: number | null | undefined): Promise<Plantilla[]> => {
+export const getPlantillasByEmpresa = async (empresaId: number | null | undefined, skipGlobalLoading: boolean = false): Promise<Plantilla[]> => {
   const { startLoading, stopLoading } = getLoadingContext();
   
   try {
-    startLoading();
+    if (!skipGlobalLoading) {
+      startLoading();
+    }
     console.log('🔍 Buscando plantillas para empresa ID:', empresaId);
     
     // Si no hay empresaId, devolver array vacío
@@ -290,7 +292,9 @@ export const getPlantillasByEmpresa = async (empresaId: number | null | undefine
     console.error('❌ Error en getPlantillasByEmpresa:', error);
     return [];
   } finally {
-    stopLoading();
+    if (!skipGlobalLoading) {
+      stopLoading();
+    }
   }
 };
 

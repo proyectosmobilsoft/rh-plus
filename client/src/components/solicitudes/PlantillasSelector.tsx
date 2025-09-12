@@ -263,6 +263,7 @@ export default function PlantillasSelector({
   const fetchPlantillas = async () => {
     setIsLoading(true);
     setError(null);
+    startLoading(); // Iniciar loading global
     try {
       console.log('🚀 Iniciando carga de plantillas para empresa ID:', empresaId);
 
@@ -271,28 +272,35 @@ export default function PlantillasSelector({
       const estructuraDB = await verificarEstructuraDB();
       console.log('📊 Estructura DB:', estructuraDB);
 
-      // Si hay empresaId, usar getByEmpresa que filtra por empresa
-      // Si no hay empresaId, usar getAll que muestra todas las plantillas
+      // Siempre usar getByEmpresa cuando hay empresaId para obtener solo plantillas de esa empresa
+      // Si no hay empresaId, devolver array vacío (no mostrar plantillas de otras empresas)
       let data;
       if (empresaId) {
-        data = await plantillasService.getByEmpresa(empresaId);
+        data = await plantillasService.getByEmpresa(empresaId, true); // Skip global loading, lo manejamos aquí
       } else {
-        data = await plantillasService.getAll();
+        console.log('⚠️ No hay empresaId proporcionado, no se mostrarán plantillas');
+        data = [];
       }
       
       console.log('📦 Plantillas recibidas:', data);
       console.log('📊 Cantidad de plantillas:', data?.length || 0);
       setPlantillas(data);
+      setIsLoading(false);
+      
+      // Detener loading global después de que React haya renderizado las plantillas
+      setTimeout(() => {
+        stopLoading();
+      }, 100);
     } catch (error) {
       console.error('❌ Error al cargar plantillas:', error);
       setError('Error al cargar las plantillas');
+      setIsLoading(false);
+      stopLoading(); // Detener loading global en caso de error
       useToastHook({
         title: "Error",
         description: "No se pudieron cargar las plantillas de la empresa",
         variant: "destructive"
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -343,6 +351,7 @@ export default function PlantillasSelector({
         console.log('🏗️ Estructura del formulario:', plantillaCompleta.estructura_formulario);
 
         if (plantillaCompleta.estructura_formulario) {
+          console.log('🔍 Estructura del formulario completa:', JSON.stringify(plantillaCompleta.estructura_formulario, null, 2));
           setEstructuraFormulario(plantillaCompleta.estructura_formulario);
           onPlantillaSelect(plantillaCompleta);
 
@@ -456,7 +465,15 @@ export default function PlantillasSelector({
         <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
         <h3 className="text-lg font-semibold text-gray-900 mb-2">Error al cargar plantillas</h3>
         <p className="text-gray-600 mb-4">{error}</p>
-        <Button onClick={fetchPlantillas} variant="outline">
+        <Button 
+          onClick={() => {
+            setError(null);
+            setIsLoading(true);
+            startLoading();
+            fetchPlantillas();
+          }} 
+          variant="outline"
+        >
           Intentar nuevamente
         </Button>
       </div>

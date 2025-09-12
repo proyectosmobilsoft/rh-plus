@@ -4,6 +4,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useTiposCandidatos } from "@/hooks/useTiposCandidatos";
+import { useDatabaseData } from "@/hooks/useDatabaseData";
 
 interface TemplatePreviewProps {
   configuracion?: Record<string, { visible: boolean; required: boolean }>;
@@ -22,6 +24,31 @@ export function TemplatePreview({ configuracion, estructuraFormulario }: Templat
 
 // Componente para la nueva estructura de plantilla
 function TemplateFormPreview({ estructuraFormulario }: { estructuraFormulario: any }) {
+  // Hook para obtener tipos de candidatos
+  const { data: tiposCandidatos = [], isLoading: isLoadingTiposCandidatos } = useTiposCandidatos();
+  
+  // Hook para obtener datos dinámicos de la base de datos
+  const { data: sucursales = [], isLoading: isLoadingSucursales } = useDatabaseData('gen_sucursales');
+  const { data: centrosCosto = [], isLoading: isLoadingCentrosCosto } = useDatabaseData('centros_costo');
+
+  // Función helper para obtener datos dinámicos según configuración del campo
+  const getDynamicData = (campo: any) => {
+    if (!campo.dataSource || campo.dataSource === 'static') {
+      return { data: [], isLoading: false };
+    }
+
+    switch (campo.databaseTable) {
+      case 'tipos_candidatos':
+        return { data: tiposCandidatos, isLoading: isLoadingTiposCandidatos };
+      case 'gen_sucursales':
+        return { data: sucursales, isLoading: isLoadingSucursales };
+      case 'centros_costo':
+        return { data: centrosCosto, isLoading: isLoadingCentrosCosto };
+      default:
+        return { data: [], isLoading: false };
+    }
+  };
+
   const renderField = (campo: any) => {
     const isRequired = campo.required;
     const fieldId = campo.nombre || campo.id || `field-${Math.random()}`;
@@ -71,11 +98,48 @@ function TemplateFormPreview({ estructuraFormulario }: { estructuraFormulario: a
                 <SelectValue placeholder={`Seleccione ${campo.label.toLowerCase()}`} />
               </SelectTrigger>
               <SelectContent>
-                {campo.opciones?.map((option: string) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
-                  </SelectItem>
-                ))}
+                {campo.dataSource === 'database' ? (
+                  // Cargar opciones desde la base de datos usando la nueva configuración
+                  (() => {
+                    const { data: dynamicData, isLoading: isLoadingDynamic } = getDynamicData(campo);
+                    if (isLoadingDynamic) {
+                      return (
+                        <SelectItem value="loading" disabled>
+                          Cargando opciones...
+                        </SelectItem>
+                      );
+                    }
+                    return dynamicData.map((item: any) => {
+                      const displayValue = item[campo.databaseField || 'nombre'];
+                      const selectValue = item[campo.databaseValueField || 'nombre'];
+                      return (
+                        <SelectItem key={item.id} value={selectValue}>
+                          {displayValue}
+                        </SelectItem>
+                      );
+                    });
+                  })()
+                ) : campo.options === 'tipos_candidatos' ? (
+                  // Compatibilidad hacia atrás: carga desde tipos_candidatos
+                  isLoadingTiposCandidatos ? (
+                    <SelectItem value="loading" disabled>
+                      Cargando opciones...
+                    </SelectItem>
+                  ) : (
+                    tiposCandidatos.map((tipo) => (
+                      <SelectItem key={tipo.id} value={tipo.nombre}>
+                        {tipo.nombre}
+                      </SelectItem>
+                    ))
+                  )
+                ) : (
+                  // Usar opciones estáticas
+                  campo.opciones?.map((option: string) => (
+                    <SelectItem key={option} value={option}>
+                      {option}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>

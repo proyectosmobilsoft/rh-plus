@@ -20,7 +20,6 @@ export interface Solicitud {
   empresa_id?: number;
   candidato_id?: number;
   plantilla_id?: number;
-  tipo_candidato_id?: number; // Relación con tipos_candidatos
   estado: string;
   previous_state?: string; // Estado anterior antes de Stand By
   fecha_solicitud?: string;
@@ -127,8 +126,15 @@ export const solicitudesService = {
         const userData = localStorage.getItem('userData');
         if (userData) {
           const user = JSON.parse(userData);
-          analistaId = user.id;
-          console.log("👤 Filtrando solicitudes por analista:", user.username, "ID:", analistaId);
+          
+          // Solo aplicar filtro de analista si el usuario tiene el permiso "rol_analista"
+          const isAnalyst = user.acciones && user.acciones.includes('rol_analista');
+          if (isAnalyst) {
+            analistaId = user.id;
+            console.log("👤 Usuario es analista, filtrando solicitudes por analista:", user.username, "ID:", analistaId);
+          } else {
+            console.log("👤 Usuario no es analista (rol:", user.role, "), no filtrando por analista_id");
+          }
         } else {
           console.log("👤 No hay usuario autenticado, mostrando todas las solicitudes");
         }
@@ -158,11 +164,6 @@ export const solicitudesService = {
             razon_social,
             nit,
             ciudad
-          ),
-          tipos_candidatos!tipo_candidato_id (
-            id,
-            nombre,
-            descripcion
           )
         `
         );
@@ -265,8 +266,15 @@ export const solicitudesService = {
         const userData = localStorage.getItem('userData');
         if (userData) {
           const user = JSON.parse(userData);
-          analistaId = user.id;
-          console.log("👤 Filtrando solicitudes por estado y analista:", estado, user.username, "ID:", analistaId);
+          
+          // Solo aplicar filtro de analista si el usuario tiene el permiso "rol_analista"
+          const isAnalyst = user.acciones && user.acciones.includes('rol_analista');
+          if (isAnalyst) {
+            analistaId = user.id;
+            console.log("👤 Usuario es analista, filtrando solicitudes por estado y analista:", estado, user.username, "ID:", analistaId);
+          } else {
+            console.log("👤 Usuario no es analista (rol:", user.role, "), no filtrando por analista_id para estado:", estado);
+          }
         } else {
           console.log("👤 No hay usuario autenticado, mostrando todas las solicitudes del estado:", estado);
         }
@@ -296,11 +304,6 @@ export const solicitudesService = {
             razon_social,
             nit,
             ciudad
-          ),
-          tipos_candidatos!tipo_candidato_id (
-            id,
-            nombre,
-            descripcion
           )
         `
         )
@@ -403,11 +406,6 @@ export const solicitudesService = {
             razon_social,
             nit,
             ciudad
-          ),
-          tipos_candidatos!tipo_candidato_id (
-            id,
-            nombre,
-            descripcion
           )
         `
         )
@@ -484,12 +482,12 @@ export const solicitudesService = {
         const numeroDocumento =
           d.numero_documento || d.documento || d.cedula || d.cedula_ciudadania || d.identificacion;
         const email = d.email || d.correo_electronico || d.correo;
-        const telefono = d.telefono || d.celular || d.phone || d.movil;
+        const telefonoInicial = d.telefono || d.celular || d.phone || d.movil;
         if (numeroDocumento && email) {
           const candidatoPayload: Partial<Candidato> = {
             numero_documento: String(numeroDocumento),
             email: String(email),
-            telefono: telefono ? String(telefono) : undefined,
+            telefono: telefonoInicial ? String(telefonoInicial) : undefined,
           };
 
           // Función para extraer nombres de manera inteligente
@@ -673,11 +671,6 @@ export const solicitudesService = {
             razon_social,
             nit,
             ciudad
-          ),
-          tipos_candidatos!tipo_candidato_id (
-            id,
-            nombre,
-            descripcion
           )
         `
         )
@@ -1023,11 +1016,6 @@ export const solicitudesService = {
             razon_social,
             nit,
             ciudad
-          ),
-          tipos_candidatos!tipo_candidato_id (
-            id,
-            nombre,
-            descripcion
           )
         `
         )
@@ -1072,12 +1060,12 @@ export const solicitudesService = {
         const numeroDocumento =
           d.numero_documento || d.documento || d.cedula || d.cedula_ciudadania || d.identificacion;
         const email = d.email || d.correo_electronico || d.correo;
-        const telefono = d.telefono || d.celular || d.phone || d.movil;
+        const telefonoInicial = d.telefono || d.celular || d.phone || d.movil || null;
         if (numeroDocumento && email) {
           const candidatoPayload: Partial<Candidato> = {
             numero_documento: String(numeroDocumento),
             email: String(email),
-            telefono: telefono ? String(telefono) : undefined,
+            telefono: telefonoInicial ? String(telefonoInicial) : undefined,
           };
           // Función para extraer nombres de manera inteligente (misma lógica que en create)
           const extractNames = (data: Record<string, any>) => {
@@ -1177,14 +1165,61 @@ export const solicitudesService = {
               (candidatoPayload as any)[map[key]] = v;
             }
           }
+          
+          // Verificar si el candidato ya existe antes de intentar crearlo
           try {
-            const creado = await candidatosService.create(candidatoPayload);
-            if (creado?.id) {
-              candidatoIdFinal = creado.id;
-              console.log(
-                "✅ Candidato creado desde solicitud (plantilla). ID:",
-                creado.id
-              );
+            const { data: candidatoExistente, error: searchError } = await supabase
+              .from("candidatos")
+              .select("id")
+              .eq("numero_documento", String(numeroDocumento))
+              .eq("email", String(email))
+              .single();
+            
+            if (candidatoExistente && !searchError) {
+              // El candidato ya existe, usar ese ID
+              candidatoIdFinal = candidatoExistente.id;
+              console.log("✅ Candidato ya existe. ID:", candidatoExistente.id);
+              
+              // Actualizar la solicitud con el candidato_id existente
+              const { error: updateError } = await supabase
+                .from("hum_solicitudes")
+                .update({ candidato_id: candidatoIdFinal })
+                .eq("id", dataSoli.id);
+              
+              if (updateError) {
+                console.error("❌ Error actualizando solicitud con candidato_id existente:", updateError);
+              } else {
+                console.log("✅ Solicitud actualizada con candidato_id existente:", candidatoIdFinal);
+              }
+              
+              toast.info("Este candidato ya está registrado en el sistema", {
+                position: "bottom-right",
+              });
+            } else {
+              // El candidato no existe, crearlo
+              const creado = await candidatosService.create(candidatoPayload);
+              if (creado?.id) {
+                candidatoIdFinal = creado.id;
+                console.log(
+                  "✅ Candidato creado desde solicitud (plantilla). ID:",
+                  creado.id
+                );
+                
+                // Actualizar la solicitud con el candidato_id
+                try {
+                  const { error: updateError } = await supabase
+                    .from("hum_solicitudes")
+                    .update({ candidato_id: candidatoIdFinal })
+                    .eq("id", dataSoli.id);
+                  
+                  if (updateError) {
+                    console.error("❌ Error actualizando solicitud con candidato_id:", updateError);
+                  } else {
+                    console.log("✅ Solicitud actualizada con candidato_id:", candidatoIdFinal);
+                  }
+                } catch (updateErr) {
+                  console.error("❌ Error actualizando solicitud:", updateErr);
+                }
               try {
                 if (!error && data) {
                   await emailService.sendSolicitudCreada({
@@ -1219,20 +1254,12 @@ export const solicitudesService = {
                 );
               }
             }
-          } catch (e: any) {
-            if (
-              e?.code === "23505" ||
-              String(e?.message || "").includes("usuarios_username_key")
-            ) {
-              toast.info("Este candidato ya está registrado en el sistema", {
-                position: "bottom-right",
-              });
-            } else {
-              console.warn(
-                "No se pudo crear candidato desde solicitud (plantilla):",
-                e
-              );
             }
+          } catch (e: any) {
+            console.warn(
+              "No se pudo crear candidato desde solicitud (plantilla):",
+              e
+            );
           }
         } else {
           console.warn(

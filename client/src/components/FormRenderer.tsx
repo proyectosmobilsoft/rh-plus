@@ -1,6 +1,8 @@
 import React from 'react';
 import { Users, Activity, User, Brain, TestTube, Clipboard, FileText, Building2, DollarSign, Clock, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useTiposCandidatos } from '@/hooks/useTiposCandidatos';
+import { useDatabaseData } from '@/hooks/useDatabaseData';
 
 interface FormRendererProps {
   estructura: any;
@@ -16,12 +18,54 @@ const FormRenderer: React.FC<FormRendererProps> = ({
   estructura, 
   hideFieldLabels, 
   initialData = {}, 
-  onSave, 
+  onSave,
   onCancel, 
   showButtons = false,
   readOnly = false 
 }) => {
   const [formData, setFormData] = React.useState<Record<string, any>>(initialData);
+  
+  // Debug: Log de la estructura recibida
+  React.useEffect(() => {
+    console.log('🔍 FormRenderer - Estructura recibida:', estructura);
+    if (estructura && estructura.secciones) {
+      estructura.secciones.forEach((seccion: any, index: number) => {
+        console.log(`🔍 FormRenderer - Sección ${index}:`, seccion);
+        if (seccion.campos) {
+          seccion.campos.forEach((campo: any, campoIndex: number) => {
+            if (campo.name === 'cargo' || campo.nombre === 'cargo') {
+              console.log(`🔍 FormRenderer - Campo cargo ${campoIndex}:`, campo);
+            }
+          });
+        }
+      });
+    }
+  }, [estructura]);
+  
+  // Hook para obtener tipos de candidatos
+  const { data: tiposCandidatos = [], isLoading: isLoadingTiposCandidatos } = useTiposCandidatos();
+  
+  // Hook para obtener datos dinámicos de la base de datos
+  const { data: sucursales = [], isLoading: isLoadingSucursales } = useDatabaseData('gen_sucursales');
+  const { data: centrosCosto = [], isLoading: isLoadingCentrosCosto } = useDatabaseData('centros_costo');
+
+  // Función helper para obtener datos dinámicos según configuración del campo
+  const getDynamicData = (campo: any) => {
+    if (!campo.dataSource || campo.dataSource === 'static') {
+      return { data: [], isLoading: false };
+    }
+
+    switch (campo.databaseTable) {
+      case 'tipos_candidatos':
+        return { data: tiposCandidatos, isLoading: isLoadingTiposCandidatos };
+      case 'gen_sucursales':
+        return { data: sucursales, isLoading: isLoadingSucursales };
+      case 'centros_costo':
+        return { data: centrosCosto, isLoading: isLoadingCentrosCosto };
+      default:
+        return { data: [], isLoading: false };
+    }
+  };
 
   // Actualizar formData cuando cambien los datos iniciales
   React.useEffect(() => {
@@ -134,7 +178,7 @@ const FormRenderer: React.FC<FormRendererProps> = ({
 
         {/* Renderizado del campo según su tipo */}
         <div className="ml-4">
-          {tipo === 'text' && (
+          {tipo === 'text' && !(fieldName === 'cargo' || label.toLowerCase().includes('cargo')) && (
             <input
               type="text"
               value={value}
@@ -173,7 +217,51 @@ const FormRenderer: React.FC<FormRendererProps> = ({
               disabled={readOnly}
             >
               <option value="">{String(placeholder)}</option>
-              {renderSelectOptions(campo.opciones)}
+              {campo.dataSource === 'database' ? (
+                // Cargar opciones desde la base de datos usando la nueva configuración
+                (() => {
+                  const { data: dynamicData, isLoading: isLoadingDynamic } = getDynamicData(campo);
+                  if (isLoadingDynamic) {
+                    return <option value="" disabled>Cargando opciones...</option>;
+                  }
+                  return dynamicData.map((item: any) => {
+                    const displayValue = item[campo.databaseField || 'nombre'];
+                    const selectValue = item[campo.databaseValueField || 'nombre'];
+                    return (
+                      <option key={item.id} value={selectValue}>
+                        {displayValue}
+                      </option>
+                    );
+                  });
+                })()
+              ) : campo.options === 'tipos_candidatos' ? (
+                // Compatibilidad hacia atrás: carga desde tipos_candidatos
+                tiposCandidatos.map((tipo) => (
+                  <option key={tipo.id} value={tipo.nombre}>
+                    {tipo.nombre}
+                  </option>
+                ))
+              ) : (
+                // Usar opciones estáticas
+                renderSelectOptions(campo.opciones)
+              )}
+            </select>
+          )}
+
+          {/* Campo cargo como texto - convertirlo automáticamente a select */}
+          {tipo === 'text' && (fieldName === 'cargo' || label.toLowerCase().includes('cargo')) && (
+            <select 
+              value={value}
+              onChange={readOnly ? undefined : (e) => handleFieldChange(fieldName, e.target.value)}
+              className="w-full max-w-md px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors"
+              disabled={readOnly}
+            >
+              <option value="">Seleccione su cargo</option>
+              {tiposCandidatos.map((tipo) => (
+                <option key={tipo.id} value={tipo.nombre}>
+                  {tipo.nombre}
+                </option>
+              ))}
             </select>
           )}
 
@@ -401,7 +489,34 @@ const FormRenderer: React.FC<FormRendererProps> = ({
                       disabled={readOnly}
                     >
                       <option value="">{String(campo.placeholder || 'Seleccione una opción')}</option>
-                      {renderSelectOptions(campo.opciones)}
+                      {campo.dataSource === 'database' ? (
+                        // Cargar opciones desde la base de datos usando la nueva configuración
+                        (() => {
+                          const { data: dynamicData, isLoading: isLoadingDynamic } = getDynamicData(campo);
+                          if (isLoadingDynamic) {
+                            return <option value="" disabled>Cargando opciones...</option>;
+                          }
+                          return dynamicData.map((item: any) => {
+                            const displayValue = item[campo.databaseField || 'nombre'];
+                            const selectValue = item[campo.databaseValueField || 'nombre'];
+                            return (
+                              <option key={item.id} value={selectValue}>
+                                {displayValue}
+                              </option>
+                            );
+                          });
+                        })()
+                      ) : campo.opciones === 'tipos_candidatos' ? (
+                        // Compatibilidad hacia atrás: carga desde tipos_candidatos
+                        tiposCandidatos.map((tipo) => (
+                          <option key={tipo.id} value={tipo.nombre}>
+                            {tipo.nombre}
+                          </option>
+                        ))
+                      ) : (
+                        // Usar opciones estáticas
+                        renderSelectOptions(campo.opciones)
+                      )}
                     </select>
                   )}
 

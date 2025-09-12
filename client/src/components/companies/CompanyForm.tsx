@@ -132,17 +132,17 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
     }
   }, [initialData]);
 
-  // Obtener plantillas de la base de datos
+  // Obtener plantillas activas de la base de datos
   const { data: plantillas = [], isLoading: loadingPlantillas, error: plantillasError } = useQuery({
-    queryKey: ['plantillas'],
+    queryKey: ['plantillas-activas'],
     queryFn: async () => {
       try {
-        console.log('Iniciando carga de plantillas...');
-        const result = await plantillasService.getAll();
-        console.log('Resultado de plantillasService.getAll():', result);
+        console.log('Iniciando carga de plantillas activas...');
+        const result = await plantillasService.getAllActivas();
+        console.log('Resultado de plantillasService.getAllActivas():', result);
         return result;
       } catch (error) {
-        console.error('Error al cargar plantillas:', error);
+        console.error('Error al cargar plantillas activas:', error);
         throw error;
       }
     },
@@ -186,19 +186,20 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
     retryDelay: 1000,
   });
 
-  // Debug: Log para verificar las plantillas
+  // Debug: Log para verificar las plantillas activas
   useEffect(() => {
-    console.log('=== DEBUG PLANTILLAS ===');
-    console.log('Plantillas cargadas:', plantillas);
+    console.log('=== DEBUG PLANTILLAS ACTIVAS ===');
+    console.log('Plantillas activas cargadas:', plantillas);
     console.log('Loading plantillas:', loadingPlantillas);
     console.log('Error plantillas:', plantillasError);
-    console.log('Plantillas length:', plantillas.length);
+    console.log('Plantillas activas length:', plantillas.length);
     console.log('Tipo de plantillas:', typeof plantillas);
     console.log('Es array:', Array.isArray(plantillas));
     if (plantillas.length > 0) {
-      console.log('Primera plantilla:', plantillas[0]);
+      console.log('Primera plantilla activa:', plantillas[0]);
+      console.log('Estado activa de la primera plantilla:', plantillas[0].activa);
     }
-    console.log('=== FIN DEBUG PLANTILLAS ===');
+    console.log('=== FIN DEBUG PLANTILLAS ACTIVAS ===');
   }, [plantillas, loadingPlantillas, plantillasError]);
 
   useEffect(() => {
@@ -1142,9 +1143,9 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
                       >
                         {plantillasAsignadas.length === 0 ? (
                           <span className="text-gray-400">
-                            {loadingPlantillas ? "Cargando plantillas..." :
-                              plantillasError ? "Error al cargar plantillas" :
-                                plantillas.length === 0 ? "No hay plantillas disponibles" : "Seleccionar plantillas..."}
+                            {loadingPlantillas ? "Cargando plantillas activas..." :
+                              plantillasError ? "Error al cargar plantillas activas" :
+                                plantillas.length === 0 ? "No hay plantillas activas disponibles" : "Seleccionar plantillas activas..."}
                           </span>
                         ) : (
                           plantillasAsignadas.map(id => {
@@ -1173,7 +1174,7 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
                             <div className="p-4 text-center text-gray-500">
                               <div className="flex items-center justify-center gap-2">
                                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                                Cargando plantillas...
+                                Cargando plantillas activas...
                               </div>
                             </div>
                           ) : plantillasError ? (
@@ -1181,7 +1182,7 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
                               <div className="flex flex-col items-center gap-2">
                                 <span>⚠️</span>
                                 <div>
-                                  <p className="font-medium">Error al cargar plantillas</p>
+                                  <p className="font-medium">Error al cargar plantillas activas</p>
                                   <p className="text-sm">{plantillasError.message}</p>
                                 </div>
                               </div>
@@ -1191,8 +1192,8 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
                               <div className="flex flex-col items-center gap-2">
                                 <FileText className="h-8 w-8 text-gray-400" />
                                 <div>
-                                  <p className="font-medium">No hay plantillas disponibles</p>
-                                  <p className="text-sm">Las plantillas se cargan desde la base de datos</p>
+                                  <p className="font-medium">No hay plantillas activas disponibles</p>
+                                  <p className="text-sm">Solo se muestran plantillas en estado activo</p>
                                 </div>
                               </div>
                             </div>
@@ -1200,7 +1201,7 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
                             <>
                               <div className="p-2 text-xs text-gray-500 border-b bg-gray-50">
                                 <div className="flex items-center justify-between">
-                                  <span>{plantillas.length} plantilla(s) encontrada(s)</span>
+                                  <span>{plantillas.length} plantilla(s) activa(s) encontrada(s)</span>
                                   <span className="text-blue-600 font-medium">
                                     {plantillasAsignadas.length} seleccionada(s)
                                     {initialData && plantillasAsignadas.length > 0 && (
@@ -1259,21 +1260,21 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
                       {loadingPlantillas ? (
                         <div className="flex items-center gap-2">
                           <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
-                          Cargando plantillas desde la base de datos...
+                          Cargando plantillas activas desde la base de datos...
                         </div>
                       ) : plantillasError ? (
                         <div className="flex items-center gap-2 text-red-600">
                           <span>⚠️</span>
-                          Error al cargar plantillas: {plantillasError.message}
+                          Error al cargar plantillas activas: {plantillasError.message}
                         </div>
                       ) : plantillas.length === 0 ? (
                         <div className="flex items-center gap-2 text-amber-600">
                           <span>⚠️</span>
-                          No hay plantillas disponibles en la base de datos
+                          No hay plantillas activas disponibles en la base de datos
                         </div>
                       ) : (
                         <div className="flex items-center justify-between">
-                          <span>Haz clic para seleccionar o deseleccionar plantillas</span>
+                          <span>Haz clic para seleccionar o deseleccionar plantillas activas</span>
                           {plantillasAsignadas.length > 0 && (
                             <span className="text-blue-600 font-medium">
                               {plantillasAsignadas.length} plantilla(s) seleccionada(s)

@@ -43,7 +43,7 @@ export default function LoginEmpresa() {
 
       if (response.ok) {
         const result = await response.json();
-        toast.success(`Bienvenido ${result.empresa.nombreEmpresa}`);
+        toast.success(`Bienvenido ${result.empresa.razon_social}`);
         navigate('/empresa/dashboard');
       } else {
         const error = await response.json();

@@ -20,7 +20,7 @@ interface DashboardStats {
 
 interface Empresa {
   id: number;
-  nombreEmpresa: string;
+  razon_social: string;
   email: string;
   nit: string;
   direccion?: string;
@@ -88,7 +88,7 @@ export default function DashboardEmpresa() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-gray-600">
-          Bienvenido/a, {empresa?.contactoPrincipal || empresa?.nombreEmpresa}
+          Bienvenido/a, {empresa?.contactoPrincipal || empresa?.razon_social}
         </p>
       </div>
 

@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { CustomDatePicker } from '@/components/ui/date-picker';
 import { Plus, Edit, Trash2, GraduationCap } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { format } from 'date-fns';
+import { supabase } from '@/services/supabaseClient';
+import { useToast } from '@/hooks/use-toast';
 
 interface Educacion {
   id?: number;
@@ -20,11 +24,13 @@ interface Educacion {
 interface EducacionTabProps {
   educacion: Educacion[];
   onChange: (educacion: Educacion[]) => void;
+  triggerAutoSave?: () => void;
+  candidatoId?: number;
 }
 
-export function EducacionTab({ educacion, onChange }: EducacionTabProps) {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+export function EducacionTab({ educacion, onChange, triggerAutoSave, candidatoId }: EducacionTabProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [currentEducacion, setCurrentEducacion] = useState<Educacion>({
     titulo: '',
     institucion: '',
@@ -33,6 +39,57 @@ export function EducacionTab({ educacion, onChange }: EducacionTabProps) {
     ciudad: '',
     nivelEducativo: ''
   });
+  const { toast } = useToast();
+
+  // Función para actualizar un registro específico en la base de datos
+  const updateEducacionInDB = async (educacion: Educacion, index: number) => {
+    if (!candidatoId || !educacion.id) {
+      console.error('❌ No se puede actualizar: candidatoId o educacion.id faltante');
+      toast({
+        title: "❌ Error",
+        description: "Error: No se puede actualizar el registro",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      console.log('💾 Actualizando educación en BD:', educacion);
+      
+      const { error } = await supabase
+        .from('educacion_candidato')
+        .update({
+          titulo: educacion.titulo,
+          institucion: educacion.institucion,
+          fecha_inicio: educacion.fechaInicio,
+          fecha_fin: educacion.fechaFin,
+          ciudad: educacion.ciudad,
+          nivel_educativo: educacion.nivelEducativo,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', educacion.id)
+        .eq('candidato_id', candidatoId);
+
+      if (error) {
+        console.error('❌ Error actualizando educación:', error);
+        toast({
+          title: "❌ Error",
+          description: "Error al actualizar la educación",
+          variant: "destructive",
+        });
+        throw error;
+      }
+
+      console.log('✅ Educación actualizada exitosamente en BD');
+      toast({
+        title: "✅ Educación actualizada",
+        description: "Educación actualizada correctamente",
+      });
+    } catch (error) {
+      console.error('❌ Error en updateEducacionInDB:', error);
+      throw error;
+    }
+  };
 
   const nivelesEducativos = [
     'Primaria',
@@ -46,7 +103,6 @@ export function EducacionTab({ educacion, onChange }: EducacionTabProps) {
   ];
 
   const handleAdd = () => {
-    setIsEditing(false);
     setCurrentEducacion({
       titulo: '',
       institucion: '',
@@ -55,251 +111,268 @@ export function EducacionTab({ educacion, onChange }: EducacionTabProps) {
       ciudad: '',
       nivelEducativo: ''
     });
-    setIsDialogOpen(true);
-  };
-
-  const handleEdit = (item: Educacion) => {
+    setEditingIndex(null);
     setIsEditing(true);
-    setCurrentEducacion(item);
-    setIsDialogOpen(true);
   };
 
-  const handleDelete = (id: number | undefined) => {
-    if (id !== undefined) {
-      onChange(educacion.filter(item => item.id !== id));
-    }
+  const handleEdit = (index: number) => {
+    setCurrentEducacion({ ...educacion[index] });
+    setEditingIndex(index);
+    setIsEditing(true);
   };
 
-  const handleSave = () => {
-    if (isEditing) {
-      onChange(educacion.map(item => 
-        item.id === currentEducacion.id ? currentEducacion : item
-      ));
+  const handleSave = async () => {
+    const newEducacion = [...educacion];
+    
+    if (editingIndex !== null) {
+      // Editando registro existente - guardar directamente en BD
+      try {
+        console.log('✏️ Editando registro existente en BD...');
+        await updateEducacionInDB(currentEducacion, editingIndex);
+        newEducacion[editingIndex] = currentEducacion;
+        console.log('✅ Edición completada sin auto-guardado');
+      } catch (error) {
+        console.error('❌ Error editando registro:', error);
+        return; // No actualizar el estado si hay error
+      }
     } else {
-      const newEducacion = {
+      // Agregando nuevo registro - usar auto-guardado
+      console.log('➕ Agregando nuevo registro...');
+      newEducacion.push({
         ...currentEducacion,
-        id: Date.now() // Temporary ID
-      };
-      onChange([...educacion, newEducacion]);
+        id: Date.now(), // Temporary ID for new items
+      });
+      
+      // Trigger auto-save for new additions
+      if (triggerAutoSave) {
+        console.log('🔄 Activando auto-guardado para adición...');
+        triggerAutoSave(false);
+      }
     }
-    setIsDialogOpen(false);
+    
+    onChange(newEducacion);
+    setIsEditing(false);
+    setEditingIndex(null);
   };
 
-  const isFormValid = currentEducacion.titulo && 
-                     currentEducacion.institucion && 
-                     currentEducacion.fechaInicio && 
-                     currentEducacion.fechaFin && 
-                     currentEducacion.ciudad && 
-                     currentEducacion.nivelEducativo;
+  const handleDelete = (index: number) => {
+    console.log('🗑️ Eliminando educación en índice:', index);
+    console.log('📚 Educación antes de eliminar:', educacion);
+    
+    const newEducacion = educacion.filter((_, i) => i !== index);
+    console.log('📚 Educación después de eliminar:', newEducacion);
+    
+    onChange(newEducacion);
+    
+    // NO ejecutar auto-guardado inmediatamente para eliminaciones
+    // El auto-guardado se ejecutará por el useEffect que detecta cambios en la cantidad
+    console.log('ℹ️ Eliminación completada, auto-guardado se ejecutará automáticamente');
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setEditingIndex(null);
+    setCurrentEducacion({
+      titulo: '',
+      institucion: '',
+      fechaInicio: '',
+      fechaFin: '',
+      ciudad: '',
+      nivelEducativo: ''
+    });
+  };
+
+  if (isEditing) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <GraduationCap className="mr-2 h-5 w-5" />
+            {editingIndex !== null ? 'Editar Educación' : 'Agregar Educación'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Primera fila */}
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div className="space-y-2 md:col-span-2">
+              <label className="text-sm font-medium">Título/Programa *</label>
+              <Input
+                value={currentEducacion.titulo}
+                onChange={(e) => setCurrentEducacion(prev => ({ ...prev, titulo: e.target.value }))}
+              />
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <label className="text-sm font-medium">Institución Educativa *</label>
+              <Input
+                value={currentEducacion.institucion}
+                onChange={(e) => setCurrentEducacion(prev => ({ ...prev, institucion: e.target.value }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Nivel *</label>
+              <Select
+                value={currentEducacion.nivelEducativo}
+                onValueChange={(value) => setCurrentEducacion(prev => ({ ...prev, nivelEducativo: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {nivelesEducativos.map((nivel) => (
+                    <SelectItem key={nivel} value={nivel}>
+                      {nivel}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Segunda fila */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Fecha de Inicio *</label>
+              <CustomDatePicker
+                value={currentEducacion.fechaInicio ? new Date(currentEducacion.fechaInicio) : null}
+                onChange={(date) => setCurrentEducacion(prev => ({ 
+                  ...prev, 
+                  fechaInicio: date ? format(date, 'yyyy-MM-dd') : '' 
+                }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Fecha de Finalización *</label>
+              <CustomDatePicker
+                value={currentEducacion.fechaFin ? new Date(currentEducacion.fechaFin) : null}
+                onChange={(date) => setCurrentEducacion(prev => ({ 
+                  ...prev, 
+                  fechaFin: date ? format(date, 'yyyy-MM-dd') : '' 
+                }))}
+                minDate={currentEducacion.fechaInicio ? new Date(currentEducacion.fechaInicio) : undefined}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Ciudad *</label>
+              <Input
+                value={currentEducacion.ciudad}
+                onChange={(e) => setCurrentEducacion(prev => ({ ...prev, ciudad: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-2 pt-4">
+            <Button type="button" variant="outline" onClick={handleCancel}>
+              Cancelar
+            </Button>
+            <Button 
+              type="button" 
+              onClick={handleSave}
+              disabled={!currentEducacion.titulo || !currentEducacion.institucion || !currentEducacion.fechaInicio || !currentEducacion.fechaFin || !currentEducacion.ciudad || !currentEducacion.nivelEducativo}
+            >
+              {editingIndex !== null ? 'Actualizar' : 'Agregar'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <div className="flex items-center space-x-2">
-          <GraduationCap className="h-5 w-5 text-blue-600" />
-          <h3 className="text-lg font-medium">Educación</h3>
-        </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={handleAdd} className="bg-blue-600 hover:bg-blue-700">
-              <Plus className="h-4 w-4 mr-2" />
-              Agregar Educación
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]">
-            <DialogHeader>
-              <DialogTitle>
-                {isEditing ? 'Editar Educación' : 'Agregar Nueva Educación'}
-              </DialogTitle>
-              <DialogDescription>
-                Complete la información de su formación académica
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="titulo">Título/Programa</Label>
-                  <Input
-                    id="titulo"
-                    value={currentEducacion.titulo}
-                    onChange={(e) => setCurrentEducacion({
-                      ...currentEducacion,
-                      titulo: e.target.value
-                    })}
-                    placeholder="Ej: Ingeniería de Sistemas"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="institucion">Institución Educativa</Label>
-                  <Input
-                    id="institucion"
-                    value={currentEducacion.institucion}
-                    onChange={(e) => setCurrentEducacion({
-                      ...currentEducacion,
-                      institucion: e.target.value
-                    })}
-                    placeholder="Ej: Universidad Nacional"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="fechaInicio">Fecha de Inicio</Label>
-                  <Input
-                    id="fechaInicio"
-                    type="date"
-                    value={currentEducacion.fechaInicio}
-                    onChange={(e) => setCurrentEducacion({
-                      ...currentEducacion,
-                      fechaInicio: e.target.value
-                    })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="fechaFin">Fecha de Finalización</Label>
-                  <Input
-                    id="fechaFin"
-                    type="date"
-                    value={currentEducacion.fechaFin}
-                    onChange={(e) => setCurrentEducacion({
-                      ...currentEducacion,
-                      fechaFin: e.target.value
-                    })}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="ciudad">Ciudad</Label>
-                  <Input
-                    id="ciudad"
-                    value={currentEducacion.ciudad}
-                    onChange={(e) => setCurrentEducacion({
-                      ...currentEducacion,
-                      ciudad: e.target.value
-                    })}
-                    placeholder="Ej: Bogotá"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="nivelEducativo">Nivel Educativo</Label>
-                  <Select
-                    value={currentEducacion.nivelEducativo}
-                    onValueChange={(value) => setCurrentEducacion({
-                      ...currentEducacion,
-                      nivelEducativo: value
-                    })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar nivel" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {nivelesEducativos.map((nivel) => (
-                        <SelectItem key={nivel} value={nivel}>
-                          {nivel}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button 
-                onClick={handleSave} 
-                disabled={!isFormValid}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                {isEditing ? 'Actualizar' : 'Guardar'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <h3 className="text-lg font-medium flex items-center">
+          <GraduationCap className="mr-2 h-5 w-5" />
+          Educación
+        </h3>
+        <Button onClick={handleAdd}>
+          <Plus className="mr-2 h-4 w-4" />
+          Agregar Educación
+        </Button>
       </div>
 
       {educacion.length === 0 ? (
         <Card>
-          <CardContent className="flex flex-col items-center justify-center py-8 text-center">
-            <GraduationCap className="h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-600 mb-2">
-              No hay información educativa registrada
-            </h3>
-            <p className="text-gray-500 mb-4">
-              Agrega tu formación académica para mejorar tu perfil profesional
-            </p>
+          <CardContent className="text-center py-6">
+            <GraduationCap className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+            <p className="text-muted-foreground">No hay registros de educación</p>
+            <p className="text-sm text-muted-foreground">Agregue la formación académica del candidato</p>
           </CardContent>
         </Card>
       ) : (
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Formación Académica</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left p-3 font-medium text-gray-700">Título/Programa</th>
-                    <th className="text-left p-3 font-medium text-gray-700">Institución</th>
-                    <th className="text-left p-3 font-medium text-gray-700">Período</th>
-                    <th className="text-left p-3 font-medium text-gray-700">Ciudad</th>
-                    <th className="text-left p-3 font-medium text-gray-700">Nivel</th>
-                    <th className="text-left p-3 font-medium text-gray-700">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {educacion.map((item) => (
-                    <tr key={item.id} className="border-b hover:bg-gray-50">
-                      <td className="p-3">
-                        <div className="font-medium">{item.titulo}</div>
-                      </td>
-                      <td className="p-3">
-                        <div className="text-gray-600">{item.institucion}</div>
-                      </td>
-                      <td className="p-3">
-                        <div className="text-sm text-gray-600">
-                          {new Date(item.fechaInicio).toLocaleDateString('es-CO')} - {' '}
-                          {new Date(item.fechaFin).toLocaleDateString('es-CO')}
-                        </div>
-                      </td>
-                      <td className="p-3">
-                        <div className="text-gray-600">{item.ciudad}</div>
-                      </td>
-                      <td className="p-3">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          {item.nivelEducativo}
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        <div className="flex space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(item)}
-                            className="h-8 w-8 p-0"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDelete(item.id)}
-                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="py-2 px-3 text-xs font-medium">Título/Programa</TableHead>
+                  <TableHead className="py-2 px-3 text-xs font-medium">Institución</TableHead>
+                  <TableHead className="py-2 px-3 text-xs font-medium">Período</TableHead>
+                  <TableHead className="py-2 px-3 text-xs font-medium">Ciudad</TableHead>
+                  <TableHead className="py-2 px-3 text-xs font-medium">Nivel</TableHead>
+                  <TableHead className="py-2 px-3 text-center text-xs font-medium">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {educacion.map((item, index) => (
+                  <TableRow key={item.id || index} className="hover:bg-muted/50">
+                    <TableCell className="py-2 px-3">
+                      <div className="font-medium text-sm">{item.titulo}</div>
+                    </TableCell>
+                    <TableCell className="py-2 px-3">
+                      <div className="text-sm">{item.institucion}</div>
+                    </TableCell>
+                    <TableCell className="py-2 px-3">
+                      <div className="text-xs text-muted-foreground">
+                        {new Date(item.fechaInicio).toLocaleDateString()} - {new Date(item.fechaFin).toLocaleDateString()}
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-2 px-3">
+                      <div className="text-xs text-muted-foreground">{item.ciudad}</div>
+                    </TableCell>
+                    <TableCell className="py-2 px-3">
+                      <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-xs">
+                        {item.nivelEducativo}
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-2 px-3">
+                      <div className="flex justify-center space-x-1">
+                        <Button size="sm" variant="ghost" onClick={() => handleEdit(index)} title="Editar" className="h-6 w-6 p-0">
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="sm" variant="ghost" title="Eliminar" className="h-6 w-6 p-0">
+                              <Trash2 className="h-3 w-3 text-red-500" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>¿Eliminar educación?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta acción no se puede deshacer. Se eliminará permanentemente la educación de <strong>{item.titulo}</strong> en <strong>{item.institucion}</strong>.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => handleDelete(index)}
+                                className="bg-red-600 hover:bg-red-700"
+                              >
+                                Eliminar
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
       )}

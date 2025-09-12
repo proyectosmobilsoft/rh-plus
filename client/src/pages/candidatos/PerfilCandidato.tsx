@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/services/supabaseClient';
@@ -29,7 +30,10 @@ import {
   FileUp,
   CheckCircle2,
   Clock,
-  Eye
+  Eye,
+  Home,
+  Users,
+  UserCheck
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -43,12 +47,14 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { CustomDatePicker } from '@/components/ui/date-picker';
 import { ExperienciaLaboralTab } from '@/components/candidatos/ExperienciaLaboralTab';
 import { EducacionTab } from '@/components/candidatos/EducacionTab';
+import { useCityData } from '@/hooks/useCityData';
 
 // Componente para estilos CSS personalizados
 const ProgressStyles = () => (
-  <style jsx>{`
+  <style>{`
     @keyframes shimmer {
       0% {
         transform: translateX(-100%);
@@ -82,7 +88,9 @@ const perfilSchema = z.object({
   estadoCivil: z.string().optional(),
   telefono: z.string().min(10, 'Teléfono requerido'),
   direccion: z.string().optional(),
+  departamento: z.string().optional(),
   ciudad: z.string().optional(),
+  ciudad_id: z.number().optional(),
   cargoAspirado: z.string().optional(),
   eps: z.string().optional(),
   arl: z.string().optional(),
@@ -108,7 +116,9 @@ interface Candidato {
   estadoCivil?: string;
   telefono?: string;
   direccion?: string;
+  departamento?: string;
   ciudad?: string;
+  ciudad_id?: number;
   cargoAspirado?: string;
   eps?: string;
   arl?: string;
@@ -163,7 +173,41 @@ export default function PerfilCandidato() {
   const [documentosRequeridos, setDocumentosRequeridos] = useState<any[]>([]);
   const [isLoadingTipoCandidato, setIsLoadingTipoCandidato] = useState(false);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState<number | null>(null);
+  const [ciudadesDisponibles, setCiudadesDisponibles] = useState<any[]>([]);
   const navigate = useNavigate();
+
+  // Hook para obtener datos de departamentos y ciudades
+  const { data: cityData, isLoading: isLoadingCityData } = useCityData();
+
+  // Función para manejar la selección de departamento
+  const handleDepartamentoChange = (departamentoId: number) => {
+    setDepartamentoSeleccionado(departamentoId);
+    form.setValue('departamento', cityData?.[departamentoId]?.nombre || '', { shouldDirty: true, shouldTouch: true });
+    form.setValue('ciudad', '', { shouldDirty: true, shouldTouch: true });
+    form.setValue('ciudad_id', undefined, { shouldDirty: true, shouldTouch: true });
+    
+    // Filtrar ciudades del departamento seleccionado
+    if (cityData?.[departamentoId]) {
+      setCiudadesDisponibles(cityData[departamentoId].ciudades);
+    } else {
+      setCiudadesDisponibles([]);
+    }
+    
+    // Disparar auto-guardado
+    triggerAutoSave();
+  };
+
+  // Función para manejar la selección de ciudad
+  const handleCiudadChange = (ciudadId: number) => {
+    const ciudadSeleccionada = ciudadesDisponibles.find(ciudad => ciudad.id === ciudadId);
+    if (ciudadSeleccionada) {
+      form.setValue('ciudad', ciudadSeleccionada.nombre, { shouldDirty: true, shouldTouch: true });
+      form.setValue('ciudad_id', ciudadId, { shouldDirty: true, shouldTouch: true });
+      // Disparar auto-guardado
+      triggerAutoSave();
+    }
+  };
 
   const form = useForm<PerfilForm>({
     resolver: zodResolver(perfilSchema),
@@ -176,7 +220,9 @@ export default function PerfilCandidato() {
       estadoCivil: '',
       telefono: '',
       direccion: '',
+      departamento: '',
       ciudad: '',
+      ciudad_id: undefined,
       cargoAspirado: '',
       eps: '',
       arl: '',
@@ -192,6 +238,29 @@ export default function PerfilCandidato() {
     loadProfile();
     loadTiposDocumentos();
   }, []);
+
+  // Efecto para inicializar estados de departamento y ciudad cuando cityData esté disponible
+  useEffect(() => {
+    if (candidato && candidato.ciudad_id && candidato.departamento && cityData && !isLoadingCityData) {
+      // Buscar el departamento por nombre en los datos cargados
+      const departamentos = Object.entries(cityData);
+      const departamentoEncontrado = departamentos.find(([id, dept]) => 
+        dept.nombre.toLowerCase() === (candidato.departamento || '').toLowerCase()
+      );
+      
+      if (departamentoEncontrado) {
+        const [departamentoId, departamentoData] = departamentoEncontrado;
+        console.log('🔄 Reinicializando estados con cityData:', {
+          departamentoId: parseInt(departamentoId),
+          departamentoNombre: departamentoData.nombre,
+          ciudadesDisponibles: departamentoData.ciudades.length
+        });
+        
+        setDepartamentoSeleccionado(parseInt(departamentoId));
+        setCiudadesDisponibles(departamentoData.ciudades);
+      }
+    }
+  }, [candidato, cityData, isLoadingCityData]);
 
   // Efecto para actualizar el progreso cuando cambien los valores del formulario
   useEffect(() => {
@@ -227,26 +296,94 @@ export default function PerfilCandidato() {
     }
   }, [existingDocuments, documentosRequeridos, candidato]);
 
-  // Función de auto-guardado
-  const autoSave = async (data: any) => {
+  // Función para cargar registros actuales de la base de datos
+  const loadCurrentRecordsFromDB = useCallback(async () => {
+    if (!candidato) return { experiencia: [], educacion: [] };
+
+    try {
+      // Cargar experiencia laboral actual
+      const { data: expData, error: expError } = await supabase
+        .from('experiencia_laboral')
+        .select('*')
+        .eq('candidato_id', candidato.id)
+        .order('fecha_inicio', { ascending: false });
+
+      if (expError) {
+        console.error('Error cargando experiencia de BD:', expError);
+      }
+
+      // Cargar educación actual
+      const { data: eduData, error: eduError } = await supabase
+        .from('educacion_candidato')
+        .select('*')
+        .eq('candidato_id', candidato.id)
+        .order('fecha_inicio', { ascending: false });
+
+      if (eduError) {
+        console.error('Error cargando educación de BD:', eduError);
+      }
+
+      return {
+        experiencia: expData || [],
+        educacion: eduData || []
+      };
+    } catch (error) {
+      console.error('Error cargando registros de BD:', error);
+      return { experiencia: [], educacion: [] };
+    }
+  }, [candidato, supabase]);
+
+  // Función de auto-guardado con debounce
+  const autoSave = useCallback(async (data: any) => {
     if (!user || !candidato) return;
     
     try {
       setIsAutoSaving(true);
       console.log('💾 Auto-guardando cambios...');
+      console.log('📊 Datos del formulario:', data);
+      console.log('💼 Experiencia laboral actual:', experienciaLaboral);
+      console.log('🎓 Educación actual:', educacion);
+      console.log('🆔 Candidato ID:', candidato.id);
+
+      // Cargar registros actuales de la base de datos para validación
+      console.log('🔍 Cargando registros actuales de la base de datos...');
+      const currentDBRecords = await loadCurrentRecordsFromDB();
+      console.log('📊 Registros actuales en BD - Experiencia:', currentDBRecords.experiencia);
+      console.log('📊 Registros actuales en BD - Educación:', currentDBRecords.educacion);
+
+      // Validar que los registros mostrados coincidan con los de la BD
+      console.log('✅ Validando sincronización entre UI y BD...');
       
-      const { error } = await supabase
+      // Comparar cantidad de registros de experiencia
+      const expCountMatch = experienciaLaboral.length === currentDBRecords.experiencia.length;
+      console.log(`📊 Experiencia - UI: ${experienciaLaboral.length}, BD: ${currentDBRecords.experiencia.length}, Coinciden: ${expCountMatch}`);
+      
+      // Comparar cantidad de registros de educación
+      const eduCountMatch = educacion.length === currentDBRecords.educacion.length;
+      console.log(`📊 Educación - UI: ${educacion.length}, BD: ${currentDBRecords.educacion.length}, Coinciden: ${eduCountMatch}`);
+      
+      if (!expCountMatch || !eduCountMatch) {
+        console.warn('⚠️ ADVERTENCIA: Los registros en la UI no coinciden con los de la BD');
+        console.log('🔄 Procediendo con sincronización...');
+      } else {
+        console.log('✅ Los registros en la UI coinciden con los de la BD');
+      }
+      
+      // Actualizar datos principales del candidato
+      const { error: candidatoError } = await supabase
         .from('candidatos')
         .update({
           primer_nombre: data.nombres,
           primer_apellido: data.apellidos,
           fecha_nacimiento: data.fechaNacimiento,
           edad: data.edad,
-          sexo: data.sexo,
+          genero: data.sexo,
           estado_civil: data.estadoCivil,
           telefono: data.telefono,
           direccion: data.direccion,
           ciudad: data.ciudad,
+          ciudad_id: data.ciudad_id,
+          departamento: data.departamento,
           cargo_aspirado: data.cargoAspirado,
           eps: data.eps,
           arl: data.arl,
@@ -259,9 +396,103 @@ export default function PerfilCandidato() {
         })
         .eq('email', user.email);
 
-      if (error) {
-        console.error('Error en auto-guardado:', error);
+      if (candidatoError) {
+        console.error('Error actualizando candidato:', candidatoError);
+      }
+
+      // Guardar experiencia laboral (incluso si está vacía, para eliminar registros)
+      console.log('💼 Procesando experiencia laboral...');
+      console.log('📋 Cantidad de registros de experiencia:', experienciaLaboral.length);
+      console.log('📋 Datos de experiencia a guardar:', experienciaLaboral);
+        
+      // Eliminar registros existentes
+      console.log('🗑️ Eliminando experiencia existente para candidato ID:', candidato.id);
+      const { error: deleteExpError } = await supabase
+        .from('experiencia_laboral')
+        .delete()
+        .eq('candidato_id', candidato.id);
+
+      if (deleteExpError) {
+        console.error('❌ Error eliminando experiencia existente:', deleteExpError);
       } else {
+        console.log('✅ Experiencia existente eliminada exitosamente');
+      }
+
+      // Insertar nuevos registros solo si hay datos
+      if (experienciaLaboral.length > 0) {
+        const experienciaData = experienciaLaboral.map(exp => ({
+          candidato_id: candidato.id,
+          empresa: exp.empresa,
+          cargo: exp.cargo,
+          fecha_inicio: exp.fechaInicio,
+          fecha_fin: exp.fechaFin || null,
+          funciones: exp.responsabilidades || null,
+          salario: exp.salario || null,
+          motivo_retiro: exp.motivoRetiro || null
+        }));
+
+        console.log('📤 Insertando datos de experiencia:', experienciaData);
+
+        const { error: expError } = await supabase
+          .from('experiencia_laboral')
+          .insert(experienciaData);
+
+        if (expError) {
+          console.error('Error guardando experiencia laboral:', expError);
+        } else {
+          console.log('✅ Experiencia laboral guardada exitosamente');
+        }
+      } else {
+        console.log('ℹ️ No hay registros de experiencia para insertar');
+      }
+
+      // Guardar educación (incluso si está vacía, para eliminar registros)
+      console.log('🎓 Procesando educación...');
+      console.log('📚 Cantidad de registros de educación:', educacion.length);
+      console.log('📚 Datos de educación a guardar:', educacion);
+      
+      // Eliminar registros existentes
+      console.log('🗑️ Eliminando educación existente para candidato ID:', candidato.id);
+      const { error: deleteEduError } = await supabase
+        .from('educacion_candidato')
+        .delete()
+        .eq('candidato_id', candidato.id);
+
+      if (deleteEduError) {
+        console.error('❌ Error eliminando educación existente:', deleteEduError);
+      } else {
+        console.log('✅ Educación existente eliminada exitosamente');
+      }
+
+      // Insertar nuevos registros solo si hay datos
+      if (educacion.length > 0) {
+        const educacionData = educacion.map(edu => ({
+          candidato_id: candidato.id,
+          nivel: edu.nivelEducativo,
+          institucion: edu.institucion,
+          titulo: edu.titulo,
+          fecha_inicio: edu.fechaInicio,
+          fecha_fin: edu.fechaFin || null,
+          ciudad: edu.ciudad,
+          estado: 'completado'
+        }));
+
+        console.log('📤 Insertando datos de educación:', educacionData);
+
+        const { error: eduError } = await supabase
+          .from('educacion_candidato')
+          .insert(educacionData);
+
+        if (eduError) {
+          console.error('Error guardando educación:', eduError);
+        } else {
+          console.log('✅ Educación guardada exitosamente');
+        }
+      } else {
+        console.log('ℹ️ No hay registros de educación para insertar');
+      }
+
+      if (!candidatoError) {
         console.log('✅ Auto-guardado exitoso');
       }
     } catch (error) {
@@ -269,19 +500,107 @@ export default function PerfilCandidato() {
     } finally {
       setIsAutoSaving(false);
     }
-  };
+  }, [user, candidato, experienciaLaboral, educacion]);
 
-  // useEffect para auto-guardado con debounce
+  // Ref para manejar el timeout del debounce
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // useEffect para auto-guardado cuando se detecten cambios en el formulario principal
   useEffect(() => {
     if (!candidato) return;
 
-    const timeoutId = setTimeout(() => {
-      const formData = form.getValues();
-      autoSave(formData);
-    }, 2000); // Auto-guardar después de 2 segundos de inactividad
+    const subscription = form.watch((value, { name, type }) => {
+      // Solo auto-guardar si hay un cambio real en un campo
+      if (type === 'change' && name) {
+        console.log(`🔄 Campo del formulario cambiado: ${name}`);
+        triggerAutoSave();
+      }
+    });
 
-    return () => clearTimeout(timeoutId);
-  }, [candidato, form.watch()]);
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [candidato, form]);
+
+  // Función para activar el auto-guardado con debounce
+  const triggerAutoSave = useCallback((immediate = false): Promise<void> => {
+    console.log('🔄 triggerAutoSave() llamado', immediate ? '(inmediato)' : '(con debounce)');
+    
+    return new Promise((resolve, reject) => {
+      // Limpiar timeout anterior si existe
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+      
+      if (immediate) {
+        // Ejecutar inmediatamente para ediciones
+        console.log('⚡ Ejecutando auto-guardado inmediato...');
+        const formData = form.getValues();
+        autoSave(formData)
+          .then(() => resolve())
+          .catch((error) => reject(error));
+      } else {
+        // Debounce: esperar 1.5 segundos después del último cambio
+        autoSaveTimeoutRef.current = setTimeout(() => {
+          console.log('⏰ Timeout del auto-guardado ejecutándose...');
+          const formData = form.getValues();
+          autoSave(formData)
+            .then(() => resolve())
+            .catch((error) => reject(error));
+        }, 1500);
+      }
+    });
+  }, [form, autoSave]);
+
+  // Referencias para detectar solo cambios en cantidad de elementos
+  const prevExperienciaLength = useRef(experienciaLaboral.length);
+  const prevEducacionLength = useRef(educacion.length);
+  const isInitialLoad = useRef(true);
+
+  // useEffect para auto-guardado cuando se agrega o quita experiencia laboral o educación
+  useEffect(() => {
+    if (!candidato) return;
+
+    const currentExperienciaLength = experienciaLaboral.length;
+    const currentEducacionLength = educacion.length;
+    
+    // Solo disparar si cambió la cantidad de elementos (agregar/quitar)
+    const experienciaChanged = currentExperienciaLength !== prevExperienciaLength.current;
+    const educacionChanged = currentEducacionLength !== prevEducacionLength.current;
+    
+    // NO ejecutar auto-guardado durante la carga inicial
+    if (isInitialLoad.current) {
+      console.log('🔄 Carga inicial - NO ejecutando auto-guardado');
+      console.log(`  - Experiencia laboral: ${prevExperienciaLength.current} → ${currentExperienciaLength}`);
+      console.log(`  - Educación: ${prevEducacionLength.current} → ${currentEducacionLength}`);
+      
+      // Actualizar las referencias y marcar que ya no es carga inicial
+      prevExperienciaLength.current = currentExperienciaLength;
+      prevEducacionLength.current = currentEducacionLength;
+      isInitialLoad.current = false;
+      return;
+    }
+    
+    if (experienciaChanged || educacionChanged) {
+      console.log('🔄 Cambios en cantidad de registros detectados:');
+      console.log(`  - Experiencia laboral: ${prevExperienciaLength.current} → ${currentExperienciaLength}`);
+      console.log(`  - Educación: ${prevEducacionLength.current} → ${currentEducacionLength}`);
+      
+      // Ejecutar auto-guardado y luego refrescar datos
+      triggerAutoSave().then(() => {
+        console.log('🔄 Refrescando datos desde la base de datos...');
+        // Recargar datos para obtener IDs reales y datos actualizados
+        loadExperienciasLaborales(candidato.id);
+        loadEducaciones(candidato.id);
+      }).catch((error: any) => {
+        console.error('❌ Error en auto-guardado:', error);
+      });
+    }
+    
+    // Actualizar las referencias para la próxima comparación
+    prevExperienciaLength.current = currentExperienciaLength;
+    prevEducacionLength.current = currentEducacionLength;
+  }, [candidato, experienciaLaboral.length, educacion.length, triggerAutoSave]);
 
   // Cargar tipos de documentos
   const loadTiposDocumentos = async () => {
@@ -566,6 +885,7 @@ export default function PerfilCandidato() {
     }
   };
 
+
   // Función para descargar documento
   const handleDownloadDocument = (documento: any) => {
     try {
@@ -659,14 +979,30 @@ export default function PerfilCandidato() {
       }
     });
     
+    // Calcular progreso de experiencia laboral
+    if (experienciaLaboral.length > 0) {
+      const pesoExperiencia = 15; // 15 puntos por tener al menos una experiencia
+      puntajeTotal += pesoExperiencia;
+      puntajeCompletado += pesoExperiencia;
+      console.log('🔍 calcularProgresoPerfil - Experiencia laboral: +15 puntos');
+    }
+    
+    // Calcular progreso de educación
+    if (educacion.length > 0) {
+      const pesoEducacion = 15; // 15 puntos por tener al menos una educación
+      puntajeTotal += pesoEducacion;
+      puntajeCompletado += pesoEducacion;
+      console.log('🔍 calcularProgresoPerfil - Educación: +15 puntos');
+    }
+    
     // Calcular progreso de documentos requeridos
     if (documentosRequeridos.length > 0) {
       // Filtrar solo los documentos que son requeridos
       const documentosRequeridosFiltrados = documentosRequeridos.filter(doc => doc.requerido);
       
       if (documentosRequeridosFiltrados.length > 0) {
-        // Distribuir 40% del progreso total entre los documentos requeridos
-        const pesoPorDocumento = Math.floor(40 / documentosRequeridosFiltrados.length);
+        // Distribuir 30% del progreso total entre los documentos requeridos (reducido de 40% a 30%)
+        const pesoPorDocumento = Math.floor(30 / documentosRequeridosFiltrados.length);
         
         // Contar solo los documentos que corresponden a los requeridos para este tipo de candidato
         const documentosCompletados = existingDocuments.filter(doc => 
@@ -681,6 +1017,8 @@ export default function PerfilCandidato() {
       }
     }
     
+    console.log('🔍 calcularProgresoPerfil - Experiencia laboral:', experienciaLaboral.length, 'registros');
+    console.log('🔍 calcularProgresoPerfil - Educación:', educacion.length, 'registros');
     console.log('🔍 calcularProgresoPerfil - Documentos requeridos:', documentosRequeridos.length);
     console.log('🔍 calcularProgresoPerfil - Documentos existentes totales:', existingDocuments.length);
     console.log('🔍 calcularProgresoPerfil - Documentos completados (filtrados):', existingDocuments.filter(doc => 
@@ -750,7 +1088,18 @@ export default function PerfilCandidato() {
       // Buscar el candidato en la base de datos usando el email del usuario
       const { data: candidatoData, error } = await supabase
         .from('candidatos')
-        .select('*')
+        .select(`
+          *,
+          ciudades!ciudad_id (
+            id,
+            nombre,
+            departamento_id,
+            departamentos!departamento_id (
+              id,
+              nombre
+            )
+          )
+        `)
         .eq('email', user.email)
         .single();
 
@@ -801,6 +1150,14 @@ export default function PerfilCandidato() {
       }
 
       if (candidatoData) {
+        console.log('🔍 Datos del candidato cargados:', {
+          ciudad: candidatoData.ciudades?.nombre || candidatoData.ciudad,
+          ciudad_id: candidatoData.ciudad_id,
+          departamento: candidatoData.ciudades?.departamentos?.nombre || candidatoData.departamento,
+          departamento_id: candidatoData.ciudades?.departamento_id,
+          relaciones: candidatoData.ciudades
+        });
+        
         // Transformar los datos para que coincidan con la interfaz Candidato
         const candidatoTransformado = {
           id: candidatoData.id,
@@ -815,7 +1172,9 @@ export default function PerfilCandidato() {
           estadoCivil: candidatoData.estado_civil,
           telefono: candidatoData.telefono || '',
           direccion: candidatoData.direccion || '',
-          ciudad: candidatoData.ciudad_id ? 'Ciudad' : '', // Placeholder
+          ciudad: candidatoData.ciudades?.nombre || candidatoData.ciudad || '',
+          ciudad_id: candidatoData.ciudad_id || undefined,
+          departamento: candidatoData.ciudades?.departamentos?.nombre || candidatoData.departamento || '',
           cargoAspirado: candidatoData.cargo_aspirado || '',
           eps: candidatoData.eps || '',
           arl: candidatoData.arl || '',
@@ -834,6 +1193,27 @@ export default function PerfilCandidato() {
         setCandidato(candidatoTransformado);
         form.reset(candidatoTransformado);
         
+        // Inicializar estados de departamento y ciudad si existen
+        if (candidatoData.ciudad_id && candidatoData.ciudades?.departamento_id) {
+          // Usar el departamento_id de la relación
+          const departamentoId = candidatoData.ciudades.departamento_id;
+          setDepartamentoSeleccionado(departamentoId);
+          
+          console.log('🔍 Inicializando estados:', {
+            departamentoId,
+            cityDataDisponible: !!cityData,
+            ciudadesDelDepartamento: cityData?.[departamentoId]?.ciudades?.length || 0
+          });
+          
+          // Cargar ciudades del departamento
+          if (cityData?.[departamentoId]) {
+            setCiudadesDisponibles(cityData[departamentoId].ciudades);
+            console.log('✅ Ciudades cargadas:', cityData[departamentoId].ciudades);
+          } else {
+            console.log('❌ No se encontraron ciudades para el departamento:', departamentoId);
+          }
+        }
+        
         // Cargar tipo de candidato y sus documentos requeridos
         if (candidatoData.tipo_candidato_id) {
           await loadTipoCandidato(candidatoData.tipo_candidato_id);
@@ -841,6 +1221,12 @@ export default function PerfilCandidato() {
         
         // Cargar documentos del candidato
         await loadDocumentosCandidato(candidatoData.id);
+        
+        // Cargar experiencias laborales del candidato
+        await loadExperienciasLaborales(candidatoData.id);
+        
+        // Cargar educaciones del candidato
+        await loadEducaciones(candidatoData.id);
       } else {
         toast.error('No se encontró el perfil del candidato');
       }
@@ -852,6 +1238,67 @@ export default function PerfilCandidato() {
     }
   };
 
+  // Función para cargar experiencias laborales del candidato
+  const loadExperienciasLaborales = async (candidatoId: number) => {
+    try {
+      console.log('🔄 Cargando experiencias laborales para candidato:', candidatoId);
+      const { data, error } = await supabase
+        .from('experiencia_laboral')
+        .select('*')
+        .eq('candidato_id', candidatoId)
+        .order('fecha_inicio', { ascending: false });
+      
+      if (error) throw error;
+      
+      // Transformar los datos para que coincidan con el formato esperado
+      const experienciasTransformadas = (data || []).map(exp => ({
+        id: exp.id,
+        empresa: exp.empresa || '',
+        cargo: exp.cargo || '',
+        fechaInicio: exp.fecha_inicio || '',
+        fechaFin: exp.fecha_fin || '',
+        responsabilidades: exp.responsabilidades || '',
+        salario: exp.salario || '',
+        motivoRetiro: exp.motivo_retiro || ''
+      }));
+      
+      setExperienciaLaboral(experienciasTransformadas);
+      console.log('✅ Experiencias laborales cargadas:', experienciasTransformadas.length);
+    } catch (error) {
+      console.error('Error cargando experiencias laborales:', error);
+    }
+  };
+
+  // Función para cargar educaciones del candidato
+  const loadEducaciones = async (candidatoId: number) => {
+    try {
+      console.log('🔄 Cargando educaciones para candidato:', candidatoId);
+      const { data, error } = await supabase
+        .from('educacion_candidato')
+        .select('*')
+        .eq('candidato_id', candidatoId)
+        .order('fecha_inicio', { ascending: false });
+      
+      if (error) throw error;
+      
+      // Transformar los datos para que coincidan con el formato esperado
+      const educacionesTransformadas = (data || []).map(edu => ({
+        id: edu.id,
+        nivelEducativo: edu.nivel || '',
+        institucion: edu.institucion || '',
+        titulo: edu.titulo || '',
+        fechaInicio: edu.fecha_inicio || '',
+        fechaFin: edu.fecha_fin || '',
+        ciudad: edu.ciudad || ''
+      }));
+      
+      setEducacion(educacionesTransformadas);
+      console.log('✅ Educaciones cargadas:', educacionesTransformadas.length);
+    } catch (error) {
+      console.error('Error cargando educaciones:', error);
+    }
+  };
+
   const onSubmit = async (data: PerfilForm) => {
     setIsSaving(true);
     try {
@@ -859,6 +1306,14 @@ export default function PerfilCandidato() {
         toast.error('No hay usuario autenticado');
         return;
       }
+
+      console.log('🔍 Datos del formulario a guardar:', {
+        ciudad: data.ciudad,
+        ciudad_id: data.ciudad_id,
+        departamento: data.departamento,
+        departamentoSeleccionado: departamentoSeleccionado,
+        ciudadesDisponibles: ciudadesDisponibles.length
+      });
 
       // Actualizar el candidato en Supabase
       const { data: updatedCandidato, error } = await supabase
@@ -868,11 +1323,13 @@ export default function PerfilCandidato() {
           primer_apellido: data.apellidos,
           fecha_nacimiento: data.fechaNacimiento,
           edad: data.edad,
-          sexo: data.sexo,
+          genero: data.sexo,
           estado_civil: data.estadoCivil,
           telefono: data.telefono,
           direccion: data.direccion,
-          ciudad: data.ciudad,
+          ciudad: data.ciudad, // Mantener el texto para compatibilidad
+          ciudad_id: data.ciudad_id, // Guardar el ID de la ciudad
+          departamento: data.departamento, // Guardar el departamento
           cargo_aspirado: data.cargoAspirado,
           eps: data.eps,
           arl: data.arl,
@@ -1138,123 +1595,151 @@ export default function PerfilCandidato() {
                 </TabsList>
 
                   <TabsContent value="personal" className="space-y-4">
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="nombres"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Nombres *</FormLabel>
-                            <FormControl>
-                              <Input {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
+                    {/* Primera fila */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Nombres *</label>
+                        <Input 
+                          value={form.watch('nombres') || ''}
+                          onChange={(e) => form.setValue('nombres', e.target.value)}
+                        />
+                        {form.formState.errors.nombres && (
+                          <p className="text-sm text-red-500">{form.formState.errors.nombres.message}</p>
                         )}
-                      />
+                      </div>
 
-                      <FormField
-                        control={form.control}
-                        name="apellidos"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Apellidos *</FormLabel>
-                            <FormControl>
-                              <Input {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="fechaNacimiento"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Fecha de Nacimiento *</FormLabel>
-                            <FormControl>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Apellidos *</label>
                               <Input 
-                                {...field} 
-                                type="date" 
-                                value={field.value || ''}
-                                onChange={(e) => {
-                                  console.log('🔍 Campo fechaNacimiento - Nuevo valor:', e.target.value);
-                                  field.onChange(e);
-                                  const edad = calcularEdad(e.target.value);
-                                  console.log('🔍 Campo fechaNacimiento - Edad calculada para el formulario:', edad);
-                                  form.setValue('edad', edad);
-                                }}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
+                          value={form.watch('apellidos') || ''}
+                          onChange={(e) => form.setValue('apellidos', e.target.value)}
+                        />
+                        {form.formState.errors.apellidos && (
+                          <p className="text-sm text-red-500">{form.formState.errors.apellidos.message}</p>
                         )}
-                      />
+                      </div>
 
-                      <FormField
-                        control={form.control}
-                        name="edad"
-                        render={({ field }) => {
-                          console.log('🔍 Campo edad - Valor actual:', field.value, 'Tipo:', typeof field.value);
-                          return (
-                            <FormItem>
-                              <FormLabel>Edad</FormLabel>
-                              <FormControl>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Fecha de Nacimiento *</label>
+                        <div 
+                          onClick={() => console.log('🔍 Click en contenedor del DatePicker')}
+                          className="relative"
+                        >
+                          <CustomDatePicker
+                            value={form.watch('fechaNacimiento') ? (() => {
+                              const fechaString = form.watch('fechaNacimiento') || '';
+                              const fechaParsed = parseISO(fechaString);
+                              console.log('🔍 Campo fechaNacimiento - String original:', fechaString);
+                              console.log('🔍 Campo fechaNacimiento - Fecha parseada:', fechaParsed);
+                              return fechaParsed;
+                            })() : null}
+                            onChange={(date) => {
+                              const fechaString = date ? format(date, 'yyyy-MM-dd') : '';
+                              console.log('🔍 Campo fechaNacimiento - Fecha seleccionada:', date);
+                              console.log('🔍 Campo fechaNacimiento - Nuevo valor formateado:', fechaString);
+                              form.setValue('fechaNacimiento', fechaString, { shouldDirty: true, shouldTouch: true });
+                              const edad = calcularEdad(fechaString);
+                                  console.log('🔍 Campo fechaNacimiento - Edad calculada para el formulario:', edad);
+                              form.setValue('edad', edad, { shouldDirty: true, shouldTouch: true });
+                              // Disparar auto-guardado manualmente
+                              triggerAutoSave();
+                            }}
+                            maxDate={new Date()} // No permitir fechas futuras
+                          />
+                        </div>
+                        {form.formState.errors.fechaNacimiento && (
+                          <p className="text-sm text-red-500">{form.formState.errors.fechaNacimiento.message}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Segunda fila */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Edad</label>
                                 <Input 
-                                  {...field} 
                                   type="number" 
                                   min="18" 
                                   max="100" 
-                                  value={field.value || ''}
+                          value={form.watch('edad') || ''}
                                   onChange={(e) => {
                                     const value = e.target.value === '' ? undefined : parseInt(e.target.value);
                                     console.log('🔍 Campo edad - Nuevo valor:', value, 'Tipo:', typeof value);
-                                    field.onChange(value);
-                                  }}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          );
-                        }}
-                      />
+                            form.setValue('edad', value);
+                          }}
+                          className="w-full"
+                        />
+                        {form.formState.errors.edad && (
+                          <p className="text-sm text-red-500">{form.formState.errors.edad.message}</p>
+                        )}
+                      </div>
 
-                      <FormField
-                        control={form.control}
-                        name="sexo"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Sexo</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Seleccionar" />
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Grupo Sanguíneo</label>
+                        <Select 
+                          value={form.watch('grupoSanguineo') || ''} 
+                          onValueChange={(value) => {
+                            form.setValue('grupoSanguineo', value, { shouldDirty: true, shouldTouch: true });
+                            triggerAutoSave();
+                          }}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue  />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="O+">O+</SelectItem>
+                            <SelectItem value="O-">O-</SelectItem>
+                            <SelectItem value="A+">A+</SelectItem>
+                            <SelectItem value="A-">A-</SelectItem>
+                            <SelectItem value="B+">B+</SelectItem>
+                            <SelectItem value="B-">B-</SelectItem>
+                            <SelectItem value="AB+">AB+</SelectItem>
+                            <SelectItem value="AB-">AB-</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {form.formState.errors.grupoSanguineo && (
+                          <p className="text-sm text-red-500">{form.formState.errors.grupoSanguineo.message}</p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Sexo</label>
+                        <Select 
+                          value={form.watch('sexo') || ''} 
+                          onValueChange={(value) => {
+                            console.log('🔍 Campo sexo - Valor seleccionado:', value);
+                            form.setValue('sexo', value, { shouldDirty: true, shouldTouch: true });
+                            console.log('🔍 Campo sexo - Valor en formulario después de setValue:', form.getValues('sexo'));
+                            triggerAutoSave();
+                            console.log('🔍 Campo sexo - triggerAutoSave() ejecutado');
+                          }}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue  />
                                 </SelectTrigger>
-                              </FormControl>
                               <SelectContent>
                                 <SelectItem value="Masculino">Masculino</SelectItem>
                                 <SelectItem value="Femenino">Femenino</SelectItem>
                                 <SelectItem value="Otro">Otro</SelectItem>
                               </SelectContent>
                             </Select>
-                            <FormMessage />
-                          </FormItem>
+                        {form.formState.errors.sexo && (
+                          <p className="text-sm text-red-500">{form.formState.errors.sexo.message}</p>
                         )}
-                      />
+                      </div>
 
-                      <FormField
-                        control={form.control}
-                        name="estadoCivil"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Estado Civil</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Seleccionar" />
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Estado Civil</label>
+                        <Select 
+                          value={form.watch('estadoCivil') || ''} 
+                          onValueChange={(value) => {
+                            form.setValue('estadoCivil', value, { shouldDirty: true, shouldTouch: true });
+                            triggerAutoSave();
+                          }}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue  />
                                 </SelectTrigger>
-                              </FormControl>
                               <SelectContent>
                                 <SelectItem value="Soltero">Soltero</SelectItem>
                                 <SelectItem value="Casado">Casado</SelectItem>
@@ -1263,53 +1748,57 @@ export default function PerfilCandidato() {
                                 <SelectItem value="Unión Libre">Unión Libre</SelectItem>
                               </SelectContent>
                             </Select>
-                            <FormMessage />
-                          </FormItem>
+                        {form.formState.errors.estadoCivil && (
+                          <p className="text-sm text-red-500">{form.formState.errors.estadoCivil.message}</p>
                         )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="grupoSanguineo"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Grupo Sanguíneo</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Seleccionar" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="O+">O+</SelectItem>
-                                <SelectItem value="O-">O-</SelectItem>
-                                <SelectItem value="A+">A+</SelectItem>
-                                <SelectItem value="A-">A-</SelectItem>
-                                <SelectItem value="B+">B+</SelectItem>
-                                <SelectItem value="B-">B-</SelectItem>
-                                <SelectItem value="AB+">AB+</SelectItem>
-                                <SelectItem value="AB-">AB-</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      </div>
                     </div>
                   </TabsContent>
 
                   <TabsContent value="contacto" className="space-y-4">
-                    <div className="grid md:grid-cols-2 gap-4">
+                    {/* Primera fila - Información básica */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       <FormField
                         control={form.control}
                         name="telefono"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Teléfono *</FormLabel>
-                            <FormControl>
+                              <FormControl>
                               <div className="relative">
                                 <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                                 <Input {...field} className="pl-10" />
+                              </div>
+                              </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="departamento"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Departamento</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Building className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                                <Select
+                                  value={departamentoSeleccionado?.toString() || ''}
+                                  onValueChange={(value) => handleDepartamentoChange(parseInt(value))}
+                                >
+                                  <SelectTrigger className="pl-10">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {cityData && Object.entries(cityData).map(([id, dept]) => (
+                                      <SelectItem key={id} value={id}>
+                                        {dept.nombre}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                               </div>
                             </FormControl>
                             <FormMessage />
@@ -1326,7 +1815,22 @@ export default function PerfilCandidato() {
                             <FormControl>
                               <div className="relative">
                                 <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                                <Input {...field} className="pl-10" />
+                                <Select
+                                  value={form.watch('ciudad_id')?.toString() || ''}
+                                  onValueChange={(value) => handleCiudadChange(parseInt(value))}
+                                  disabled={!departamentoSeleccionado}
+                                >
+                                  <SelectTrigger className="pl-10">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {ciudadesDisponibles.map((ciudad) => (
+                                      <SelectItem key={ciudad.id} value={ciudad.id.toString()}>
+                                        {ciudad.nombre}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                               </div>
                             </FormControl>
                             <FormMessage />
@@ -1334,7 +1838,6 @@ export default function PerfilCandidato() {
                         )}
                       />
 
-                      <div className="md:col-span-2">
                         <FormField
                           control={form.control}
                           name="direccion"
@@ -1342,7 +1845,10 @@ export default function PerfilCandidato() {
                             <FormItem>
                               <FormLabel>Dirección</FormLabel>
                               <FormControl>
-                                <Textarea {...field} placeholder="Dirección completa" />
+                              <div className="relative">
+                                <Home className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                                <Input {...field} className="pl-10" />
+                              </div>
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -1350,14 +1856,25 @@ export default function PerfilCandidato() {
                         />
                       </div>
 
+                    {/* Segunda fila - Contacto de emergencia */}
+                    <div className="space-y-4 bg-gray-50 p-4 rounded-lg">
+                      <div className="flex items-center space-x-2 mb-4">
+                        <div className="w-1 h-6 bg-orange-500 rounded-full"></div>
+                        <h3 className="text-lg font-semibold text-gray-800">Contacto de Emergencia</h3>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <FormField
                         control={form.control}
                         name="contactoEmergenciaNombre"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Contacto de Emergencia - Nombre</FormLabel>
+                              <FormLabel>Nombre</FormLabel>
                             <FormControl>
-                              <Input {...field} />
+                                <div className="relative">
+                                  <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                                  <Input {...field} className="pl-10" />
+                                </div>
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -1369,9 +1886,12 @@ export default function PerfilCandidato() {
                         name="contactoEmergenciaTelefono"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Contacto de Emergencia - Teléfono</FormLabel>
+                              <FormLabel>Teléfono</FormLabel>
                             <FormControl>
-                              <Input {...field} />
+                                <div className="relative">
+                                  <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                                  <Input {...field} className="pl-10" />
+                                </div>
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -1383,28 +1903,36 @@ export default function PerfilCandidato() {
                         name="contactoEmergenciaRelacion"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Relación con Contacto de Emergencia</FormLabel>
+                              <FormLabel>Relación</FormLabel>
                             <FormControl>
-                              <Input {...field} placeholder="Ej: Madre, Padre, Hermano" />
+                                <div className="relative">
+                                  <UserCheck className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                                  <Input {...field} className="pl-10" />
+                                </div>
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
+                      </div>
                     </div>
                   </TabsContent>
 
                   <TabsContent value="profesional" className="space-y-4">
-                    <ExperienciaLaboralTab 
-                      experienciaLaboral={experienciaLaboral}
-                      onChange={setExperienciaLaboral}
-                    />
+                <ExperienciaLaboralTab
+                  experienciaLaboral={experienciaLaboral}
+                  onChange={setExperienciaLaboral}
+                  triggerAutoSave={triggerAutoSave}
+                  candidatoId={candidato?.id}
+                />
                   </TabsContent>
 
                   <TabsContent value="educacion" className="space-y-4">
                     <EducacionTab 
                       educacion={educacion}
                       onChange={setEducacion}
+                      triggerAutoSave={triggerAutoSave}
+                      candidatoId={candidato?.id}
                     />
                   </TabsContent>
 

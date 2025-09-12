@@ -199,7 +199,7 @@ export function TemplateManager({ empresaId }: TemplateManagerProps) {
               <SelectContent>
                 {empresas.map((empresa: Empresa) => (
                   <SelectItem key={empresa.id} value={empresa.id.toString()}>
-                    {empresa.nombreEmpresa}
+                    {empresa.razon_social}
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -1,0 +1,557 @@
+/* ==================== MOBILSOFT CUSTOM DATEPICKER STYLES ==================== */
+
+/* Prevenir scroll horizontal en el body cuando el DatePicker está abierto */
+body:has(.mobilsoft-datepicker-calendar) {
+  overflow-x: hidden !important;
+}
+
+/* Prevenir scroll doble específicamente en el tab personal */
+[data-state="active"] .mobilsoft-datepicker-calendar {
+  position: absolute !important;
+  top: 100% !important;
+  left: 0 !important;
+  right: auto !important;
+  transform: none !important;
+  z-index: 50 !important;
+}
+
+/* Contenedor del tab personal - prevenir overflow */
+[data-state="active"] {
+  overflow: visible !important;
+  position: relative !important;
+}
+
+/* Asegurar que el DatePicker no cause scroll en el tab personal */
+[data-state="active"] .space-y-4 {
+  overflow: visible !important;
+  position: relative !important;
+}
+
+/* Asegurar que el input del DatePicker sea clickeable */
+[data-state="active"] .mobilsoft-datepicker-calendar + div {
+  pointer-events: auto !important;
+}
+
+/* Asegurar que el contenedor del DatePicker permita clicks */
+[data-state="active"] .relative {
+  pointer-events: auto !important;
+}
+
+/* Asegurar que el input del DatePicker sea clickeable en todos los casos */
+.mobilsoft-datepicker-calendar + div,
+.relative .mobilsoft-datepicker-calendar + div {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+/* Asegurar que el input field sea clickeable */
+.relative > div:first-child {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+/* Calendar Container */
+.mobilsoft-datepicker-calendar {
+  position: absolute !important;
+  top: 100% !important;
+  left: 0 !important;
+  background: #fff !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+  z-index: 10 !important;
+  width: 260px !important;
+  margin-top: 4px !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif !important;
+  font-size: 13px !important;
+  line-height: 1.3 !important;
+  color: #333 !important;
+  overflow: hidden !important;
+  max-height: 300px !important;
+  /* Prevenir que cause scroll adicional */
+  contain: layout !important;
+  will-change: auto !important;
+  /* Evitar que se extienda fuera del viewport */
+  max-width: calc(100vw - 20px) !important;
+  transform: translateX(0) !important;
+}
+
+/* Remover completamente el manejo de scroll del body */
+
+/* Header */
+.mobilsoft-datepicker-header {
+  background: #f9fafb !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  padding: 8px 12px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  position: relative !important;
+  min-height: 40px !important;
+}
+
+.mobilsoft-datepicker-month-container {
+  position: relative !important;
+  flex: 1 !important;
+  display: flex !important;
+  justify-content: center !important;
+}
+
+.mobilsoft-datepicker-month-button {
+  background: none !important;
+  border: none !important;
+  color: #111827 !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  text-align: center !important;
+  cursor: pointer !important;
+  padding: 6px 12px !important;
+  border-radius: 4px !important;
+  transition: background-color 0.15s ease !important;
+  margin: 0 !important;
+  white-space: nowrap !important;
+  min-width: 120px !important;
+}
+
+.mobilsoft-datepicker-month-button:hover {
+  background-color: #e5e7eb !important;
+}
+
+.mobilsoft-datepicker-month-dropdown {
+  position: absolute !important;
+  top: 100% !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  background: #fff !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+  z-index: 20 !important;
+  min-width: 120px !important;
+  max-height: 150px !important;
+  overflow-y: auto !important;
+  margin-top: 4px !important;
+}
+
+.mobilsoft-datepicker-month-option {
+  display: block !important;
+  width: 100% !important;
+  padding: 8px 12px !important;
+  background: none !important;
+  border: none !important;
+  color: #111827 !important;
+  font-size: 14px !important;
+  text-align: left !important;
+  cursor: pointer !important;
+  transition: background-color 0.15s ease !important;
+  margin: 0 !important;
+}
+
+.mobilsoft-datepicker-month-option:hover {
+  background-color: #f3f4f6 !important;
+}
+
+.mobilsoft-datepicker-month-option-selected {
+  background-color: #3b82f6 !important;
+  color: #fff !important;
+}
+
+.mobilsoft-datepicker-month-option-selected:hover {
+  background-color: #2563eb !important;
+}
+
+/* Year Dropdown Styles */
+.mobilsoft-datepicker-year-container {
+  position: relative !important;
+  flex: 1 !important;
+  display: flex !important;
+  justify-content: center !important;
+}
+
+.mobilsoft-datepicker-year-button {
+  background: none !important;
+  border: none !important;
+  color: #111827 !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  text-align: center !important;
+  cursor: pointer !important;
+  padding: 6px 12px !important;
+  border-radius: 4px !important;
+  transition: background-color 0.15s ease !important;
+  margin: 0 !important;
+  white-space: nowrap !important;
+  min-width: 80px !important;
+}
+
+.mobilsoft-datepicker-year-button:hover {
+  background-color: #e5e7eb !important;
+}
+
+.mobilsoft-datepicker-year-dropdown {
+  position: absolute !important;
+  top: 100% !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  background: #fff !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+  z-index: 20 !important;
+  min-width: 80px !important;
+  max-height: 200px !important;
+  overflow-y: auto !important;
+  margin-top: 4px !important;
+}
+
+.mobilsoft-datepicker-year-option {
+  display: block !important;
+  width: 100% !important;
+  padding: 8px 12px !important;
+  background: none !important;
+  border: none !important;
+  color: #111827 !important;
+  font-size: 14px !important;
+  text-align: left !important;
+  cursor: pointer !important;
+  transition: background-color 0.15s ease !important;
+  margin: 0 !important;
+}
+
+.mobilsoft-datepicker-year-option:hover {
+  background-color: #f3f4f6 !important;
+}
+
+.mobilsoft-datepicker-year-option-selected {
+  background-color: #3b82f6 !important;
+  color: #fff !important;
+}
+
+.mobilsoft-datepicker-year-option-selected:hover {
+  background-color: #2563eb !important;
+}
+
+/* Navigation Arrows */
+.mobilsoft-datepicker-nav {
+  background: none !important;
+  border: none !important;
+  cursor: pointer !important;
+  padding: 6px !important;
+  border-radius: 4px !important;
+  transition: background-color 0.15s ease !important;
+  width: 28px !important;
+  height: 28px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 14px !important;
+  color: #6b7280 !important;
+  font-weight: 500 !important;
+  margin: 0 !important;
+}
+
+.mobilsoft-datepicker-nav:hover {
+  background-color: #e5e7eb !important;
+  color: #374151 !important;
+}
+
+.mobilsoft-datepicker-nav:disabled {
+  opacity: 0.4 !important;
+  cursor: not-allowed !important;
+}
+
+.mobilsoft-datepicker-nav:disabled:hover {
+  background: none !important;
+  color: #6b7280 !important;
+}
+
+/* Week Days */
+.mobilsoft-datepicker-day-names {
+  display: flex !important;
+  background: #fff !important;
+  border-bottom: 1px solid #f3f4f6 !important;
+  padding: 6px 12px 2px !important;
+}
+
+.mobilsoft-datepicker-day-name {
+  color: #6b7280 !important;
+  font-weight: 500 !important;
+  font-size: 10px !important;
+  width: 28px !important;
+  height: 14px !important;
+  line-height: 14px !important;
+  text-align: center !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  flex: 0 0 28px !important;
+}
+
+/* Calendar Grid */
+.mobilsoft-datepicker-month-grid {
+  display: grid !important;
+  grid-template-columns: repeat(7, 1fr) !important;
+  gap: 2px !important;
+  padding: 6px 12px 12px !important;
+  background: #fff !important;
+}
+
+/* Calendar Days */
+.mobilsoft-datepicker-day {
+  color: #111827 !important;
+  width: 28px !important;
+  height: 28px !important;
+  line-height: 28px !important;
+  text-align: center !important;
+  border-radius: 4px !important;
+  margin: 0 !important;
+  transition: all 0.15s ease !important;
+  font-weight: 400 !important;
+  position: relative !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: none !important;
+  background: none !important;
+  font-size: 12px !important;
+  justify-self: center !important;
+}
+
+.mobilsoft-datepicker-day:hover {
+  background-color: #f3f4f6 !important;
+  color: #111827 !important;
+}
+
+.mobilsoft-datepicker-day-selected {
+  background: #3b82f6 !important;
+  color: #fff !important;
+  font-weight: 500 !important;
+  border-radius: 4px !important;
+}
+
+.mobilsoft-datepicker-day-selected:hover {
+  background: #2563eb !important;
+  color: #fff !important;
+}
+
+.mobilsoft-datepicker-day-today {
+  background: #f3f4f6 !important;
+  color: #111827 !important;
+  font-weight: 500 !important;
+}
+
+.mobilsoft-datepicker-day-today:hover {
+  background: #e5e7eb !important;
+  color: #111827 !important;
+}
+
+.mobilsoft-datepicker-day-disabled {
+  color: #d1d5db !important;
+  cursor: not-allowed !important;
+  opacity: 0.5 !important;
+}
+
+.mobilsoft-datepicker-day-disabled:hover {
+  background: none !important;
+  color: #d1d5db !important;
+}
+
+.mobilsoft-datepicker-day-outside-month {
+  color: #d1d5db !important;
+  opacity: 0.6 !important;
+}
+
+.mobilsoft-datepicker-day-outside-month:hover {
+  background: #f9fafb !important;
+  color: #9ca3af !important;
+}
+
+/* Footer */
+.mobilsoft-datepicker-footer {
+  background: #f9fafb !important;
+  border-top: 1px solid #e5e7eb !important;
+  padding: 6px 12px !important;
+  text-align: center !important;
+}
+
+.mobilsoft-datepicker-today-button {
+  background: none !important;
+  border: none !important;
+  color: #3b82f6 !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  padding: 4px 8px !important;
+  border-radius: 4px !important;
+  transition: background-color 0.15s ease !important;
+}
+
+.mobilsoft-datepicker-today-button:hover {
+  background-color: #e0f2fe !important;
+}
+
+/* Modo oscuro */
+.dark .mobilsoft-datepicker-calendar {
+  background: #1f2937 !important;
+  border-color: #374151 !important;
+  color: #f9fafb !important;
+}
+
+.dark .mobilsoft-datepicker-header {
+  background: #374151 !important;
+  border-color: #4b5563 !important;
+}
+
+.dark .mobilsoft-datepicker-month-button {
+  color: #f9fafb !important;
+}
+
+.dark .mobilsoft-datepicker-month-button:hover {
+  background-color: #4b5563 !important;
+}
+
+.dark .mobilsoft-datepicker-month-dropdown {
+  background: #1f2937 !important;
+  border-color: #374151 !important;
+}
+
+.dark .mobilsoft-datepicker-month-option {
+  color: #f9fafb !important;
+}
+
+.dark .mobilsoft-datepicker-month-option:hover {
+  background-color: #374151 !important;
+}
+
+.dark .mobilsoft-datepicker-year-button {
+  color: #f9fafb !important;
+}
+
+.dark .mobilsoft-datepicker-year-button:hover {
+  background-color: #4b5563 !important;
+}
+
+.dark .mobilsoft-datepicker-year-dropdown {
+  background: #1f2937 !important;
+  border-color: #374151 !important;
+}
+
+.dark .mobilsoft-datepicker-year-option {
+  color: #f9fafb !important;
+}
+
+.dark .mobilsoft-datepicker-year-option:hover {
+  background-color: #374151 !important;
+}
+
+.dark .mobilsoft-datepicker-year-option-selected {
+  background-color: #3b82f6 !important;
+  color: #fff !important;
+}
+
+.dark .mobilsoft-datepicker-year-option-selected:hover {
+  background-color: #2563eb !important;
+}
+
+.dark .mobilsoft-datepicker-nav {
+  color: #9ca3af !important;
+}
+
+.dark .mobilsoft-datepicker-nav:hover {
+  background-color: #4b5563 !important;
+  color: #f9fafb !important;
+}
+
+.dark .mobilsoft-datepicker-day-names {
+  background: #1f2937 !important;
+  border-color: #374151 !important;
+}
+
+.dark .mobilsoft-datepicker-day-name {
+  color: #9ca3af !important;
+}
+
+.dark .mobilsoft-datepicker-month-grid {
+  background: #1f2937 !important;
+}
+
+.dark .mobilsoft-datepicker-day {
+  color: #f9fafb !important;
+}
+
+.dark .mobilsoft-datepicker-day:hover {
+  background-color: #374151 !important;
+  color: #f9fafb !important;
+}
+
+.dark .mobilsoft-datepicker-day-today {
+  background: #374151 !important;
+  color: #f9fafb !important;
+}
+
+.dark .mobilsoft-datepicker-day-today:hover {
+  background: #4b5563 !important;
+  color: #f9fafb !important;
+}
+
+.dark .mobilsoft-datepicker-day-disabled {
+  color: #4b5563 !important;
+}
+
+.dark .mobilsoft-datepicker-day-disabled:hover {
+  background: none !important;
+  color: #4b5563 !important;
+}
+
+.dark .mobilsoft-datepicker-day-outside-month {
+  color: #4b5563 !important;
+}
+
+.dark .mobilsoft-datepicker-day-outside-month:hover {
+  background: #374151 !important;
+  color: #6b7280 !important;
+}
+
+.dark .mobilsoft-datepicker-footer {
+  background: #374151 !important;
+  border-color: #4b5563 !important;
+}
+
+.dark .mobilsoft-datepicker-today-button {
+  color: #60a5fa !important;
+}
+
+.dark .mobilsoft-datepicker-today-button:hover {
+  background-color: #1e3a8a !important;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .mobilsoft-datepicker-calendar {
+    width: 240px !important;
+  }
+  
+  .mobilsoft-datepicker-day {
+    width: 24px !important;
+    height: 24px !important;
+    line-height: 24px !important;
+    font-size: 11px !important;
+  }
+  
+  .mobilsoft-datepicker-day-name {
+    width: 24px !important;
+    font-size: 9px !important;
+  }
+  
+  .mobilsoft-datepicker-header {
+    padding: 6px 8px !important;
+  }
+  
+  .mobilsoft-datepicker-month-button {
+    font-size: 12px !important;
+    padding: 4px 8px !important;
+    min-width: 100px !important;
+  }
+}

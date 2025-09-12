@@ -1,6 +1,7 @@
 import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CustomDatePicker } from '@/components/ui/date-picker';
 
 interface Candidato {
   identificacion?: string;
@@ -100,11 +101,11 @@ export const DatosPersonalesForm: React.FC<DatosPersonalesFormProps> = ({ formDa
 
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">Fecha de Nacimiento</label>
-            <Input
-              className="bg-white"
-              type="date"
-              value={formData.fechaNacimiento || ''}
-              onChange={(e) => onChange('fechaNacimiento', e.target.value)}
+            <CustomDatePicker
+              value={formData.fechaNacimiento ? new Date(formData.fechaNacimiento) : null}
+              onChange={(date) => onChange('fechaNacimiento', date ? date.toISOString().split('T')[0] : '')}
+              placeholder="Seleccionar fecha de nacimiento"
+              maxDate={new Date()} // No permitir fechas futuras
             />
           </div>
 

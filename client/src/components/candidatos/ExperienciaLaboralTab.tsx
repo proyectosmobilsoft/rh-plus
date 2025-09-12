@@ -4,7 +4,12 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { CustomDatePicker } from '@/components/ui/date-picker';
 import { Plus, Edit, Trash2, Briefcase } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { format } from 'date-fns';
+import { supabase } from '@/services/supabaseClient';
+import { useToast } from '@/hooks/use-toast';
 
 interface ExperienciaLaboral {
   id?: number;
@@ -20,9 +25,11 @@ interface ExperienciaLaboral {
 interface ExperienciaLaboralTabProps {
   experienciaLaboral: ExperienciaLaboral[];
   onChange: (experienciaLaboral: ExperienciaLaboral[]) => void;
+  triggerAutoSave?: () => void;
+  candidatoId?: number;
 }
 
-export const ExperienciaLaboralTab: React.FC<ExperienciaLaboralTabProps> = ({ experienciaLaboral, onChange }) => {
+export const ExperienciaLaboralTab: React.FC<ExperienciaLaboralTabProps> = ({ experienciaLaboral, onChange, triggerAutoSave, candidatoId }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [currentExperiencia, setCurrentExperiencia] = useState<ExperienciaLaboral>({
@@ -34,6 +41,58 @@ export const ExperienciaLaboralTab: React.FC<ExperienciaLaboralTabProps> = ({ ex
     salario: '',
     motivoRetiro: '',
   });
+  const { toast } = useToast();
+
+  // Función para actualizar un registro específico en la base de datos
+  const updateExperienciaInDB = async (experiencia: ExperienciaLaboral, index: number) => {
+    if (!candidatoId || !experiencia.id) {
+      console.error('❌ No se puede actualizar: candidatoId o experiencia.id faltante');
+      toast({
+        title: "❌ Error",
+        description: "Error: No se puede actualizar el registro",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      console.log('💾 Actualizando experiencia en BD:', experiencia);
+      
+      const { error } = await supabase
+        .from('experiencia_laboral')
+        .update({
+          empresa: experiencia.empresa,
+          cargo: experiencia.cargo,
+          fecha_inicio: experiencia.fechaInicio,
+          fecha_fin: experiencia.fechaFin,
+          responsabilidades: experiencia.responsabilidades,
+          salario: experiencia.salario ? parseFloat(experiencia.salario.toString()) : null,
+          motivo_retiro: experiencia.motivoRetiro || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', experiencia.id)
+        .eq('candidato_id', candidatoId);
+
+      if (error) {
+      console.error('❌ Error actualizando experiencia:', error);
+      toast({
+        title: "❌ Error",
+        description: "Error al actualizar la experiencia laboral",
+        variant: "destructive",
+      });
+      throw error;
+      }
+
+      console.log('✅ Experiencia actualizada exitosamente en BD');
+      toast({
+        title: "✅ Experiencia actualizada",
+        description: "Experiencia laboral actualizada correctamente",
+      });
+    } catch (error) {
+      console.error('❌ Error en updateExperienciaInDB:', error);
+      throw error;
+    }
+  };
 
   const handleAdd = () => {
     setCurrentExperiencia({
@@ -55,18 +114,33 @@ export const ExperienciaLaboralTab: React.FC<ExperienciaLaboralTabProps> = ({ ex
     setIsEditing(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const newExperiencia = [...experienciaLaboral];
     
     if (editingIndex !== null) {
-      // Editando existente
-      newExperiencia[editingIndex] = currentExperiencia;
+      // Editando registro existente - guardar directamente en BD
+      try {
+        console.log('✏️ Editando registro existente en BD...');
+        await updateExperienciaInDB(currentExperiencia, editingIndex);
+        newExperiencia[editingIndex] = currentExperiencia;
+        console.log('✅ Edición completada sin auto-guardado');
+      } catch (error) {
+        console.error('❌ Error editando registro:', error);
+        return; // No actualizar el estado si hay error
+      }
     } else {
-      // Agregando nuevo
+      // Agregando nuevo registro - usar auto-guardado
+      console.log('➕ Agregando nuevo registro...');
       newExperiencia.push({
         ...currentExperiencia,
         id: Date.now(), // Temporary ID for new items
       });
+      
+      // Trigger auto-save for new additions
+      if (triggerAutoSave) {
+        console.log('🔄 Activando auto-guardado para adición...');
+        triggerAutoSave(false);
+      }
     }
     
     onChange(newExperiencia);
@@ -75,8 +149,17 @@ export const ExperienciaLaboralTab: React.FC<ExperienciaLaboralTabProps> = ({ ex
   };
 
   const handleDelete = (index: number) => {
+    console.log('🗑️ Eliminando experiencia laboral en índice:', index);
+    console.log('📋 Experiencia antes de eliminar:', experienciaLaboral);
+    
     const newExperiencia = experienciaLaboral.filter((_, i) => i !== index);
+    console.log('📋 Experiencia después de eliminar:', newExperiencia);
+    
     onChange(newExperiencia);
+    
+    // NO ejecutar auto-guardado inmediatamente para eliminaciones
+    // El auto-guardado se ejecutará por el useEffect que detecta cambios en la cantidad
+    console.log('ℹ️ Eliminación completada, auto-guardado se ejecutará automáticamente');
   };
 
   const handleCancel = () => {
@@ -126,13 +209,13 @@ export const ExperienciaLaboralTab: React.FC<ExperienciaLaboralTabProps> = ({ ex
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Primera fila */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Empresa *</label>
               <Input
                 value={currentExperiencia.empresa}
                 onChange={(e) => setCurrentExperiencia(prev => ({ ...prev, empresa: e.target.value }))}
-                placeholder="Nombre de la empresa"
               />
             </div>
 
@@ -141,27 +224,7 @@ export const ExperienciaLaboralTab: React.FC<ExperienciaLaboralTabProps> = ({ ex
               <Input
                 value={currentExperiencia.cargo}
                 onChange={(e) => setCurrentExperiencia(prev => ({ ...prev, cargo: e.target.value }))}
-                placeholder="Cargo desempeñado"
               />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Fecha de Inicio *</label>
-              <Input
-                type="date"
-                value={currentExperiencia.fechaInicio}
-                onChange={(e) => setCurrentExperiencia(prev => ({ ...prev, fechaInicio: e.target.value }))}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Fecha de Fin</label>
-              <Input
-                type="date"
-                value={currentExperiencia.fechaFin}
-                onChange={(e) => setCurrentExperiencia(prev => ({ ...prev, fechaFin: e.target.value }))}
-              />
-              <p className="text-xs text-muted-foreground">Deje vacío si aún trabaja aquí</p>
             </div>
 
             <div className="space-y-2">
@@ -170,8 +233,34 @@ export const ExperienciaLaboralTab: React.FC<ExperienciaLaboralTabProps> = ({ ex
                 type="number"
                 value={currentExperiencia.salario}
                 onChange={(e) => setCurrentExperiencia(prev => ({ ...prev, salario: e.target.value }))}
-                placeholder="Salario mensual"
               />
+            </div>
+          </div>
+
+          {/* Segunda fila */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Fecha de Inicio *</label>
+              <CustomDatePicker
+                value={currentExperiencia.fechaInicio ? new Date(currentExperiencia.fechaInicio) : null}
+                onChange={(date) => setCurrentExperiencia(prev => ({ 
+                  ...prev, 
+                  fechaInicio: date ? format(date, 'yyyy-MM-dd') : '' 
+                }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Fecha de Fin</label>
+              <CustomDatePicker
+                value={currentExperiencia.fechaFin ? new Date(currentExperiencia.fechaFin) : null}
+                onChange={(date) => setCurrentExperiencia(prev => ({ 
+                  ...prev, 
+                  fechaFin: date ? format(date, 'yyyy-MM-dd') : '' 
+                }))}
+                minDate={currentExperiencia.fechaInicio ? new Date(currentExperiencia.fechaInicio) : undefined}
+              />
+              <p className="text-xs text-muted-foreground">Deje vacío si aún trabaja aquí</p>
             </div>
 
             <div className="space-y-2">
@@ -179,7 +268,6 @@ export const ExperienciaLaboralTab: React.FC<ExperienciaLaboralTabProps> = ({ ex
               <Input
                 value={currentExperiencia.motivoRetiro || ''}
                 onChange={(e) => setCurrentExperiencia(prev => ({ ...prev, motivoRetiro: e.target.value }))}
-                placeholder="Razón del retiro (opcional)"
               />
             </div>
           </div>
@@ -189,7 +277,6 @@ export const ExperienciaLaboralTab: React.FC<ExperienciaLaboralTabProps> = ({ ex
             <Textarea
               value={currentExperiencia.responsabilidades}
               onChange={(e) => setCurrentExperiencia(prev => ({ ...prev, responsabilidades: e.target.value }))}
-              placeholder="Describa las principales responsabilidades y logros en este cargo"
               rows={4}
             />
           </div>
@@ -238,38 +325,67 @@ export const ExperienciaLaboralTab: React.FC<ExperienciaLaboralTabProps> = ({ ex
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Cargo</TableHead>
-                  <TableHead>Empresa</TableHead>
-                  <TableHead>Periodo</TableHead>
-                  <TableHead>Duración</TableHead>
-                  <TableHead>Motivo Retiro</TableHead>
-                  <TableHead className="text-center">Acciones</TableHead>
+                  <TableHead className="py-2 px-3 text-xs font-medium">Cargo</TableHead>
+                  <TableHead className="py-2 px-3 text-xs font-medium">Empresa</TableHead>
+                  <TableHead className="py-2 px-3 text-xs font-medium">Período</TableHead>
+                  <TableHead className="py-2 px-3 text-xs font-medium">Duración</TableHead>
+                  <TableHead className="py-2 px-3 text-xs font-medium">Motivo Retiro</TableHead>
+                  <TableHead className="py-2 px-3 text-center text-xs font-medium">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {experienciaLaboral.map((exp, index) => (
-                  <TableRow key={exp.id || index}>
-                    <TableCell className="font-medium">{exp.cargo}</TableCell>
-                    <TableCell>{exp.empresa}</TableCell>
-                    <TableCell className="text-sm">
-                      {new Date(exp.fechaInicio).toLocaleDateString()} - {exp.fechaFin ? new Date(exp.fechaFin).toLocaleDateString() : 'Actual'}
+                  <TableRow key={exp.id || index} className="hover:bg-muted/50">
+                    <TableCell className="py-2 px-3">
+                      <div className="font-medium text-sm">{exp.cargo}</div>
                     </TableCell>
-                    <TableCell>
-                      <span className="bg-primary/10 text-primary px-2 py-1 rounded-full text-xs">
+                    <TableCell className="py-2 px-3">
+                      <div className="text-sm">{exp.empresa}</div>
+                    </TableCell>
+                    <TableCell className="py-2 px-3">
+                      <div className="text-xs text-muted-foreground">
+                        {new Date(exp.fechaInicio).toLocaleDateString()} - {exp.fechaFin ? new Date(exp.fechaFin).toLocaleDateString() : 'Actual'}
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-2 px-3">
+                      <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-xs">
                         {calcularDuracion(exp.fechaInicio, exp.fechaFin)}
                       </span>
                     </TableCell>
-                    <TableCell className="text-sm">
-                      {exp.motivoRetiro || '-'}
+                    <TableCell className="py-2 px-3">
+                      <div className="text-xs text-muted-foreground">
+                        {exp.motivoRetiro || '-'}
+                      </div>
                     </TableCell>
-                    <TableCell className="text-center">
+                    <TableCell className="py-2 px-3">
                       <div className="flex justify-center space-x-1">
-                        <Button size="sm" variant="ghost" onClick={() => handleEdit(index)} title="Editar">
-                          <Edit className="h-4 w-4" />
+                        <Button size="sm" variant="ghost" onClick={() => handleEdit(index)} title="Editar" className="h-6 w-6 p-0">
+                          <Edit className="h-3 w-3" />
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => handleDelete(index)} title="Eliminar">
-                          <Trash2 className="h-4 w-4 text-red-500" />
-                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="sm" variant="ghost" title="Eliminar" className="h-6 w-6 p-0">
+                              <Trash2 className="h-3 w-3 text-red-500" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>¿Eliminar experiencia laboral?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta acción no se puede deshacer. Se eliminará permanentemente la experiencia laboral de <strong>{exp.empresa}</strong> como <strong>{exp.cargo}</strong>.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => handleDelete(index)}
+                                className="bg-red-600 hover:bg-red-700"
+                              >
+                                Eliminar
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </TableCell>
                   </TableRow>

@@ -185,7 +185,7 @@ const OrdenForm: React.FC<OrdenFormProps> = ({ orden, onSubmit, onCancel }) => {
   const handleEmpresaChange = (empresaId: string) => {
     const id = parseInt(empresaId);
     setSelectedEmpresaId(id);
-    form.setValue('empresaUsuaria', empresas.find(e => e.id === id)?.nombreEmpresa || '');
+    form.setValue('empresaUsuaria', empresas.find(e => e.id === id)?.razon_social || '');
   };
 
   const handleSubmit = (data: z.infer<typeof ordenSchema>) => {
@@ -348,7 +348,7 @@ const OrdenForm: React.FC<OrdenFormProps> = ({ orden, onSubmit, onCancel }) => {
                         onValueChange={(value) => {
                           field.onChange(value);
                           // Find the empresa and trigger template loading
-                          const empresa = empresas.find(e => e.nombreEmpresa === value);
+                          const empresa = empresas.find(e => e.razon_social === value);
                           if (empresa) {
                             handleEmpresaChange(empresa.id.toString());
                           }
@@ -362,8 +362,8 @@ const OrdenForm: React.FC<OrdenFormProps> = ({ orden, onSubmit, onCancel }) => {
                         </FormControl>
                         <SelectContent>
                           {empresas.map((empresa) => (
-                            <SelectItem key={empresa.Id || empresa.id} value={empresa.nombreEmpresa}>
-                              {empresa.nombreEmpresa}
+                            <SelectItem key={empresa.Id || empresa.id} value={empresa.razon_social}>
+                              {empresa.razon_social}
                             </SelectItem>
                           ))}
                         </SelectContent>
