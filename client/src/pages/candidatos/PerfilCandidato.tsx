@@ -99,6 +99,9 @@ const perfilSchema = z.object({
   contactoEmergenciaNombre: z.string().optional(),
   contactoEmergenciaTelefono: z.string().optional(),
   contactoEmergenciaRelacion: z.string().optional(),
+  tallaCamisa: z.string().optional(),
+  tallaPantalon: z.string().optional(),
+  tallaZapato: z.string().optional(),
 });
 
 type PerfilForm = z.infer<typeof perfilSchema>;
@@ -127,6 +130,9 @@ interface Candidato {
   contactoEmergenciaNombre?: string;
   contactoEmergenciaTelefono?: string;
   contactoEmergenciaRelacion?: string;
+  tallaCamisa?: string;
+  tallaPantalon?: string;
+  tallaZapato?: string;
   hojaDeVida?: string;
   fotografia?: string;
   completado: boolean;
@@ -231,6 +237,9 @@ export default function PerfilCandidato() {
       contactoEmergenciaNombre: '',
       contactoEmergenciaTelefono: '',
       contactoEmergenciaRelacion: '',
+      tallaCamisa: '',
+      tallaPantalon: '',
+      tallaZapato: '',
     },
   });
 
@@ -392,6 +401,9 @@ export default function PerfilCandidato() {
           contacto_emergencia_nombre: data.contactoEmergenciaNombre,
           contacto_emergencia_telefono: data.contactoEmergenciaTelefono,
           contacto_emergencia_relacion: data.contactoEmergenciaRelacion,
+          talla_camisa: data.tallaCamisa,
+          talla_pantalon: data.tallaPantalon,
+          talla_zapato: data.tallaZapato,
           updated_at: new Date().toISOString()
         })
         .eq('email', user.email);
@@ -959,6 +971,9 @@ export default function PerfilCandidato() {
       { campo: 'contactoEmergenciaNombre', peso: 4, requerido: false },
       { campo: 'contactoEmergenciaTelefono', peso: 4, requerido: false },
       { campo: 'contactoEmergenciaRelacion', peso: 4, requerido: false },
+      { campo: 'tallaCamisa', peso: 3, requerido: false },
+      { campo: 'tallaPantalon', peso: 3, requerido: false },
+      { campo: 'tallaZapato', peso: 3, requerido: false },
       { campo: 'hojaDeVida', peso: 8, requerido: false },
       { campo: 'fotografia', peso: 6, requerido: false }
     ];
@@ -1125,6 +1140,9 @@ export default function PerfilCandidato() {
             telefono: '',
             direccion: '',
             ciudad: '',
+            tallaCamisa: '',
+            tallaPantalon: '',
+            tallaZapato: '',
             cargoAspirado: '',
             eps: '',
             arl: '',
@@ -1183,6 +1201,9 @@ export default function PerfilCandidato() {
           contactoEmergenciaNombre: candidatoData.contacto_emergencia_nombre || '',
           contactoEmergenciaTelefono: candidatoData.contacto_emergencia_telefono || '',
           contactoEmergenciaRelacion: candidatoData.contacto_emergencia_relacion || '',
+          tallaCamisa: candidatoData.talla_camisa || '',
+          tallaPantalon: candidatoData.talla_pantalon || '',
+          tallaZapato: candidatoData.talla_zapato || '',
           hojaDeVida: candidatoData.hoja_de_vida || '',
           fotografia: candidatoData.fotografia || '',
           completado: candidatoData.completado || false,
@@ -1436,16 +1457,6 @@ export default function PerfilCandidato() {
           <User className="w-8 h-8 text-cyan-600" />
           Información Personal
         </h1>
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="outline"
-            onClick={handleCambiarPassword}
-            className="flex items-center space-x-2"
-          >
-            <Key className="w-4 h-4" />
-            <span>Cambiar Contraseña</span>
-          </Button>
-        </div>
       </div>
 
       {/* Header similar al diseño de otras páginas */}
@@ -1753,6 +1764,60 @@ export default function PerfilCandidato() {
                         )}
                       </div>
                     </div>
+
+                    {/* Sección de Tallas - Separada visualmente */}
+                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                      <h4 className="font-medium text-blue-900 mb-3 flex items-center gap-2">
+                        <User className="h-4 w-4" />
+                        Información de Tallas
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-blue-800">Talla Camisa</label>
+                          <Input 
+                            value={form.watch('tallaCamisa') || ''}
+                            onChange={(e) => {
+                              form.setValue('tallaCamisa', e.target.value, { shouldDirty: true, shouldTouch: true });
+                              triggerAutoSave();
+                            }}
+                            placeholder="Ej: M, L, XL"
+                          />
+                          {form.formState.errors.tallaCamisa && (
+                            <p className="text-sm text-red-500">{form.formState.errors.tallaCamisa.message}</p>
+                          )}
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-blue-800">Talla Pantalón</label>
+                          <Input 
+                            value={form.watch('tallaPantalon') || ''}
+                            onChange={(e) => {
+                              form.setValue('tallaPantalon', e.target.value, { shouldDirty: true, shouldTouch: true });
+                              triggerAutoSave();
+                            }}
+                            placeholder="Ej: 32, 34, 36"
+                          />
+                          {form.formState.errors.tallaPantalon && (
+                            <p className="text-sm text-red-500">{form.formState.errors.tallaPantalon.message}</p>
+                          )}
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-blue-800">Talla Zapato</label>
+                          <Input 
+                            value={form.watch('tallaZapato') || ''}
+                            onChange={(e) => {
+                              form.setValue('tallaZapato', e.target.value, { shouldDirty: true, shouldTouch: true });
+                              triggerAutoSave();
+                            }}
+                            placeholder="Ej: 40, 42, 44"
+                          />
+                          {form.formState.errors.tallaZapato && (
+                            <p className="text-sm text-red-500">{form.formState.errors.tallaZapato.message}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </TabsContent>
 
                   <TabsContent value="contacto" className="space-y-4">
@@ -1857,10 +1922,10 @@ export default function PerfilCandidato() {
                       </div>
 
                     {/* Segunda fila - Contacto de emergencia */}
-                    <div className="space-y-4 bg-gray-50 p-4 rounded-lg">
+                    <div className="space-y-4 bg-blue-50 p-4 rounded-lg border border-blue-200">
                       <div className="flex items-center space-x-2 mb-4">
-                        <div className="w-1 h-6 bg-orange-500 rounded-full"></div>
-                        <h3 className="text-lg font-semibold text-gray-800">Contacto de Emergencia</h3>
+                        <UserCheck className="h-4 w-4 text-blue-600" />
+                        <h3 className="text-lg font-semibold text-blue-900">Contacto de Emergencia</h3>
                       </div>
                       
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -2146,25 +2211,6 @@ export default function PerfilCandidato() {
                   </TabsContent>
                 </Tabs>
 
-                <div className="flex justify-end pt-6 border-t">
-                  <Button
-                    type="submit"
-                    disabled={isSaving}
-                    className="px-8 bg-cyan-600 hover:bg-cyan-700"
-                  >
-                    {isSaving ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Guardando...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="w-4 h-4 mr-2" />
-                        Guardar Perfil
-                      </>
-                    )}
-                  </Button>
-                </div>
               </form>
             </Form>
         </div>
