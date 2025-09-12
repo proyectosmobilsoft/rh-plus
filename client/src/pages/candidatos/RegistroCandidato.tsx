@@ -469,15 +469,20 @@ export default function RegistroCandidato() {
                     )}
 
                     <div className="flex justify-between">
-                      <Button type="button" variant="outline" onClick={() => navigate('/candidato/login')}>
+                      <Button type="button" variant="outline" onClick={() => navigate('/candidato/login')} className="rounded-xl">
                         Cancelar
                       </Button>
                       <Button 
                         type="button" 
                         onClick={() => form.handleSubmit(onSubmit)()}
                         disabled={isLoading || !selectedTipoId}
+                        className="login-button rounded-xl font-medium text-base shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-300 relative overflow-hidden"
                       >
-                        {isLoading ? 'Registrando...' : 'Completar Registro'}
+                        {/* Efecto de brillo en hover */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+                        <div className="flex items-center justify-center relative z-10">
+                          {isLoading ? 'Registrando...' : 'Completar Registro'}
+                        </div>
                       </Button>
                     </div>
                   </CardContent>

@@ -243,17 +243,21 @@ export default function AcercaEmpresaPage() {
                 {getTipoEmpresaBadge(empresa.tipo_empresa)}
                 {!isEditing ? (
                   <Button
-                    className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1 ml-2"
+                    className="login-button rounded-xl font-medium text-base shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-300 relative overflow-hidden text-xs px-3 py-1 ml-2"
                     size="sm"
                     onClick={() => setIsEditing(true)}
                   >
-                    <Edit3 className="h-4 w-4 mr-2" />
-                    Editar
+                    {/* Efecto de brillo en hover */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+                    <div className="flex items-center justify-center relative z-10">
+                      <Edit3 className="h-4 w-4 mr-2" />
+                      Editar
+                    </div>
                   </Button>
                 ) : (
                   <Button
                     disabled
-                    className="bg-yellow-100 text-yellow-800 border-yellow-300 cursor-default text-xs px-3 py-1 ml-2"
+                    className="bg-yellow-100 text-yellow-800 border-yellow-300 cursor-default text-xs px-3 py-1 ml-2 rounded-xl"
                     size="sm"
                   >
                     Modo edición

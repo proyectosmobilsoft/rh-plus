@@ -220,7 +220,11 @@ export const qrService = {
       link.download = `QR_${qrCode.candidato_id}_${new Date().toISOString().split('T')[0]}.png`;
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
+      
+      // Verificar que el elemento existe antes de eliminarlo
+      if (link.parentNode) {
+        document.body.removeChild(link);
+      }
     } catch (error) {
       console.error('Error al descargar QR:', error);
       throw new Error('Error al descargar el código QR');

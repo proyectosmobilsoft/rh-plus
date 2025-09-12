@@ -410,17 +410,17 @@ const Dashboard = () => {
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
-                className="w-[280px] justify-start text-left font-normal bg-white border-blue-200 hover:bg-blue-50"
+                className="w-[350px] justify-start text-left font-normal bg-white border-blue-200 hover:bg-blue-50"
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
                 {dateRange.from ? (
                   dateRange.to ? (
                     <>
-                      {format(dateRange.from, "LLL dd, y", { locale: es })} -{" "}
-                      {format(dateRange.to, "LLL dd, y", { locale: es })}
+                      {format(dateRange.from, "dd MMM y", { locale: es })} -{" "}
+                      {format(dateRange.to, "dd MMM y", { locale: es })}
                     </>
                   ) : (
-                    format(dateRange.from, "LLL dd, y", { locale: es })
+                    format(dateRange.from, "dd MMM y", { locale: es })
                   )
                 ) : (
                   <span>Seleccionar fechas</span>

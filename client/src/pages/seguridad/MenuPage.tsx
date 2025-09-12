@@ -414,8 +414,12 @@ const MenuPage = () => {
               )}
             />
             <div className="flex justify-end space-x-2 pt-4">
-              <Button type="submit" className="bg-brand-lime hover:bg-brand-lime/90 text-white border-0 shadow-sm px-6 py-2 rounded text-sm font-medium transition-colors">
-                💾 Guardar
+              <Button type="submit" className="login-button rounded-xl font-medium text-base shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-300 relative overflow-hidden">
+                {/* Efecto de brillo en hover */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+                <div className="flex items-center justify-center relative z-10">
+                  💾 Guardar
+                </div>
               </Button>
             </div>
           </form>
@@ -609,9 +613,13 @@ const MenuPage = () => {
       <div className="flex items-center space-x-2 mb-6">
         <Dialog open={isAddNodeModalOpen} onOpenChange={setIsAddNodeModalOpen}>
           <DialogTrigger asChild>
-            <Button size="sm" className="bg-brand-lime hover:bg-brand-lime/90">
-              <Plus size={16} className="mr-1" />
-              Nodo
+            <Button size="sm" className="login-button rounded-xl font-medium text-base shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-300 relative overflow-hidden">
+              {/* Efecto de brillo en hover */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+              <div className="flex items-center justify-center relative z-10">
+                <Plus size={16} className="mr-1" />
+                Nodo
+              </div>
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-md">
@@ -684,8 +692,12 @@ const MenuPage = () => {
                   >
                     Cancelar
                   </Button>
-                  <Button type="submit" className="bg-brand-lime hover:bg-brand-lime/90">
-                    Agregar
+                  <Button type="submit" className="login-button rounded-xl font-medium text-base shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-300 relative overflow-hidden">
+                    {/* Efecto de brillo en hover */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+                    <div className="flex items-center justify-center relative z-10">
+                      Agregar
+                    </div>
                   </Button>
                 </div>
               </form>
@@ -725,9 +737,13 @@ const MenuPage = () => {
 
         <Dialog open={isCreatePermissionModalOpen} onOpenChange={setIsCreatePermissionModalOpen}>
           <DialogTrigger asChild>
-                            <Button size="sm" className="bg-cyan-600 hover:bg-cyan-700">
-              <Settings size={16} className="mr-1" />
-              Gestión de Permisos
+                            <Button size="sm" className="login-button rounded-xl font-medium text-base shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-300 relative overflow-hidden">
+              {/* Efecto de brillo en hover */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+              <div className="flex items-center justify-center relative z-10">
+                <Settings size={16} className="mr-1" />
+                Gestión de Permisos
+              </div>
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl">

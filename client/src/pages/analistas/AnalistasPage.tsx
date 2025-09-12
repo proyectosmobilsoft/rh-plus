@@ -436,7 +436,11 @@ export default function AnalistasPage() {
        link.style.display = 'none';
        document.body.appendChild(link);
        link.click();
-       document.body.removeChild(link);
+       
+       // Verificar que el elemento existe antes de eliminarlo
+       if (link.parentNode) {
+         document.body.removeChild(link);
+       }
        
        // Limpiar la URL después de un tiempo
        setTimeout(() => {

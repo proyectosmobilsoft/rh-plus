@@ -109,9 +109,13 @@ export default function DashboardReportes() {
           <h1 className="text-3xl font-bold text-gray-900">Dashboard de Reportes</h1>
           <p className="text-gray-600">Métricas y seguimiento de órdenes de ingreso</p>
         </div>
-        <Button variant="outline">
-          <FileText className="mr-2 h-4 w-4" />
-          Exportar Reporte
+        <Button className="login-button rounded-xl font-medium text-base shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-300 relative overflow-hidden">
+          {/* Efecto de brillo en hover */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+          <div className="flex items-center justify-center relative z-10">
+            <FileText className="mr-2 h-4 w-4" />
+            Exportar Reporte
+          </div>
         </Button>
       </div>
 

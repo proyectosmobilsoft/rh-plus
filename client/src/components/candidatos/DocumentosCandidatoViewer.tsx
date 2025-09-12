@@ -234,7 +234,11 @@ const DocumentosCandidatoViewer: React.FC<DocumentosCandidatoViewerProps> = ({
             link.download = documento.nombre_archivo;
             document.body.appendChild(link);
             link.click();
-            document.body.removeChild(link);
+            
+            // Verificar que el elemento existe antes de eliminarlo
+            if (link.parentNode) {
+              document.body.removeChild(link);
+            }
             
             // Limpiar URL del blob
             URL.revokeObjectURL(blobUrl);
@@ -254,7 +258,11 @@ const DocumentosCandidatoViewer: React.FC<DocumentosCandidatoViewerProps> = ({
           link.rel = 'noopener noreferrer';
           document.body.appendChild(link);
           link.click();
-          document.body.removeChild(link);
+          
+          // Verificar que el elemento existe antes de eliminarlo
+          if (link.parentNode) {
+            document.body.removeChild(link);
+          }
           
           console.log('✅ Descarga de URL iniciada exitosamente');
           toast.success(`Descargando ${documento.nombre_archivo}`);

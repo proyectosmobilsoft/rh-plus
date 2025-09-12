@@ -48,7 +48,7 @@ import { EducacionTab } from '@/components/candidatos/EducacionTab';
 
 // Componente para estilos CSS personalizados
 const ProgressStyles = () => (
-  <style jsx>{`
+  <style>{`
     @keyframes shimmer {
       0% {
         transform: translateX(-100%);
@@ -63,9 +63,209 @@ const ProgressStyles = () => (
       }
     }
     
+    @keyframes progressGlow {
+      0% {
+        box-shadow: 0 0 5px rgba(139, 195, 74, 0.3);
+        transform: scaleY(1);
+      }
+      100% {
+        box-shadow: 0 0 20px rgba(139, 195, 74, 0.6);
+        transform: scaleY(1.05);
+      }
+    }
+    
+    @keyframes progressWave {
+      0% {
+        background-position: 0% 50%;
+      }
+      50% {
+        background-position: 100% 50%;
+      }
+      100% {
+        background-position: 0% 50%;
+      }
+    }
+    
     .progress-shimmer {
       animation: shimmer 3s ease-in-out infinite;
       width: 30%;
+    }
+    
+    .progress-wave {
+      animation: progressWave 3s ease-in-out infinite;
+    }
+    
+    @keyframes titleGlow {
+      0% {
+        transform: scale(1);
+        opacity: 1;
+      }
+      100% {
+        transform: scale(1.02);
+        opacity: 0.8;
+      }
+    }
+    
+    .form-input {
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 16px;
+      background: linear-gradient(145deg, #ffffff, #f8fafc);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    
+    .form-input:focus {
+      border-color: #0891b2;
+      box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.1), 0 4px 12px rgba(0, 0, 0, 0.1);
+      background: #ffffff;
+    }
+    
+    .form-input:hover {
+      border-color: #a5d6a7;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+    
+    .form-select {
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 16px;
+      background: linear-gradient(145deg, #ffffff, #f8fafc);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    
+    .form-select:focus {
+      border-color: #0891b2;
+      box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.1), 0 4px 12px rgba(0, 0, 0, 0.1);
+      background: #ffffff;
+    }
+    
+    .form-select:hover {
+      border-color: #a5d6a7;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+    
+    .form-textarea {
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 16px;
+      background: linear-gradient(145deg, #ffffff, #f8fafc);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      resize: vertical;
+      min-height: 100px;
+    }
+    
+    .form-textarea:focus {
+      border-color: #0891b2;
+      box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.1), 0 4px 12px rgba(0, 0, 0, 0.1);
+      background: #ffffff;
+    }
+    
+    .form-textarea:hover {
+      border-color: #a5d6a7;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+    
+    .form-field-group {
+      transition: box-shadow 0.2s ease;
+      padding: 20px;
+      border-radius: 16px;
+      background: linear-gradient(145deg, #ffffff, #f8fafc);
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+    
+    .form-field-group:hover {
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    }
+    
+    .form-label {
+      font-size: 14px;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 8px;
+      display: block;
+      text-align: left;
+      letter-spacing: 0.025em;
+      text-transform: uppercase;
+      position: relative;
+      transition: color 0.2s ease;
+    }
+    
+    .form-label::before {
+      content: '';
+      position: absolute;
+      left: -12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 4px;
+      height: 16px;
+      background: linear-gradient(135deg, #0891b2, #06b6d4);
+      border-radius: 2px;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    
+    .form-label:hover::before {
+      opacity: 1;
+    }
+    
+    .form-label:hover {
+      color: #0891b2;
+    }
+    
+    .form-label-required::after {
+      content: ' *';
+      color: #ef4444;
+      font-weight: 700;
+      margin-left: 2px;
+    }
+    
+    .tab-trigger-inactive {
+      color: #000000 !important;
+    }
+    
+    .tab-trigger-inactive:hover {
+      color: #000000 !important;
+    }
+    
+    /* Estilos más específicos para forzar texto negro */
+    [data-state="inactive"] {
+      color: #000000 !important;
+    }
+    
+    [data-state="inactive"]:hover {
+      color: #000000 !important;
+    }
+    
+    [data-state="inactive"] span {
+      color: #000000 !important;
+    }
+    
+    [data-state="inactive"]:hover span {
+      color: #000000 !important;
+    }
+    
+    /* Forzar texto negro en todos los estados de hover */
+    button[role="tab"]:not([data-state="active"]) {
+      color: #000000 !important;
+    }
+    
+    button[role="tab"]:not([data-state="active"]):hover {
+      color: #000000 !important;
+    }
+    
+    button[role="tab"]:not([data-state="active"]) span {
+      color: #000000 !important;
+    }
+    
+    button[role="tab"]:not([data-state="active"]):hover span {
+      color: #000000 !important;
     }
   `}</style>
 );
@@ -575,10 +775,14 @@ export default function PerfilCandidato() {
       link.download = documento.nombre_archivo;
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
+      
+      // Verificar que el elemento existe antes de eliminarlo
+      if (link.parentNode) {
+        document.body.removeChild(link);
+      }
     } catch (error) {
       console.error('Error descargando documento:', error);
-              toast.error("Error al descargar el documento");
+      toast.error("Error al descargar el documento");
     }
   };
 
@@ -961,7 +1165,7 @@ export default function PerfilCandidato() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Cargando perfil...</p>
+          <p className="mt-4 text-brand-gray">Cargando perfil...</p>
         </div>
       </div>
     );
@@ -972,43 +1176,33 @@ export default function PerfilCandidato() {
   }
 
   return (
-    <div className="p-4 max-w-full mx-auto">
+    <div className="p-6 space-y-6">
       <ProgressStyles />
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-3xl font-extrabold text-cyan-800 flex items-center gap-2 mb-2">
-          <User className="w-8 h-8 text-cyan-600" />
-          Información Personal
+        <h1 className="text-4xl font-black text-cyan-800 flex items-center gap-3 mb-3 tracking-tight">
+          <User className="w-10 h-10 text-brand-gray" />
+          <span className="text-cyan-800">
+            Información Personal
+          </span>
         </h1>
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="outline"
-            onClick={handleCambiarPassword}
-            className="flex items-center space-x-2"
-          >
-            <Key className="w-4 h-4" />
-            <span>Cambiar Contraseña</span>
-          </Button>
-        </div>
       </div>
 
-      {/* Header similar al diseño de otras páginas */}
-      <div className="bg-white rounded-lg border mb-6">
-        <div className="flex items-center justify-between p-4 border-b">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-orange-100 rounded flex items-center justify-center">
-              <User className="w-5 h-5 text-orange-600" />
-            </div>
-            <div>
-              <span className="text-lg font-semibold text-gray-700">PERFIL PERSONAL</span>
-              <p className="text-sm text-gray-500">
+      {/* Contenedor unificado con header, progreso y formulario */}
+      <div className="bg-white rounded-lg border shadow-lg">
+        {/* Header unificado */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+          <div className="-ml-6 pl-6">
+            <div className="text-left">
+              <span className="text-xl font-bold tracking-wide block" style={{ color: '#215761', textShadow: '0 2px 4px rgba(33, 87, 97, 0.15)', letterSpacing: '0.025em' }}>PERFIL PERSONAL</span>
+              <p className="text-base font-medium mt-1" style={{ color: '#215761', textShadow: '0 1px 2px rgba(33, 87, 97, 0.1)', fontWeight: '600' }}>
                 {candidato ? `${candidato.nombres} ${candidato.apellidos}` : 'Gestiona tu información personal y profesional'}
               </p>
             </div>
           </div>
           <div className="flex items-center space-x-4">
             {isAutoSaving && (
-              <div className="flex items-center text-sm text-cyan-600">
-                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-cyan-600 mr-2"></div>
+              <div className="flex items-center text-sm" style={{ color: '#215761', textShadow: '0 1px 2px rgba(33, 87, 97, 0.1)', fontWeight: '500' }}>
+                <div className="animate-spin rounded-full h-3 w-3 border-b-2 mr-2" style={{ borderColor: '#215761' }}></div>
                 Guardando cambios...
               </div>
             )}
@@ -1027,23 +1221,33 @@ export default function PerfilCandidato() {
                 )}
               </Badge>
             )}
+            <Button
+              onClick={handleCambiarPassword}
+              className="login-button rounded-xl font-bold text-base shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-300 relative overflow-hidden"
+            >
+              {/* Efecto de brillo en hover */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+              <div className="flex items-center justify-center relative z-10">
+                <span>Cambiar Contraseña</span>
+              </div>
+            </Button>
           </div>
         </div>
 
-        {/* Progress Bar */}
-        <div className="p-3 border-b bg-gray-50">
-          <div className="flex items-center justify-between mb-2">
+        {/* Progress Bar integrado */}
+        <div className="px-6 py-4 border-b bg-brand-gray/5">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center space-x-2">
               <div className="w-4 h-4 bg-cyan-100 rounded-full flex items-center justify-center">
                 <div className="w-1.5 h-1.5 bg-cyan-600 rounded-full animate-pulse"></div>
               </div>
-              <span className="text-sm font-medium text-gray-700">Progreso del Perfil</span>
+              <span className="text-sm font-medium" style={{ color: '#06b6d4', textShadow: '0 1px 2px rgba(6, 182, 212, 0.1)', fontWeight: '600' }}>Progreso del Perfil</span>
             </div>
             <div className="flex items-center space-x-2">
-              <span className={`text-sm font-bold ${getColorProgreso(calcularProgresoPerfil()).replace('bg-', 'text-')}`}>
+              <span className="text-sm font-bold" style={{ color: '#06b6d4', textShadow: '0 1px 2px rgba(6, 182, 212, 0.1)', fontWeight: '700' }}>
                 {calcularProgresoPerfil()}%
               </span>
-              <Badge variant="outline" className="text-xs px-2 py-0.5">
+              <Badge variant="outline" className="text-xs px-2 py-0.5 border-cyan-200 text-cyan-700 bg-cyan-50">
                 {getTextoProgreso(calcularProgresoPerfil())}
               </Badge>
             </div>
@@ -1051,17 +1255,16 @@ export default function PerfilCandidato() {
           
           {/* Barra de progreso compacta */}
           <div className="relative">
-            <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+            <div className="w-full h-2 bg-cyan-100 rounded-full overflow-hidden">
               {/* Progreso completado */}
               <div 
-                className={`h-full transition-all duration-1000 ease-out rounded-full relative ${
-                  calcularProgresoPerfil() >= 80 ? 'bg-gradient-to-r from-green-500 to-emerald-500' :
-                  calcularProgresoPerfil() >= 60 ? 'bg-gradient-to-r from-cyan-500 to-teal-500' :
-                  calcularProgresoPerfil() >= 40 ? 'bg-gradient-to-r from-yellow-500 to-orange-500' :
-                  'bg-gradient-to-r from-red-400 to-pink-500'
-                }`}
-                style={{ 
-                  width: `${calcularProgresoPerfil()}%`
+                className="h-full transition-all duration-1000 ease-out rounded-full relative progress-wave"
+                style={{
+                  width: `${calcularProgresoPerfil()}%`,
+                  background: `linear-gradient(90deg, #06b6d4, #0891b2, #0e7490, #0891b2)`,
+                  backgroundSize: '200% 100%',
+                  boxShadow: '0 0 15px rgba(6, 182, 212, 0.4)',
+                  animation: 'progressGlow 2s ease-in-out infinite alternate, progressWave 3s ease-in-out infinite'
                 }}
               >
                 {/* Efecto de brillo sutil */}
@@ -1084,69 +1287,120 @@ export default function PerfilCandidato() {
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Main Form */}
-      <div className="bg-white rounded-lg border">
-        <div className="p-4 border-b">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center">
-              <FileText className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <span className="text-lg font-semibold text-gray-700">INFORMACIÓN DEL CANDIDATO</span>
-              <p className="text-sm text-gray-500">Complete toda la información para mejorar sus oportunidades laborales</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="p-6">
+        {/* Formulario con pestañas integradas */}
+        <div className="px-6 pt-6 pb-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="grid w-full grid-cols-5 bg-cyan-100/60 p-1 rounded-lg">
+                {/* Header del formulario integrado */}
+                <div className="mb-6 -ml-6 pl-6">
+                  <div className="text-left">
+                    <span className="text-lg font-bold tracking-tight block" style={{ color: '#215761', textShadow: '0 2px 4px rgba(33, 87, 97, 0.15)', letterSpacing: '0.025em' }}>INFORMACIÓN DEL CANDIDATO</span>
+                    <p className="text-sm font-medium" style={{ color: '#215761', textShadow: '0 1px 2px rgba(33, 87, 97, 0.1)', fontWeight: '600' }}>Complete toda la información para mejorar sus oportunidades laborales</p>
+                  </div>
+                </div>
+
+                {/* Pestañas integradas con estilo moderno */}
+                <TabsList className="grid w-full grid-cols-5 mb-6 bg-gray-50/50 p-1 rounded-2xl border border-gray-200/50">
                   <TabsTrigger 
                     value="personal"
-                    className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+                    className={`relative rounded-xl font-semibold text-sm transition-all duration-300 ${
+                      activeTab === 'personal' 
+                        ? 'bg-gradient-to-r from-cyan-500 to-cyan-600 text-white shadow-lg shadow-cyan-500/25 border-0 transform scale-105' 
+                        : 'hover:bg-white/80 hover:shadow-md text-gray-600 border-0 hover:scale-102'
+                    }`}
+                    style={activeTab !== 'personal' ? { 
+                      color: '#6b7280 !important',
+                      backgroundColor: 'transparent !important'
+                    } : {}}
                   >
-                    Personal
+                    <span style={{ 
+                      color: activeTab === 'personal' ? '#ffffff' : '#6b7280 !important',
+                      fontWeight: '600 !important'
+                    }}>Personal</span>
                   </TabsTrigger>
                   <TabsTrigger 
                     value="contacto"
-                    className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+                    className={`relative rounded-xl font-semibold text-sm transition-all duration-300 ${
+                      activeTab === 'contacto' 
+                        ? 'bg-gradient-to-r from-cyan-500 to-cyan-600 text-white shadow-lg shadow-cyan-500/25 border-0 transform scale-105' 
+                        : 'hover:bg-white/80 hover:shadow-md text-gray-600 border-0 hover:scale-102'
+                    }`}
+                    style={activeTab !== 'contacto' ? { 
+                      color: '#6b7280 !important',
+                      backgroundColor: 'transparent !important'
+                    } : {}}
                   >
-                    Contacto
+                    <span style={{ 
+                      color: activeTab === 'contacto' ? '#ffffff' : '#6b7280 !important',
+                      fontWeight: '600 !important'
+                    }}>Contacto</span>
                   </TabsTrigger>
                   <TabsTrigger 
                     value="profesional"
-                    className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+                    className={`relative rounded-xl font-semibold text-sm transition-all duration-300 ${
+                      activeTab === 'profesional' 
+                        ? 'bg-gradient-to-r from-cyan-500 to-cyan-600 text-white shadow-lg shadow-cyan-500/25 border-0 transform scale-105' 
+                        : 'hover:bg-white/80 hover:shadow-md text-gray-600 border-0 hover:scale-102'
+                    }`}
+                    style={activeTab !== 'profesional' ? { 
+                      color: '#6b7280 !important',
+                      backgroundColor: 'transparent !important'
+                    } : {}}
                   >
-                    Experiencia Laboral
+                    <span style={{ 
+                      color: activeTab === 'profesional' ? '#ffffff' : '#6b7280 !important',
+                      fontWeight: '600 !important'
+                    }}>Experiencia Laboral</span>
                   </TabsTrigger>
                   <TabsTrigger 
                     value="educacion"
-                    className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+                    className={`relative rounded-xl font-semibold text-sm transition-all duration-300 ${
+                      activeTab === 'educacion' 
+                        ? 'bg-gradient-to-r from-cyan-500 to-cyan-600 text-white shadow-lg shadow-cyan-500/25 border-0 transform scale-105' 
+                        : 'hover:bg-white/80 hover:shadow-md text-gray-600 border-0 hover:scale-102'
+                    }`}
+                    style={activeTab !== 'educacion' ? { 
+                      color: '#6b7280 !important',
+                      backgroundColor: 'transparent !important'
+                    } : {}}
                   >
-                    Educación
+                    <span style={{ 
+                      color: activeTab === 'educacion' ? '#ffffff' : '#6b7280 !important',
+                      fontWeight: '600 !important'
+                    }}>Educación</span>
                   </TabsTrigger>
                   <TabsTrigger 
                     value="archivos"
-                    className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+                    className={`relative rounded-xl font-semibold text-sm transition-all duration-300 ${
+                      activeTab === 'archivos' 
+                        ? 'bg-gradient-to-r from-cyan-500 to-cyan-600 text-white shadow-lg shadow-cyan-500/25 border-0 transform scale-105' 
+                        : 'hover:bg-white/80 hover:shadow-md text-gray-600 border-0 hover:scale-102'
+                    }`}
+                    style={activeTab !== 'archivos' ? { 
+                      color: '#6b7280 !important',
+                      backgroundColor: 'transparent !important'
+                    } : {}}
                   >
-                    Archivos
+                    <span style={{ 
+                      color: activeTab === 'archivos' ? '#ffffff' : '#6b7280 !important',
+                      fontWeight: '600 !important'
+                    }}>Archivos</span>
                   </TabsTrigger>
                 </TabsList>
 
-                  <TabsContent value="personal" className="space-y-4">
-                    <div className="grid md:grid-cols-2 gap-4">
+                  <TabsContent value="personal" className="space-y-6">
+                    <div className="form-field-group">
+                      <div className="grid md:grid-cols-2 gap-6">
                       <FormField
                         control={form.control}
                         name="nombres"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Nombres *</FormLabel>
+                            <FormLabel className="form-label form-label-required">Nombres</FormLabel>
                             <FormControl>
-                              <Input {...field} />
+                              <Input {...field} className="form-input" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -1158,9 +1412,9 @@ export default function PerfilCandidato() {
                         name="apellidos"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Apellidos *</FormLabel>
+                            <FormLabel className="form-label form-label-required">Apellidos</FormLabel>
                             <FormControl>
-                              <Input {...field} />
+                              <Input {...field} className="form-input" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -1172,7 +1426,7 @@ export default function PerfilCandidato() {
                         name="fechaNacimiento"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Fecha de Nacimiento *</FormLabel>
+                            <FormLabel className="form-label form-label-required">Fecha de Nacimiento</FormLabel>
                             <FormControl>
                               <Input 
                                 {...field} 
@@ -1185,6 +1439,7 @@ export default function PerfilCandidato() {
                                   console.log('🔍 Campo fechaNacimiento - Edad calculada para el formulario:', edad);
                                   form.setValue('edad', edad);
                                 }}
+                                className="form-input"
                               />
                             </FormControl>
                             <FormMessage />
@@ -1199,7 +1454,7 @@ export default function PerfilCandidato() {
                           console.log('🔍 Campo edad - Valor actual:', field.value, 'Tipo:', typeof field.value);
                           return (
                             <FormItem>
-                              <FormLabel>Edad</FormLabel>
+                              <FormLabel className="form-label">Edad</FormLabel>
                               <FormControl>
                                 <Input 
                                   {...field} 
@@ -1212,6 +1467,7 @@ export default function PerfilCandidato() {
                                     console.log('🔍 Campo edad - Nuevo valor:', value, 'Tipo:', typeof value);
                                     field.onChange(value);
                                   }}
+                                  className="form-input"
                                 />
                               </FormControl>
                               <FormMessage />
@@ -1225,10 +1481,10 @@ export default function PerfilCandidato() {
                         name="sexo"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Sexo</FormLabel>
+                            <FormLabel className="form-label">Sexo</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                               <FormControl>
-                                <SelectTrigger>
+                                <SelectTrigger className="form-select">
                                   <SelectValue placeholder="Seleccionar" />
                                 </SelectTrigger>
                               </FormControl>
@@ -1248,10 +1504,10 @@ export default function PerfilCandidato() {
                         name="estadoCivil"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Estado Civil</FormLabel>
+                            <FormLabel className="form-label">Estado Civil</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                               <FormControl>
-                                <SelectTrigger>
+                                <SelectTrigger className="form-select">
                                   <SelectValue placeholder="Seleccionar" />
                                 </SelectTrigger>
                               </FormControl>
@@ -1273,10 +1529,10 @@ export default function PerfilCandidato() {
                         name="grupoSanguineo"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Grupo Sanguíneo</FormLabel>
+                            <FormLabel className="form-label">Grupo Sanguíneo</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                               <FormControl>
-                                <SelectTrigger>
+                                <SelectTrigger className="form-select">
                                   <SelectValue placeholder="Seleccionar" />
                                 </SelectTrigger>
                               </FormControl>
@@ -1295,21 +1551,23 @@ export default function PerfilCandidato() {
                           </FormItem>
                         )}
                       />
+                      </div>
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="contacto" className="space-y-4">
-                    <div className="grid md:grid-cols-2 gap-4">
+                  <TabsContent value="contacto" className="space-y-6">
+                    <div className="form-field-group">
+                      <div className="grid md:grid-cols-2 gap-6">
                       <FormField
                         control={form.control}
                         name="telefono"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Teléfono *</FormLabel>
+                            <FormLabel className="form-label form-label-required">Teléfono</FormLabel>
                             <FormControl>
                               <div className="relative">
-                                <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                                <Input {...field} className="pl-10" />
+                                <Phone className="absolute left-3 top-3 h-4 w-4 text-brand-gray" />
+                                <Input {...field} className="pl-10 form-input" />
                               </div>
                             </FormControl>
                             <FormMessage />
@@ -1322,11 +1580,11 @@ export default function PerfilCandidato() {
                         name="ciudad"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Ciudad</FormLabel>
+                            <FormLabel className="form-label">Ciudad</FormLabel>
                             <FormControl>
                               <div className="relative">
-                                <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                                <Input {...field} className="pl-10" />
+                                <MapPin className="absolute left-3 top-3 h-4 w-4 text-brand-gray" />
+                                <Input {...field} className="pl-10 form-input" />
                               </div>
                             </FormControl>
                             <FormMessage />
@@ -1340,9 +1598,9 @@ export default function PerfilCandidato() {
                           name="direccion"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Dirección</FormLabel>
+                              <FormLabel className="form-label">Dirección</FormLabel>
                               <FormControl>
-                                <Textarea {...field} placeholder="Dirección completa" />
+                                <Textarea {...field} placeholder="Dirección completa" className="form-textarea" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -1355,9 +1613,9 @@ export default function PerfilCandidato() {
                         name="contactoEmergenciaNombre"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Contacto de Emergencia - Nombre</FormLabel>
+                            <FormLabel className="form-label">Contacto de Emergencia - Nombre</FormLabel>
                             <FormControl>
-                              <Input {...field} />
+                              <Input {...field} className="form-input" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -1369,9 +1627,9 @@ export default function PerfilCandidato() {
                         name="contactoEmergenciaTelefono"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Contacto de Emergencia - Teléfono</FormLabel>
+                            <FormLabel className="form-label">Contacto de Emergencia - Teléfono</FormLabel>
                             <FormControl>
-                              <Input {...field} />
+                              <Input {...field} className="form-input" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -1383,7 +1641,7 @@ export default function PerfilCandidato() {
                         name="contactoEmergenciaRelacion"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Relación con Contacto de Emergencia</FormLabel>
+                            <FormLabel className="form-label">Relación con Contacto de Emergencia</FormLabel>
                             <FormControl>
                               <Input {...field} placeholder="Ej: Madre, Padre, Hermano" />
                             </FormControl>
@@ -1391,6 +1649,7 @@ export default function PerfilCandidato() {
                           </FormItem>
                         )}
                       />
+                      </div>
                     </div>
                   </TabsContent>
 
@@ -1401,7 +1660,12 @@ export default function PerfilCandidato() {
                     />
                   </TabsContent>
 
-                  <TabsContent value="educacion" className="space-y-4">
+                  <TabsContent value="educacion" className="space-y-2">
+                    {/* Header de Educación */}
+                    <div className="flex items-center space-x-3 mb-3">
+                      <GraduationCap className="w-6 h-6 text-brand-gray" />
+                      <span className="text-lg font-bold text-brand-gray">Educación</span>
+                    </div>
                     <EducacionTab 
                       educacion={educacion}
                       onChange={setEducacion}
@@ -1412,12 +1676,12 @@ export default function PerfilCandidato() {
                     <div className="space-y-6">
                       {/* Header con icono */}
                       <div className="flex items-center space-x-3 mb-6">
-                        <div className="p-2 bg-blue-100 rounded-lg">
-                          <FileUp className="w-6 h-6 text-blue-600" />
+                        <div className="p-2 bg-brand-gray/10 rounded-lg">
+                          <FileUp className="w-6 h-6 text-brand-gray" />
                         </div>
                         <div>
-                          <h3 className="text-xl font-bold text-gray-900">Documentos</h3>
-                          <p className="text-sm text-gray-600">
+                          <h3 className="text-xl font-bold text-brand-gray">Documentos</h3>
+                          <p className="text-sm text-brand-gray">
                             {tipoCandidato ? `Documentos asociados para: ${tipoCandidato.nombre}` : 'Cargando tipo de candidato...'}
                           </p>
                         </div>
@@ -1429,16 +1693,16 @@ export default function PerfilCandidato() {
                         </div>
                       ) : !tipoCandidato ? (
                         <div className="text-center py-12">
-                          <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                          <p className="text-gray-600 text-lg">No se ha configurado un tipo de candidato para este perfil.</p>
+                          <AlertCircle className="w-16 h-16 text-brand-gray mx-auto mb-4" />
+                          <p className="text-brand-gray text-lg">No se ha configurado un tipo de candidato para este perfil.</p>
                         </div>
                       ) : (
                         <div className="space-y-6">
                           {/* Documentos requeridos con nueva interfaz */}
                           {documentosRequeridos.length > 0 && (
                             <div className="space-y-4">
-                              <h4 className="text-lg font-semibold text-gray-800 flex items-center">
-                                <Clock className="w-5 h-5 text-blue-600 mr-2" />
+                              <h4 className="text-lg font-semibold text-brand-gray flex items-center">
+                                <Clock className="w-5 h-5 text-brand-gray mr-2" />
                                 Documentos del tipo de candidato ({documentosRequeridos.length})
                               </h4>
                               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1462,7 +1726,7 @@ export default function PerfilCandidato() {
                                     <Card key={documentoRequerido.id} className={`border-2 transition-all duration-200 hover:shadow-md ${
                                       isUploaded 
                                         ? 'border-brand-lime/20 bg-brand-lime/10' 
-                                        : 'border-gray-200 bg-white hover:border-blue-300'
+                                        : 'border-brand-gray/30 bg-white hover:border-blue-300'
                                     }`}>
                                       <CardHeader className="pb-3 pt-4">
                                         <CardTitle className="flex items-center justify-between text-sm">
@@ -1474,7 +1738,7 @@ export default function PerfilCandidato() {
                                             </div>
                                             <div>
                                               <div className="flex items-center gap-2">
-                                                <span className="font-semibold text-gray-800">
+                                                <span className="font-semibold text-brand-gray">
                                                   {documentoRequerido.tipos_documentos.nombre}
                                                 </span>
                                                 {documentoRequerido.requerido && (
@@ -1492,7 +1756,7 @@ export default function PerfilCandidato() {
                                              </div>
                                            )}
                                         </CardTitle>
-                                        <CardDescription className="text-xs text-gray-600 mt-2">
+                                        <CardDescription className="text-xs text-brand-gray mt-2">
                                           Formato PDF
                                         </CardDescription>
                                       </CardHeader>
@@ -1501,13 +1765,13 @@ export default function PerfilCandidato() {
                                            {/* Progress Bar for Upload */}
                                            {uploadProgress[documentoRequerido.tipo_documento_id] !== undefined && (
                                              <div className="space-y-2">
-                                               <div className="flex items-center justify-between text-xs text-gray-600">
+                                               <div className="flex items-center justify-between text-xs text-brand-gray">
                                                  <span>Subiendo documento...</span>
                                                  <span>{uploadProgress[documentoRequerido.tipo_documento_id]}%</span>
                                                </div>
                                                <Progress 
                                                  value={uploadProgress[documentoRequerido.tipo_documento_id]} 
-                                                 className="h-2 bg-gray-200"
+                                                 className="h-2 bg-brand-gray/20"
                                                />
                                              </div>
                                            )}
@@ -1524,7 +1788,7 @@ export default function PerfilCandidato() {
                                                      className="h-7 w-7 p-0 hover:bg-blue-50 rounded-full"
                                                      title="Visualizar documento"
                                                    >
-                                                     <Eye className="h-4 w-4 text-blue-600" />
+                                                     <Eye className="h-4 w-4 text-brand-gray" />
                                                    </Button>
                                                    <Button
                                                      type="button"
@@ -1534,7 +1798,7 @@ export default function PerfilCandidato() {
                                                      className="h-7 w-7 p-0 hover:bg-gray-50 rounded-full"
                                                      title="Cambiar documento"
                                                    >
-                                                     <Upload className="h-4 w-4 text-gray-600" />
+                                                     <Upload className="h-4 w-4 text-brand-gray" />
                                                    </Button>
                                                    <Button
                                                      type="button"
@@ -1589,8 +1853,8 @@ export default function PerfilCandidato() {
                                            onClick={(e) => (e.target as HTMLInputElement).value = ''}
                                                                                   />
                                          {isUploaded && (
-                                           <div className="text-xs mt-2 p-2 bg-gray-50 rounded">
-                                             <div className="text-gray-700 mb-1">
+                                           <div className="text-xs mt-2 p-2 bg-brand-gray/5 rounded">
+                                             <div className="text-brand-gray mb-1">
                                                <span className="font-medium">Archivo:</span> {existingDocuments.find(doc => doc.tipo_documento_id === documentoRequerido.tipo_documento_id)?.nombre_archivo}
                                              </div>
                                              <div className="text-brand-lime">
@@ -1609,7 +1873,7 @@ export default function PerfilCandidato() {
                           {documentosRequeridos.length === 0 && (
                             <div className="text-center py-12">
                               <CheckCircle className="w-16 h-16 text-brand-lime mx-auto mb-4" />
-                              <p className="text-gray-600 text-lg">No hay documentos asociados para este tipo de candidato.</p>
+                              <p className="text-brand-gray text-lg">No hay documentos asociados para este tipo de candidato.</p>
                             </div>
                           )}
                         </div>
@@ -1622,19 +1886,23 @@ export default function PerfilCandidato() {
                   <Button
                     type="submit"
                     disabled={isSaving}
-                    className="px-8 bg-cyan-600 hover:bg-cyan-700"
+                    className="px-8 login-button rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-300 relative overflow-hidden"
                   >
-                    {isSaving ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Guardando...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="w-4 h-4 mr-2" />
-                        Guardar Perfil
-                      </>
-                    )}
+                    {/* Efecto de brillo en hover */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+                    <div className="flex items-center justify-center relative z-10">
+                      {isSaving ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Guardando...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4 mr-2" />
+                          Guardar Perfil
+                        </>
+                      )}
+                    </div>
                   </Button>
                 </div>
               </form>

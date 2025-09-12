@@ -495,7 +495,7 @@ const UsuariosPage = () => {
           </TabsTrigger>
           <TabsTrigger
             value="registro"
-            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+            className="data-[state=active]:login-button data-[state=inactive]:bg-white data-[state=inactive]:text-gray-700 data-[state=inactive]:border data-[state=inactive]:border-gray-300 rounded-md transition-all duration-300"
           >
             Registro de Usuario
           </TabsTrigger>

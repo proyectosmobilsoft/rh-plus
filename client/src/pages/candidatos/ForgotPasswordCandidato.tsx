@@ -117,10 +117,14 @@ export default function ForgotPasswordCandidato() {
 
             <Button 
               type="submit" 
-              className="w-full bg-green-600 hover:bg-green-700" 
+              className="w-full login-button rounded-xl font-medium text-base shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-300 relative overflow-hidden" 
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Enviando..." : "Enviar enlace de recuperación"}
+              {/* Efecto de brillo en hover */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+              <div className="flex items-center justify-center relative z-10">
+                {isSubmitting ? "Enviando..." : "Enviar enlace de recuperación"}
+              </div>
             </Button>
 
             <div className="text-center">

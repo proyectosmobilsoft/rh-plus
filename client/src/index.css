@@ -280,19 +280,304 @@
 }
 
 .login-button {
-  @apply bg-brand-turquoise text-white border-2 border-brand-turquoise transition-all duration-200;
+  @apply bg-gradient-to-r from-brand-turquoise to-brand-turquoise/90 text-white border-0 transition-all duration-300;
+  box-shadow: 0 4px 15px rgba(31, 181, 202, 0.3);
 }
 
 .login-button:hover {
-  @apply shadow-lg border-brand-turquoise/80;
-  background-color: hsl(186 73% 45%) !important;
-  /* Mantener color base azul turquesa */
-  box-shadow: 0 4px 12px rgba(31, 181, 202, 0.3);
+  @apply shadow-xl;
+  background: linear-gradient(135deg, hsl(186 73% 45%), hsl(186 73% 40%)) !important;
+  box-shadow: 0 6px 20px rgba(31, 181, 202, 0.4);
+  transform: translateY(-1px);
+}
+
+.login-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(31, 181, 202, 0.3);
 }
 
 .forgot-password-link {
   color: hsl(186 73% 45%) !important;
   /* Azul turquesa para el link */
+  transition: all 0.2s ease;
+}
+
+.forgot-password-link:hover {
+  color: hsl(186 73% 35%) !important;
+  text-shadow: 0 1px 2px rgba(31, 181, 202, 0.2);
+}
+
+/* Sombras personalizadas para la tarjeta del login */
+.shadow-3xl {
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 
+              0 0 0 1px rgba(255, 255, 255, 0.05),
+              0 0 20px rgba(31, 181, 202, 0.1);
+}
+
+/* Transiciones suaves para la tarjeta */
+.login-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.login-card:hover {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.3), 
+              0 0 0 1px rgba(255, 255, 255, 0.1),
+              0 0 30px rgba(31, 181, 202, 0.15);
+}
+
+/* Animaciones personalizadas para elementos interactivos */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 5px rgba(31, 181, 202, 0.2); }
+  50% { box-shadow: 0 0 20px rgba(31, 181, 202, 0.4); }
+}
+
+/* Efectos de hover mejorados para inputs */
+.login-input:focus {
+  animation: glow 2s ease-in-out infinite;
+}
+
+/* Efectos de pulso para elementos decorativos */
+.animate-pulse-slow {
+  animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Gradientes de fondo dinámicos */
+.bg-gradient-interactive {
+  background: linear-gradient(-45deg, 
+    rgba(193, 208, 9, 0.1), 
+    rgba(31, 181, 202, 0.1), 
+    rgba(157, 157, 157, 0.1), 
+    rgba(193, 208, 9, 0.1));
+  background-size: 400% 400%;
+  animation: gradientShift 8s ease infinite;
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Efectos para el logo de fondo */
+.logo-background {
+  background-image: var(--logo-url);
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  filter: blur(12px);
+  opacity: 0.08;
+  animation: logoFloat 6s ease-in-out infinite;
+}
+
+.logo-background-subtle {
+  background-image: var(--logo-url);
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  filter: blur(20px);
+  opacity: 0.03;
+  animation: logoFloat 8s ease-in-out infinite reverse;
+}
+
+@keyframes logoFloat {
+  0%, 100% { 
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+    opacity: 0.08;
+  }
+  50% { 
+    transform: translate(-50%, -50%) scale(1.05) rotate(1deg);
+    opacity: 0.12;
+  }
+}
+
+/* Efectos para el logo de fondo de la página principal */
+.logo-background-main {
+  background-image: var(--logo-url);
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  filter: blur(25px);
+  opacity: 0.03;
+  animation: logoFloatMain 10s ease-in-out infinite;
+}
+
+.logo-background-main-subtle {
+  background-image: var(--logo-url);
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  filter: blur(40px);
+  opacity: 0.02;
+  animation: logoFloatMain 12s ease-in-out infinite reverse;
+}
+
+.logo-background-main-ghost {
+  background-image: var(--logo-url);
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  filter: blur(60px);
+  opacity: 0.01;
+  animation: logoFloatMain 15s ease-in-out infinite;
+}
+
+@keyframes logoFloatMain {
+  0%, 100% { 
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+  }
+  25% { 
+    transform: translate(-50%, -50%) scale(1.02) rotate(0.5deg);
+  }
+  50% { 
+    transform: translate(-50%, -50%) scale(1.05) rotate(1deg);
+  }
+  75% { 
+    transform: translate(-50%, -50%) scale(1.02) rotate(0.5deg);
+  }
+}
+
+/* Efectos para el logo de fondo de la tarjeta del login - MÁS VISIBLE */
+.logo-background-card {
+  background-image: var(--logo-url);
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  filter: blur(15px);
+  opacity: 0.12;
+  animation: logoFloatCard 8s ease-in-out infinite;
+}
+
+.logo-background-card-subtle {
+  background-image: var(--logo-url);
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  filter: blur(25px);
+  opacity: 0.08;
+  animation: logoFloatCard 10s ease-in-out infinite reverse;
+}
+
+.logo-background-card-ghost {
+  background-image: var(--logo-url);
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  filter: blur(40px);
+  opacity: 0.05;
+  animation: logoFloatCard 12s ease-in-out infinite;
+}
+
+@keyframes logoFloatCard {
+  0%, 100% { 
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+  }
+  33% { 
+    transform: translate(-50%, -50%) scale(1.03) rotate(0.3deg);
+  }
+  66% { 
+    transform: translate(-50%, -50%) scale(1.06) rotate(0.6deg);
+  }
+}
+
+/* Franjas curvas animadas mejoradas */
+.curved-stripe {
+  animation: stripeFloat 12s ease-in-out infinite;
+}
+
+.curved-stripe:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.curved-stripe:nth-child(2) {
+  animation-delay: 1.5s;
+}
+
+.curved-stripe:nth-child(3) {
+  animation-delay: 3s;
+}
+
+.curved-stripe:nth-child(4) {
+  animation-delay: 4.5s;
+}
+
+.curved-stripe:nth-child(5) {
+  animation-delay: 6s;
+}
+
+.curved-stripe:nth-child(6) {
+  animation-delay: 7.5s;
+}
+
+.curved-stripe:nth-child(7) {
+  animation-delay: 9s;
+}
+
+.curved-stripe:nth-child(8) {
+  animation-delay: 10.5s;
+}
+
+.curved-stripe:nth-child(9) {
+  animation-delay: 2s;
+}
+
+.curved-stripe:nth-child(10) {
+  animation-delay: 5.5s;
+}
+
+.curved-stripe:nth-child(11) {
+  animation-delay: 8s;
+}
+
+@keyframes stripeFloat {
+  0%, 100% { 
+    transform: rotate(var(--rotation, 0deg)) scale(1) translateY(0px);
+    opacity: 0.7;
+  }
+  25% { 
+    transform: rotate(calc(var(--rotation, 0deg) + 1deg)) scale(1.02) translateY(-5px);
+    opacity: 0.8;
+  }
+  50% { 
+    transform: rotate(calc(var(--rotation, 0deg) + 2deg)) scale(1.05) translateY(-10px);
+    opacity: 0.9;
+  }
+  75% { 
+    transform: rotate(calc(var(--rotation, 0deg) + 1deg)) scale(1.02) translateY(-5px);
+    opacity: 0.8;
+  }
+}
+
+/* Efectos de respiración para las franjas */
+.breathing-stripe {
+  animation: breathing 8s ease-in-out infinite;
+}
+
+@keyframes breathing {
+  0%, 100% { 
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  50% { 
+    transform: scale(1.08);
+    opacity: 0.8;
+  }
+}
+
+/* Efectos de gradiente dinámico */
+.dynamic-gradient {
+  background: linear-gradient(45deg, 
+    rgba(193, 208, 9, 0.1), 
+    rgba(31, 181, 202, 0.1), 
+    rgba(157, 157, 157, 0.1), 
+    rgba(193, 208, 9, 0.1));
+  background-size: 400% 400%;
+  animation: gradientShift 12s ease infinite;
 }
 
 /* Dashboard - botones de período */
@@ -672,13 +957,21 @@ form button:hover {
 }
 
 .logo-login {
-  background-size: 340px;
-  height: 70px;
+  background-size: 600px;
+  height: 150px;
   background-repeat: no-repeat;
   width: 100%;
   background-position: center center;
-  margin-top: 0;
-  border-radius: 5px;
+  margin: 0 auto;
+  border-radius: 8px;
+  opacity: 1 !important;
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.2));
+  transition: all 0.3s ease;
+}
+
+.logo-login:hover {
+  transform: scale(1.08);
+  filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.25));
 }
 
 .logo-sidebar {

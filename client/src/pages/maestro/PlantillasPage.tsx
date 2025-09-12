@@ -405,9 +405,13 @@ const PlantillasPage: React.FC = () => {
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button onClick={startCreating} className="bg-cyan-600 hover:bg-cyan-700">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Crear Primera Plantilla
+                          <Button onClick={startCreating} className="login-button rounded-xl font-medium text-base shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-300 relative overflow-hidden">
+                  {/* Efecto de brillo en hover */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+                  <div className="flex items-center justify-center relative z-10">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Crear Primera Plantilla
+                  </div>
                 </Button>
                         </TooltipTrigger>
                         <TooltipContent>
