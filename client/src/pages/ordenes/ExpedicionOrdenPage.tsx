@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { FileText, Plus, Filter, Users, Building, DollarSign, CheckCircle, Clock, AlertCircle, Loader2, Download } from "lucide-react";
+import { FileText, Plus, Filter, Users, Building, DollarSign, CheckCircle, Clock, AlertCircle, Loader2, Download, Calendar, Info } from "lucide-react";
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Plantilla } from '@/services/plantillasService';
 import { empresasService, Empresa } from '@/services/empresasService';
-import { Can } from '@/contexts/PermissionsContext';
+import { Can, usePermissions } from '@/contexts/PermissionsContext';
 
 const ExpedicionOrdenPage = () => {
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
@@ -30,6 +30,10 @@ const ExpedicionOrdenPage = () => {
   const [empresaData, setEmpresaData] = useState<any>(null);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [readOnlyView, setReadOnlyView] = useState(false);
+  
+  // Estado para el modal informativo de fechas
+  const [showDateInfoModal, setShowDateInfoModal] = useState(false);
+  const { hasAction } = usePermissions();
 
   // Estados disponibles para el filtro
   const estadosDisponibles = [
@@ -41,6 +45,36 @@ const ExpedicionOrdenPage = () => {
     { value: 'APROBADA', label: 'Aprobada' },
     { value: 'RECHAZADA', label: 'Rechazada' }
   ];
+
+  // Función para verificar si estamos en el período especial (del 14 al final del mes)
+  const isInSpecialPeriod = () => {
+    const today = new Date();
+    const dayOfMonth = today.getDate();
+    return dayOfMonth >= 14;
+  };
+
+  // Función para obtener el primer día hábil del mes siguiente
+  const getFirstBusinessDayOfNextMonth = () => {
+    const today = new Date();
+    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+    
+    // Buscar el primer día hábil (lunes a viernes)
+    while (nextMonth.getDay() === 0 || nextMonth.getDay() === 6) {
+      nextMonth.setDate(nextMonth.getDate() + 1);
+    }
+    
+    return nextMonth;
+  };
+
+  // Función para formatear fecha en español
+  const formatDateSpanish = (date: Date) => {
+    return date.toLocaleDateString('es-ES', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
 
   // Obtener datos de la empresa del localStorage
   useEffect(() => {
@@ -67,7 +101,7 @@ const ExpedicionOrdenPage = () => {
         toast.error('Error al cargar la lista de empresas');
       }
     };
-    
+
     fetchEmpresas();
   }, []);
 
@@ -76,7 +110,7 @@ const ExpedicionOrdenPage = () => {
     fetchSolicitudes();
     return () => {
       // Limpieza al salir de la pantalla
-      try { setIsLoading(false); } catch {}
+      try { setIsLoading(false); } catch { }
     };
   }, [estadoFilter, empresaFilter]);
 
@@ -91,6 +125,30 @@ const ExpedicionOrdenPage = () => {
       clearInterval(interval);
     };
   }, [estadoFilter, empresaFilter]); // Re-create interval when filters change
+
+  // Mostrar modal informativo si el usuario tiene permisos y está en el período especial
+  useEffect(() => {
+    const hasPermission = hasAction('ordenes_create');
+    const inSpecialPeriod = isInSpecialPeriod();
+    console.log('🔍 Modal check - hasPermission:', hasPermission, 'inSpecialPeriod:', inSpecialPeriod);
+    
+    if (hasPermission && inSpecialPeriod) {
+      console.log('✅ Mostrando modal informativo de fechas especiales');
+      setShowDateInfoModal(true);
+    }
+  }, [hasAction]);
+
+  // Mostrar modal cuando se cambie al tab de registro y se cumplan las condiciones
+  useEffect(() => {
+    const hasPermission = hasAction('ordenes_create');
+    const inSpecialPeriod = isInSpecialPeriod();
+    console.log('🔍 Tab check - activeTab:', activeTab, 'hasPermission:', hasPermission, 'inSpecialPeriod:', inSpecialPeriod);
+    
+    if (activeTab === 'registro' && hasPermission && inSpecialPeriod) {
+      console.log('✅ Mostrando modal informativo al cambiar a tab de registro');
+      setShowDateInfoModal(true);
+    }
+  }, [activeTab, hasAction]);
 
   const fetchSolicitudes = async () => {
     setIsLoading(true);
@@ -197,25 +255,25 @@ const ExpedicionOrdenPage = () => {
     }
   };
 
-     const handleApprove = async (id: number) => {
-     setIsLoading(true);
-     try {
-       const success = await solicitudesService.approve(id, 'Solicitud aprobada por el usuario');
-       if (success) {
-       toast.success('Solicitud aprobada exitosamente');
-       fetchSolicitudes(); // Recargar la lista
-       } else {
-         toast.error('Error al aprobar la solicitud');
-       }
-     } catch (error) {
-       console.error('Error al aprobar solicitud:', error);
-       toast.error('Error al aprobar la solicitud');
-     } finally {
-       setIsLoading(false);
-     }
-   };
+  const handleApprove = async (id: number) => {
+    setIsLoading(true);
+    try {
+      const success = await solicitudesService.approve(id, 'Solicitud aprobada por el usuario');
+      if (success) {
+        toast.success('Solicitud aprobada exitosamente');
+        fetchSolicitudes(); // Recargar la lista
+      } else {
+        toast.error('Error al aprobar la solicitud');
+      }
+    } catch (error) {
+      console.error('Error al aprobar solicitud:', error);
+      toast.error('Error al aprobar la solicitud');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-     const handleDeserto = async (id: number, observacion: string) => {
+  const handleDeserto = async (id: number, observacion: string) => {
     setIsLoading(true);
     try {
       const success = await solicitudesService.updateStatus(id, 'DESERTO', observacion);
@@ -278,8 +336,8 @@ const ExpedicionOrdenPage = () => {
   const handleValidateDocuments = async (id: number, observacion: string) => {
     setIsLoading(true);
     try {
-      await solicitudesService.updateEstado(id, 'CITADO EXAMENES');
-      await loadSolicitudes();
+      await solicitudesService.updateStatus(id, 'CITADO EXAMENES', observacion);
+      await fetchSolicitudes();
       toast.success('Documentos validados exitosamente. Estado cambiado a "Citado Exámenes".');
     } catch (error) {
       console.error('Error validando documentos:', error);
@@ -333,7 +391,7 @@ const ExpedicionOrdenPage = () => {
         };
 
         // Obtener número de documento (igual que en el listado)
-        const numeroDocumento = 
+        const numeroDocumento =
           solicitud.estructura_datos?.numero_documento ||
           solicitud.estructura_datos?.documento ||
           solicitud.estructura_datos?.cedula ||
@@ -341,7 +399,7 @@ const ExpedicionOrdenPage = () => {
           getDisplayValue(solicitud.candidatos?.numero_documento, 'Sin número');
 
         // Obtener email (igual que en el listado)
-        const email = 
+        const email =
           solicitud.estructura_datos?.email ||
           solicitud.estructura_datos?.correo_electronico ||
           solicitud.estructura_datos?.correo ||
@@ -377,10 +435,10 @@ const ExpedicionOrdenPage = () => {
 
       // Crear el libro de trabajo
       const wb = XLSX.utils.book_new();
-      
+
       // Crear la hoja de trabajo
       const ws = XLSX.utils.json_to_sheet(datosParaExportar);
-      
+
       // Configurar el ancho de las columnas
       const colWidths = [
         { wch: 12 },  // CONSECUTIVO
@@ -401,7 +459,7 @@ const ExpedicionOrdenPage = () => {
       for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
         const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
         if (!ws[cellAddress]) continue;
-        
+
         // Aplicar formato al header
         ws[cellAddress].s = {
           font: { bold: true },
@@ -422,7 +480,7 @@ const ExpedicionOrdenPage = () => {
         for (let col = dataRange.s.c; col <= dataRange.e.c; col++) {
           const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
           if (!ws[cellAddress]) continue;
-          
+
           // Aplicar formato a las celdas de datos
           ws[cellAddress].s = {
             alignment: { vertical: "center" },
@@ -447,7 +505,7 @@ const ExpedicionOrdenPage = () => {
 
       // Descargar el archivo
       XLSX.writeFile(wb, nombreArchivo);
-      
+
       toast.success(`Archivo Excel exportado exitosamente: ${nombreArchivo}`);
     } catch (error) {
       console.error('Error al exportar a Excel:', error);
@@ -464,7 +522,7 @@ const ExpedicionOrdenPage = () => {
       (solicitud.empresa_usuaria?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
       (solicitud.numero_documento?.toLowerCase() || '').includes(searchTerm.toLowerCase());
 
-    const matchesEmpresa = !empresaFilter || empresaFilter === 'all' || 
+    const matchesEmpresa = !empresaFilter || empresaFilter === 'all' ||
       solicitud.empresas?.id?.toString() === empresaFilter;
 
     return matchesSearch && matchesEmpresa;
@@ -478,7 +536,7 @@ const ExpedicionOrdenPage = () => {
           Gestión de Solicitudes
         </h1>
       </div>
-      
+
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2 bg-cyan-100/60 p-1 rounded-lg">
           <TabsTrigger
@@ -524,13 +582,15 @@ const ExpedicionOrdenPage = () => {
                 <span className="text-lg font-semibold text-gray-700">SOLICITUDES</span>
               </div>
               <div className="flex space-x-2">
-                <Button
-                  onClick={handleCreate}
-                  className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
-                  size="sm"
-                >
-                  Adicionar Solicitud
-                </Button>
+                <Can action="ordenes_create">
+                  <Button
+                    onClick={handleCreate}
+                    className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
+                    size="sm"
+                  >
+                    Adicionar Solicitud
+                  </Button>
+                </Can>
                 <Can action="exportar-solicitudes">
                   <Button
                     onClick={handleExportToExcel}
@@ -557,8 +617,8 @@ const ExpedicionOrdenPage = () => {
               </div>
               <div className="flex items-center space-x-2">
                 <Filter className="h-4 w-4 text-muted-foreground" />
-                <Select 
-                  value={estadoFilter || 'all'} 
+                <Select
+                  value={estadoFilter || 'all'}
                   onValueChange={(value) => setEstadoFilter(value === 'all' ? undefined : value)}
                 >
                   <SelectTrigger className="w-[180px] h-9">
@@ -573,8 +633,8 @@ const ExpedicionOrdenPage = () => {
                     ))}
                   </SelectContent>
                 </Select>
-                <Select 
-                  value={empresaFilter || 'all'} 
+                <Select
+                  value={empresaFilter || 'all'}
                   onValueChange={(value) => setEmpresaFilter(value === 'all' ? undefined : value)}
                 >
                   <SelectTrigger className="w-[200px] h-9">
@@ -626,6 +686,60 @@ const ExpedicionOrdenPage = () => {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Modal informativo de fechas especiales */}
+      <Dialog open={showDateInfoModal} onOpenChange={setShowDateInfoModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-700">
+              <Calendar className="h-5 w-5" />
+              Información Importante sobre Fechas
+            </DialogTitle>
+            <DialogDescription className="text-gray-600">
+              Período especial de fechas de solicitud
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+              <Info className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+              <div className="space-y-2">
+                <p className="text-sm text-amber-800 font-medium">
+                  Período Especial de Fechas
+                </p>
+                <p className="text-sm text-amber-700">
+                  Las solicitudes creadas desde el día 14 hasta el final del mes 
+                  tendrán como fecha de solicitud el <strong>primer día hábil del mes siguiente</strong>.
+                </p>
+                <div className="mt-3 p-3 bg-white border border-amber-300 rounded">
+                  <p className="text-xs text-amber-600 font-medium mb-1">
+                    Próxima fecha de solicitud:
+                  </p>
+                  <p className="text-sm font-semibold text-amber-800">
+                    {formatDateSpanish(getFirstBusinessDayOfNextMonth())}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded">
+              <p>
+                <strong>Nota:</strong> Esta regla se aplica automáticamente al crear 
+                nuevas solicitudes durante este período.
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex justify-end">
+            <Button 
+              onClick={() => setShowDateInfoModal(false)}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              Entendido
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -685,13 +685,40 @@ export const solicitudesService = {
         }
       }
 
+      // Función para obtener el primer día hábil del mes siguiente
+      const getFirstBusinessDayOfNextMonth = () => {
+        const today = new Date();
+        const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+        
+        // Buscar el primer día hábil (lunes a viernes)
+        while (nextMonth.getDay() === 0 || nextMonth.getDay() === 6) {
+          nextMonth.setDate(nextMonth.getDate() + 1);
+        }
+        
+        return nextMonth;
+      };
+
+      // Función para verificar si estamos en el período especial (del 25 al final del mes)
+      const isInSpecialPeriod = () => {
+        const today = new Date();
+        const dayOfMonth = today.getDate();
+        return dayOfMonth >= 25;
+      };
+
+      // Determinar la fecha de solicitud según el período
+      let fechaSolicitud = solicitud.fecha_solicitud || new Date().toISOString();
+      if (isInSpecialPeriod()) {
+        fechaSolicitud = getFirstBusinessDayOfNextMonth().toISOString();
+        console.log("📅 Período especial detectado: usando fecha del primer día hábil del mes siguiente:", fechaSolicitud);
+      }
+
       // Preparar datos de la solicitud
       const solicitudData = {
         ...solicitud,
         candidato_id: candidatoIdFinal,
         analista_id: analistaId,
         estado: estadoFinal, // Usar el estado final (ASIGNADO si se asignó analista)
-        fecha_solicitud: solicitud.fecha_solicitud || new Date().toISOString(),
+        fecha_solicitud: fechaSolicitud,
       };
 
       console.log("📝 Datos de la solicitud a crear:", solicitudData);
@@ -1033,6 +1060,33 @@ export const solicitudesService = {
       
       console.log("🔄 Solicitud creada sin analista - Estado: Pendiente Asignacion");
 
+      // Función para obtener el primer día hábil del mes siguiente
+      const getFirstBusinessDayOfNextMonth = () => {
+        const today = new Date();
+        const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+        
+        // Buscar el primer día hábil (lunes a viernes)
+        while (nextMonth.getDay() === 0 || nextMonth.getDay() === 6) {
+          nextMonth.setDate(nextMonth.getDate() + 1);
+        }
+        
+        return nextMonth;
+      };
+
+      // Función para verificar si estamos en el período especial (del 25 al final del mes)
+      const isInSpecialPeriod = () => {
+        const today = new Date();
+        const dayOfMonth = today.getDate();
+        return dayOfMonth >= 25;
+      };
+
+      // Determinar la fecha de solicitud según el período
+      let fechaSolicitud = new Date().toISOString();
+      if (isInSpecialPeriod()) {
+        fechaSolicitud = getFirstBusinessDayOfNextMonth().toISOString();
+        console.log("📅 Período especial detectado (plantilla): usando fecha del primer día hábil del mes siguiente:", fechaSolicitud);
+      }
+
       const solicitudData = {
         empresa_id: empresaId,
         plantilla_id: plantillaId,
@@ -1041,7 +1095,7 @@ export const solicitudesService = {
         candidato_id: candidatoId,
         analista_id: analistaId,
         estado: estadoFinal, // Usar el estado final (ASIGNADO si se asignó analista)
-        fecha_solicitud: new Date().toISOString(),
+        fecha_solicitud: fechaSolicitud,
         // created_by se omite por ahora hasta implementar autenticación de usuarios
       };
 
