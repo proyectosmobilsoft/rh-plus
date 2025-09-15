@@ -25,6 +25,7 @@ interface SolicitudesListProps {
   onDeserto: (id: number, observacion: string) => void;
   onCancel: (id: number, observacion: string) => void;
   onAssign: (id: number, analistaId: number) => void;
+  onValidateDocuments: (id: number, observacion: string) => void;
   isLoading?: boolean;
 }
 
@@ -39,6 +40,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   onDeserto,
   onCancel,
   onAssign,
+  onValidateDocuments,
   isLoading = false
 }) => {
   const { startLoading, stopLoading } = useLoading();
@@ -77,6 +79,9 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   const [confirmAssignOpen, setConfirmAssignOpen] = useState(false);
   const [assigningSolicitudId, setAssigningSolicitudId] = useState<number | null>(null);
   const [suggestedAnalyst, setSuggestedAnalyst] = useState<{analista_id: number, analista_nombre: string} | null>(null);
+  const [confirmValidateDocumentsOpen, setConfirmValidateDocumentsOpen] = useState(false);
+  const [validatingDocumentsSolicitudId, setValidatingDocumentsSolicitudId] = useState<number | null>(null);
+  const [validateDocumentsObservacion, setValidateDocumentsObservacion] = useState('');
 
   // Detener loading global cuando se complete una operación de Contacto
   useEffect(() => {
@@ -287,6 +292,12 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
         return <Badge className="bg-red-300 hover:bg-red-400 text-red-900 border-red-500 flex items-center justify-center text-center">Deserto</Badge>;
       case 'CANCELADA':
         return <Badge className="bg-red-300 hover:bg-red-400 text-red-900 border-red-500 flex items-center justify-center text-center">Cancelada</Badge>;
+      case 'DOCUMENTOS ENTREGADOS':
+        return <Badge className="bg-orange-400 hover:bg-orange-500 text-orange-900 border-orange-600 flex items-center justify-center text-center">Documentos Entregados</Badge>;
+      case 'Documentos Entregados':
+        return <Badge className="bg-orange-400 hover:bg-orange-500 text-orange-900 border-orange-600 flex items-center justify-center text-center">Documentos Entregados</Badge>;
+      case 'CITADO EXAMENES':
+        return <Badge className="bg-cyan-300 hover:bg-cyan-400 text-cyan-900 border-cyan-500 flex items-center justify-center text-center">Citado Exámenes</Badge>;
       default:
         return <Badge variant="outline" className="flex items-center justify-center text-center">{formatEstado(estado || 'Sin estado')}</Badge>;
     }
@@ -320,6 +331,12 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
         return 'bg-red-100';
       case 'CANCELADA':
         return 'bg-red-100';
+      case 'DOCUMENTOS ENTREGADOS':
+        return 'bg-orange-100';
+      case 'Documentos Entregados':
+        return 'bg-orange-100';
+      case 'CITADO EXAMENES':
+        return 'bg-cyan-100';
       default:
         return '';
     }
@@ -336,7 +353,8 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     const puedeStandBy = !isStandBy(s.estado) && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-standby-solicitud');
     const puedeDeserto = !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-deserto-solicitud');
     const puedeCancelar = s.estado === 'ASIGNADO' && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-cancelar-solicitud');
-    return puedeEditar || puedeVisualizar || puedeAsignar || puedeAprobar || puedeContactar || puedeReactivar || puedeStandBy || puedeDeserto || puedeCancelar;
+    const puedeValidarDocumentos = s.estado?.toUpperCase() === 'DOCUMENTOS ENTREGADOS' && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-validar-documentos-solicitud');
+    return puedeEditar || puedeVisualizar || puedeAsignar || puedeAprobar || puedeContactar || puedeReactivar || puedeStandBy || puedeDeserto || puedeCancelar || puedeValidarDocumentos;
   };
 
   const formatDate = (dateString: string | undefined) => {
@@ -786,6 +804,31 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     }
   };
 
+  const handleValidateDocumentsClick = (id: number | undefined) => {
+    if (id) {
+      setSelectedSolicitudId(id);
+      setValidatingDocumentsSolicitudId(id);
+      setValidateDocumentsObservacion('');
+      setConfirmValidateDocumentsOpen(true);
+    }
+  };
+
+  const handleValidateDocumentsConfirm = () => {
+    if (selectedSolicitudId && validateDocumentsObservacion.trim()) {
+      console.log('🔍 handleValidateDocumentsConfirm llamado para solicitud ID:', selectedSolicitudId);
+      console.log('🔍 Llamando a startLoading()...');
+      startLoading(); // Activar loading global
+      
+      // Llamar a la función de validación de documentos con observación
+      onValidateDocuments(selectedSolicitudId, validateDocumentsObservacion.trim());
+      
+      setConfirmValidateDocumentsOpen(false);
+      setSelectedSolicitudId(null);
+      setValidatingDocumentsSolicitudId(null);
+      setValidateDocumentsObservacion('');
+    }
+  };
+
   if (solicitudes.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
@@ -923,6 +966,19 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                             <DropdownMenuItem onClick={() => handleCancelClick(solicitud.id)} className="cursor-pointer">
                               <X className="h-4 w-4 mr-2 text-red-600" />
                               Cancelar
+                            </DropdownMenuItem>
+                          </Can>
+                        )}
+
+                        {/* Botón Documentos Validados - solo visible en estado DOCUMENTOS ENTREGADOS */}
+                        {solicitud.estado?.toUpperCase() === 'DOCUMENTOS ENTREGADOS' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                          <Can action="accion-validar-documentos-solicitud">
+                            <DropdownMenuItem 
+                              onClick={() => handleValidateDocumentsClick(solicitud.id)} 
+                              className="cursor-pointer"
+                            >
+                              <CheckCircle className="h-4 w-4 mr-2 text-orange-600" />
+                              Documentos Validados
                             </DropdownMenuItem>
                           </Can>
                         )}
@@ -1397,6 +1453,54 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
               disabled={!suggestedAnalyst}
             >
               Asignar Analista
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirmación de Validación de Documentos */}
+      <AlertDialog open={confirmValidateDocumentsOpen} onOpenChange={setConfirmValidateDocumentsOpen}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Validar documentos?</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas validar los documentos de esta solicitud?
+              <br />
+              <span className="text-sm text-muted-foreground">
+                Esta acción cambiará el estado de la solicitud a "Citado Exámenes".
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="py-4">
+            <label htmlFor="validateDocumentsObservacion" className="block text-sm font-medium text-gray-700 mb-2">
+              Observación (requerida)
+            </label>
+            <Textarea
+              id="validateDocumentsObservacion"
+              value={validateDocumentsObservacion}
+              onChange={(e) => setValidateDocumentsObservacion(e.target.value)}
+              placeholder="Ingrese observaciones sobre la validación de documentos..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              rows={4}
+              required
+            />
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setConfirmValidateDocumentsOpen(false);
+              setValidatingDocumentsSolicitudId(null);
+              setValidateDocumentsObservacion('');
+            }}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleValidateDocumentsConfirm}
+              className="bg-orange-600 hover:bg-orange-700"
+              disabled={!validateDocumentsObservacion.trim()}
+            >
+              Validar Documentos
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

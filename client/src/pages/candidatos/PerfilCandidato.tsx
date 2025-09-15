@@ -34,7 +34,8 @@ import {
   Home,
   Users,
   UserCheck,
-  Folder
+  Folder,
+  X
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -178,7 +179,10 @@ export default function PerfilCandidato() {
   const [uploadProgress, setUploadProgress] = useState<{[key: string]: number}>({});
   // Eliminado: tipoCandidato y documentosRequeridos ligados al candidato.
   const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const [progresoRefreshKey, setProgresoRefreshKey] = useState(0);
   const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState<number | null>(null);
+  const [modalDocumento, setModalDocumento] = useState<{isOpen: boolean, documento: any}>({isOpen: false, documento: null});
+  const [documentoACambiar, setDocumentoACambiar] = useState<{id: number, progressKey: string} | null>(null);
   const [ciudadesDisponibles, setCiudadesDisponibles] = useState<any[]>([]);
   const [solicitudesCandidato, setSolicitudesCandidato] = useState<any[]>([]);
   const [isLoadingSolicitudes, setIsLoadingSolicitudes] = useState(false);
@@ -306,6 +310,16 @@ export default function PerfilCandidato() {
       setCandidato(prev => prev ? { ...prev } : prev);
     }
   }, [existingDocuments, candidato]);
+
+  // Efecto para activar el input de cambio de documento
+  useEffect(() => {
+    if (documentoACambiar) {
+      const input = document.getElementById(`change-file-${documentoACambiar.progressKey}`);
+      if (input) {
+        input.click();
+      }
+    }
+  }, [documentoACambiar]);
 
   // Función para cargar registros actuales de la base de datos
   const loadCurrentRecordsFromDB = useCallback(async () => {
@@ -754,6 +768,10 @@ export default function PerfilCandidato() {
         files[doc.tipos_documentos.nombre] = doc.nombre_archivo;
       });
       setUploadedFiles(files);
+      
+      // Forzar actualización del progreso
+      setProgresoRefreshKey(prev => prev + 1);
+      
     } catch (error) {
       console.error('Error cargando documentos:', error);
     } finally {
@@ -1008,6 +1026,14 @@ export default function PerfilCandidato() {
         [key]: [...(prev[key] || []), documentoData]
       }));
 
+      // Actualizar documentos existentes y forzar recálculo del progreso
+      if (candidato?.id) {
+        await loadDocumentosCandidato(candidato.id);
+      }
+
+      // Verificar si todos los documentos requeridos están subidos y actualizar estado
+      await verificarYActualizarEstadoSolicitud(solicitudId, tipoCargoId);
+
       toast.success(`${nombreDocumento} subido correctamente`);
       console.log('✅ Documento guardado exitosamente:', documentoData);
 
@@ -1035,27 +1061,6 @@ export default function PerfilCandidato() {
     }
   };
 
-  // Función para eliminar documento
-  const handleDeleteDocument = async (documentoId: number) => {
-    try {
-      const { error } = await supabase
-        .from('candidatos_documentos')
-        .delete()
-        .eq('id', documentoId);
-
-      if (error) throw error;
-
-              toast.success("El documento ha sido eliminado correctamente.");
-
-      // Recargar documentos
-      if (candidato?.id) {
-        await loadDocumentosCandidato(candidato.id);
-      }
-    } catch (error) {
-      console.error('Error eliminando documento:', error);
-              toast.error("Error al eliminar el documento");
-    }
-  };
 
 
   // Función para descargar documento
@@ -1075,41 +1080,161 @@ export default function PerfilCandidato() {
   };
 
   // Función para visualizar documento (similar a empresa)
+  // Función para visualizar documento en modal
   const handleViewDocument = (documento: any) => {
+    setModalDocumento({isOpen: true, documento});
+  };
+
+  // Función para cerrar modal
+  const handleCloseModal = () => {
+    setModalDocumento({isOpen: false, documento: null});
+  };
+
+
+  // Función para verificar y actualizar estado de solicitud
+  const verificarYActualizarEstadoSolicitud = async (solicitudId: number, tipoCargoId: number) => {
     try {
-      const base64 = `data:application/pdf;base64,${documento.url_archivo}`;
+      // Obtener documentos requeridos para este cargo
+      const cargo = cargosMeta[tipoCargoId];
+      if (!cargo) {
+        console.log('❌ No se encontró el cargo:', tipoCargoId);
+        return;
+      }
+
+      const documentosRequeridos = cargo.documentos.filter(doc => doc.requerido);
+      const documentosRequeridosIds = documentosRequeridos.map(doc => doc.tipos_documentos.id);
       
-      // Crear una nueva ventana para visualizar el PDF
-      const newWindow = window.open('', '_blank');
-      if (newWindow) {
-        newWindow.document.write(`
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <title>${documento.nombre_archivo}</title>
-              <style>
-                body { margin: 0; padding: 0; }
-                iframe { width: 100%; height: 100vh; border: none; }
-              </style>
-            </head>
-            <body>
-              <iframe src="${base64}" title="${documento.nombre_archivo}"></iframe>
-            </body>
-          </html>
-        `);
-        newWindow.document.close();
+      console.log('🔍 Documentos requeridos para el cargo:', documentosRequeridosIds);
+
+      // Obtener documentos subidos directamente de la base de datos para esta solicitud y cargo
+      const { data: documentosSubidos, error: docsError } = await supabase
+        .from('candidatos_documentos')
+        .select('tipo_documento_id')
+        .eq('solicitud_id', solicitudId)
+        .eq('tipo_cargo_id', tipoCargoId);
+
+      if (docsError) {
+        console.error('Error obteniendo documentos subidos:', docsError);
+        return;
+      }
+
+      const documentosSubidosIds = documentosSubidos?.map(doc => doc.tipo_documento_id) || [];
+      console.log('🔍 Documentos subidos para la solicitud:', documentosSubidosIds);
+
+      // Verificar si todos los documentos requeridos están subidos
+      const documentosRequeridosSubidos = documentosRequeridosIds.filter(id => 
+        documentosSubidosIds.includes(id)
+      );
+
+      console.log('🔍 Documentos requeridos subidos:', documentosRequeridosSubidos);
+      console.log('🔍 Total requeridos:', documentosRequeridosIds.length);
+      console.log('🔍 Total subidos:', documentosRequeridosSubidos.length);
+
+      const todosLosDocumentosRequeridosSubidos = documentosRequeridosSubidos.length === documentosRequeridosIds.length;
+
+      if (todosLosDocumentosRequeridosSubidos && documentosRequeridosIds.length > 0) {
+        console.log('✅ Todos los documentos requeridos están subidos, actualizando estado...');
+        
+        // Actualizar estado de la solicitud a "Documentos Entregados"
+        const { error } = await supabase
+          .from('hum_solicitudes')
+          .update({ 
+            estado: 'Documentos Entregados',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', solicitudId);
+
+        if (error) {
+          console.error('Error actualizando estado de solicitud:', error);
+        } else {
+          console.log('✅ Estado de solicitud actualizado a "Documentos Entregados"');
+          toast.success('¡Todos los documentos requeridos han sido entregados!');
+        }
       } else {
-        // Fallback: descargar el archivo
-        handleDownloadDocument(documento);
+        console.log('❌ Aún faltan documentos requeridos');
       }
     } catch (error) {
-      console.error('Error visualizando documento:', error);
-      toast.error("Error al visualizar el documento");
+      console.error('Error verificando estado de solicitud:', error);
+    }
+  };
+
+  // Función para cambiar documento
+  const handleChangeDocument = async (file: File, documentoId: number, progressKey: string) => {
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('El archivo no puede ser mayor a 5MB');
+      return;
+    }
+
+    try {
+      setUploadingDocuments(prev => ({ ...prev, [progressKey]: true }));
+      setUploadProgress(prev => ({ ...prev, [progressKey]: 0 }));
+
+      // Simular progreso de lectura del archivo
+      setUploadProgress(prev => ({ ...prev, [progressKey]: 25 }));
+
+      // Convertir archivo a base64
+      const base64 = await convertFileToBase64(file);
+      const base64Data = base64.split(',')[1]; // Remover el prefijo data:application/pdf;base64,
+
+      // Simular progreso de procesamiento
+      setUploadProgress(prev => ({ ...prev, [progressKey]: 50 }));
+
+      console.log('💾 Actualizando documento en base de datos...');
+
+      // Simular progreso de guardado
+      setUploadProgress(prev => ({ ...prev, [progressKey]: 75 }));
+
+      // Actualizar documento en la base de datos
+      const { data, error } = await supabase
+        .from('candidatos_documentos')
+        .update({
+          nombre_archivo: file.name,
+          url_archivo: base64Data,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', documentoId)
+        .select();
+
+      if (error) {
+        console.error('❌ Error actualizando documento:', error);
+        toast.error('Error actualizando el documento');
+        return;
+      }
+
+      // Completar progreso
+      setUploadProgress(prev => ({ ...prev, [progressKey]: 100 }));
+
+      toast.success(`${file.name} ha sido actualizado correctamente.`);
+
+      // Actualizar la lista de documentos y solicitudes
+      if (candidato?.id) {
+        await loadDocumentosCandidato(candidato.id);
+        await loadSolicitudesCandidato(candidato.id);
+      }
+
+      // Limpiar progreso después de un momento
+      setTimeout(() => {
+        setUploadProgress(prev => {
+          const newProgress = { ...prev };
+          delete newProgress[progressKey];
+          return newProgress;
+        });
+      }, 1000);
+
+    } catch (error) {
+      console.error('❌ Error actualizando documento:', error);
+      toast.error('Error actualizando el documento');
+    } finally {
+      setUploadingDocuments(prev => ({ ...prev, [progressKey]: false }));
+      setDocumentoACambiar(null);
     }
   };
 
   // Función para calcular el progreso del perfil
   const calcularProgresoPerfil = () => {
+    // Usar progresoRefreshKey para forzar recálculo
+    const _ = progresoRefreshKey;
+    
     if (!candidato) return 0;
     
     // Campos del formulario con sus pesos (SOLO los que están implementados visualmente)
@@ -1221,12 +1346,94 @@ export default function PerfilCandidato() {
     return 'bg-brand-lime';
   };
 
+  // Función para calcular el estado de documentos por cargo
+  const calcularEstadoDocumentosCargo = (cargoId: number) => {
+    // Usar progresoRefreshKey para forzar recálculo
+    const _ = progresoRefreshKey;
+    
+    if (!candidato || !cargosMeta[cargoId]) return { completado: false, total: 0, subidos: 0 };
+    
+    const cargo = cargosMeta[cargoId];
+    const documentosRequeridos = cargo.documentos.filter(doc => doc.requerido);
+    const documentosNoRequeridos = cargo.documentos.filter(doc => !doc.requerido);
+    
+    // Contar documentos requeridos subidos
+    const documentosRequeridosSubidos = documentosRequeridos.filter(doc => 
+      existingDocuments.some(existing => existing.tipo_documento_id === doc.tipos_documentos.id)
+    ).length;
+    
+    // Contar documentos no requeridos subidos
+    const documentosNoRequeridosSubidos = documentosNoRequeridos.filter(doc => 
+      existingDocuments.some(existing => existing.tipo_documento_id === doc.tipos_documentos.id)
+    ).length;
+    
+    const totalDocumentos = documentosRequeridos.length;
+    const documentosSubidos = documentosRequeridosSubidos;
+    
+    return {
+      completado: documentosRequeridosSubidos === documentosRequeridos.length,
+      total: totalDocumentos,
+      subidos: documentosSubidos,
+      opcionalesSubidos: documentosNoRequeridosSubidos,
+      opcionalesTotal: documentosNoRequeridos.length
+    };
+  };
+
+  // Función para detectar documentos no requeridos pendientes
+  const tieneDocumentosNoRequeridosPendientes = () => {
+    // Usar progresoRefreshKey para forzar recálculo
+    const _ = progresoRefreshKey;
+    
+    if (!candidato || existingDocuments.length === 0) return false;
+    
+    // Obtener IDs de documentos requeridos
+    const documentosRequeridosIds = new Set<number>();
+    Object.values(cargosMeta).forEach(cargo => {
+      cargo.documentos.forEach(doc => {
+        if (doc.requerido) {
+          documentosRequeridosIds.add(doc.tipos_documentos.id);
+        }
+      });
+    });
+
+    // Obtener todos los tipos de documentos disponibles para los cargos
+    const todosLosDocumentosIds = new Set<number>();
+    Object.values(cargosMeta).forEach(cargo => {
+      cargo.documentos.forEach(doc => {
+        todosLosDocumentosIds.add(doc.tipos_documentos.id);
+      });
+    });
+
+    // Obtener documentos no requeridos disponibles
+    const documentosNoRequeridosIds = new Set<number>();
+    Object.values(cargosMeta).forEach(cargo => {
+      cargo.documentos.forEach(doc => {
+        if (!doc.requerido) {
+          documentosNoRequeridosIds.add(doc.tipos_documentos.id);
+        }
+      });
+    });
+
+    // Verificar si hay documentos no requeridos que no están subidos
+    const documentosNoRequeridosSubidos = existingDocuments.filter(doc => 
+      documentosNoRequeridosIds.has(doc.tipo_documento_id)
+    ).length;
+
+    return documentosNoRequeridosIds.size > 0 && documentosNoRequeridosSubidos < documentosNoRequeridosIds.size;
+  };
+
   // Función para obtener el texto del progreso
   const getTextoProgreso = (progreso: number) => {
     if (progreso < 30) return 'Incompleto';
     if (progreso < 60) return 'En progreso';
     if (progreso < 90) return 'Casi completo';
-    return 'Completo';
+    
+    // Si está al 100% pero tiene documentos no requeridos pendientes, mostrar "En proceso"
+    if (progreso === 100 && tieneDocumentosNoRequeridosPendientes()) {
+      return 'En proceso';
+    }
+    
+    return 'Completado';
   };
 
   // Función para calcular la edad automáticamente
@@ -1632,9 +1839,25 @@ export default function PerfilCandidato() {
             </div>
             <div>
               <span className="text-lg font-semibold text-gray-700">PERFIL PERSONAL</span>
-              <p className="text-sm text-gray-500">
-                {candidato ? `${candidato.nombres} ${candidato.apellidos} · ${candidato.email}` : 'Gestiona tu información personal y profesional'}
-              </p>
+              <div className="flex items-center space-x-2">
+                <p className="text-sm text-gray-500">
+                  {candidato ? `${candidato.nombres} ${candidato.apellidos} · ${candidato.email}` : 'Gestiona tu información personal y profesional'}
+                </p>
+                {candidato && (
+                  <Badge 
+                    variant="outline" 
+                    className={`text-xs px-2 py-0.5 ${
+                      getTextoProgreso(calcularProgresoPerfil()) === 'Completado' 
+                        ? 'bg-green-50 text-green-700 border-green-200' 
+                        : getTextoProgreso(calcularProgresoPerfil()) === 'En proceso'
+                        ? 'bg-amber-50 text-amber-700 border-amber-200'
+                        : 'bg-gray-50 text-gray-700 border-gray-200'
+                    }`}
+                  >
+                    {getTextoProgreso(calcularProgresoPerfil())}
+                  </Badge>
+                )}
+              </div>
             </div>
           </div>
           <div className="flex items-center space-x-4">
@@ -1645,8 +1868,17 @@ export default function PerfilCandidato() {
               </div>
             )}
             {candidato && (
-              <Badge variant={candidato.completado ? "default" : "secondary"} className="flex items-center space-x-1">
-                {candidato.completado ? (
+              <Badge 
+                variant="outline" 
+                className={`flex items-center space-x-1 ${
+                  getTextoProgreso(calcularProgresoPerfil()) === 'Completado' 
+                    ? 'bg-green-50 text-green-700 border-green-200' 
+                    : getTextoProgreso(calcularProgresoPerfil()) === 'En proceso'
+                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                    : 'bg-gray-50 text-gray-700 border-gray-200'
+                }`}
+              >
+                {getTextoProgreso(calcularProgresoPerfil()) === 'Completado' ? (
                   <>
                     <CheckCircle className="w-3 h-3" />
                     <span>Completado</span>
@@ -1654,7 +1886,7 @@ export default function PerfilCandidato() {
                 ) : (
                   <>
                     <Clock className="w-3 h-3" />
-                    <span>En Proceso</span>
+                    <span>{getTextoProgreso(calcularProgresoPerfil())}</span>
                   </>
                 )}
               </Badge>
@@ -1681,36 +1913,55 @@ export default function PerfilCandidato() {
             </div>
           </div>
           
+          {/* Advertencia para documentos no requeridos pendientes */}
+          {calcularProgresoPerfil() === 100 && tieneDocumentosNoRequeridosPendientes() && (
+            <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <div className="flex items-start space-x-2">
+                <div className="flex-shrink-0">
+                  <svg className="w-5 h-5 text-amber-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-sm font-medium text-amber-800">Documentos adicionales disponibles</h4>
+                  <p className="text-xs text-amber-700 mt-1">
+                    Tienes documentos opcionales por subir en el tab de archivos. Aunque tu perfil está completo, puedes subir estos documentos adicionales para mejorar tu perfil.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          
           {/* Barra de progreso compacta */}
-          <div className="relative">
-            <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+          <div className="relative group">
+            <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden transition-all duration-300 group-hover:bg-gray-300">
               {/* Progreso completado */}
               <div 
-                className={`h-full transition-all duration-1000 ease-out rounded-full relative ${
-                  calcularProgresoPerfil() >= 80 ? 'bg-gradient-to-r from-green-500 to-emerald-500' :
-                  calcularProgresoPerfil() >= 60 ? 'bg-gradient-to-r from-cyan-500 to-teal-500' :
-                  calcularProgresoPerfil() >= 40 ? 'bg-gradient-to-r from-yellow-500 to-orange-500' :
-                  'bg-gradient-to-r from-red-400 to-pink-500'
+                className={`h-full transition-all duration-1000 ease-out rounded-full relative group-hover:shadow-lg ${
+                  calcularProgresoPerfil() >= 80 ? 'bg-gradient-to-r from-green-500 to-emerald-500 group-hover:from-green-600 group-hover:to-emerald-600' :
+                  calcularProgresoPerfil() >= 60 ? 'bg-gradient-to-r from-cyan-500 to-teal-500 group-hover:from-cyan-600 group-hover:to-teal-600' :
+                  calcularProgresoPerfil() >= 40 ? 'bg-gradient-to-r from-yellow-500 to-orange-500 group-hover:from-yellow-600 group-hover:to-orange-600' :
+                  'bg-gradient-to-r from-red-400 to-pink-500 group-hover:from-red-500 group-hover:to-pink-600'
                 }`}
                 style={{ 
                   width: `${calcularProgresoPerfil()}%`
                 }}
               >
                 {/* Efecto de brillo sutil */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-20 animate-pulse"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-20 animate-pulse group-hover:opacity-30"></div>
               </div>
               
               {/* Progreso restante con animación sutil */}
               {calcularProgresoPerfil() < 100 && (
                 <div 
-                  className="absolute top-0 h-full bg-gradient-to-r from-gray-300 to-gray-400 rounded-full overflow-hidden"
+                  className="absolute top-0 h-full bg-gradient-to-r from-gray-300 to-gray-400 rounded-full overflow-hidden group-hover:from-gray-400 group-hover:to-gray-500"
                   style={{ 
                     left: `${calcularProgresoPerfil()}%`,
                     width: `${100 - calcularProgresoPerfil()}%`
                   }}
                 >
                   {/* Efecto shimmer más sutil */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-10 progress-shimmer"></div>
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-10 progress-shimmer group-hover:opacity-15"></div>
                 </div>
               )}
             </div>
@@ -2213,14 +2464,50 @@ export default function PerfilCandidato() {
                                   return Object.entries(grupos).map(([clave, solicitudes], idx) => {
                                     const [empresa, cargo] = clave.split('__');
                                     return (
-                                      <AccordionItem key={clave} value={`grupo-${idx}`}>
-                                        <AccordionTrigger>
-                                          <div className="flex flex-col text-left">
-                                            <span className="text-sm font-semibold text-gray-900">{empresa}</span>
-                                            <span className="text-xs text-gray-600">Cargo: {cargo}</span>
+                                      <AccordionItem key={clave} value={`grupo-${idx}`} className="border border-gray-200 rounded-lg mb-2 data-[state=closed]:bg-gray-50 data-[state=open]:bg-white transition-colors duration-200">
+                                        <AccordionTrigger className="px-4 py-3 hover:bg-gray-100 data-[state=closed]:bg-gray-50 data-[state=open]:bg-white transition-colors duration-200">
+                                          <div className="flex items-center justify-between w-full">
+                                            <div className="flex flex-col text-left">
+                                              <span className="text-sm font-semibold text-gray-900">{empresa}</span>
+                                              <div className="flex items-center space-x-2">
+                                                <span className="text-xs text-gray-600">Cargo:</span>
+                                                <span className="text-sm font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded-md">
+                                                  {cargo}
+                                                </span>
+                                              </div>
+                                            </div>
+                                            {(() => {
+                                              const cargoIdTexto = (cargo.match(/#(\d+)/) || [])[1];
+                                              const cargoIdNum = cargoIdTexto ? Number(cargoIdTexto) : undefined;
+                                              if (!cargoIdNum) return null;
+                                              
+                                              const estado = calcularEstadoDocumentosCargo(cargoIdNum);
+                                              return (
+                                                <Badge 
+                                                  variant="outline" 
+                                                  className={`text-xs px-2 py-1 ${
+                                                    estado.completado 
+                                                      ? 'bg-green-50 text-green-700 border-green-200' 
+                                                      : 'bg-amber-50 text-amber-700 border-amber-200'
+                                                  }`}
+                                                >
+                                                  {estado.completado ? (
+                                                    <>
+                                                      <CheckCircle className="w-3 h-3 mr-1" />
+                                                      <span>Completo</span>
+                                                    </>
+                                                  ) : (
+                                                    <>
+                                                      <Clock className="w-3 h-3 mr-1" />
+                                                      <span>{estado.subidos}/{estado.total}</span>
+                                                    </>
+                                                  )}
+                                                </Badge>
+                                              );
+                                            })()}
                                           </div>
                                         </AccordionTrigger>
-                                        <AccordionContent>
+                                        <AccordionContent className="px-4 pb-4">
                                           <div className="space-y-4">
                                             {/* Lista de documentos requeridos por cargo */}
                                             {(() => {
@@ -2309,9 +2596,9 @@ export default function PerfilCandidato() {
                                                      type="button"
                                                      variant="ghost"
                                                      size="sm"
-                                                                      onClick={() => window.open(documentoExistente.url_archivo, '_blank')}
+                                                     onClick={() => handleViewDocument(documentoExistente)}
                                                      className="h-7 w-7 p-0 hover:bg-blue-50 rounded-full"
-                                                                      title="Ver documento"
+                                                     title="Ver documento"
                                                    >
                                                      <Eye className="h-4 w-4 text-blue-600" />
                                                    </Button>
@@ -2319,24 +2606,11 @@ export default function PerfilCandidato() {
                                                      type="button"
                                                      variant="ghost"
                                                      size="sm"
-                                                                      onClick={() => document.getElementById(`file-${progressKey}`)?.click()}
+                                                     onClick={() => setDocumentoACambiar({id: documentoExistente.id, progressKey})}
                                                      className="h-7 w-7 p-0 hover:bg-gray-50 rounded-full"
                                                      title="Cambiar documento"
                                                    >
                                                      <Upload className="h-4 w-4 text-gray-600" />
-                                                   </Button>
-                                                   <Button
-                                                     type="button"
-                                                     variant="ghost"
-                                                     size="sm"
-                                                     onClick={() => {
-                                                                        // TODO: Implementar eliminación
-                                                                        console.log('Eliminar documento:', documentoExistente.id);
-                                                     }}
-                                                     className="h-7 w-7 p-0 hover:bg-red-50 rounded-full"
-                                                     title="Eliminar documento"
-                                                   >
-                                                     <Trash2 className="h-4 w-4 text-red-600" />
                                                    </Button>
                                                </div>
                                              ) : (
@@ -2417,6 +2691,52 @@ export default function PerfilCandidato() {
             </Form>
         </div>
       </div>
+
+      {/* Modal para visualizar documento */}
+      {modalDocumento.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg w-11/12 h-5/6 max-w-6xl flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-900">
+                {modalDocumento.documento?.nombre_archivo}
+              </h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleCloseModal}
+                className="h-8 w-8 p-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex-1 p-4">
+              <iframe
+                src={`data:application/pdf;base64,${modalDocumento.documento?.url_archivo}`}
+                className="w-full h-full border-0 rounded"
+                title={modalDocumento.documento?.nombre_archivo}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      {/* Input oculto para cambiar documento */}
+      {documentoACambiar && (
+        <input
+          type="file"
+          id={`change-file-${documentoACambiar.progressKey}`}
+          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              handleChangeDocument(file, documentoACambiar.id, documentoACambiar.progressKey);
+            }
+            e.target.value = ''; // Limpiar el input
+          }}
+        />
+      )}
     </div>
   );
 }

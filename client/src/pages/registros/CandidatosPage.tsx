@@ -95,7 +95,7 @@ const CandidatosPage = () => {
 
   // Hooks
   const { data: empresasData = [], isLoading: loadingEmpresas } = useCompanies('empresa');
-  const { tiposCandidatosActivos, isLoading: loadingTipos } = useTiposCandidatos();
+  const { data: tiposCandidatosActivos = [], isLoading: loadingTipos } = useTiposCandidatos();
 
   // Debug: mostrar información de tipos de candidatos
   console.log('🔍 CandidatosPage - Tipos de candidatos activos:', tiposCandidatosActivos);
@@ -650,21 +650,19 @@ const CandidatosPage = () => {
                     <TableHead className="px-4 py-3">Nombre Completo</TableHead>
                     <TableHead className="px-4 py-3">Teléfono</TableHead>
                     <TableHead className="px-4 py-3">Email</TableHead>
-                    <TableHead className="px-4 py-3">Empresa</TableHead>
-                    <TableHead className="px-4 py-3">Ciudad</TableHead>
                     <TableHead className="px-4 py-3">Estado</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="h-24 text-center">
+                      <TableCell colSpan={6} className="h-24 text-center">
                         Cargando candidatos...
                       </TableCell>
                     </TableRow>
                   ) : filteredCandidatos.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="h-24 text-center">
+                      <TableCell colSpan={6} className="h-24 text-center">
                         No hay candidatos disponibles.
                       </TableCell>
                     </TableRow>
@@ -833,13 +831,18 @@ const CandidatosPage = () => {
                           </div>
                         </TableCell>
                         <TableCell className="px-4 py-3 text-sm text-gray-900 font-medium">{candidato.numero_documento}</TableCell>
-                        <TableCell className="px-4 py-3 text-sm text-gray-900">
+                        <TableCell className="px-4 py-3 text-sm text-gray-900 font-medium">
                           {`${candidato.primer_nombre} ${candidato.segundo_nombre || ''} ${candidato.primer_apellido} ${candidato.segundo_apellido || ''}`.trim()}
                         </TableCell>
-                        <TableCell className="px-4 py-3 text-sm text-gray-500">{candidato.telefono || 'No registrado'}</TableCell>
+                        <TableCell className="px-4 py-3 text-sm text-gray-500">
+                          <div className="flex flex-col">
+                            <span>{candidato.telefono || 'No registrado'}</span>
+                            <span className="text-xs text-gray-500 mt-1">
+                              {getCiudadNombre(candidato.ciudad_id) || 'Sin ciudad'}
+                            </span>
+                          </div>
+                        </TableCell>
                         <TableCell className="px-4 py-3 text-sm text-gray-500">{candidato.email}</TableCell>
-                        <TableCell className="px-4 py-3 text-sm text-gray-500">{getEmpresaNombre(candidato.empresa_id)}</TableCell>
-                        <TableCell className="px-4 py-3 text-sm text-gray-500">{getCiudadNombre(candidato.ciudad_id)}</TableCell>
                         <TableCell className="px-4 py-3">
                           <Badge variant={candidato.activo ? "default" : "secondary"} className={candidato.activo ? "bg-brand-lime/10 text-brand-lime border-brand-lime/20" : "bg-gray-200 text-gray-600 border-gray-300"}>
                             {candidato.activo ? "Activo" : "Inactivo"}
@@ -970,12 +973,12 @@ const CandidatosPage = () => {
                            <SelectItem value="" disabled>
                              Cargando...
                            </SelectItem>
-                         ) : tiposCandidatosActivos.length === 0 ? (
-                           <SelectItem value="" disabled>
-                             No hay tipos disponibles
-                           </SelectItem>
-                         ) : (
-                           tiposCandidatosActivos.map((tipo) => (
+                        ) : tiposCandidatosActivos.length === 0 ? (
+                          <SelectItem value="" disabled>
+                            No hay tipos disponibles
+                          </SelectItem>
+                        ) : (
+                          tiposCandidatosActivos.map((tipo) => (
                              <SelectItem key={tipo.id} value={tipo.id.toString()}>
                                {tipo.nombre}
                              </SelectItem>

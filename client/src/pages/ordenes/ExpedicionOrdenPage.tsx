@@ -80,6 +80,18 @@ const ExpedicionOrdenPage = () => {
     };
   }, [estadoFilter, empresaFilter]);
 
+  // Auto-refresh solicitudes every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      console.log('🔄 Auto-refreshing solicitudes...');
+      fetchSolicitudes();
+    }, 30000); // 30 seconds
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [estadoFilter, empresaFilter]); // Re-create interval when filters change
+
   const fetchSolicitudes = async () => {
     setIsLoading(true);
     setError(null);
@@ -261,6 +273,20 @@ const ExpedicionOrdenPage = () => {
     setSelectedSolicitud(solicitud);
     setReadOnlyView(true);
     setActiveTab("registro");
+  };
+
+  const handleValidateDocuments = async (id: number, observacion: string) => {
+    setIsLoading(true);
+    try {
+      await solicitudesService.updateEstado(id, 'CITADO EXAMENES');
+      await loadSolicitudes();
+      toast.success('Documentos validados exitosamente. Estado cambiado a "Citado Exámenes".');
+    } catch (error) {
+      console.error('Error validando documentos:', error);
+      toast.error('Error al validar documentos. Por favor intente nuevamente.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handlePlantillaSelect = (plantilla: Plantilla) => {
@@ -592,6 +618,7 @@ const ExpedicionOrdenPage = () => {
                   onDeserto={handleDeserto}
                   onCancel={handleCancel}
                   onAssign={handleAssign}
+                  onValidateDocuments={handleValidateDocuments}
                   isLoading={isLoading}
                 />
               )}

@@ -41,7 +41,11 @@ interface Empresa {
 
 interface DocumentosPorEmpresa {
   empresa: Empresa;
-  documentos: CandidatoDocumentoConDetalles[];
+  cargos: {
+    cargo: string;
+    tipoCargoId: number;
+    documentos: CandidatoDocumentoConDetalles[];
+  }[];
 }
 
 interface DocumentosCandidatoViewerProps {
@@ -79,7 +83,8 @@ const DocumentosCandidatoViewer: React.FC<DocumentosCandidatoViewerProps> = ({
              .select(`
                id,
                candidato_id,
-               empresa_id,
+               solicitud_id,
+               tipo_cargo_id,
                tipo_documento_id,
                nombre_archivo,
                url_archivo,
@@ -92,10 +97,19 @@ const DocumentosCandidatoViewer: React.FC<DocumentosCandidatoViewerProps> = ({
                  descripcion,
                  activo
                ),
-               empresas (
+               tipos_candidatos (
                  id,
-                 razon_social,
-                 nit
+                 nombre,
+                 descripcion
+               ),
+               hum_solicitudes (
+                 id,
+                 empresa_id,
+                 empresas (
+                   id,
+                   razon_social,
+                   nit
+                 )
                )
              `)
              .eq('candidato_id', candidatoId)
@@ -113,31 +127,47 @@ const DocumentosCandidatoViewer: React.FC<DocumentosCandidatoViewerProps> = ({
         return;
       }
 
-      // Agrupar documentos por empresa
-      const empresasMap = new Map<number, { empresa: Empresa; documentos: any[] }>();
+      // Agrupar documentos por empresa y cargo
+      const empresasMap = new Map<number, { empresa: Empresa; cargos: Map<number, { cargo: string; tipoCargoId: number; documentos: any[] }> }>();
 
-                 documentos.forEach((doc: any) => {
-             const empresaId = doc.empresa_id;
-             console.log('📋 Procesando documento:', {
-               id: doc.id,
-               nombre: doc.nombre_archivo,
-               empresa_id: empresaId,
-               empresa_data: doc.empresas,
-               tiene_url_archivo: !!doc.url_archivo,
-               url_archivo_length: doc.url_archivo ? doc.url_archivo.length : 0,
-               url_archivo_preview: doc.url_archivo ? doc.url_archivo.substring(0, 100) + '...' : 'No disponible'
-             });
+      documentos.forEach((doc: any) => {
+        const empresaId = doc.hum_solicitudes?.empresa_id;
+        const empresaData = doc.hum_solicitudes?.empresas;
+        const tipoCargoId = doc.tipo_cargo_id;
+        const cargoNombre = doc.tipos_candidatos?.nombre || 'Sin Cargo';
         
-        if (empresaId && doc.empresas) {
-          // Documento con empresa asignada
+        console.log('📋 Procesando documento:', {
+          id: doc.id,
+          nombre: doc.nombre_archivo,
+          solicitud_id: doc.solicitud_id,
+          empresa_id: empresaId,
+          tipo_cargo_id: tipoCargoId,
+          cargo_nombre: cargoNombre,
+          empresa_data: empresaData,
+          tiene_url_archivo: !!doc.url_archivo
+        });
+        
+        if (empresaId && empresaData) {
+          // Documento con empresa asignada desde la solicitud
           if (!empresasMap.has(empresaId)) {
             empresasMap.set(empresaId, {
-              empresa: doc.empresas,
+              empresa: empresaData,
+              cargos: new Map()
+            });
+            console.log('🏢 Nueva empresa agregada:', empresaData);
+          }
+          
+          const empresaDataMap = empresasMap.get(empresaId)!;
+          if (!empresaDataMap.cargos.has(tipoCargoId)) {
+            empresaDataMap.cargos.set(tipoCargoId, {
+              cargo: cargoNombre,
+              tipoCargoId: tipoCargoId,
               documentos: []
             });
-            console.log('🏢 Nueva empresa agregada:', doc.empresas);
+            console.log('💼 Nuevo cargo agregado:', cargoNombre);
           }
-          empresasMap.get(empresaId)!.documentos.push(doc);
+          
+          empresaDataMap.cargos.get(tipoCargoId)!.documentos.push(doc);
         } else {
           // Documento sin empresa asignada
           if (!empresasMap.has(0)) {
@@ -147,19 +177,33 @@ const DocumentosCandidatoViewer: React.FC<DocumentosCandidatoViewerProps> = ({
                 razon_social: 'Sin Empresa Asignada',
                 nit: 'N/A'
               },
-              documentos: []
+              cargos: new Map()
             });
             console.log('📁 Agregando sección "Sin Empresa Asignada"');
           }
-          empresasMap.get(0)!.documentos.push(doc);
+          
+          const empresaDataMap = empresasMap.get(0)!;
+          if (!empresaDataMap.cargos.has(tipoCargoId)) {
+            empresaDataMap.cargos.set(tipoCargoId, {
+              cargo: cargoNombre,
+              tipoCargoId: tipoCargoId,
+              documentos: []
+            });
+          }
+          
+          empresaDataMap.cargos.get(tipoCargoId)!.documentos.push(doc);
         }
       });
 
       // Convertir a array
-                 const documentosAgrupados: DocumentosPorEmpresa[] = Array.from(empresasMap.values());
-           console.log('📊 Documentos agrupados por empresa:', documentosAgrupados);
+      const documentosAgrupados: DocumentosPorEmpresa[] = Array.from(empresasMap.values()).map(empresaData => ({
+        empresa: empresaData.empresa,
+        cargos: Array.from(empresaData.cargos.values())
+      }));
+      
+      console.log('📊 Documentos agrupados por empresa y cargo:', documentosAgrupados);
 
-           setDocumentosPorEmpresa(documentosAgrupados);
+      setDocumentosPorEmpresa(documentosAgrupados);
            
            // Si hay múltiples empresas, expandir la primera automáticamente
            if (documentosAgrupados.length > 1) {
@@ -488,7 +532,7 @@ const DocumentosCandidatoViewer: React.FC<DocumentosCandidatoViewerProps> = ({
                           </div>
                           <div className="flex items-center gap-2">
                             <Badge variant="secondary" className="text-xs">
-                              {grupo.documentos.length} documento{grupo.documentos.length !== 1 ? 's' : ''}
+                              {grupo.cargos.reduce((total, cargo) => total + cargo.documentos.length, 0)} documento{grupo.cargos.reduce((total, cargo) => total + cargo.documentos.length, 0) !== 1 ? 's' : ''}
                             </Badge>
                             {empresasExpandidas.has(grupo.empresa.id) ? (
                               <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -502,108 +546,104 @@ const DocumentosCandidatoViewer: React.FC<DocumentosCandidatoViewerProps> = ({
                     
                     <CollapsibleContent>
                       <CardContent className="pt-0">
-                    <div className="space-y-3">
-                      {grupo.documentos.map((documento) => (
-                        <div key={documento.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <FileText className="h-4 w-4 text-gray-600" />
-                                <span className="font-medium text-gray-900">
-                                  {documento.tipos_documentos?.nombre || 'Documento'}
-                                </span>
-                                
-                                {/* Badges de estado */}
-                                {documento.fecha_vigencia && (
-                                  <>
-                                    {isDocumentExpired(documento.fecha_vigencia) ? (
-                                      <Badge variant="destructive" className="text-xs">
-                                        <AlertCircle className="h-3 w-3 mr-1" />
-                                        Vencido
-                                      </Badge>
-                                    ) : isDocumentExpiringSoon(documento.fecha_vigencia) ? (
-                                      <Badge variant="outline" className="text-xs border-orange-300 text-orange-700">
-                                        <Clock className="h-3 w-3 mr-1" />
-                                        Por Vencer
-                                      </Badge>
-                                    ) : (
-                                      <Badge variant="outline" className="text-xs border-green-300 text-green-700">
-                                        <CheckCircle className="h-3 w-3 mr-1" />
-                                        Vigente
-                                      </Badge>
-                                    )}
-                                  </>
-                                )}
+                        <div className="space-y-4">
+                          {grupo.cargos.map((cargoData, cargoIndex) => (
+                            <div key={cargoIndex} className="border rounded-lg p-4 bg-gray-50">
+                              <div className="flex items-center gap-2 mb-3">
+                                <User className="h-4 w-4 text-blue-600" />
+                                <span className="font-semibold text-gray-900">{cargoData.cargo}</span>
+                                <Badge variant="outline" className="text-xs">
+                                  {cargoData.documentos.length} documento{cargoData.documentos.length !== 1 ? 's' : ''}
+                                </Badge>
                               </div>
                               
-                              <div className="text-sm text-gray-600 space-y-1">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium">Archivo:</span>
-                                  <span>{documento.nombre_archivo}</span>
-                                </div>
-                                
-                                <div className="flex items-center gap-2">
-                                  <Calendar className="h-3 w-3" />
-                                  <span>Cargado: {formatDate(documento.fecha_carga)}</span>
-                                </div>
-                                
-                                {documento.fecha_vigencia && (
-                                  <div className="flex items-center gap-2">
-                                    <Calendar className="h-3 w-3" />
-                                    <span>Vigencia: {formatDate(documento.fecha_vigencia)}</span>
+                              <div className="space-y-3">
+                                {cargoData.documentos.map((documento) => (
+                                  <div key={documento.id} className="border rounded-lg p-4 bg-white hover:bg-gray-50 transition-colors">
+                                    <div className="flex items-start justify-between">
+                                      <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-2">
+                                          <FileText className="h-4 w-4 text-gray-600" />
+                                          <span className="font-medium text-gray-900">
+                                            {documento.tipos_documentos?.nombre || 'Documento'}
+                                          </span>
+                                          
+                                          {/* Badges de estado */}
+                                          {documento.fecha_vigencia && (
+                                            <>
+                                              {isDocumentExpired(documento.fecha_vigencia) ? (
+                                                <Badge variant="destructive" className="text-xs">
+                                                  <AlertCircle className="h-3 w-3 mr-1" />
+                                                  Vencido
+                                                </Badge>
+                                              ) : isDocumentExpiringSoon(documento.fecha_vigencia) ? (
+                                                <Badge variant="outline" className="text-xs border-orange-300 text-orange-700">
+                                                  <Clock className="h-3 w-3 mr-1" />
+                                                  Por Vencer
+                                                </Badge>
+                                              ) : (
+                                                <Badge variant="outline" className="text-xs border-green-300 text-green-700">
+                                                  <CheckCircle className="h-3 w-3 mr-1" />
+                                                  Vigente
+                                                </Badge>
+                                              )}
+                                            </>
+                                          )}
+                                        </div>
+                                        
+                                        <div className="text-sm text-gray-600 space-y-1">
+                                          <div className="flex items-center gap-2">
+                                            <span className="font-medium">Archivo:</span>
+                                            <span>{documento.nombre_archivo}</span>
+                                          </div>
+                                          
+                                          <div className="flex items-center gap-2">
+                                            <Calendar className="h-3 w-3" />
+                                            <span>Cargado: {formatDate(documento.fecha_carga)}</span>
+                                          </div>
+                                          
+                                          {documento.fecha_vigencia && (
+                                            <div className="flex items-center gap-2">
+                                              <Calendar className="h-3 w-3" />
+                                              <span>Vigencia: {formatDate(documento.fecha_vigencia)}</span>
+                                            </div>
+                                          )}
+                                          
+                                          {documento.observaciones && (
+                                            <div className="mt-2 p-2 bg-gray-100 rounded text-xs">
+                                              <span className="font-medium">Observaciones:</span>
+                                              <p className="mt-1">{documento.observaciones}</p>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                      
+                                      <div className="flex items-center gap-2 ml-4">
+                                        <TooltipProvider>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <Button
+                                                variant="outline"
+                                                size="icon"
+                                                onClick={() => handleView(documento)}
+                                                className="h-8 w-8 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600 transition-colors"
+                                              >
+                                                <Eye className="h-4 w-4" />
+                                              </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                              <p>Ver documento</p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
+                                      </div>
+                                    </div>
                                   </div>
-                                )}
-                                
-                                {documento.observaciones && (
-                                  <div className="mt-2 p-2 bg-gray-100 rounded text-xs">
-                                    <span className="font-medium">Observaciones:</span>
-                                    <p className="mt-1">{documento.observaciones}</p>
-                                  </div>
-                                )}
+                                ))}
                               </div>
                             </div>
-                            
-                            <div className="flex items-center gap-2 ml-4">
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      size="icon"
-                                      onClick={() => handleView(documento)}
-                                      className="h-8 w-8 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600 transition-colors"
-                                    >
-                                      <ExternalLink className="h-4 w-4" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Ver documento</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                              
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      size="icon"
-                                      onClick={() => handleDownload(documento)}
-                                      className="h-8 w-8 hover:bg-green-50 hover:border-green-300 hover:text-green-600 transition-colors"
-                                    >
-                                      <Download className="h-4 w-4" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Descargar documento</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            </div>
-                          </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
                       </CardContent>
                     </CollapsibleContent>
                   </Collapsible>
