@@ -33,7 +33,8 @@ import {
   Eye,
   Home,
   Users,
-  UserCheck
+  UserCheck,
+  Folder
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -173,14 +174,16 @@ export default function PerfilCandidato() {
   const [existingDocuments, setExistingDocuments] = useState<any[]>([]);
   const [tiposDocumentos, setTiposDocumentos] = useState<any[]>([]);
   const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
-  const [uploadingDocuments, setUploadingDocuments] = useState<{[key: number]: boolean}>({});
-  const [uploadProgress, setUploadProgress] = useState<{[key: number]: number}>({});
-  const [tipoCandidato, setTipoCandidato] = useState<any>(null);
-  const [documentosRequeridos, setDocumentosRequeridos] = useState<any[]>([]);
-  const [isLoadingTipoCandidato, setIsLoadingTipoCandidato] = useState(false);
+  const [uploadingDocuments, setUploadingDocuments] = useState<{[key: string]: boolean}>({});
+  const [uploadProgress, setUploadProgress] = useState<{[key: string]: number}>({});
+  // Eliminado: tipoCandidato y documentosRequeridos ligados al candidato.
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState<number | null>(null);
   const [ciudadesDisponibles, setCiudadesDisponibles] = useState<any[]>([]);
+  const [solicitudesCandidato, setSolicitudesCandidato] = useState<any[]>([]);
+  const [isLoadingSolicitudes, setIsLoadingSolicitudes] = useState(false);
+  const [cargosMeta, setCargosMeta] = useState<Record<number, { nombre: string; documentos: any[] }>>({});
+  const [documentosPorSolicitud, setDocumentosPorSolicitud] = useState<Record<string, any[]>>({});
   const navigate = useNavigate();
 
   // Hook para obtener datos de departamentos y ciudades
@@ -298,12 +301,11 @@ export default function PerfilCandidato() {
 
   // Efecto para forzar actualización del progreso cuando cambien los documentos
   useEffect(() => {
-    if (candidato && (existingDocuments.length > 0 || documentosRequeridos.length > 0)) {
+    if (candidato && existingDocuments.length > 0) {
       console.log('🔄 Documentos actualizados - Forzando recálculo del progreso');
-      // Forzar re-render del componente para actualizar el progreso
       setCandidato(prev => prev ? { ...prev } : prev);
     }
-  }, [existingDocuments, documentosRequeridos, candidato]);
+  }, [existingDocuments, candidato]);
 
   // Función para cargar registros actuales de la base de datos
   const loadCurrentRecordsFromDB = useCallback(async () => {
@@ -547,7 +549,7 @@ export default function PerfilCandidato() {
       if (immediate) {
         // Ejecutar inmediatamente para ediciones
         console.log('⚡ Ejecutando auto-guardado inmediato...');
-        const formData = form.getValues();
+      const formData = form.getValues();
         autoSave(formData)
           .then(() => resolve())
           .catch((error) => reject(error));
@@ -630,57 +632,101 @@ export default function PerfilCandidato() {
     }
   };
 
-  // Cargar tipo de candidato y sus documentos requeridos
-  const loadTipoCandidato = async (tipoCandidatoId: number) => {
+  // Cargar solicitudes asociadas al candidato (incluye empresa y estructura_datos)
+  const loadSolicitudesCandidato = async (candidatoId: number) => {
     try {
-      setIsLoadingTipoCandidato(true);
-      
-      // Cargar información del tipo de candidato
-      const { data: tipoData, error: tipoError } = await supabase
-        .from('tipos_candidatos')
-        .select('*')
-        .eq('id', tipoCandidatoId)
-        .single();
-      
-      if (tipoError) throw tipoError;
-      setTipoCandidato(tipoData);
+      setIsLoadingSolicitudes(true);
+      const { data, error } = await supabase
+        .from('hum_solicitudes')
+        .select(`
+          id,
+          empresa_id,
+          candidato_id,
+          estructura_datos,
+          created_at,
+          empresas!empresa_id ( id, razon_social ),
+          candidatos!candidato_id ( id )
+        `)
+        .eq('candidato_id', candidatoId)
+        .order('created_at', { ascending: false });
 
-      // Cargar documentos asociados al tipo de candidato
-      const { data: documentosData, error: documentosError } = await supabase
+      if (error) throw error;
+      setSolicitudesCandidato(data || []);
+
+      // A partir de las solicitudes, obtener los cargos (ids) y precargar su info y documentos
+      const cargoIds = Array.from(new Set((data || []).map((s: any) => {
+        const cargoFromJSON = s?.estructura_datos?.cargo ?? s?.estructura_datos?.datos?.cargo;
+        return typeof cargoFromJSON === 'string' ? parseInt(cargoFromJSON) : cargoFromJSON;
+      }).filter((id: any) => !!id)));
+
+      if (cargoIds.length > 0) {
+        // Cargar nombres de tipos_candidatos
+        const { data: tipos, error: tiposError } = await supabase
+          .from('tipos_candidatos')
+          .select('id, nombre')
+          .in('id', cargoIds);
+        if (tiposError) throw tiposError;
+
+        // Cargar documentos por tipo_candidato
+        const { data: docs, error: docsError } = await supabase
         .from('tipos_candidatos_documentos')
         .select(`
-          *,
-          tipos_documentos (
-            id,
-            nombre,
-            descripcion,
-            activo
-          )
-        `)
-        .eq('tipo_candidato_id', tipoCandidatoId)
-        .eq('obligatorio', true)
-        .order('orden');
-      
-      if (documentosError) throw documentosError;
-      
-      console.log('🔍 PerfilCandidato - Documentos requeridos cargados:', {
-        tipoCandidatoId,
-        totalDocumentos: documentosData?.length || 0,
-        documentos: documentosData?.map(d => ({
-          id: d.id,
-          nombre: d.tipos_documentos.nombre,
-          obligatorio: d.obligatorio,
-          orden: d.orden
-        }))
-      });
-      
-      setDocumentosRequeridos(documentosData || []);
+            tipo_candidato_id,
+            requerido,
+            tipos_documentos ( id, nombre, descripcion )
+          `)
+          .in('tipo_candidato_id', cargoIds);
+        if (docsError) throw docsError;
+
+        const mapa: Record<number, { nombre: string; documentos: any[] }> = {};
+        (tipos || []).forEach((t: any) => {
+          mapa[t.id] = { nombre: t.nombre, documentos: [] };
+        });
+        (docs || []).forEach((d: any) => {
+          if (!mapa[d.tipo_candidato_id]) {
+            mapa[d.tipo_candidato_id] = { nombre: 'Desconocido', documentos: [] };
+          }
+          mapa[d.tipo_candidato_id].documentos.push(d);
+        });
+        setCargosMeta(mapa);
+
+        // Cargar documentos existentes por solicitud
+        const { data: documentosExistentes, error: docsExistentesError } = await supabase
+          .from('candidatos_documentos')
+          .select(`
+            *,
+            tipos_documentos(id, nombre, descripcion)
+          `)
+          .eq('candidato_id', candidatoId)
+          .not('solicitud_id', 'is', null);
+
+        if (docsExistentesError) {
+          console.error('Error cargando documentos existentes:', docsExistentesError);
+        } else {
+          // Organizar documentos por solicitud y tipo de cargo
+          const docsPorSolicitud: Record<string, any[]> = {};
+          documentosExistentes?.forEach(doc => {
+            const key = `${doc.solicitud_id}_${doc.tipo_cargo_id}`;
+            if (!docsPorSolicitud[key]) {
+              docsPorSolicitud[key] = [];
+            }
+            docsPorSolicitud[key].push(doc);
+          });
+          setDocumentosPorSolicitud(docsPorSolicitud);
+          console.log('📄 Documentos existentes por solicitud:', docsPorSolicitud);
+        }
+      } else {
+        setCargosMeta({});
+        setDocumentosPorSolicitud({});
+      }
     } catch (error) {
-      console.error('Error cargando tipo de candidato:', error);
+      console.error('Error cargando solicitudes del candidato:', error);
     } finally {
-      setIsLoadingTipoCandidato(false);
+      setIsLoadingSolicitudes(false);
     }
   };
+
+  // Eliminado: loadTipoCandidato. Los documentos ahora se derivan por cargo desde las solicitudes.
 
   // Cargar documentos existentes del candidato
   const loadDocumentosCandidato = async (candidatoId: number) => {
@@ -875,6 +921,120 @@ export default function PerfilCandidato() {
     }
   };
 
+  // Función para convertir archivo a Base64 (igual que en formulario de empresa)
+  const convertFileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // Función para manejar la subida de archivos por solicitud y cargo
+  const handleFileChangeSolicitud = async (
+    event: React.ChangeEvent<HTMLInputElement>, 
+    solicitudId: number, 
+    tipoCargoId: number, 
+    tipoDocumentoId: number, 
+    nombreDocumento: string
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file || !candidato) return;
+
+    // Validar tipo de archivo
+    if (file.type !== 'application/pdf') {
+      toast.error('Solo se permiten archivos PDF');
+      return;
+    }
+
+    // Validar tamaño (5MB máximo)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('El archivo no puede ser mayor a 5MB');
+      return;
+    }
+
+    try {
+      const progressKey = `${solicitudId}_${tipoCargoId}_${tipoDocumentoId}`;
+      setUploadingDocuments(prev => ({ ...prev, [progressKey]: true }));
+      setUploadProgress(prev => ({ ...prev, [progressKey]: 0 }));
+
+      // Simular progreso de lectura del archivo
+      setUploadProgress(prev => ({ ...prev, [progressKey]: 25 }));
+
+      // Convertir archivo a base64 (igual que en formulario de empresa)
+      const base64 = await convertFileToBase64(file);
+      const base64Data = base64.split(',')[1]; // Remover el prefijo data:application/pdf;base64,
+
+      // Simular progreso de procesamiento
+      setUploadProgress(prev => ({ ...prev, [progressKey]: 50 }));
+
+      console.log('💾 Guardando documento en base de datos...');
+
+      // Simular progreso de guardado
+      setUploadProgress(prev => ({ ...prev, [progressKey]: 75 }));
+
+      // Guardar información del documento en la base de datos con las nuevas columnas
+      const { data: documentoData, error: documentoError } = await supabase
+        .from('candidatos_documentos')
+        .insert({
+          candidato_id: candidato.id,
+          solicitud_id: solicitudId,
+          tipo_cargo_id: tipoCargoId,
+          tipo_documento_id: tipoDocumentoId,
+          nombre_archivo: file.name,
+          url_archivo: base64Data, // Guardar base64 directamente como en empresa
+          fecha_carga: new Date().toISOString()
+        })
+        .select(`
+          *,
+          tipos_documentos(id, nombre, descripcion)
+        `)
+        .single();
+
+      if (documentoError) {
+        console.error('❌ Error guardando documento:', documentoError);
+        toast.error('Error guardando la información del documento');
+        return;
+      }
+
+      // Completar progreso
+      setUploadProgress(prev => ({ ...prev, [progressKey]: 100 }));
+
+      // Actualizar la lista de documentos por solicitud
+      const key = `${solicitudId}_${tipoCargoId}`;
+      setDocumentosPorSolicitud(prev => ({
+        ...prev,
+        [key]: [...(prev[key] || []), documentoData]
+      }));
+
+      toast.success(`${nombreDocumento} subido correctamente`);
+      console.log('✅ Documento guardado exitosamente:', documentoData);
+
+      // Limpiar progreso después de un momento
+      setTimeout(() => {
+        setUploadProgress(prev => {
+          const newProgress = { ...prev };
+          delete newProgress[progressKey];
+          return newProgress;
+        });
+      }, 1000);
+
+    } catch (error) {
+      console.error('❌ Error en handleFileChangeSolicitud:', error);
+      toast.error('Error subiendo el archivo');
+      const progressKey = `${solicitudId}_${tipoCargoId}_${tipoDocumentoId}`;
+      setUploadProgress(prev => {
+        const newProgress = { ...prev };
+        delete newProgress[progressKey];
+        return newProgress;
+      });
+    } finally {
+      const progressKey = `${solicitudId}_${tipoCargoId}_${tipoDocumentoId}`;
+      setUploadingDocuments(prev => ({ ...prev, [progressKey]: false }));
+    }
+  };
+
   // Función para eliminar documento
   const handleDeleteDocument = async (documentoId: number) => {
     try {
@@ -952,7 +1112,7 @@ export default function PerfilCandidato() {
   const calcularProgresoPerfil = () => {
     if (!candidato) return 0;
     
-    // Todos los campos del formulario con sus pesos
+    // Campos del formulario con sus pesos (SOLO los que están implementados visualmente)
     const camposConPeso = [
       { campo: 'nombres', peso: 8, requerido: true },
       { campo: 'apellidos', peso: 8, requerido: true },
@@ -962,20 +1122,15 @@ export default function PerfilCandidato() {
       { campo: 'estadoCivil', peso: 4, requerido: false },
       { campo: 'telefono', peso: 8, requerido: true },
       { campo: 'direccion', peso: 6, requerido: false },
+      { campo: 'departamento', peso: 4, requerido: false },
       { campo: 'ciudad', peso: 6, requerido: false },
-      { campo: 'cargoAspirado', peso: 8, requerido: false },
-      { campo: 'eps', peso: 6, requerido: false },
-      { campo: 'arl', peso: 6, requerido: false },
       { campo: 'grupoSanguineo', peso: 4, requerido: false },
-      { campo: 'nivelEducativo', peso: 6, requerido: false },
       { campo: 'contactoEmergenciaNombre', peso: 4, requerido: false },
       { campo: 'contactoEmergenciaTelefono', peso: 4, requerido: false },
       { campo: 'contactoEmergenciaRelacion', peso: 4, requerido: false },
       { campo: 'tallaCamisa', peso: 3, requerido: false },
       { campo: 'tallaPantalon', peso: 3, requerido: false },
-      { campo: 'tallaZapato', peso: 3, requerido: false },
-      { campo: 'hojaDeVida', peso: 8, requerido: false },
-      { campo: 'fotografia', peso: 6, requerido: false }
+      { campo: 'tallaZapato', peso: 3, requerido: false }
     ];
     
     let puntajeTotal = 0;
@@ -988,61 +1143,69 @@ export default function PerfilCandidato() {
       
       if (valor && valor.toString().trim() !== '') {
         puntajeCompletado += peso;
-      } else if (requerido) {
-        // Los campos requeridos vacíos no suman puntos
-        puntajeTotal -= peso;
       }
     });
     
-    // Calcular progreso de experiencia laboral
+    // Calcular progreso de experiencia laboral (15 puntos)
     if (experienciaLaboral.length > 0) {
-      const pesoExperiencia = 15; // 15 puntos por tener al menos una experiencia
-      puntajeTotal += pesoExperiencia;
-      puntajeCompletado += pesoExperiencia;
+      puntajeTotal += 15;
+      puntajeCompletado += 15;
       console.log('🔍 calcularProgresoPerfil - Experiencia laboral: +15 puntos');
     }
     
-    // Calcular progreso de educación
+    // Calcular progreso de educación (15 puntos)
     if (educacion.length > 0) {
-      const pesoEducacion = 15; // 15 puntos por tener al menos una educación
-      puntajeTotal += pesoEducacion;
-      puntajeCompletado += pesoEducacion;
+      puntajeTotal += 15;
+      puntajeCompletado += 15;
       console.log('🔍 calcularProgresoPerfil - Educación: +15 puntos');
     }
     
-    // Calcular progreso de documentos requeridos
-    if (documentosRequeridos.length > 0) {
-      // Filtrar solo los documentos que son requeridos
-      const documentosRequeridosFiltrados = documentosRequeridos.filter(doc => doc.requerido);
+    // Calcular progreso por documentos requeridos (20 puntos máximo)
+    const documentosRequeridosIds = new Set<number>();
+    Object.values(cargosMeta).forEach(cargo => {
+      cargo.documentos.forEach(doc => {
+        if (doc.requerido) {
+          documentosRequeridosIds.add(doc.tipos_documentos.id);
+        }
+      });
+    });
+
+    if (documentosRequeridosIds.size > 0) {
+      // Contar cuántos documentos requeridos están subidos
+      const documentosRequeridosSubidos = existingDocuments.filter(doc => 
+        documentosRequeridosIds.has(doc.tipo_documento_id)
+      ).length;
+
+      const pesoTotalDocumentos = 20; // 20 puntos fijos para documentos requeridos
+      const pesoDocumentosCompletados = Math.round((documentosRequeridosSubidos / documentosRequeridosIds.size) * pesoTotalDocumentos);
+
+      puntajeTotal += pesoTotalDocumentos;
+      puntajeCompletado += pesoDocumentosCompletados;
       
-      if (documentosRequeridosFiltrados.length > 0) {
-        // Distribuir 30% del progreso total entre los documentos requeridos (reducido de 40% a 30%)
-        const pesoPorDocumento = Math.floor(30 / documentosRequeridosFiltrados.length);
-        
-        // Contar solo los documentos que corresponden a los requeridos para este tipo de candidato
-        const documentosCompletados = existingDocuments.filter(doc => 
-          documentosRequeridosFiltrados.some(req => req.tipo_documento_id === doc.tipo_documento_id)
-        ).length;
-        
-        puntajeTotal += documentosRequeridosFiltrados.length * pesoPorDocumento;
-        puntajeCompletado += documentosCompletados * pesoPorDocumento;
-        
-        console.log('🔍 calcularProgresoPerfil - Peso por documento:', pesoPorDocumento);
-        console.log('🔍 calcularProgresoPerfil - Documentos completados vs requeridos:', documentosCompletados, '/', documentosRequeridosFiltrados.length);
-      }
+      console.log('🔍 calcularProgresoPerfil - Documentos requeridos:', documentosRequeridosIds.size);
+      console.log('🔍 calcularProgresoPerfil - Documentos requeridos subidos:', documentosRequeridosSubidos);
+      console.log('🔍 calcularProgresoPerfil - Documentos requeridos: +', pesoDocumentosCompletados, '/', pesoTotalDocumentos, 'puntos');
     }
     
+    // Debug información detallada
     console.log('🔍 calcularProgresoPerfil - Experiencia laboral:', experienciaLaboral.length, 'registros');
     console.log('🔍 calcularProgresoPerfil - Educación:', educacion.length, 'registros');
-    console.log('🔍 calcularProgresoPerfil - Documentos requeridos:', documentosRequeridos.length);
     console.log('🔍 calcularProgresoPerfil - Documentos existentes totales:', existingDocuments.length);
-    console.log('🔍 calcularProgresoPerfil - Documentos completados (filtrados):', existingDocuments.filter(doc => 
-      documentosRequeridos.some(req => req.tipo_documento_id === doc.tipo_documento_id)
-    ).length);
-    console.log('🔍 calcularProgresoPerfil - Campos del formulario completados:', camposConPeso.filter(({ campo, requerido }) => {
+    console.log('🔍 calcularProgresoPerfil - Cargos meta:', Object.keys(cargosMeta).length);
+    
+    // Identificar campos faltantes
+    const camposCompletados = camposConPeso.filter(({ campo }) => {
       const valor = candidato[campo as keyof Candidato];
       return valor && valor.toString().trim() !== '';
-    }).length, '/', camposConPeso.length);
+    });
+    
+    const camposFaltantes = camposConPeso.filter(({ campo }) => {
+      const valor = candidato[campo as keyof Candidato];
+      return !valor || valor.toString().trim() === '';
+    });
+    
+    console.log('🔍 calcularProgresoPerfil - Campos del formulario completados:', camposCompletados.length, '/', camposConPeso.length);
+    console.log('🔍 calcularProgresoPerfil - Campos FALTANTES:', camposFaltantes.map(({ campo, peso }) => `${campo} (${peso}pts)`));
     console.log('🔍 calcularProgresoPerfil - Puntaje total:', puntajeTotal);
     console.log('🔍 calcularProgresoPerfil - Puntaje completado:', puntajeCompletado);
     console.log('🔍 calcularProgresoPerfil - Progreso calculado:', puntajeTotal > 0 ? Math.round((puntajeCompletado / puntajeTotal) * 100) : 0);
@@ -1236,9 +1399,7 @@ export default function PerfilCandidato() {
         }
         
         // Cargar tipo de candidato y sus documentos requeridos
-        if (candidatoData.tipo_candidato_id) {
-          await loadTipoCandidato(candidatoData.tipo_candidato_id);
-        }
+        // Ya no se carga tipo_candidato desde candidatos. Los documentos se derivan de las solicitudes (cargo en estructura_datos)
         
         // Cargar documentos del candidato
         await loadDocumentosCandidato(candidatoData.id);
@@ -1248,6 +1409,9 @@ export default function PerfilCandidato() {
         
         // Cargar educaciones del candidato
         await loadEducaciones(candidatoData.id);
+
+        // Cargar solicitudes del candidato (para Tab Archivos)
+        await loadSolicitudesCandidato(candidatoData.id);
       } else {
         toast.error('No se encontró el perfil del candidato');
       }
@@ -1469,7 +1633,7 @@ export default function PerfilCandidato() {
             <div>
               <span className="text-lg font-semibold text-gray-700">PERFIL PERSONAL</span>
               <p className="text-sm text-gray-500">
-                {candidato ? `${candidato.nombres} ${candidato.apellidos}` : 'Gestiona tu información personal y profesional'}
+                {candidato ? `${candidato.nombres} ${candidato.apellidos} · ${candidato.email}` : 'Gestiona tu información personal y profesional'}
               </p>
             </div>
           </div>
@@ -1984,12 +2148,12 @@ export default function PerfilCandidato() {
                   </TabsContent>
 
                   <TabsContent value="profesional" className="space-y-4">
-                <ExperienciaLaboralTab
-                  experienciaLaboral={experienciaLaboral}
-                  onChange={setExperienciaLaboral}
+                    <ExperienciaLaboralTab 
+                      experienciaLaboral={experienciaLaboral}
+                      onChange={setExperienciaLaboral}
                   triggerAutoSave={triggerAutoSave}
                   candidatoId={candidato?.id}
-                />
+                    />
                   </TabsContent>
 
                   <TabsContent value="educacion" className="space-y-4">
@@ -2010,112 +2174,144 @@ export default function PerfilCandidato() {
                         </div>
                         <div>
                           <h3 className="text-xl font-bold text-gray-900">Documentos</h3>
-                          <p className="text-sm text-gray-600">
-                            {tipoCandidato ? `Documentos asociados para: ${tipoCandidato.nombre}` : 'Cargando tipo de candidato...'}
-                          </p>
+                          <p className="text-sm text-gray-600">Archivos asociados a sus solicitudes y cargos</p>
                         </div>
                       </div>
                       
-                      {isLoadingTipoCandidato || isLoadingDocuments ? (
+                      {isLoadingDocuments ? (
                         <div className="flex justify-center py-12">
                           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
                         </div>
-                      ) : !tipoCandidato ? (
-                        <div className="text-center py-12">
-                          <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                          <p className="text-gray-600 text-lg">No se ha configurado un tipo de candidato para este perfil.</p>
-                        </div>
                       ) : (
                         <div className="space-y-6">
-                          {/* Documentos requeridos con nueva interfaz */}
-                          {documentosRequeridos.length > 0 && (
+                          {/* Documentos por solicitudes del candidato */}
                             <div className="space-y-4">
                               <h4 className="text-lg font-semibold text-gray-800 flex items-center">
-                                <Clock className="w-5 h-5 text-blue-600 mr-2" />
-                                Documentos del tipo de candidato ({documentosRequeridos.length})
+                              <Folder className="w-5 h-5 text-blue-600 mr-2" />
+                              Documentos por Solicitud (agrupado por Empresa y Cargo)
                               </h4>
-                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {documentosRequeridos.map((documentoRequerido) => {
-                                  const isUploaded = existingDocuments.some(
-                                    (doc) => doc.tipo_documento_id === documentoRequerido.tipo_documento_id
-                                  );
-                                  
-                                  const getDocumentIcon = (nombre: string) => {
-                                    if (nombre.toLowerCase().includes('cedula')) return '🆔';
-                                    if (nombre.toLowerCase().includes('diploma')) return '🎓';
-                                    if (nombre.toLowerCase().includes('certificado')) return '📜';
-                                    if (nombre.toLowerCase().includes('hoja')) return '📄';
-                                    if (nombre.toLowerCase().includes('foto')) return '📷';
-                                    if (nombre.toLowerCase().includes('eps')) return '🏥';
-                                    if (nombre.toLowerCase().includes('arl')) return '🛡️';
-                                    return '📋';
-                                  };
+
+                            {isLoadingSolicitudes ? (
+                              <div className="flex justify-center py-8">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                              </div>
+                            ) : solicitudesCandidato.length === 0 ? (
+                              <p className="text-sm text-gray-500">No hay solicitudes asociadas al candidato.</p>
+                            ) : (
+                              <Accordion type="multiple" className="w-full">
+                                {(() => {
+                                  const grupos: Record<string, any[]> = {};
+                                  solicitudesCandidato.forEach((sol) => {
+                                    const empresa = sol.empresas?.razon_social || 'Empresa no especificada';
+                                    const cargoId = (sol.estructura_datos && (sol.estructura_datos.cargo || sol.estructura_datos?.datos?.cargo)) || sol.cargo;
+                                    const cargo = cargoId && cargosMeta[Number(cargoId)] ? `${cargosMeta[Number(cargoId)].nombre} (#${cargoId})` : 'Cargo no especificado';
+                                    const clave = `${empresa}__${cargo}`;
+                                    if (!grupos[clave]) grupos[clave] = [];
+                                    grupos[clave].push(sol);
+                                  });
+
+                                  return Object.entries(grupos).map(([clave, solicitudes], idx) => {
+                                    const [empresa, cargo] = clave.split('__');
+                                    return (
+                                      <AccordionItem key={clave} value={`grupo-${idx}`}>
+                                        <AccordionTrigger>
+                                          <div className="flex flex-col text-left">
+                                            <span className="text-sm font-semibold text-gray-900">{empresa}</span>
+                                            <span className="text-xs text-gray-600">Cargo: {cargo}</span>
+                                          </div>
+                                        </AccordionTrigger>
+                                        <AccordionContent>
+                                          <div className="space-y-4">
+                                            {/* Lista de documentos requeridos por cargo */}
+                                            {(() => {
+                                              const cargoIdTexto = (cargo.match(/#(\d+)/) || [])[1];
+                                              const cargoIdNum = cargoIdTexto ? Number(cargoIdTexto) : undefined;
+                                              const documentosCargo = cargoIdNum ? cargosMeta[cargoIdNum]?.documentos || [] : [];
+                                              
+                                              if (documentosCargo.length === 0) {
+                                                return (
+                                                  <div className="text-center py-4 text-gray-500">
+                                                    No hay documentos requeridos para este cargo
+                                                  </div>
+                                                );
+                                              }
+
+                                              return (
+                                                <div className="space-y-4">
+                                                  <div className="text-sm font-medium text-gray-700 mb-3">
+                                                    Documentos requeridos para este cargo:
+                                                  </div>
+                                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    {documentosCargo.map((dc: any, i: number) => {
+                                                      const solicitud = solicitudes[0]; // Usar la primera solicitud del grupo
+                                                      const key = `${solicitud.id}_${cargoIdNum}`;
+                                                      const documentosExistentes = documentosPorSolicitud[key] || [];
+                                                      const documentoExistente = documentosExistentes.find(
+                                                        doc => doc.tipo_documento_id === dc.tipos_documentos.id
+                                                      );
+                                                      const progressKey = `${solicitud.id}_${cargoIdNum}_${dc.tipos_documentos.id}`;
+                                                      const isUploading = uploadingDocuments[progressKey];
+                                                      const uploadProgressValue = uploadProgress[progressKey] || 0;
                                   
                                   return (
-                                    <Card key={documentoRequerido.id} className={`border-2 transition-all duration-200 hover:shadow-md ${
-                                      isUploaded 
-                                        ? 'border-brand-lime/20 bg-brand-lime/10' 
+                                                        <Card key={i} className={`border-2 transition-all duration-200 hover:shadow-md ${
+                                                          documentoExistente 
+                                                            ? 'border-green-200 bg-green-50' 
                                         : 'border-gray-200 bg-white hover:border-blue-300'
                                     }`}>
                                       <CardHeader className="pb-3 pt-4">
                                         <CardTitle className="flex items-center justify-between text-sm">
                                           <div className="flex items-center">
                                             <div className={`p-2 rounded-lg mr-3 ${
-                                              isUploaded ? 'bg-brand-lime/10' : 'bg-blue-100'
+                                                                  documentoExistente ? 'bg-green-100' : 'bg-blue-100'
                                             }`}>
-                                              <span className="text-lg">{getDocumentIcon(documentoRequerido.tipos_documentos.nombre)}</span>
+                                                                  <FileText className="w-4 h-4 text-blue-600" />
                                             </div>
                                             <div>
-                                              <div className="flex items-center gap-2">
                                                 <span className="font-semibold text-gray-800">
-                                                  {documentoRequerido.tipos_documentos.nombre}
+                                                                    {dc.tipos_documentos.nombre}
                                                 </span>
-                                                {documentoRequerido.requerido && (
-                                                  <Badge variant="destructive" className="text-xs px-2 py-0.5">
-                                                    Requerido
-                                                  </Badge>
-                                                )}
+                                                                  {dc.requerido && (
+                                                                    <Badge variant="destructive" className="text-xs px-2 py-0.5 ml-2">
+                                                                      Obligatorio
+                                                                    </Badge>
+                                                                  )}
                                               </div>
                                             </div>
-                                          </div>
-                                                                                     {isUploaded && (
-                                             <div className="flex items-center gap-1 text-brand-lime">
+                                                              {documentoExistente && (
+                                                                <div className="flex items-center gap-1 text-green-600">
                                                <CheckCircle2 className="h-3 w-3" />
                                                <span className="text-xs font-medium">Subido</span>
                                              </div>
                                            )}
                                         </CardTitle>
-                                        <CardDescription className="text-xs text-gray-600 mt-2">
-                                          Formato PDF
-                                        </CardDescription>
                                       </CardHeader>
                                                                              <CardContent className="pt-0 pb-4">
                                          <div className="space-y-3">
                                            {/* Progress Bar for Upload */}
-                                           {uploadProgress[documentoRequerido.tipo_documento_id] !== undefined && (
+                                                              {uploadProgressValue > 0 && (
                                              <div className="space-y-2">
                                                <div className="flex items-center justify-between text-xs text-gray-600">
                                                  <span>Subiendo documento...</span>
-                                                 <span>{uploadProgress[documentoRequerido.tipo_documento_id]}%</span>
+                                                                    <span>{uploadProgressValue}%</span>
                                                </div>
                                                <Progress 
-                                                 value={uploadProgress[documentoRequerido.tipo_documento_id]} 
+                                                                    value={uploadProgressValue} 
                                                  className="h-2 bg-gray-200"
                                                />
                                              </div>
                                            )}
                                            
                                            <div className="flex items-center gap-3">
-                                             {isUploaded ? (
-                                               <div className="flex items-center gap-3">
-                                                 <div className="flex items-center gap-1">
+                                                                {documentoExistente ? (
+                                                                  <div className="flex items-center gap-2">
                                                    <Button
                                                      type="button"
                                                      variant="ghost"
                                                      size="sm"
-                                                     onClick={() => handleViewDocument(existingDocuments.find(doc => doc.tipo_documento_id === documentoRequerido.tipo_documento_id))}
+                                                                      onClick={() => window.open(documentoExistente.url_archivo, '_blank')}
                                                      className="h-7 w-7 p-0 hover:bg-blue-50 rounded-full"
-                                                     title="Visualizar documento"
+                                                                      title="Ver documento"
                                                    >
                                                      <Eye className="h-4 w-4 text-blue-600" />
                                                    </Button>
@@ -2123,7 +2319,7 @@ export default function PerfilCandidato() {
                                                      type="button"
                                                      variant="ghost"
                                                      size="sm"
-                                                     onClick={() => document.getElementById(`file-${documentoRequerido.tipo_documento_id}`)?.click()}
+                                                                      onClick={() => document.getElementById(`file-${progressKey}`)?.click()}
                                                      className="h-7 w-7 p-0 hover:bg-gray-50 rounded-full"
                                                      title="Cambiar documento"
                                                    >
@@ -2134,28 +2330,25 @@ export default function PerfilCandidato() {
                                                      variant="ghost"
                                                      size="sm"
                                                      onClick={() => {
-                                                       const existingDoc = existingDocuments.find(doc => doc.tipo_documento_id === documentoRequerido.tipo_documento_id);
-                                                       if (existingDoc) {
-                                                         handleDeleteDocument(existingDoc.id);
-                                                       }
+                                                                        // TODO: Implementar eliminación
+                                                                        console.log('Eliminar documento:', documentoExistente.id);
                                                      }}
                                                      className="h-7 w-7 p-0 hover:bg-red-50 rounded-full"
                                                      title="Eliminar documento"
                                                    >
                                                      <Trash2 className="h-4 w-4 text-red-600" />
                                                    </Button>
-                                                 </div>
                                                </div>
                                              ) : (
                                                <Button
                                                  type="button"
                                                  variant="outline"
                                                  size="sm"
-                                                 onClick={() => document.getElementById(`file-${documentoRequerido.tipo_documento_id}`)?.click()}
+                                                                    onClick={() => document.getElementById(`file-${progressKey}`)?.click()}
                                                  className="h-7 px-3 text-xs font-medium"
-                                                 disabled={uploadingDocuments[documentoRequerido.tipo_documento_id]}
+                                                                    disabled={isUploading}
                                                >
-                                                 {uploadingDocuments[documentoRequerido.tipo_documento_id] ? (
+                                                                    {isUploading ? (
                                                    <>
                                                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-1"></div>
                                                      Subiendo...
@@ -2174,19 +2367,24 @@ export default function PerfilCandidato() {
                                            type="file"
                                            accept=".pdf"
                                            className="hidden"
-                                           id={`file-${documentoRequerido.tipo_documento_id}`}
+                                                              id={`file-${progressKey}`}
                                            onChange={(e) => {
-                                             console.log('📁 Input file cambiado:', e.target.files);
-                                             handleFileChange(e, documentoRequerido.tipo_documento_id, documentoRequerido.tipos_documentos.nombre);
+                                                                handleFileChangeSolicitud(
+                                                                  e, 
+                                                                  solicitud.id, 
+                                                                  cargoIdNum!, 
+                                                                  dc.tipos_documentos.id, 
+                                                                  dc.tipos_documentos.nombre
+                                                                );
                                            }}
                                            onClick={(e) => (e.target as HTMLInputElement).value = ''}
                                                                                   />
-                                         {isUploaded && (
+                                                            {documentoExistente && (
                                            <div className="text-xs mt-2 p-2 bg-gray-50 rounded">
                                              <div className="text-gray-700 mb-1">
-                                               <span className="font-medium">Archivo:</span> {existingDocuments.find(doc => doc.tipo_documento_id === documentoRequerido.tipo_documento_id)?.nombre_archivo}
+                                                                  <span className="font-medium">Archivo:</span> {documentoExistente.nombre_archivo}
                                              </div>
-                                             <div className="text-brand-lime">
+                                                                <div className="text-green-600">
                                                <span className="font-medium">Estado:</span> Documento subido
                                              </div>
                                            </div>
@@ -2197,14 +2395,18 @@ export default function PerfilCandidato() {
                                  })}
                               </div>
                             </div>
-                          )}
+                                              );
+                                            })()}
 
-                          {documentosRequeridos.length === 0 && (
-                            <div className="text-center py-12">
-                              <CheckCircle className="w-16 h-16 text-brand-lime mx-auto mb-4" />
-                              <p className="text-gray-600 text-lg">No hay documentos asociados para este tipo de candidato.</p>
-                            </div>
-                          )}
+                                          </div>
+                                        </AccordionContent>
+                                      </AccordionItem>
+                                    );
+                                  });
+                                })()}
+                              </Accordion>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>

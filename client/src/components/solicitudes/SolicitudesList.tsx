@@ -8,7 +8,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Textarea } from '@/components/ui/textarea';
 import { Solicitud } from '@/services/solicitudesService';
 import { useLoading } from '@/contexts/LoadingContext';
-import { Can } from '@/contexts/PermissionsContext';
+import { Can, usePermissions } from '@/contexts/PermissionsContext';
 import { useRegisterView } from '@/hooks/useRegisterView';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { solicitudesLogsService, type SolicitudLog } from '@/services/solicitudesLogsService';
@@ -42,6 +42,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   isLoading = false
 }) => {
   const { startLoading, stopLoading } = useLoading();
+  const { hasAction } = usePermissions();
   const { addAction } = useRegisterView('Solicitudes', 'listado', 'Listado de Solicitudes');
   useEffect(() => {
     addAction('editar', 'Editar Solicitud');
@@ -262,32 +263,32 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
     // Si no tiene analista asignado y está en estado de asignación pendiente, mostrar badge morado especial
     if (!hasAnalista && (estado?.toUpperCase() === 'PENDIENTE ASIGNACION' || estado?.toUpperCase() === 'PENDIENTE')) {
-      return <Badge className="bg-purple-400 hover:bg-purple-500 text-purple-900 border-purple-600">Sin Asignar</Badge>;
+      return <Badge className="bg-purple-400 hover:bg-purple-500 text-purple-900 border-purple-600 flex items-center justify-center text-center">Sin Asignar</Badge>;
     }
 
     switch (estado?.toUpperCase()) {
       case 'PENDIENTE':
-        return <Badge className="bg-yellow-300 hover:bg-yellow-400 text-yellow-900 border-yellow-500">Pendiente</Badge>;
+        return <Badge className="bg-yellow-300 hover:bg-yellow-400 text-yellow-900 border-yellow-500 flex items-center justify-center text-center">Pendiente</Badge>;
       case 'PENDIENTE ASIGNACION':
-        return <Badge className="bg-amber-300 hover:bg-amber-400 text-amber-900 border-amber-500">Pendiente Asignación</Badge>;
+        return <Badge className="bg-amber-300 hover:bg-amber-400 text-amber-900 border-amber-500 flex items-center justify-center text-center">Pendiente Asignación</Badge>;
       case 'ASIGNADO':
-        return <Badge className="bg-blue-300 hover:bg-blue-400 text-blue-900 border-blue-500">Asignado</Badge>;
+        return <Badge className="bg-blue-300 hover:bg-blue-400 text-blue-900 border-blue-500 flex items-center justify-center text-center">Asignado</Badge>;
       case 'PENDIENTE DOCUMENTOS':
-        return <Badge className="bg-yellow-300 hover:bg-yellow-400 text-yellow-900 border-yellow-500">Pendiente Documentos</Badge>;
+        return <Badge className="bg-yellow-300 hover:bg-yellow-400 text-yellow-900 border-yellow-500 flex items-center justify-center text-center">Pendiente Documentos</Badge>;
       case 'STAND BY':
-        return <Badge className="bg-gray-300 hover:bg-gray-400 text-gray-900 border-gray-500">Stand By</Badge>;
+        return <Badge className="bg-gray-300 hover:bg-gray-400 text-gray-900 border-gray-500 flex items-center justify-center text-center">Stand By</Badge>;
       case 'APROBADA':
-        return <Badge className="bg-green-300 hover:bg-green-400 text-green-900 border-green-500">Aprobada</Badge>;
+        return <Badge className="bg-green-300 hover:bg-green-400 text-green-900 border-green-500 flex items-center justify-center text-center">Aprobada</Badge>;
       case 'RECHAZADA':
-        return <Badge className="bg-red-300 hover:bg-red-400 text-red-900 border-red-500">Rechazada</Badge>;
+        return <Badge className="bg-red-300 hover:bg-red-400 text-red-900 border-red-500 flex items-center justify-center text-center">Rechazada</Badge>;
       case 'EN_PROCESO':
-        return <Badge className="bg-indigo-300 hover:bg-indigo-400 text-indigo-900 border-indigo-500">En Proceso</Badge>;
+        return <Badge className="bg-indigo-300 hover:bg-indigo-400 text-indigo-900 border-indigo-500 flex items-center justify-center text-center">En Proceso</Badge>;
       case 'DESERTO':
-        return <Badge className="bg-red-300 hover:bg-red-400 text-red-900 border-red-500">Deserto</Badge>;
+        return <Badge className="bg-red-300 hover:bg-red-400 text-red-900 border-red-500 flex items-center justify-center text-center">Deserto</Badge>;
       case 'CANCELADA':
-        return <Badge className="bg-red-300 hover:bg-red-400 text-red-900 border-red-500">Cancelada</Badge>;
+        return <Badge className="bg-red-300 hover:bg-red-400 text-red-900 border-red-500 flex items-center justify-center text-center">Cancelada</Badge>;
       default:
-        return <Badge variant="outline">{formatEstado(estado || 'Sin estado')}</Badge>;
+        return <Badge variant="outline" className="flex items-center justify-center text-center">{formatEstado(estado || 'Sin estado')}</Badge>;
     }
   };
 
@@ -322,6 +323,20 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
       default:
         return '';
     }
+  };
+
+  // Determina si hay al menos una acción disponible según permisos y estado
+  const hasAnyAvailableAction = (s: Solicitud): boolean => {
+    const puedeEditar = s.estado === 'ASIGNADO' && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-editar-solicitud');
+    const puedeVisualizar = hasAction('accion-visualizar-solicitud');
+    const puedeAsignar = isPendienteAsignacion(s.estado) && !isStandBy(s.estado) && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-asignar-solicitud');
+    const puedeAprobar = s.estado === 'PENDIENTE' && !isStandBy(s.estado) && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-aprobar-solicitud');
+    const puedeContactar = s.estado === 'ASIGNADO' && !isStandBy(s.estado) && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-contactar-solicitud');
+    const puedeReactivar = isStandBy(s.estado) && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-reactivar-solicitud');
+    const puedeStandBy = !isStandBy(s.estado) && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-standby-solicitud');
+    const puedeDeserto = !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-deserto-solicitud');
+    const puedeCancelar = s.estado === 'ASIGNADO' && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-cancelar-solicitud');
+    return puedeEditar || puedeVisualizar || puedeAsignar || puedeAprobar || puedeContactar || puedeReactivar || puedeStandBy || puedeDeserto || puedeCancelar;
   };
 
   const formatDate = (dateString: string | undefined) => {
@@ -787,12 +802,12 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
           <TableHeader>
             <TableRow>
               <TableHead className="text-left w-20"></TableHead>
-              <TableHead className="text-center w-24">Consecutivo</TableHead>
+              <TableHead className="text-center w-24"></TableHead>
               <TableHead>Documento</TableHead>
               <TableHead className="w-64">Empresa</TableHead>
-              <TableHead>Analista Asignado</TableHead>
+              <TableHead>Cargo</TableHead>
+              <TableHead>Analista</TableHead>
               <TableHead>Estado</TableHead>
-              <TableHead>Modificación</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -805,11 +820,18 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                   <div className="flex justify-start items-center">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-transparent">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={`h-8 w-8 hover:bg-transparent ${!hasAnyAvailableAction(solicitud) ? 'cursor-not-allowed' : ''}`}
+                          disabled={!hasAnyAvailableAction(solicitud)}
+                          aria-disabled={!hasAnyAvailableAction(solicitud)}
+                        >
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="w-48">
+                      {hasAnyAvailableAction(solicitud) && (
+                        <DropdownMenuContent align="start" className="w-48">
                         {/* Botón Editar - solo visible cuando esté en estado ASIGNADO */}
                         {solicitud.estado === 'ASIGNADO' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
                           <Can action="accion-editar-solicitud">
@@ -904,7 +926,8 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                             </DropdownMenuItem>
                           </Can>
                         )}
-                      </DropdownMenuContent>
+                        </DropdownMenuContent>
+                      )}
                     </DropdownMenu>
                   </div>
                 </TableCell>
@@ -945,6 +968,15 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                   </div>
                 </TableCell>
 
+                {/* Cargo */}
+                <TableCell>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-medium">
+                      {getDisplayValue(solicitud.tipos_candidatos?.nombre, 'Sin tipo')}
+                    </span>
+                  </div>
+                </TableCell>
+
 
                 <TableCell>
                   <div className="flex flex-col">
@@ -965,11 +997,11 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                   </div>
                 </TableCell>
 
-                <TableCell>{getStatusBadge(solicitud.estado, !!solicitud.analista)}</TableCell>
                 <TableCell>
                   <div className="flex flex-col">
-                    <span className="text-sm">{formatDate(solicitud.updated_at)}</span>
-                    <span className="text-xs text-muted-foreground">{formatDateTime(solicitud.updated_at)}</span>
+                    <span className="text-xs text-muted-foreground mb-1">{formatDate(solicitud.updated_at)}</span>
+                    {getStatusBadge(solicitud.estado, !!solicitud.analista)}
+                    <span className="text-[11px] text-muted-foreground mt-1">{formatDateTime(solicitud.updated_at)}</span>
                   </div>
                 </TableCell>
               </TableRow>

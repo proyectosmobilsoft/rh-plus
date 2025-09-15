@@ -463,8 +463,8 @@ const FormBuilder: React.FC<{
         // Para campos del sistema, preservar propiedades críticas
         if (f.isSystemField) {
           return {
-            ...f,
-            [name]: newValue,
+        ...f,
+        [name]: newValue,
             // Preservar propiedades críticas que no deben cambiar
             type: f.type,
             name: f.name,
@@ -1583,15 +1583,15 @@ const FormBuilder: React.FC<{
                                 
                                 {/* Opciones estáticas */}
                                 {(currentField.dataSource === 'static' || !currentField.dataSource) && (
-                                  <input 
-                                    className={`w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm ${currentField.isSystemField ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                                    name="options" 
-                                    placeholder="Opciones (separadas por coma)" 
-                                    value={currentField.options as any} 
-                                    onChange={handleFieldChange} 
-                                    autoComplete="off"
-                                    disabled={currentField.isSystemField}
-                                  />
+                              <input 
+                                  className={`w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm ${currentField.isSystemField ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                name="options" 
+                                placeholder="Opciones (separadas por coma)" 
+                                value={currentField.options as any} 
+                                onChange={handleFieldChange} 
+                                autoComplete="off"
+                                disabled={currentField.isSystemField}
+                              />
                                 )}
                                 
                                 {/* Configuración de base de datos */}

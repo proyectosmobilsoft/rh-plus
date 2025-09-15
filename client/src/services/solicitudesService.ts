@@ -72,6 +72,7 @@ export interface Solicitud {
     segundo_nombre?: string;
     primer_apellido: string;
     segundo_apellido?: string;
+    email?: string;
     tipo_documento: string;
     numero_documento: string;
     telefono?: string;
@@ -130,7 +131,7 @@ export const solicitudesService = {
           // Solo aplicar filtro de analista si el usuario tiene el permiso "rol_analista"
           const isAnalyst = user.acciones && user.acciones.includes('rol_analista');
           if (isAnalyst) {
-            analistaId = user.id;
+          analistaId = user.id;
             console.log("👤 Usuario es analista, filtrando solicitudes por analista:", user.username, "ID:", analistaId);
           } else {
             console.log("👤 Usuario no es analista (rol:", user.role, "), no filtrando por analista_id");
@@ -153,6 +154,7 @@ export const solicitudesService = {
             segundo_nombre,
             primer_apellido,
             segundo_apellido,
+            email,
             tipo_documento,
             numero_documento,
             telefono,
@@ -196,46 +198,62 @@ export const solicitudesService = {
         throw error;
       }
 
-      // Obtener información de analistas por separado para evitar problemas de relación
+      // Enriquecer: analista y tipo de candidato (desde estructura_datos.cargo)
+      const solicitudesBase = data || [];
+
+      // 1) Obtener analistas
       const solicitudesConAnalistas = await Promise.all(
-        (data || []).map(async (solicitud) => {
+        solicitudesBase.map(async (solicitud) => {
           let analista = undefined;
-          
           if (solicitud.analista_id) {
             try {
-              const { data: analistaData, error: analistaError } =
-                await supabase
+              const { data: analistaData } = await supabase
                   .from("gen_usuarios")
                   .select("id, primer_nombre, primer_apellido, username, email")
                   .eq("id", solicitud.analista_id)
                 .single();
-              
-              if (!analistaError && analistaData) {
+              if (analistaData) {
                 analista = {
                   id: analistaData.id,
                   nombre:
-                    `${analistaData.primer_nombre || ""} ${
-                      analistaData.primer_apellido || ""
-                    }`.trim() || analistaData.username,
+                    `${analistaData.primer_nombre || ""} ${analistaData.primer_apellido || ""}`.trim() || analistaData.username,
                   email: analistaData.email,
                 };
               }
-            } catch (error) {
-              console.warn(
-                `Error obteniendo analista ${solicitud.analista_id}:`,
-                error
-              );
-            }
+            } catch {}
           }
-
-          return {
-            ...solicitud,
-            analista,
-          };
+          return { ...solicitud, analista };
         })
       );
 
-      return solicitudesConAnalistas;
+      // 2) Obtener IDs únicos de cargo desde estructura_datos
+      const cargoIds = Array.from(
+        new Set(
+          solicitudesConAnalistas
+            .map((s: any) => (s.estructura_datos?.cargo != null ? Number(s.estructura_datos.cargo) : undefined))
+            .filter((v) => typeof v === 'number' && !Number.isNaN(v))
+        )
+      ) as number[];
+
+      let tiposMap = new Map<number, { id: number; nombre: string; descripcion?: string }>();
+      if (cargoIds.length > 0) {
+        try {
+          const { data: tipos } = await supabase
+            .from('tipos_candidatos')
+            .select('id, nombre, descripcion')
+            .in('id', cargoIds);
+          (tipos || []).forEach((t: any) => tiposMap.set(t.id, t));
+        } catch {}
+      }
+
+      // 3) Adjuntar tipos_candidatos
+      const enriquecidas = solicitudesConAnalistas.map((s: any) => {
+        const cargoId = s.estructura_datos?.cargo != null ? Number(s.estructura_datos.cargo) : undefined;
+        const tipo = cargoId ? tiposMap.get(cargoId) : undefined;
+        return { ...s, tipos_candidatos: tipo };
+      });
+
+      return enriquecidas;
     } catch (error) {
       console.error("Error in solicitudesService.getAll:", error);
       throw error;
@@ -270,7 +288,7 @@ export const solicitudesService = {
           // Solo aplicar filtro de analista si el usuario tiene el permiso "rol_analista"
           const isAnalyst = user.acciones && user.acciones.includes('rol_analista');
           if (isAnalyst) {
-            analistaId = user.id;
+          analistaId = user.id;
             console.log("👤 Usuario es analista, filtrando solicitudes por estado y analista:", estado, user.username, "ID:", analistaId);
           } else {
             console.log("👤 Usuario no es analista (rol:", user.role, "), no filtrando por analista_id para estado:", estado);
@@ -293,6 +311,7 @@ export const solicitudesService = {
             segundo_nombre,
             primer_apellido,
             segundo_apellido,
+            email,
             tipo_documento,
             numero_documento,
             telefono,
@@ -337,46 +356,59 @@ export const solicitudesService = {
         throw error;
       }
 
-      // Obtener información de analistas por separado
+      // Enriquecer: analista y tipo de candidato
+      const solicitudesBase = data || [];
+
       const solicitudesConAnalistas = await Promise.all(
-        (data || []).map(async (solicitud) => {
+        solicitudesBase.map(async (solicitud) => {
           let analista = undefined;
-          
           if (solicitud.analista_id) {
             try {
-              const { data: analistaData, error: analistaError } =
-                await supabase
+              const { data: analistaData } = await supabase
                   .from("gen_usuarios")
                   .select("id, primer_nombre, primer_apellido, username, email")
                   .eq("id", solicitud.analista_id)
                 .single();
-              
-              if (!analistaError && analistaData) {
+              if (analistaData) {
                 analista = {
                   id: analistaData.id,
                   nombre:
-                    `${analistaData.primer_nombre || ""} ${
-                      analistaData.primer_apellido || ""
-                    }`.trim() || analistaData.username,
+                    `${analistaData.primer_nombre || ""} ${analistaData.primer_apellido || ""}`.trim() || analistaData.username,
                   email: analistaData.email,
                 };
               }
-            } catch (error) {
-              console.warn(
-                `Error obteniendo analista ${solicitud.analista_id}:`,
-                error
-              );
-            }
+            } catch {}
           }
-
-          return {
-            ...solicitud,
-            analista,
-          };
+          return { ...solicitud, analista };
         })
       );
 
-      return solicitudesConAnalistas;
+      const cargoIds = Array.from(
+        new Set(
+          solicitudesConAnalistas
+            .map((s: any) => (s.estructura_datos?.cargo != null ? Number(s.estructura_datos.cargo) : undefined))
+            .filter((v) => typeof v === 'number' && !Number.isNaN(v))
+        )
+      ) as number[];
+
+      let tiposMap = new Map<number, { id: number; nombre: string; descripcion?: string }>();
+      if (cargoIds.length > 0) {
+        try {
+          const { data: tipos } = await supabase
+            .from('tipos_candidatos')
+            .select('id, nombre, descripcion')
+            .in('id', cargoIds);
+          (tipos || []).forEach((t: any) => tiposMap.set(t.id, t));
+        } catch {}
+      }
+
+      const enriquecidas = solicitudesConAnalistas.map((s: any) => {
+        const cargoId = s.estructura_datos?.cargo != null ? Number(s.estructura_datos.cargo) : undefined;
+        const tipo = cargoId ? tiposMap.get(cargoId) : undefined;
+        return { ...s, tipos_candidatos: tipo };
+      });
+
+      return enriquecidas;
     } catch (error) {
       console.error("Error in solicitudesService.getByStatus:", error);
       throw error;
@@ -395,6 +427,7 @@ export const solicitudesService = {
             segundo_nombre,
             primer_apellido,
             segundo_apellido,
+            email,
             tipo_documento,
             numero_documento,
             telefono,
@@ -419,8 +452,9 @@ export const solicitudesService = {
 
       if (!data) return null;
 
-      // Obtener información del analista por separado
+      // Obtener información del analista por separado y tipo de candidato
       let analista = undefined;
+      let tipos_candidatos: any = undefined;
       
       if (data.analista_id) {
         try {
@@ -445,9 +479,23 @@ export const solicitudesService = {
         }
       }
 
+      // Tipo de candidato desde estructura_datos.cargo
+      try {
+        const cargoId = (data as any)?.estructura_datos?.cargo;
+        if (cargoId) {
+          const { data: tipo } = await supabase
+            .from('tipos_candidatos')
+            .select('id, nombre, descripcion')
+            .eq('id', Number(cargoId))
+            .single();
+          tipos_candidatos = tipo;
+        }
+      } catch {}
+
       const solicitudTransformada = {
         ...data,
         analista,
+        tipos_candidatos,
       };
 
       return solicitudTransformada;
@@ -654,6 +702,11 @@ export const solicitudesService = {
         .select(
           `
           *,
+          tipos_candidatos!cargo (
+            id,
+            nombre,
+            descripcion
+          ),
           candidatos!candidato_id (
             primer_nombre,
             segundo_nombre,
@@ -1000,6 +1053,11 @@ export const solicitudesService = {
         .select(
           `
           *,
+          tipos_candidatos!cargo (
+            id,
+            nombre,
+            descripcion
+          ),
           candidatos!candidato_id (
             primer_nombre,
             segundo_nombre,
@@ -1031,6 +1089,11 @@ export const solicitudesService = {
         .select(
           `
                     *,
+                    tipos_candidatos!cargo (
+                      id,
+                      nombre,
+                      descripcion
+                    ),
                     candidatos!candidato_id (
                       primer_nombre,
                       segundo_nombre,
@@ -1197,13 +1260,13 @@ export const solicitudesService = {
               });
             } else {
               // El candidato no existe, crearlo
-              const creado = await candidatosService.create(candidatoPayload);
-              if (creado?.id) {
-                candidatoIdFinal = creado.id;
-                console.log(
-                  "✅ Candidato creado desde solicitud (plantilla). ID:",
-                  creado.id
-                );
+            const creado = await candidatosService.create(candidatoPayload);
+            if (creado?.id) {
+              candidatoIdFinal = creado.id;
+              console.log(
+                "✅ Candidato creado desde solicitud (plantilla). ID:",
+                creado.id
+              );
                 
                 // Actualizar la solicitud con el candidato_id
                 try {
@@ -1253,13 +1316,13 @@ export const solicitudesService = {
                   mailErr
                 );
               }
-            }
+              }
             }
           } catch (e: any) {
-            console.warn(
-              "No se pudo crear candidato desde solicitud (plantilla):",
-              e
-            );
+              console.warn(
+                "No se pudo crear candidato desde solicitud (plantilla):",
+                e
+              );
           }
         } else {
           console.warn(

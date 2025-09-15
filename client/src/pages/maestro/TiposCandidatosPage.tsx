@@ -19,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
-import { useTiposCandidatos } from '@/hooks/useTiposCandidatos';
+import { useTiposCandidatosCrud } from '@/hooks/useTiposCandidatosCrud';
 import { useTiposDocumentos } from '@/hooks/useTiposDocumentos';
 import { useTiposCandidatosDocumentos } from '@/hooks/useTiposCandidatosDocumentos';
 import { TipoCandidato, TipoDocumento, TipoCandidatoForm, DocumentoTipoForm } from '@/types/maestro';
@@ -72,7 +72,7 @@ export default function TiposCandidatosPage() {
     isUpdating,
     isDeleting,
     isActivating
-  } = useTiposCandidatos();
+  } = useTiposCandidatosCrud();
 
   const { 
     tiposDocumentos, 
@@ -93,7 +93,7 @@ export default function TiposCandidatosPage() {
   
   // Función para cargar los contadores de documentos asociados
   const loadDocumentosCounts = async () => {
-    if (!tiposCandidatos.length) return;
+    if (!tiposCandidatos || !tiposCandidatos.length) return;
     
     try {
       const tiposCandidatosIds = tiposCandidatos.map(tipo => tipo.id);
@@ -146,8 +146,7 @@ export default function TiposCandidatosPage() {
 
 
   // Filtrar tipos de candidatos - mostrar solo activos por defecto
-  const filteredTiposCandidatos = tiposCandidatos
-    .filter(tipo => {
+  const filteredTiposCandidatos = tiposCandidatos?.filter(tipo => {
       const matchesSearch = 
         tipo.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         tipo.descripcion?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -156,7 +155,7 @@ export default function TiposCandidatosPage() {
         statusFilter === "active" ? tipo.activo : !tipo.activo;
 
       return matchesSearch && matchesStatus;
-    })
+    }) || []
     .sort((a, b) => {
       // Mostrar tipos activos primero
       if (a.activo !== b.activo) {

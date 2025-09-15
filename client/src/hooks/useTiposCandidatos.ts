@@ -17,6 +17,24 @@ export const useTiposCandidatos = () => {
       const { data, error } = await supabase
         .from('tipos_candidatos')
         .select('*')
+        .order('nombre');
+
+      if (error) {
+        throw error;
+      }
+
+      return data || [];
+    },
+  });
+};
+
+export const useTiposCandidatosActivos = () => {
+  return useQuery({
+    queryKey: ['tipos-candidatos-activos'],
+    queryFn: async (): Promise<TipoCandidato[]> => {
+      const { data, error } = await supabase
+        .from('tipos_candidatos')
+        .select('*')
         .eq('activo', true)
         .order('nombre');
 
