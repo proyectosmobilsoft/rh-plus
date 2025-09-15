@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Edit, Pause, CheckCircle, Phone, Play, XCircle, Eye, X, Ban, User, Building2, FileText, Clock, Code, DollarSign, MoreHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -12,6 +13,7 @@ import { Can, usePermissions } from '@/contexts/PermissionsContext';
 import { useRegisterView } from '@/hooks/useRegisterView';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { solicitudesLogsService, type SolicitudLog } from '@/services/solicitudesLogsService';
+import { supabase } from '@/services/supabaseClient';
 // import SolicitudForm from '@/components/solicitudes/SolicitudForm';
 
 interface SolicitudesListProps {
@@ -82,6 +84,13 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   const [confirmValidateDocumentsOpen, setConfirmValidateDocumentsOpen] = useState(false);
   const [validatingDocumentsSolicitudId, setValidatingDocumentsSolicitudId] = useState<number | null>(null);
   const [validateDocumentsObservacion, setValidateDocumentsObservacion] = useState('');
+  
+  // Estado para el progreso de documentos requeridos
+  const [documentosRequeridosData, setDocumentosRequeridosData] = useState<Record<number, {
+    total: number;
+    subidos: number;
+    progreso: number;
+  }>>({});
 
   // Detener loading global cuando se complete una operación de Contacto
   useEffect(() => {
@@ -261,6 +270,28 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     };
   }, [stopLoading]);
 
+  // Cargar datos de progreso de documentos requeridos cuando cambien las solicitudes
+  useEffect(() => {
+    const cargarProgresoDocumentos = async () => {
+      if (solicitudes.length === 0) return;
+
+      const progresoData: Record<number, { total: number; subidos: number; progreso: number }> = {};
+      
+      // Procesar todas las solicitudes en paralelo
+      const promesas = solicitudes.map(async (solicitud) => {
+        if (solicitud.id) {
+          const progreso = await calcularProgresoDocumentosRequeridos(solicitud);
+          progresoData[solicitud.id] = progreso;
+        }
+      });
+
+      await Promise.all(promesas);
+      setDocumentosRequeridosData(progresoData);
+    };
+
+    cargarProgresoDocumentos();
+  }, [solicitudes]);
+
   const getStatusBadge = (estado: string, hasAnalista: boolean) => {
     const formatEstado = (estado: string) => {
       return estado.charAt(0).toUpperCase() + estado.slice(1).toLowerCase();
@@ -399,6 +430,64 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
   const getDisplayValue = (value: string | undefined, defaultValue: string = 'No especificado') => {
     return value && value.trim() !== '' ? value : defaultValue;
+  };
+
+  // Función para calcular el progreso de documentos requeridos de una solicitud
+  const calcularProgresoDocumentosRequeridos = async (solicitud: Solicitud) => {
+    try {
+      // Obtener el tipo de cargo de la solicitud
+      const tipoCargoId = solicitud.estructura_datos?.cargo ?? solicitud.estructura_datos?.datos?.cargo;
+      if (!tipoCargoId) {
+        return { total: 0, subidos: 0, progreso: 0 };
+      }
+
+      // Obtener documentos requeridos para este tipo de cargo
+      const { data: documentosRequeridos, error: docsError } = await supabase
+        .from('tipos_candidatos_documentos')
+        .select(`
+          tipos_documentos!inner (
+            id,
+            nombre
+          )
+        `)
+        .eq('tipo_candidato_id', tipoCargoId)
+        .eq('requerido', true);
+
+      if (docsError) {
+        console.error('Error obteniendo documentos requeridos:', docsError);
+        return { total: 0, subidos: 0, progreso: 0 };
+      }
+
+      const totalDocumentos = documentosRequeridos?.length || 0;
+      if (totalDocumentos === 0) {
+        return { total: 0, subidos: 0, progreso: 100 };
+      }
+
+      // Obtener documentos subidos por el candidato para esta solicitud
+      const { data: documentosSubidos, error: subidosError } = await supabase
+        .from('candidatos_documentos')
+        .select('tipo_documento_id')
+        .eq('candidato_id', solicitud.candidato_id)
+        .eq('solicitud_id', solicitud.id);
+
+      if (subidosError) {
+        console.error('Error obteniendo documentos subidos:', subidosError);
+        return { total: totalDocumentos, subidos: 0, progreso: 0 };
+      }
+
+      const documentosSubidosIds = new Set(documentosSubidos?.map((doc: any) => doc.tipo_documento_id) || []);
+      const documentosRequeridosIds = new Set(documentosRequeridos?.map((doc: any) => doc.tipos_documentos.id) || []);
+      
+      // Contar cuántos documentos requeridos están subidos
+      const subidos = Array.from(documentosRequeridosIds).filter(id => documentosSubidosIds.has(id)).length;
+      
+      const progreso = totalDocumentos > 0 ? Math.round((subidos / totalDocumentos) * 100) : 100;
+
+      return { total: totalDocumentos, subidos, progreso };
+    } catch (error) {
+      console.error('Error calculando progreso de documentos:', error);
+      return { total: 0, subidos: 0, progreso: 0 };
+    }
   };
 
   // Función para renderizar la plantilla en modo de solo lectura
@@ -854,214 +943,251 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {solicitudes.map((solicitud) => (
-              <TableRow
-                key={solicitud.id}
-                className={`${getRowBackgroundColor(solicitud.estado, !!solicitud.analista)}`}
-              >
-                <TableCell>
-                  <div className="flex justify-start items-center">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className={`h-8 w-8 hover:bg-transparent ${!hasAnyAvailableAction(solicitud) ? 'cursor-not-allowed' : ''}`}
-                          disabled={!hasAnyAvailableAction(solicitud)}
-                          aria-disabled={!hasAnyAvailableAction(solicitud)}
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      {hasAnyAvailableAction(solicitud) && (
-                        <DropdownMenuContent align="start" className="w-48">
-                        {/* Botón Editar - solo visible cuando esté en estado ASIGNADO */}
-                        {solicitud.estado === 'ASIGNADO' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
-                          <Can action="accion-editar-solicitud">
-                            <DropdownMenuItem onClick={() => onEdit(solicitud)} className="cursor-pointer">
-                              <Edit className="h-4 w-4 mr-2 text-purple-600" />
-                              Editar
-                            </DropdownMenuItem>
-                          </Can>
-                        )}
-
-                        {/* Botón Visualizar - siempre visible */}
-                        <Can action="accion-visualizar-solicitud">
-                          <DropdownMenuItem onClick={() => { handleViewClick(solicitud); onView(solicitud); }} className="cursor-pointer">
-                            <Eye className="h-4 w-4 mr-2 text-blue-600" />
-                            Visualizar
-                          </DropdownMenuItem>
-                        </Can>
-
-                        {/* Botón Asignar Solicitud - solo visible en estado PENDIENTE ASIGNACION */}
-                        {isPendienteAsignacion(solicitud.estado) && !isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
-                          <Can action="accion-asignar-solicitud">
-                            <DropdownMenuItem onClick={() => handleAssignClick(solicitud.id)} className="cursor-pointer">
-                              <User className="h-4 w-4 mr-2 text-blue-600" />
-                              Asignar Solicitud
-                            </DropdownMenuItem>
-                          </Can>
-                        )}
-
-                        {/* Botón Aprobar - solo visible en estado PENDIENTE */}
-                        {solicitud.estado === 'PENDIENTE' && !isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
-                          <Can action="accion-aprobar-solicitud">
-                            <DropdownMenuItem onClick={() => handleApproveClick(solicitud.id)} className="cursor-pointer">
-                              <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
-                              Aprobar solicitud
-                            </DropdownMenuItem>
-                          </Can>
-                        )}
-
-                        {/* Botón Contactado - solo visible en estado ASIGNADO */}
-                        {solicitud.estado === 'ASIGNADO' && !isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
-                          <Can action="accion-contactar-solicitud">
-                            <DropdownMenuItem
-                              onClick={() => handleContactClick(solicitud.id)}
-                              disabled={contactingSolicitudId === solicitud.id}
-                              className="cursor-pointer"
+            {solicitudes.map((solicitud) => {
+              const progresoData = documentosRequeridosData[solicitud.id!] || { total: 0, subidos: 0, progreso: 0 };
+              
+              return (
+                <React.Fragment key={solicitud.id}>
+                  <TableRow
+                    className={`${getRowBackgroundColor(solicitud.estado, !!solicitud.analista)}`}
+                  >
+                    <TableCell>
+                      <div className="flex justify-start items-center">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className={`h-8 w-8 hover:bg-transparent ${!hasAnyAvailableAction(solicitud) ? 'cursor-not-allowed' : ''}`}
+                              disabled={!hasAnyAvailableAction(solicitud)}
+                              aria-disabled={!hasAnyAvailableAction(solicitud)}
                             >
-                              <Phone className="h-4 w-4 mr-2 text-blue-600" />
-                              {contactingSolicitudId === solicitud.id ? 'Procesando...' : 'Contactado'}
-                            </DropdownMenuItem>
-                          </Can>
-                        )}
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          {hasAnyAvailableAction(solicitud) && (
+                            <DropdownMenuContent align="start" className="w-48">
+                            {/* Botón Editar - solo visible cuando esté en estado ASIGNADO */}
+                            {solicitud.estado === 'ASIGNADO' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                              <Can action="accion-editar-solicitud">
+                                <DropdownMenuItem onClick={() => onEdit(solicitud)} className="cursor-pointer">
+                                  <Edit className="h-4 w-4 mr-2 text-purple-600" />
+                                  Editar
+                                </DropdownMenuItem>
+                              </Can>
+                            )}
 
-                        {/* Botón Stand By / Reactivar */}
-                        {!isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && isStandBy(solicitud.estado) && (
-                          <Can action="accion-reactivar-solicitud">
-                            <DropdownMenuItem
-                              onClick={() => handleReactivate(solicitud.id!)}
-                              disabled={reactivatingSolicitudId === solicitud.id}
-                              className="cursor-pointer"
-                            >
-                              <Play className="h-4 w-4 mr-2 text-green-600" />
-                              {reactivatingSolicitudId === solicitud.id ? 'Procesando...' : 'Reactivar solicitud'}
-                            </DropdownMenuItem>
-                          </Can>
-                        )}
+                            {/* Botón Visualizar - siempre visible */}
+                            <Can action="accion-visualizar-solicitud">
+                              <DropdownMenuItem onClick={() => { handleViewClick(solicitud); onView(solicitud); }} className="cursor-pointer">
+                                <Eye className="h-4 w-4 mr-2 text-blue-600" />
+                                Visualizar
+                              </DropdownMenuItem>
+                            </Can>
 
-                        {!isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && !isStandBy(solicitud.estado) && (
-                          <Can action="accion-standby-solicitud">
-                            <DropdownMenuItem onClick={() => handleStandByClick(solicitud.id)} className="cursor-pointer">
-                              <Pause className="h-4 w-4 mr-2 text-gray-600" />
-                              Stand By
-                            </DropdownMenuItem>
-                          </Can>
-                        )}
+                            {/* Botón Asignar Solicitud - solo visible en estado PENDIENTE ASIGNACION */}
+                            {isPendienteAsignacion(solicitud.estado) && !isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                              <Can action="accion-asignar-solicitud">
+                                <DropdownMenuItem onClick={() => handleAssignClick(solicitud.id)} className="cursor-pointer">
+                                  <User className="h-4 w-4 mr-2 text-blue-600" />
+                                  Asignar Solicitud
+                                </DropdownMenuItem>
+                              </Can>
+                            )}
 
-                        {/* Botón Deserto */}
-                        {!isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
-                          <Can action="accion-deserto-solicitud">
-                            <DropdownMenuItem onClick={() => handleDesertoClick(solicitud.id)} className="cursor-pointer">
-                              <Ban className="h-4 w-4 mr-2 text-red-600" />
-                              Marcar como Deserto
-                            </DropdownMenuItem>
-                          </Can>
-                        )}
+                            {/* Botón Aprobar - solo visible en estado PENDIENTE */}
+                            {solicitud.estado === 'PENDIENTE' && !isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                              <Can action="accion-aprobar-solicitud">
+                                <DropdownMenuItem onClick={() => handleApproveClick(solicitud.id)} className="cursor-pointer">
+                                  <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
+                                  Aprobar solicitud
+                                </DropdownMenuItem>
+                              </Can>
+                            )}
 
-                        {/* Botón Cancelar */}
-                        {solicitud.estado === 'ASIGNADO' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
-                          <Can action="accion-cancelar-solicitud">
-                            <DropdownMenuItem onClick={() => handleCancelClick(solicitud.id)} className="cursor-pointer">
-                              <X className="h-4 w-4 mr-2 text-red-600" />
-                              Cancelar
-                            </DropdownMenuItem>
-                          </Can>
-                        )}
+                            {/* Botón Contactado - solo visible en estado ASIGNADO */}
+                            {solicitud.estado === 'ASIGNADO' && !isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                              <Can action="accion-contactar-solicitud">
+                                <DropdownMenuItem
+                                  onClick={() => handleContactClick(solicitud.id)}
+                                  disabled={contactingSolicitudId === solicitud.id}
+                                  className="cursor-pointer"
+                                >
+                                  <Phone className="h-4 w-4 mr-2 text-blue-600" />
+                                  {contactingSolicitudId === solicitud.id ? 'Procesando...' : 'Contactado'}
+                                </DropdownMenuItem>
+                              </Can>
+                            )}
 
-                        {/* Botón Documentos Validados - solo visible en estado DOCUMENTOS ENTREGADOS */}
-                        {solicitud.estado?.toUpperCase() === 'DOCUMENTOS ENTREGADOS' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
-                          <Can action="accion-validar-documentos-solicitud">
-                            <DropdownMenuItem 
-                              onClick={() => handleValidateDocumentsClick(solicitud.id)} 
-                              className="cursor-pointer"
-                            >
-                              <CheckCircle className="h-4 w-4 mr-2 text-orange-600" />
-                              Documentos Validados
-                            </DropdownMenuItem>
-                          </Can>
-                        )}
-                        </DropdownMenuContent>
-                      )}
-                    </DropdownMenu>
-                  </div>
-                </TableCell>
+                            {/* Botón Stand By / Reactivar */}
+                            {!isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && isStandBy(solicitud.estado) && (
+                              <Can action="accion-reactivar-solicitud">
+                                <DropdownMenuItem
+                                  onClick={() => handleReactivate(solicitud.id!)}
+                                  disabled={reactivatingSolicitudId === solicitud.id}
+                                  className="cursor-pointer"
+                                >
+                                  <Play className="h-4 w-4 mr-2 text-green-600" />
+                                  {reactivatingSolicitudId === solicitud.id ? 'Procesando...' : 'Reactivar solicitud'}
+                                </DropdownMenuItem>
+                              </Can>
+                            )}
 
-                <TableCell className="text-center">
-                  <span className="font-bold text-red-600">#{solicitud.id}</span>
-                </TableCell>
+                            {!isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && !isStandBy(solicitud.estado) && (
+                              <Can action="accion-standby-solicitud">
+                                <DropdownMenuItem onClick={() => handleStandByClick(solicitud.id)} className="cursor-pointer">
+                                  <Pause className="h-4 w-4 mr-2 text-gray-600" />
+                                  Stand By
+                                </DropdownMenuItem>
+                              </Can>
+                            )}
 
-                <TableCell>
-                  <div className="flex flex-col">
-                    <span>
-                      {
-                        // Intentar obtener el número de documento del JSON de la plantilla primero
-                        solicitud.estructura_datos?.numero_documento ||
-                        solicitud.estructura_datos?.documento ||
-                        solicitud.estructura_datos?.cedula ||
-                        solicitud.estructura_datos?.identificacion ||
-                        getDisplayValue(solicitud.candidatos?.numero_documento, 'Sin número')
-                      }
-                    </span>
-                    <span className="text-sm text-muted-foreground">
-                      {
-                        // Intentar obtener el email del JSON de la plantilla
-                        solicitud.estructura_datos?.email ||
-                        solicitud.estructura_datos?.correo_electronico ||
-                        solicitud.estructura_datos?.correo ||
-                        getDisplayValue(solicitud.candidatos?.email, 'Sin Email')
-                      }
-                    </span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-col">
-                    <span>{getDisplayValue(solicitud.empresas?.razon_social, 'Sin empresa')}</span>
-                    <span className="text-sm text-muted-foreground">
-                      {getDisplayValue(solicitud.empresas?.ciudad, 'Sin ciudad')}
-                    </span>
-                  </div>
-                </TableCell>
+                            {/* Botón Deserto */}
+                            {!isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                              <Can action="accion-deserto-solicitud">
+                                <DropdownMenuItem onClick={() => handleDesertoClick(solicitud.id)} className="cursor-pointer">
+                                  <Ban className="h-4 w-4 mr-2 text-red-600" />
+                                  Marcar como Deserto
+                                </DropdownMenuItem>
+                              </Can>
+                            )}
 
-                {/* Cargo */}
-                <TableCell>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-medium">
-                      {getDisplayValue(solicitud.tipos_candidatos?.nombre, 'Sin tipo')}
-                    </span>
-                  </div>
-                </TableCell>
+                            {/* Botón Cancelar */}
+                            {solicitud.estado === 'ASIGNADO' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                              <Can action="accion-cancelar-solicitud">
+                                <DropdownMenuItem onClick={() => handleCancelClick(solicitud.id)} className="cursor-pointer">
+                                  <X className="h-4 w-4 mr-2 text-red-600" />
+                                  Cancelar
+                                </DropdownMenuItem>
+                              </Can>
+                            )}
 
+                            {/* Botón Documentos Validados - solo visible en estado DOCUMENTOS ENTREGADOS */}
+                            {solicitud.estado?.toUpperCase() === 'DOCUMENTOS ENTREGADOS' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                              <Can action="accion-validar-documentos-solicitud">
+                                <DropdownMenuItem 
+                                  onClick={() => handleValidateDocumentsClick(solicitud.id)} 
+                                  className="cursor-pointer"
+                                >
+                                  <CheckCircle className="h-4 w-4 mr-2 text-orange-600" />
+                                  Documentos Validados
+                                </DropdownMenuItem>
+                              </Can>
+                            )}
+                            </DropdownMenuContent>
+                          )}
+                        </DropdownMenu>
+                      </div>
+                    </TableCell>
 
-                <TableCell>
-                  <div className="flex flex-col">
-                    {solicitud.analista ? (
-                      <>
-                        <span className="font-medium text-blue-600">
-                          {solicitud.analista.nombre}
+                    <TableCell className="text-center">
+                      <span className="font-bold text-red-600">#{solicitud.id}</span>
+                    </TableCell>
+
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span>
+                          {
+                            // Intentar obtener el número de documento del JSON de la plantilla primero
+                            solicitud.estructura_datos?.numero_documento ||
+                            solicitud.estructura_datos?.documento ||
+                            solicitud.estructura_datos?.cedula ||
+                            solicitud.estructura_datos?.identificacion ||
+                            getDisplayValue(solicitud.candidatos?.numero_documento, 'Sin número')
+                          }
                         </span>
-                        <span className="text-xs text-muted-foreground">
-                          {solicitud.analista.email || 'Sin email'}
+                        <span className="text-sm text-muted-foreground">
+                          {
+                            // Intentar obtener el email del JSON de la plantilla
+                            solicitud.estructura_datos?.email ||
+                            solicitud.estructura_datos?.correo_electronico ||
+                            solicitud.estructura_datos?.correo ||
+                            getDisplayValue(solicitud.candidatos?.email, 'Sin Email')
+                          }
                         </span>
-                      </>
-                    ) : (
-                      <span className="text-sm text-muted-foreground italic">
-                        Sin asignar
-                      </span>
-                    )}
-                  </div>
-                </TableCell>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span>{getDisplayValue(solicitud.empresas?.razon_social, 'Sin empresa')}</span>
+                        <span className="text-sm text-muted-foreground">
+                          {getDisplayValue(solicitud.empresas?.ciudad, 'Sin ciudad')}
+                        </span>
+                      </div>
+                    </TableCell>
 
-                <TableCell>
-                  <div className="flex flex-col">
-                    <span className="text-xs text-muted-foreground mb-1">{formatDate(solicitud.updated_at)}</span>
-                    {getStatusBadge(solicitud.estado, !!solicitud.analista)}
-                    <span className="text-[11px] text-muted-foreground mt-1">{formatDateTime(solicitud.updated_at)}</span>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
+                    {/* Cargo */}
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-medium">
+                          {getDisplayValue(solicitud.tipos_candidatos?.nombre, 'Sin tipo')}
+                        </span>
+                      </div>
+                    </TableCell>
+
+
+                    <TableCell>
+                      <div className="flex flex-col">
+                        {solicitud.analista ? (
+                          <>
+                            <span className="font-medium text-blue-600">
+                              {solicitud.analista.nombre}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {solicitud.analista.email || 'Sin email'}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-sm text-muted-foreground italic">
+                            Sin asignar
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="text-xs text-muted-foreground mb-1">{formatDate(solicitud.updated_at)}</span>
+                        {getStatusBadge(solicitud.estado, !!solicitud.analista)}
+                        <span className="text-[11px] text-muted-foreground mt-1">{formatDateTime(solicitud.updated_at)}</span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                  
+                  {/* Fila de progreso de documentos requeridos - solo si hay documentos requeridos */}
+                  {progresoData.total > 0 && (
+                    <TableRow className={`${getRowBackgroundColor(solicitud.estado, !!solicitud.analista)}`}>
+                      <TableCell colSpan={7} className="py-2">
+                        <div className="flex items-center space-x-3 px-2">
+                          <div className="flex items-center space-x-2 text-xs text-gray-600">
+                            <FileText className="h-3 w-3" />
+                            <span>Documentos requeridos:</span>
+                            <span className="font-medium">{progresoData.subidos}/{progresoData.total}</span>
+                          </div>
+                          <div className="flex-1">
+                            <Progress 
+                              value={progresoData.progreso} 
+                              className={`h-2 ${
+                                progresoData.progreso < 100 
+                                  ? 'bg-red-100' 
+                                  : 'bg-green-100'
+                              }`}
+                            />
+                          </div>
+                          <div className={`text-xs font-medium ${
+                            progresoData.progreso < 100 
+                              ? 'text-red-600' 
+                              : 'text-green-600'
+                          }`}>
+                            {progresoData.progreso}%
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </React.Fragment>
+              );
+            })}
           </TableBody>
         </Table>
       </div>
