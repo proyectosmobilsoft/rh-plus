@@ -1005,7 +1005,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                           </DropdownMenuTrigger>
                           {hasAnyAvailableAction(solicitud) && (
                             <DropdownMenuContent align="start" className="w-48">
-                            {/* Botón Editar - solo visible cuando esté en estado ASIGNADO */}
+                            {/* Botón Editar - solo visible cuando esté en estado asignado */}
                             {solicitud.estado === 'asignado' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
                               <Can action="accion-editar-solicitud">
                                 <DropdownMenuItem onClick={() => onEdit(solicitud)} className="cursor-pointer">
@@ -1043,8 +1043,8 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                               </Can>
                             )}
 
-                            {/* Botón Contactado - solo visible en estado ASIGNADO */}
-                            {solicitud.estado === 'ASIGNADO' && !isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                            {/* Botón Contactado - solo visible en estado asignado */}
+                            {solicitud.estado === 'asignado' && !isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
                               <Can action="accion-contactar-solicitud">
                                 <DropdownMenuItem
                                   onClick={() => handleContactClick(solicitud.id)}

@@ -729,11 +729,6 @@ export const solicitudesService = {
         .select(
           `
           *,
-          tipos_candidatos!cargo (
-            id,
-            nombre,
-            descripcion
-          ),
           candidatos!candidato_id (
             primer_nombre,
             segundo_nombre,
@@ -1119,11 +1114,6 @@ export const solicitudesService = {
         .select(
           `
           *,
-          tipos_candidatos!cargo (
-            id,
-            nombre,
-            descripcion
-          ),
           candidatos!candidato_id (
             primer_nombre,
             segundo_nombre,
@@ -1155,11 +1145,6 @@ export const solicitudesService = {
         .select(
           `
                     *,
-                    tipos_candidatos!cargo (
-                      id,
-                      nombre,
-                      descripcion
-                    ),
                     candidatos!candidato_id (
                       primer_nombre,
                       segundo_nombre,
@@ -1302,7 +1287,7 @@ export const solicitudesService = {
               .select("id")
               .eq("numero_documento", String(numeroDocumento))
               .eq("email", String(email))
-              .single();
+              .maybeSingle();
             
             if (candidatoExistente && !searchError) {
               // El candidato ya existe, usar ese ID
