@@ -610,6 +610,107 @@ class EmailService {
       from: 'noreply@rhcompensamos.com'
     });
   }
+
+  // Función para enviar correo de documentos devueltos
+  async sendDocumentosDevueltos(params: {
+    to: string;
+    candidatoNombre: string;
+    numeroDocumento: string;
+    tipoDocumento: string;
+    empresaNombre: string;
+    observaciones: string;
+    solicitudId: number;
+    fecha: string;
+    sistemaUrl: string;
+  }): Promise<{ success: boolean; message: string }> {
+    const html = this.generateDocumentosDevueltosHTML(params);
+    
+    return this.sendEmail({
+      to: params.to,
+      subject: `Documentos devueltos - Solicitud #${params.solicitudId}`,
+      html,
+      text: `Sus documentos han sido devueltos para la solicitud #${params.solicitudId} en ${params.empresaNombre}. Observaciones: ${params.observaciones}${params.sistemaUrl ? ` / URL: ${params.sistemaUrl}` : ''}`,
+      from: 'noreply@rhcompensamos.com'
+    });
+  }
+
+  // Generar HTML para correo de documentos devueltos
+  generateDocumentosDevueltosHTML(params: {
+    candidatoNombre: string;
+    numeroDocumento: string;
+    tipoDocumento: string;
+    empresaNombre: string;
+    observaciones: string;
+    solicitudId: number;
+    fecha: string;
+    sistemaUrl: string;
+  }): string {
+    const { candidatoNombre, numeroDocumento, tipoDocumento, empresaNombre, observaciones, solicitudId, fecha, sistemaUrl } = params;
+    
+    return `
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Documentos Devueltos</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; background-color: #f4f4f4; }
+          .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+          .header { background: linear-gradient(135deg, #dc2626, #ef4444); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
+          .header h1 { margin: 0; font-size: 24px; }
+          .content { margin-bottom: 20px; }
+          .info-box { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 15px; margin: 15px 0; }
+          .info-box h3 { color: #dc2626; margin-top: 0; }
+          .observations { background: #fef3c7; border: 1px solid #fde68a; border-radius: 8px; padding: 15px; margin: 15px 0; }
+          .observations h3 { color: #d97706; margin-top: 0; }
+          .button { display: inline-block; background: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 10px 0; }
+          .button:hover { background: #b91c1c; }
+          .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 14px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>📄 Documentos Devueltos</h1>
+          </div>
+          
+          <div class="content">
+            <p>Estimado/a <strong>${candidatoNombre}</strong>,</p>
+            
+            <p>Le informamos que los documentos que envió para su solicitud de empleo han sido devueltos y requieren corrección.</p>
+            
+            <div class="info-box">
+              <h3>📋 Información de la Solicitud</h3>
+              <p><strong>Número de Solicitud:</strong> #${solicitudId}</p>
+              <p><strong>Empresa:</strong> ${empresaNombre}</p>
+              <p><strong>Documento:</strong> ${tipoDocumento} ${numeroDocumento}</p>
+              <p><strong>Fecha:</strong> ${fecha}</p>
+            </div>
+            
+            <div class="observations">
+              <h3>⚠️ Observaciones</h3>
+              <p>${observaciones}</p>
+            </div>
+            
+            <p>Por favor, revise los comentarios anteriores y vuelva a cargar los documentos corregidos en el sistema.</p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${sistemaUrl}" class="button">Acceder al Sistema</a>
+            </div>
+            
+            <p>Si tiene alguna pregunta o necesita asistencia, no dude en contactarnos.</p>
+          </div>
+          
+          <div class="footer">
+            <p>Este es un correo automático del sistema de Recursos Humanos.</p>
+            <p>Por favor, no responda a este correo.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
 }
 
 export const emailService = new EmailService(); 

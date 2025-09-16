@@ -28,6 +28,7 @@ interface SolicitudesListProps {
   onCancel: (id: number, observacion: string) => void;
   onAssign: (id: number, analistaId: number) => void;
   onValidateDocuments: (id: number, observacion: string) => void;
+  onReturnDocuments: (id: number, observacion: string) => void;
   isLoading?: boolean;
 }
 
@@ -43,6 +44,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   onCancel,
   onAssign,
   onValidateDocuments,
+  onReturnDocuments,
   isLoading = false
 }) => {
   const { startLoading, stopLoading } = useLoading();
@@ -84,6 +86,9 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   const [confirmValidateDocumentsOpen, setConfirmValidateDocumentsOpen] = useState(false);
   const [validatingDocumentsSolicitudId, setValidatingDocumentsSolicitudId] = useState<number | null>(null);
   const [validateDocumentsObservacion, setValidateDocumentsObservacion] = useState('');
+  const [confirmReturnDocumentsOpen, setConfirmReturnDocumentsOpen] = useState(false);
+  const [returningDocumentsSolicitudId, setReturningDocumentsSolicitudId] = useState<number | null>(null);
+  const [returnDocumentsObservacion, setReturnDocumentsObservacion] = useState('');
   
   // Estado para el progreso de documentos requeridos
   const [documentosRequeridosData, setDocumentosRequeridosData] = useState<Record<number, {
@@ -331,6 +336,8 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
         return <Badge className="bg-cyan-300 hover:bg-cyan-400 text-cyan-900 border-cyan-500 flex items-center justify-center text-center">Citado Exámenes</Badge>;
       case 'firma contrato':
         return <Badge className="bg-emerald-300 hover:bg-emerald-400 text-emerald-900 border-emerald-500 flex items-center justify-center text-center">Firma Contrato</Badge>;
+      case 'documentos devueltos':
+        return <Badge className="bg-red-300 hover:bg-red-400 text-red-900 border-red-500 flex items-center justify-center text-center">Documentos Devueltos</Badge>;
       default:
         return <Badge variant="outline" className="flex items-center justify-center text-center">{formatEstado(estado || 'Sin estado')}</Badge>;
     }
@@ -372,6 +379,8 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
         return 'bg-cyan-100';
       case 'firma contrato':
         return 'bg-emerald-100';
+      case 'documentos devueltos':
+        return 'bg-red-100';
       default:
         return '';
     }
@@ -389,7 +398,8 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     const puedeDeserto = !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-deserto-solicitud');
     const puedeCancelar = s.estado === 'asignado' && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-cancelar-solicitud');
     const puedeValidarDocumentos = s.estado?.toLowerCase() === 'documentos entregados' && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-validar-documentos-solicitud');
-    return puedeEditar || puedeVisualizar || puedeAsignar || puedeAprobar || puedeContactar || puedeReactivar || puedeStandBy || puedeDeserto || puedeCancelar || puedeValidarDocumentos;
+    const puedeDevolverDocumentos = s.estado?.toLowerCase() === 'documentos entregados' && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-devolver-documentos-solicitud');
+    return puedeEditar || puedeVisualizar || puedeAsignar || puedeAprobar || puedeContactar || puedeReactivar || puedeStandBy || puedeDeserto || puedeCancelar || puedeValidarDocumentos || puedeDevolverDocumentos;
   };
 
   const formatDate = (dateString: string | undefined) => {
@@ -956,6 +966,31 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     }
   };
 
+  const handleReturnDocumentsClick = (id: number | undefined) => {
+    if (id) {
+      setSelectedSolicitudId(id);
+      setReturningDocumentsSolicitudId(id);
+      setReturnDocumentsObservacion('');
+      setConfirmReturnDocumentsOpen(true);
+    }
+  };
+
+  const handleReturnDocumentsConfirm = () => {
+    if (selectedSolicitudId && returnDocumentsObservacion.trim()) {
+      console.log('🔍 handleReturnDocumentsConfirm llamado para solicitud ID:', selectedSolicitudId);
+      console.log('🔍 Llamando a startLoading()...');
+      startLoading(); // Activar loading global
+      
+      // Llamar a la función de devolver documentos con observación
+      onReturnDocuments(selectedSolicitudId, returnDocumentsObservacion.trim());
+      
+      setConfirmReturnDocumentsOpen(false);
+      setSelectedSolicitudId(null);
+      setReturningDocumentsSolicitudId(null);
+      setReturnDocumentsObservacion('');
+    }
+  };
+
   if (solicitudes.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
@@ -1004,7 +1039,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                             </Button>
                           </DropdownMenuTrigger>
                           {hasAnyAvailableAction(solicitud) && (
-                            <DropdownMenuContent align="start" className="w-48">
+                            <DropdownMenuContent align="start" className="w-56">
                             {/* Botón Editar - solo visible cuando esté en estado asignado */}
                             {solicitud.estado === 'asignado' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
                               <Can action="accion-editar-solicitud">
@@ -1109,6 +1144,19 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                                 >
                                   <CheckCircle className="h-4 w-4 mr-2 text-orange-600" />
                                   Documentos Validados
+                                </DropdownMenuItem>
+                              </Can>
+                            )}
+
+                            {/* Botón Documentos Devueltos - solo visible en estado DOCUMENTOS ENTREGADOS */}
+                            {solicitud.estado?.toUpperCase() === 'DOCUMENTOS ENTREGADOS' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                              <Can action="accion-devolver-documentos-solicitud">
+                                <DropdownMenuItem 
+                                  onClick={() => handleReturnDocumentsClick(solicitud.id)} 
+                                  className="cursor-pointer"
+                                >
+                                  <XCircle className="h-4 w-4 mr-2 text-red-600" />
+                                  Documentos Devueltos
                                 </DropdownMenuItem>
                               </Can>
                             )}
@@ -1665,6 +1713,54 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
               disabled={!validateDocumentsObservacion.trim()}
             >
               Validar Documentos
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirmación de Devolución de Documentos */}
+      <AlertDialog open={confirmReturnDocumentsOpen} onOpenChange={setConfirmReturnDocumentsOpen}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Devolver documentos?</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas devolver los documentos de esta solicitud?
+              <br />
+              <span className="text-sm text-muted-foreground">
+                Esta acción cambiará el estado de la solicitud a "Documentos Devueltos" y se enviará un correo al candidato.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="py-4">
+            <label htmlFor="returnDocumentsObservacion" className="block text-sm font-medium text-gray-700 mb-2">
+              Observación (requerida)
+            </label>
+            <Textarea
+              id="returnDocumentsObservacion"
+              value={returnDocumentsObservacion}
+              onChange={(e) => setReturnDocumentsObservacion(e.target.value)}
+              placeholder="Ingrese observaciones sobre la devolución de documentos..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+              rows={4}
+              required
+            />
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setConfirmReturnDocumentsOpen(false);
+              setReturningDocumentsSolicitudId(null);
+              setReturnDocumentsObservacion('');
+            }}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleReturnDocumentsConfirm}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={!returnDocumentsObservacion.trim()}
+            >
+              Devolver Documentos
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

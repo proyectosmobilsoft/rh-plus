@@ -1931,4 +1931,95 @@ export const solicitudesService = {
       return false;
     }
   },
+
+  // Función para devolver documentos
+  returnDocuments: async (
+    id: number,
+    observaciones: string
+  ): Promise<boolean> => {
+    try {
+      // Obtener datos de la solicitud para el correo
+      const { data: solicitud, error: fetchError } = await supabase
+        .from("hum_solicitudes")
+        .select(`
+          *,
+          candidatos!candidato_id (
+            primer_nombre,
+            segundo_nombre,
+            primer_apellido,
+            segundo_apellido,
+            email,
+            tipo_documento,
+            numero_documento
+          ),
+          empresas!empresa_id (
+            razon_social
+          )
+        `)
+        .eq("id", id)
+        .single();
+
+      if (fetchError || !solicitud) {
+        console.error("Error fetching solicitud for return documents:", fetchError);
+        return false;
+      }
+
+      // Actualizar estado a "documentos devueltos"
+      const { error: updateError } = await supabase
+        .from("hum_solicitudes")
+        .update({
+          estado: "documentos devueltos",
+          observaciones: observaciones,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", id);
+
+      if (updateError) {
+        console.error("Error updating solicitud to documentos devueltos:", updateError);
+        return false;
+      }
+
+      // Crear log de la acción
+      try {
+        await solicitudesLogsService.crearLog({
+          solicitud_id: id,
+          usuario_id: getUsuarioId(),
+          accion: ACCIONES_SISTEMA.DEVOLVER_DOCUMENTOS,
+          observacion: `Documentos devueltos: ${observaciones}`,
+        });
+      } catch (logError) {
+        console.warn("No se pudo crear el log de devolución de documentos:", logError);
+      }
+
+      // Enviar correo al candidato
+      try {
+        const candidato = solicitud.candidatos;
+        const empresa = solicitud.empresas;
+        
+        if (candidato?.email) {
+          const candidatoNombre = `${candidato.primer_nombre || ''} ${candidato.segundo_nombre || ''} ${candidato.primer_apellido || ''} ${candidato.segundo_apellido || ''}`.trim();
+          
+          await emailService.sendDocumentosDevueltos({
+            to: candidato.email,
+            candidatoNombre: candidatoNombre,
+            numeroDocumento: candidato.numero_documento || '',
+            tipoDocumento: candidato.tipo_documento || '',
+            empresaNombre: empresa?.razon_social || 'la empresa',
+            observaciones: observaciones,
+            solicitudId: id,
+            fecha: new Date().toLocaleDateString('es-ES'),
+            sistemaUrl: typeof window !== 'undefined' ? `${window.location.origin}/login` : 'https://localhost/login'
+          });
+        }
+      } catch (emailError) {
+        console.warn("No se pudo enviar el correo de documentos devueltos:", emailError);
+        // No retornamos false aquí porque la actualización del estado ya se hizo
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Error in returnDocuments:", error);
+      return false;
+    }
+  },
 }; 

@@ -347,6 +347,20 @@ const ExpedicionOrdenPage = () => {
     }
   };
 
+  const handleReturnDocuments = async (id: number, observacion: string) => {
+    setIsLoading(true);
+    try {
+      await solicitudesService.returnDocuments(id, observacion);
+      await fetchSolicitudes();
+      toast.success('Documentos devueltos exitosamente. Se envió un correo al candidato.');
+    } catch (error) {
+      console.error('Error devolviendo documentos:', error);
+      toast.error('Error al devolver documentos. Por favor intente nuevamente.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handlePlantillaSelect = (plantilla: Plantilla) => {
     // Aquí puedes manejar la selección de plantilla si es necesario
     console.log('Plantilla seleccionada:', plantilla);
@@ -679,6 +693,7 @@ const ExpedicionOrdenPage = () => {
                   onCancel={handleCancel}
                   onAssign={handleAssign}
                   onValidateDocuments={handleValidateDocuments}
+                  onReturnDocuments={handleReturnDocuments}
                   isLoading={isLoading}
                 />
               )}
