@@ -127,8 +127,6 @@ const FormBuilder: React.FC<{
   const [showJson, setShowJson] = useState(false);
   const [selectedSectionIdx, setSelectedSectionIdx] = useState<number | null>(null);
   const [selectedFieldIdx, setSelectedFieldIdx] = useState<number | null>(null);
-  const [draggedSectionIdx, setDraggedSectionIdx] = useState<number | null>(null);
-  const [draggedFieldIdx, setDraggedFieldIdx] = useState<number | null>(null);
   const [resizingFieldId, setResizingFieldId] = useState<string | null>(null);
   const [selectedFieldForMove, setSelectedFieldForMove] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -328,6 +326,19 @@ const FormBuilder: React.FC<{
           databaseTable: 'tipos_candidatos',
           databaseField: 'nombre',
           databaseValueField: 'id',
+          activo: true,
+          isSystemField: true // Campo del sistema - solo editable tamaño y orden
+        },
+        {
+          id: uuidv4(),
+          type: 'text',
+          label: 'Temporal a Ingresar',
+          name: 'temporal',
+          placeholder: 'Ingrese el temporal a ingresar',
+          required: false,
+          order: 4,
+          dimension: 12,
+          options: '',
           activo: true,
           isSystemField: true // Campo del sistema - solo editable tamaño y orden
         }
@@ -641,62 +652,434 @@ const FormBuilder: React.FC<{
     setCurrentField(createDefaultField());
   };
 
-  const onDragStart = (idx: number, isSection: boolean = false) => {
-    if (isSection) {
-      setDraggedSectionIdx(idx);
+  const moveFieldToSection = (sourceSectionIdx: number, fieldIdx: number, targetSectionIdx: number) => {
+    if (sourceSectionIdx === targetSectionIdx) return;
+    
+    setSections(prev => {
+      const updated = [...prev];
+      const fieldToMove = updated[sourceSectionIdx].campos[fieldIdx];
+      
+      // Remover el campo de la sección origen
+      updated[sourceSectionIdx] = {
+        ...updated[sourceSectionIdx],
+        campos: updated[sourceSectionIdx].campos.filter((_, i) => i !== fieldIdx)
+          .map((f, i) => ({ ...f, order: i + 1 }))
+      };
+      
+      // Agregar el campo a la sección destino
+      updated[targetSectionIdx] = {
+        ...updated[targetSectionIdx],
+        campos: [
+          ...updated[targetSectionIdx].campos,
+          {
+            ...fieldToMove,
+            order: updated[targetSectionIdx].campos.length + 1
+          }
+        ]
+      };
+      
+      // Actualizar la selección para mostrar el campo en la nueva sección
+      setSelectedSectionIdx(targetSectionIdx);
+      setSelectedFieldIdx(updated[targetSectionIdx].campos.length - 1);
+      
+      return updated;
+    });
+  };
+
+  // Estados para drag and drop mejorado
+  const [draggedItem, setDraggedItem] = useState<{
+    type: 'section' | 'field';
+    sectionIdx: number;
+    fieldIdx?: number;
+  } | null>(null);
+  const [dragOverTarget, setDragOverTarget] = useState<{
+    type: 'section' | 'field';
+    sectionIdx: number;
+    fieldIdx?: number;
+  } | null>(null);
+  const [previewMode, setPreviewMode] = useState(false);
+  const [previewSections, setPreviewSections] = useState<FormSection[]>([]);
+  const [mousePosition, setMousePosition] = useState<{ x: number; y: number } | null>(null);
+  const [insertPosition, setInsertPosition] = useState<number | null>(null);
+
+  // Función para calcular la posición de inserción basada en la posición del mouse
+  const calculateInsertPosition = (e: React.DragEvent, sectionIdx: number): number => {
+    const gridContainer = e.currentTarget.closest('.grid-container');
+    if (!gridContainer) return 0;
+    
+    const rect = gridContainer.getBoundingClientRect();
+    const mouseY = e.clientY - rect.top;
+    
+    // Obtener todos los elementos de campo en el DOM actual
+    const fieldElements = gridContainer.querySelectorAll('.field-draggable');
+    
+    let insertPos = 0;
+    
+    for (let i = 0; i < fieldElements.length; i++) {
+      const fieldElement = fieldElements[i] as HTMLElement;
+      const fieldRect = fieldElement.getBoundingClientRect();
+      const fieldTop = fieldRect.top - rect.top;
+      const fieldBottom = fieldRect.bottom - rect.top;
+      const fieldCenter = fieldTop + (fieldRect.height / 2);
+      
+      // Si el mouse está en la mitad superior del campo, insertar antes
+      if (mouseY >= fieldTop && mouseY < fieldCenter) {
+        insertPos = i;
+        break;
+      }
+      // Si el mouse está en la mitad inferior del campo, insertar después
+      else if (mouseY >= fieldCenter && mouseY < fieldBottom) {
+        insertPos = i + 1;
+        break;
+      }
+      // Si el mouse está después de este campo, continuar
+      else if (mouseY > fieldBottom) {
+        insertPos = i + 1;
+      }
+    }
+    
+    return Math.min(insertPos, fieldElements.length);
+  };
+
+  // Función para generar preview de secciones con reorganización en tiempo real
+  const generatePreview = (sourceSectionIdx: number, sourceFieldIdx: number, targetSectionIdx: number, targetFieldIdx?: number) => {
+    const updated = [...sections];
+    const sourceSection = updated[sourceSectionIdx];
+    const targetSection = updated[targetSectionIdx];
+    
+    // Obtener el campo a mover
+    const fieldToMove = sourceSection.campos[sourceFieldIdx];
+    
+    if (sourceSectionIdx === targetSectionIdx) {
+      // Mover dentro de la misma sección - reorganizar en tiempo real
+      const campos = [...sourceSection.campos];
+      
+      // Remover el campo de su posición actual
+      const [draggedField] = campos.splice(sourceFieldIdx, 1);
+      
+      // Usar la posición exacta del mouse (targetFieldIdx ya viene calculada correctamente)
+      let newPosition = targetFieldIdx || 0;
+      
+      // Asegurar que la posición esté dentro de los límites válidos
+      newPosition = Math.max(0, Math.min(newPosition, campos.length));
+      
+      // Insertar en la nueva posición exacta
+      campos.splice(newPosition, 0, {
+        ...draggedField,
+        isPreviewField: true, // Marcar como campo de preview
+        isDragging: true // Marcar como campo siendo arrastrado
+      });
+      
+      // Actualizar el orden de todos los campos
+      const reorderedCampos = campos.map((campo, index) => ({
+        ...campo,
+        order: index + 1
+      }));
+      
+      updated[sourceSectionIdx] = {
+        ...sourceSection,
+        campos: reorderedCampos
+      };
     } else {
-      setDraggedFieldIdx(idx);
+      // Mover entre secciones diferentes
+      // Remover de la sección origen
+      const newSourceCampos = sourceSection.campos.filter((_, i) => i !== sourceFieldIdx)
+        .map((f, i) => ({ ...f, order: i + 1 }));
+      
+      // Agregar a la sección destino
+      let newTargetCampos = [...targetSection.campos];
+      if (targetFieldIdx !== undefined) {
+        // Calcular la nueva posición correcta
+        let newPosition = targetFieldIdx;
+        
+        // Asegurar que la posición esté dentro de los límites válidos
+        newPosition = Math.max(0, Math.min(newPosition, newTargetCampos.length));
+        
+        // Insertar en posición específica
+        newTargetCampos.splice(newPosition, 0, {
+          ...fieldToMove,
+          order: newPosition + 1,
+          isPreviewField: true, // Marcar como campo de preview
+          isDragging: true // Marcar como campo siendo arrastrado
+        });
+      } else {
+        // Agregar al final
+        newTargetCampos.push({
+          ...fieldToMove,
+          order: targetSection.campos.length + 1,
+          isPreviewField: true, // Marcar como campo de preview
+          isDragging: true // Marcar como campo siendo arrastrado
+        });
+      }
+      
+      // Actualizar el orden de todos los campos en la sección destino
+      const reorderedTargetCampos = newTargetCampos.map((campo, index) => ({
+        ...campo,
+        order: index + 1
+      }));
+      
+      updated[sourceSectionIdx] = {
+        ...sourceSection,
+        campos: newSourceCampos
+      };
+      
+      updated[targetSectionIdx] = {
+        ...targetSection,
+        campos: reorderedTargetCampos
+      };
+    }
+    
+    return updated;
+  };
+
+  const onDragStart = (idx: number, isSection: boolean = false, sectionIdx?: number) => {
+    if (isSection) {
+      setDraggedItem({ type: 'section', sectionIdx: idx });
+    } else {
+      setDraggedItem({ 
+        type: 'field', 
+        sectionIdx: sectionIdx ?? selectedSectionIdx ?? 0, 
+        fieldIdx: idx 
+      });
     }
   };
 
-  const onDragOver = (idx: number, isSection: boolean = false) => {
+  const onDragOver = (e: React.DragEvent, idx: number, isSection: boolean = false, sectionIdx?: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    
+    // Actualizar posición del mouse
+    setMousePosition({ x: e.clientX, y: e.clientY });
+    
     if (isSection) {
-      if (draggedSectionIdx === null || draggedSectionIdx === idx) return;
-      setSections(f => {
-        const result = Array.from(f);
-        const [removed] = result.splice(draggedSectionIdx, 1);
-        result.splice(idx, 0, removed);
-        return result;
-      });
-      setDraggedSectionIdx(idx);
+      setDragOverTarget({ type: 'section', sectionIdx: idx });
+      
+      // Generar preview para campo moviéndose a sección
+      if (draggedItem?.type === 'field') {
+        const preview = generatePreview(
+          draggedItem.sectionIdx, 
+          draggedItem.fieldIdx!, 
+          idx
+        );
+        setPreviewSections(preview);
+        setPreviewMode(true);
+      }
     } else {
-      if (draggedFieldIdx === null || draggedFieldIdx === idx) return;
-        
-        // Implementar drag and drop de campos dentro de secciones
-        if (selectedSectionIdx !== null) {
+      const targetSectionIdx = sectionIdx ?? selectedSectionIdx ?? 0;
+      
+      // Calcular posición exacta basada en el mouse
+      const exactPosition = calculateInsertPosition(e, targetSectionIdx);
+      setInsertPosition(exactPosition);
+      
+      setDragOverTarget({ 
+        type: 'field', 
+        sectionIdx: targetSectionIdx, 
+        fieldIdx: exactPosition 
+      });
+      
+      // Generar preview para campo moviéndose a posición específica
+      if (draggedItem?.type === 'field') {
+        const preview = generatePreview(
+          draggedItem.sectionIdx, 
+          draggedItem.fieldIdx!, 
+          targetSectionIdx, 
+          exactPosition
+        );
+        setPreviewSections(preview);
+        setPreviewMode(true);
+      }
+    }
+  };
+
+  const onDrop = (e: React.DragEvent, idx: number, isSection: boolean = false, sectionIdx?: number) => {
+    e.preventDefault();
+    
+    if (!draggedItem) return;
+
+    if (isSection) {
+      if (draggedItem.type === 'section') {
+        // Mover sección
+        if (draggedItem.sectionIdx !== idx) {
           setSections(prev => {
             const updated = [...prev];
-            const section = updated[selectedSectionIdx];
-            const campos = [...section.campos];
+            const [removed] = updated.splice(draggedItem.sectionIdx, 1);
+            updated.splice(idx, 0, removed);
+            return updated;
+          });
+        }
+      } else if (draggedItem.type === 'field') {
+        // Mover campo a una sección (al final de la sección)
+        const sourceSectionIdx = draggedItem.sectionIdx;
+        const sourceFieldIdx = draggedItem.fieldIdx!;
+        const targetSectionIdx = idx;
+        
+        if (sourceSectionIdx !== targetSectionIdx) {
+          setSections(prev => {
+            const updated = [...prev];
+            const sourceSection = updated[sourceSectionIdx];
+            const targetSection = updated[targetSectionIdx];
             
-            // Remover el campo arrastrado
-            const [draggedField] = campos.splice(draggedFieldIdx, 1);
+            // Obtener el campo a mover
+            const fieldToMove = sourceSection.campos[sourceFieldIdx];
             
-            // Insertar en la nueva posición
-            campos.splice(idx, 0, draggedField);
+            // Remover de la sección origen
+            const newSourceCampos = sourceSection.campos.filter((_, i) => i !== sourceFieldIdx)
+              .map((f, i) => ({ ...f, order: i + 1 }));
             
-            // Actualizar el orden de todos los campos
-            const reorderedCampos = campos.map((campo, index) => ({
+            // Agregar al final de la sección destino
+            const newTargetCampos = [...targetSection.campos, {
+              ...fieldToMove,
+              order: targetSection.campos.length + 1
+            }];
+            
+            // Actualizar el orden de todos los campos en la sección destino
+            const reorderedTargetCampos = newTargetCampos.map((campo, index) => ({
               ...campo,
               order: index + 1
             }));
             
-            updated[selectedSectionIdx] = {
-              ...section,
-              campos: reorderedCampos
+            updated[sourceSectionIdx] = {
+              ...sourceSection,
+              campos: newSourceCampos
+            };
+            
+            updated[targetSectionIdx] = {
+              ...targetSection,
+              campos: reorderedTargetCampos
             };
             
             return updated;
           });
-          setDraggedFieldIdx(idx);
+          
+          // Actualizar la selección para mostrar el campo en la nueva sección
+          setSelectedSectionIdx(targetSectionIdx);
+          // El campo se agrega al final, así que será el último campo
+          setSelectedFieldIdx(sections[targetSectionIdx].campos.length);
         }
+      }
+    } else {
+      // Mover campo a una posición específica usando la posición exacta del mouse
+      const targetSectionIdx = sectionIdx ?? selectedSectionIdx ?? 0;
+      
+      if (draggedItem.type === 'field') {
+        const sourceSectionIdx = draggedItem.sectionIdx;
+        const sourceFieldIdx = draggedItem.fieldIdx!;
+        
+        // Usar la posición exacta calculada o la posición del campo si no hay posición exacta
+        const targetFieldIdx = insertPosition !== null ? insertPosition : idx;
+        
+        if (sourceSectionIdx === targetSectionIdx) {
+          // Mover dentro de la misma sección
+          if (sourceFieldIdx !== targetFieldIdx) {
+            setSections(prev => {
+              const updated = [...prev];
+              const section = updated[targetSectionIdx];
+              const campos = [...section.campos];
+              
+              // Remover el campo arrastrado
+              const [draggedField] = campos.splice(sourceFieldIdx, 1);
+              
+              // Calcular la nueva posición correcta
+              let newPosition = targetFieldIdx;
+              
+              // Si el campo se movió hacia abajo, ajustar la posición porque ya removimos un elemento
+              if (sourceFieldIdx < targetFieldIdx) {
+                newPosition = targetFieldIdx - 1;
+              }
+              
+              // Asegurar que la posición esté dentro de los límites válidos
+              newPosition = Math.max(0, Math.min(newPosition, campos.length));
+              
+              // Insertar en la nueva posición
+              campos.splice(newPosition, 0, draggedField);
+              
+              // Actualizar el orden de todos los campos
+              const reorderedCampos = campos.map((campo, index) => ({
+                ...campo,
+                order: index + 1
+              }));
+              
+              updated[targetSectionIdx] = {
+                ...section,
+                campos: reorderedCampos
+              };
+              
+              return updated;
+            });
+          }
+        } else {
+          // Mover entre secciones a una posición específica
+          setSections(prev => {
+            const updated = [...prev];
+            const sourceSection = updated[sourceSectionIdx];
+            const targetSection = updated[targetSectionIdx];
+            
+            // Obtener el campo a mover
+            const fieldToMove = sourceSection.campos[sourceFieldIdx];
+            
+            // Remover de la sección origen
+            const newSourceCampos = sourceSection.campos.filter((_, i) => i !== sourceFieldIdx)
+              .map((f, i) => ({ ...f, order: i + 1 }));
+            
+            // Agregar a la sección destino en la posición específica
+            const newTargetCampos = [...targetSection.campos];
+            newTargetCampos.splice(targetFieldIdx, 0, {
+              ...fieldToMove,
+              order: targetFieldIdx + 1
+            });
+            
+            // Actualizar el orden de todos los campos en la sección destino
+            const reorderedTargetCampos = newTargetCampos.map((campo, index) => ({
+              ...campo,
+              order: index + 1
+            }));
+            
+            updated[sourceSectionIdx] = {
+              ...sourceSection,
+              campos: newSourceCampos
+            };
+            
+            updated[targetSectionIdx] = {
+              ...targetSection,
+              campos: reorderedTargetCampos
+            };
+            
+            return updated;
+          });
+          
+          // Actualizar la selección para mostrar el campo en la nueva sección
+          setSelectedSectionIdx(targetSectionIdx);
+          setSelectedFieldIdx(targetFieldIdx);
+        }
+      }
     }
+    
+    // Limpiar estados de drag y selección
+    setDraggedItem(null);
+    setDragOverTarget(null);
+    setInsertPosition(null);
+    setMousePosition(null);
+    setPreviewMode(false);
+    setPreviewSections([]);
+    
+    // Limpiar toda la selección después de soltar el campo
+    setSelectedFieldForMove(null);
+    setSelectedSectionIdx(null);
+    setSelectedFieldIdx(null);
   };
 
   const onDragEnd = () => {
-    setDraggedSectionIdx(null);
-    setDraggedFieldIdx(null);
-    // No limpiar la selección del campo para mantener la funcionalidad de edición
+    setDraggedItem(null);
+    setDragOverTarget(null);
+    setPreviewMode(false);
+    setPreviewSections([]);
+    setInsertPosition(null);
+    setMousePosition(null);
+    
+    // Limpiar toda la selección después de terminar el drag
+    setSelectedFieldForMove(null);
+    setSelectedSectionIdx(null);
+    setSelectedFieldIdx(null);
   };
 
   // Función para redimensionar campos
@@ -726,22 +1109,22 @@ const FormBuilder: React.FC<{
     const gridColumnSpan = `span ${f.dimension}`;
     
          // Crear el contenedor del campo con estado de redimensionamiento
-     const renderFieldContainer = (children: React.ReactNode) => (
-              <div 
-          key={f.id} 
-          className={`field-container ${resizingFieldId === f.id ? 'field-resizing' : ''}`}
-                     style={{ 
-             gridColumn: gridColumnSpan, 
-             padding: 6,
-             minWidth: 0,
-             position: 'relative',
-             border: resizingFieldId === f.id ? '2px solid #3b82f6' : '1px solid transparent',
-             borderRadius: '6px',
-             backgroundColor: resizingFieldId === f.id ? '#eff6ff' : 'transparent',
-             boxShadow: resizingFieldId === f.id ? '0 4px 12px rgba(59, 130, 246, 0.2)' : 'none',
-             cursor: 'pointer',
-             transition: 'all 0.2s ease-in-out'
-           }}
+      const renderFieldContainer = (children: React.ReactNode) => (
+               <div 
+           key={f.id} 
+           className={`field-container ${resizingFieldId === f.id ? 'field-resizing' : ''} ${(f as any).isPreviewField ? 'preview-field' : ''} ${(f as any).isDragging ? 'field-dragging' : ''}`}
+                      style={{ 
+              gridColumn: gridColumnSpan, 
+              padding: 6,
+              minWidth: 0,
+              position: 'relative',
+              border: resizingFieldId === f.id ? '2px solid #3b82f6' : '1px solid transparent',
+              borderRadius: '6px',
+              backgroundColor: resizingFieldId === f.id ? '#eff6ff' : 'transparent',
+              boxShadow: resizingFieldId === f.id ? '0 4px 12px rgba(59, 130, 246, 0.2)' : 'none',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease-in-out'
+            }}
           
                      onClick={(e) => {
              e.preventDefault();
@@ -782,6 +1165,15 @@ const FormBuilder: React.FC<{
          {selectedFieldForMove === f.id && (
            <div 
              className="move-handle"
+             draggable
+             onDragStart={(e) => {
+               e.dataTransfer.effectAllowed = 'move';
+               const fieldIdx = sections[selectedSectionIdx || 0]?.campos.findIndex(campo => campo.id === f.id);
+               if (fieldIdx !== -1) {
+                 onDragStart(fieldIdx, false, selectedSectionIdx || 0);
+               }
+             }}
+             onDragEnd={onDragEnd}
              style={{
                position: 'absolute',
                top: '50%',
@@ -799,11 +1191,6 @@ const FormBuilder: React.FC<{
                border: '3px solid white',
                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
                animation: 'pulse 2s infinite'
-             }}
-             onMouseDown={(e) => {
-               e.preventDefault();
-               e.stopPropagation();
-               // Aquí se activaría el drag & drop para mover
              }}
            >
              {/* Icono de mover */}
@@ -1184,6 +1571,83 @@ const FormBuilder: React.FC<{
             box-shadow: 0 8px 25px rgba(0,0,0,0.2);
           }
           
+          .field-drag-over {
+            border: 2px dashed #3b82f6 !important;
+            background-color: #eff6ff !important;
+            transform: scale(1.02);
+          }
+          
+          .section-drag-over {
+            border: 2px dashed #10b981 !important;
+            background-color: #ecfdf5 !important;
+          }
+          
+          .preview-mode {
+            opacity: 0.7;
+            filter: grayscale(0.3);
+          }
+          
+        .preview-field {
+          border: 2px dashed #3b82f6 !important;
+          background-color: #eff6ff !important;
+          opacity: 0.9;
+          transform: scale(1.02);
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3) !important;
+          z-index: 10;
+          position: relative;
+        }
+        
+        .field-dragging {
+          border: 2px solid #3b82f6 !important;
+          background-color: #dbeafe !important;
+          opacity: 0.8;
+          transform: scale(1.05);
+          box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4) !important;
+          z-index: 20;
+          position: relative;
+          animation: drag-pulse 1.5s infinite;
+        }
+        
+        @keyframes drag-pulse {
+          0%, 100% { 
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+            transform: scale(1.05);
+          }
+          50% { 
+            box-shadow: 0 12px 35px rgba(59, 130, 246, 0.6);
+            transform: scale(1.08);
+          }
+        }
+           
+           .preview-mode .field-container:not(.preview-field) {
+             opacity: 0.6;
+             transform: scale(0.98);
+             transition: all 0.2s ease-in-out;
+           }
+           
+           .insertion-indicator {
+             position: absolute;
+             left: 0;
+             right: 0;
+             height: 3px;
+             background: linear-gradient(90deg, #3b82f6, #10b981);
+             border-radius: 2px;
+             z-index: 20;
+             box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
+             animation: pulse-indicator 1.5s infinite;
+           }
+           
+           @keyframes pulse-indicator {
+             0%, 100% {
+               opacity: 0.8;
+               transform: scaleY(1);
+             }
+             50% {
+               opacity: 1;
+               transform: scaleY(1.2);
+             }
+           }
+          
                      /* Estilos para los handles de redimensionamiento */
            .resize-handle-left,
            .resize-handle-right {
@@ -1271,9 +1735,9 @@ const FormBuilder: React.FC<{
                   key={section.id}
                 draggable
                   onDragStart={() => onDragStart(i, true)}
-                  onDragOver={e => { e.preventDefault(); onDragOver(i, true); }}
+                  onDragOver={(e) => onDragOver(e, i, true)}
+                  onDrop={(e) => onDrop(e, i, true)}
                 onDragEnd={onDragEnd}
-                onDrop={onDragEnd}
                   onClick={() => selectSection(i)}
                 style={{
                     background: selectedSectionIdx === i ? '#a5d8ff' : '#f0f4f8',
@@ -1284,8 +1748,8 @@ const FormBuilder: React.FC<{
                   cursor: 'pointer',
                     border: selectedSectionIdx === i ? '2px solid #339af0' : '1px solid #e0e7ef',
                   fontWeight: 500,
-                    boxShadow: draggedSectionIdx === i ? '0 2px 8px 0 rgba(0,0,0,0.08)' : undefined,
-                    opacity: draggedSectionIdx === i ? 0.7 : 1,
+                    boxShadow: draggedItem?.type === 'section' && draggedItem?.sectionIdx === i ? '0 2px 8px 0 rgba(0,0,0,0.08)' : undefined,
+                    opacity: draggedItem?.type === 'section' && draggedItem?.sectionIdx === i ? 0.7 : 1,
                     transition: 'all 0.15s',
                     userSelect: 'none',
                   }}
@@ -1311,10 +1775,10 @@ const FormBuilder: React.FC<{
                   <li
                     key={field.id}
                     draggable
-                    onDragStart={() => onDragStart(i, false)}
-                    onDragOver={e => { e.preventDefault(); onDragOver(i, false); }}
+                    onDragStart={() => onDragStart(i, false, selectedSectionIdx)}
+                    onDragOver={(e) => onDragOver(e, i, false, selectedSectionIdx)}
+                    onDrop={(e) => onDrop(e, i, false, selectedSectionIdx)}
                     onDragEnd={onDragEnd}
-                    onDrop={onDragEnd}
                     onClick={() => selectField(selectedSectionIdx, i)}
                     style={{
                       background: selectedFieldIdx === i ? '#e8f5e8' : '#f8f9fa',
@@ -1326,8 +1790,8 @@ const FormBuilder: React.FC<{
                       border: selectedFieldIdx === i ? '2px solid #28a745' : '1px solid #dee2e6',
                       fontWeight: 400,
                       fontSize: 13,
-                      boxShadow: draggedFieldIdx === i ? '0 2px 8px 0 rgba(0,0,0,0.08)' : undefined,
-                      opacity: draggedFieldIdx === i ? 0.7 : 1,
+                      boxShadow: draggedItem?.type === 'field' && draggedItem?.sectionIdx === selectedSectionIdx && draggedItem?.fieldIdx === i ? '0 2px 8px 0 rgba(0,0,0,0.08)' : undefined,
+                      opacity: draggedItem?.type === 'field' && draggedItem?.sectionIdx === selectedSectionIdx && draggedItem?.fieldIdx === i ? 0.7 : 1,
                   transition: 'all 0.15s',
                   userSelect: 'none',
                 }}
@@ -1731,6 +2195,43 @@ const FormBuilder: React.FC<{
                         </div>
                       )}
 
+                      {/* Selector de Sección para Mover Campo */}
+                      {selectedFieldIdx !== null && (
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start pt-3 border-t border-gray-200">
+                          <div className="md:col-span-12">
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                              Mover Campo a Sección
+                            </label>
+                            <div className="flex items-center gap-3">
+                              <Select 
+                                onValueChange={(value) => {
+                                  const targetSectionIdx = parseInt(value);
+                                  if (targetSectionIdx !== selectedSectionIdx) {
+                                    moveFieldToSection(selectedSectionIdx, selectedFieldIdx, targetSectionIdx);
+                                  }
+                                }}
+                                value={selectedSectionIdx?.toString() || ''}
+                              >
+                                <SelectTrigger className="w-full h-8 text-sm">
+                                  <SelectValue placeholder="Seleccionar sección destino" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {sections.map((section, idx) => (
+                                    <SelectItem key={section.id} value={idx.toString()} className="flex items-center gap-2 text-sm">
+                                      <span className="text-sm font-medium">{section.titulo || `Sección ${idx + 1}`}</span>
+                                      {idx === selectedSectionIdx && <span className="text-xs text-cyan-600">(Actual)</span>}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <div className="text-xs text-gray-500 flex-shrink-0">
+                                Mover campo a otra sección
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="flex items-center justify-end pt-3">
                         {selectedFieldIdx === null ? (
                           <button 
@@ -1841,9 +2342,17 @@ const FormBuilder: React.FC<{
                       </p>
                     </div>
                   ) : (
-                    <div ref={previewRef} className="space-y-6">
-                      {sections.filter(s => s.activo !== false).map((section, sectionIdx) => (
-                        <div key={section.id} className="border border-gray-200 rounded-lg p-4">
+                    <div ref={previewRef} className={`space-y-6 ${previewMode ? 'preview-mode' : ''}`}>
+                      {(previewMode ? previewSections : sections).filter(s => s.activo !== false).map((section, sectionIdx) => (
+                        <div 
+                          key={section.id} 
+                          className={`border border-gray-200 rounded-lg p-4 transition-all duration-200 ${
+                            dragOverTarget?.type === 'section' && 
+                            dragOverTarget?.sectionIdx === sectionIdx ? 'section-drag-over' : ''
+                          }`}
+                          onDragOver={(e) => onDragOver(e, sectionIdx, true)}
+                          onDrop={(e) => onDrop(e, sectionIdx, true)}
+                        >
                           <div className="flex items-center gap-2 mb-4 p-3 bg-gray-50 rounded-lg">
                             <span className="text-xl">📋</span>
                             <h4 className="font-semibold text-gray-900">
@@ -1878,20 +2387,21 @@ const FormBuilder: React.FC<{
                                          draggable
                                          onDragStart={(e) => {
                                            e.dataTransfer.effectAllowed = 'move';
-                                           onDragStart(fieldIdx, false);
+                                           onDragStart(fieldIdx, false, sectionIdx);
                                          }}
-                                         onDragOver={(e) => {
-                                           e.preventDefault();
-                                           e.dataTransfer.dropEffect = 'move';
-                                         }}
-                                         onDrop={(e) => {
-                                           e.preventDefault();
-                                           if (draggedFieldIdx !== null && selectedSectionIdx === sectionIdx) {
-                                             onDragOver(fieldIdx, false);
-                                           }
-                                         }}
+                                         onDragOver={(e) => onDragOver(e, fieldIdx, false, sectionIdx)}
+                                         onDrop={(e) => onDrop(e, fieldIdx, false, sectionIdx)}
+                                         onDragEnd={onDragEnd}
                                          className={`field-draggable transition-all duration-200 ${
-                                           draggedFieldIdx === fieldIdx ? 'field-dragging' : ''
+                                           draggedItem?.type === 'field' && 
+                                           draggedItem?.sectionIdx === sectionIdx && 
+                                           draggedItem?.fieldIdx === fieldIdx ? 'field-dragging' : ''
+                                         } ${
+                                           dragOverTarget?.type === 'field' && 
+                                           dragOverTarget?.sectionIdx === sectionIdx && 
+                                           dragOverTarget?.fieldIdx === fieldIdx ? 'field-drag-over' : ''
+                                         } ${
+                                           (field as any).isPreviewField ? 'preview-field' : ''
                                          }`}
                                          style={{
                                            gridColumn: `span ${field.dimension}`,

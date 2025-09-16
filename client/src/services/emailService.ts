@@ -1,5 +1,25 @@
 import { supabase } from './supabaseClient';
 
+// Función para obtener la URL base del sistema
+function getBaseUrl(): string {
+  // Prioriza variables de entorno si existen
+  const envUrl = (import.meta as any).env?.VITE_PUBLIC_APP_URL || (import.meta as any).env?.VITE_APP_URL;
+  if (envUrl && typeof envUrl === 'string') {
+    try {
+      const url = new URL(envUrl);
+      return url.origin;
+    } catch {
+      // si no es URL válida, sigue con origin
+    }
+  }
+  // Fallback al origin del navegador
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin;
+  }
+  // Último recurso
+  return 'https://localhost';
+}
+
 interface EmailConfig {
   gmail: string;
   password: string;
@@ -217,11 +237,16 @@ class EmailService {
     solicitudId: number | string;
     fecha: string;
     detalles?: Record<string, any>;
+    temporal?: string;
+    sistemaUrl?: string;
   }): string {
-    const { candidatoNombre, usuario, password, empresaNombre, solicitudId, fecha, detalles } = params;
+    const { candidatoNombre, usuario, password, empresaNombre, solicitudId, fecha, detalles, temporal, sistemaUrl } = params;
     const detallesHtml = detalles ? Object.entries(detalles)
       .map(([k, v]) => `<tr><td style="padding:6px 8px;border-bottom:1px solid #eee;color:#555">${k}</td><td style="padding:6px 8px;border-bottom:1px solid #eee;color:#111">${String(v)}</td></tr>`)
       .join('') : '';
+
+    // Usar temporal en el título si está disponible, sino usar empresaNombre
+    const tituloEmpresa = temporal || empresaNombre;
 
     return `
       <!DOCTYPE html>
@@ -234,7 +259,7 @@ class EmailService {
       <body style="font-family:Arial,Helvetica,sans-serif;background:#f6f7fb;margin:0;padding:24px;color:#111">
         <div style="max-width:640px;margin:0 auto;background:#fff;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,0.06);overflow:hidden">
           <div style="background:#0ea5e9;color:#fff;padding:20px 24px">
-            <h2 style="margin:0">Orden de ingreso creada</h2>
+            <h2 style="margin:0">Orden de ingreso creada - ${tituloEmpresa}</h2>
             <div style="opacity:.9;font-size:13px">${fecha}</div>
           </div>
           <div style="padding:24px">
@@ -245,6 +270,12 @@ class EmailService {
               <div style="font-family:Consolas,Monaco,monospace;background:#111;color:#fff;display:inline-block;padding:6px 10px;border-radius:6px;margin-right:6px">${usuario}</div>
               <div style="font-family:Consolas,Monaco,monospace;background:#111;color:#fff;display:inline-block;padding:6px 10px;border-radius:6px">${password}</div>
               <div style="font-size:12px;color:#6b7280;margin-top:8px">Por seguridad, te recomendamos cambiar tu contraseña en el primer ingreso.</div>
+              ${sistemaUrl ? `
+              <div style="margin-top:12px;padding:10px;background:#e0f2fe;border:1px solid #0ea5e9;border-radius:6px">
+                <div style="font-weight:600;color:#0c4a6e;margin-bottom:6px">🌐 Acceso al Sistema</div>
+                <div style="font-size:14px;color:#0c4a6e;margin-bottom:8px">Puedes acceder al sistema usando las credenciales proporcionadas en:</div>
+                <a href="${sistemaUrl}" style="display:inline-block;background:#0ea5e9;color:#fff;padding:8px 16px;text-decoration:none;border-radius:6px;font-weight:600;margin-top:4px">Ingresar al Sistema</a>
+              </div>` : ''}
             </div>
             ${detallesHtml ? `
             <div style="margin-top:10px">
@@ -553,7 +584,12 @@ class EmailService {
     solicitudId: number | string;
     fecha?: string;
     detalles?: Record<string, any>;
+    temporal?: string;
+    sistemaUrl?: string;
   }): Promise<{ success: boolean; message: string }> {
+    // Usar temporal en el título si está disponible, sino usar empresaNombre
+    const tituloEmpresa = params.temporal || params.empresaNombre;
+    
     const html = this.generateSolicitudCreadaHTML({
       candidatoNombre: params.candidatoNombre,
       usuario: params.usuario,
@@ -561,14 +597,16 @@ class EmailService {
       empresaNombre: params.empresaNombre,
       solicitudId: params.solicitudId,
       fecha: params.fecha || new Date().toLocaleString('es-ES'),
-      detalles: params.detalles
+      detalles: params.detalles,
+      temporal: params.temporal,
+      sistemaUrl: params.sistemaUrl
     });
 
     return this.sendEmail({
       to: params.to,
-      subject: `Orden de ingreso creada - Empresa ${params.empresaNombre}`,
+      subject: `Orden de ingreso creada - ${tituloEmpresa}`,
       html,
-      text: `Se creó una orden de ingreso en ${params.empresaNombre} (Solicitud #${params.solicitudId}). Usuario: ${params.usuario} / Contraseña: ${params.password}`,
+      text: `Se creó una orden de ingreso en ${params.empresaNombre} (Solicitud #${params.solicitudId}). Usuario: ${params.usuario} / Contraseña: ${params.password}${params.sistemaUrl ? ` / URL: ${params.sistemaUrl}` : ''}`,
       from: 'noreply@rhcompensamos.com'
     });
   }

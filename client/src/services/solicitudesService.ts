@@ -832,6 +832,16 @@ export const solicitudesService = {
           (solDet?.estructura_datos as any)?.correo ||
           (solDet?.candidatos as any)?.email;
         if (candidatoIdFinal && emailDestino) {
+          // Obtener la URL base del sistema
+          const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://localhost';
+          const sistemaUrl = `${baseUrl}/login`;
+          
+          // Obtener el campo temporal de la estructura_datos
+          const temporal = (solDet?.estructura_datos as any)?.temporal;
+          
+          // Obtener el cargo de la estructura_datos si está disponible
+          const cargo = (solDet?.estructura_datos as any)?.cargo || solDet?.cargo || "-";
+          
           await emailService.sendSolicitudCreada({
             to: String(emailDestino),
             candidatoNombre:
@@ -846,12 +856,14 @@ export const solicitudesService = {
             ),
             empresaNombre: String(solDet?.empresas?.razon_social || ""),
             solicitudId: solDet?.id || data.id,
+            temporal: temporal,
+            sistemaUrl: sistemaUrl,
             detalles: {
               Estado: solDet?.estado,
               "Fecha solicitud": solDet?.fecha_solicitud
                 ? new Date(solDet.fecha_solicitud).toLocaleString("es-ES")
                 : new Date().toLocaleString("es-ES"),
-              Cargo: solDet?.cargo || "-",
+              Cargo: cargo,
               "Ciudad prestación": solDet?.ciudad_prestacion_servicio || "-",
             },
           });
@@ -1339,6 +1351,16 @@ export const solicitudesService = {
                 }
               try {
                 if (!error && data) {
+                  // Obtener la URL base del sistema
+                  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://localhost';
+                  const sistemaUrl = `${baseUrl}/login`;
+                  
+                  // Obtener el campo temporal de la estructura_datos
+                  const temporal = (d as any)?.temporal;
+                  
+                  // Obtener el cargo de la estructura_datos si está disponible
+                  const cargo = (d as any)?.cargo || data.cargo || "-";
+                  
                   await emailService.sendSolicitudCreada({
                     to: String(email),
                     candidatoNombre:
@@ -1353,12 +1375,14 @@ export const solicitudesService = {
                     ),
                     empresaNombre: String(data.empresas?.razon_social || ""),
                     solicitudId: data.id,
+                    temporal: temporal,
+                    sistemaUrl: sistemaUrl,
                     detalles: {
                       Estado: data.estado,
                       "Fecha solicitud": new Date(
                         data.fecha_solicitud
                       ).toLocaleString("es-ES"),
-                      Cargo: data.cargo || "-",
+                      Cargo: cargo,
                       "Ciudad prestación":
                         data.ciudad_prestacion_servicio || "-",
                     },
