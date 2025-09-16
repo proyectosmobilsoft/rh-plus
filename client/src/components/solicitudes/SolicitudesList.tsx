@@ -436,8 +436,37 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   const calcularProgresoDocumentosRequeridos = async (solicitud: Solicitud) => {
     try {
       // Obtener el tipo de cargo de la solicitud
-      const tipoCargoId = solicitud.estructura_datos?.cargo ?? solicitud.estructura_datos?.datos?.cargo;
-      if (!tipoCargoId) {
+      let tipoCargoId = solicitud.estructura_datos?.cargo ?? solicitud.estructura_datos?.datos?.cargo;
+      
+      // Si el cargo es un string, verificar si es un número (ID) o un nombre
+      if (typeof tipoCargoId === 'string') {
+        // Si es un número como string, convertirlo a número
+        if (!isNaN(Number(tipoCargoId))) {
+          tipoCargoId = Number(tipoCargoId);
+        } else {
+          // Si es un nombre, buscar el ID del tipo de candidato
+          const { data: tipoCandidato, error: tipoError } = await supabase
+            .from('tipos_candidatos')
+            .select('id')
+            .eq('nombre', tipoCargoId)
+            .maybeSingle(); // Usar maybeSingle() en lugar de single()
+          
+          if (tipoError) {
+            console.error('Error buscando tipo de candidato:', tipoError);
+            return { total: 0, subidos: 0, progreso: 0 };
+          }
+          
+          if (tipoCandidato) {
+            tipoCargoId = tipoCandidato.id;
+          } else {
+            console.warn(`No se encontró tipo de candidato para: ${tipoCargoId}`);
+            return { total: 0, subidos: 0, progreso: 0 };
+          }
+        }
+      }
+      
+      // Verificar que tenemos un ID válido
+      if (!tipoCargoId || (typeof tipoCargoId === 'string' && isNaN(Number(tipoCargoId)))) {
         return { total: 0, subidos: 0, progreso: 0 };
       }
 
@@ -464,15 +493,20 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
       }
 
       // Obtener documentos subidos por el candidato para esta solicitud
-      const { data: documentosSubidos, error: subidosError } = await supabase
-        .from('candidatos_documentos')
-        .select('tipo_documento_id')
-        .eq('candidato_id', solicitud.candidato_id)
-        .eq('solicitud_id', solicitud.id);
-
-      if (subidosError) {
-        console.error('Error obteniendo documentos subidos:', subidosError);
-        return { total: totalDocumentos, subidos: 0, progreso: 0 };
+      let documentosSubidos = [];
+      if (solicitud.candidato_id) {
+        const { data, error: subidosError } = await supabase
+          .from('candidatos_documentos')
+          .select('tipo_documento_id')
+          .eq('candidato_id', solicitud.candidato_id)
+          .eq('solicitud_id', solicitud.id);
+        
+        if (subidosError) {
+          console.error('Error obteniendo documentos subidos:', subidosError);
+          return { total: totalDocumentos, subidos: 0, progreso: 0 };
+        }
+        
+        documentosSubidos = data || [];
       }
 
       const documentosSubidosIds = new Set(documentosSubidos?.map((doc: any) => doc.tipo_documento_id) || []);
