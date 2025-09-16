@@ -28,6 +28,8 @@ interface DatePickerProps {
   disabled?: boolean;
   maxDate?: Date;
   minDate?: Date;
+  diasMinimos?: number | string;
+  isDateDisabled?: (day: Date, diasMinimos: number | string) => boolean;
 }
 
 export const CustomDatePicker: React.FC<DatePickerProps> = ({
@@ -38,6 +40,8 @@ export const CustomDatePicker: React.FC<DatePickerProps> = ({
   disabled = false,
   maxDate,
   minDate,
+  diasMinimos,
+  isDateDisabled,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(value || new Date());
@@ -99,8 +103,18 @@ export const CustomDatePicker: React.FC<DatePickerProps> = ({
   const calendarDays = generateCalendarDays();
 
   const handleDateSelect = (date: Date) => {
-    if (minDate && date < minDate) return;
-    if (maxDate && date > maxDate) return;
+    // Usar la función personalizada de desactivación si está disponible
+    if (isDateDisabled && diasMinimos) {
+      if (isDateDisabled(date, diasMinimos)) return;
+    } else {
+      // Lógica original para minDate y maxDate
+      const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const minDateOnly = minDate ? new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate()) : null;
+      const maxDateOnly = maxDate ? new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate()) : null;
+      
+      if (minDateOnly && dateOnly < minDateOnly) return;
+      if (maxDateOnly && dateOnly > maxDateOnly) return;
+    }
     
     onChange(date);
     setIsOpen(false);
@@ -240,7 +254,20 @@ export const CustomDatePicker: React.FC<DatePickerProps> = ({
               const isCurrentMonth = isSameMonth(day, currentMonth);
               const isSelected = value && isSameDay(day, value);
               const isTodayDate = isToday(day);
-              const isDisabled = (minDate && day < minDate) || (maxDate && day > maxDate);
+              // Usar la función personalizada de desactivación si está disponible
+              let isDisabled = false;
+              
+              if (isDateDisabled && diasMinimos) {
+                // Usar la lógica personalizada para desactivar solo los días específicos del rango
+                isDisabled = isDateDisabled(day, diasMinimos);
+              } else {
+                // Lógica original para minDate y maxDate
+                const dayDateOnly = new Date(day.getFullYear(), day.getMonth(), day.getDate());
+                const minDateOnly = minDate ? new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate()) : null;
+                const maxDateOnly = maxDate ? new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate()) : null;
+                
+                isDisabled = (minDateOnly && dayDateOnly < minDateOnly) || (maxDateOnly && dayDateOnly > maxDateOnly);
+              }
 
               return (
                 <button

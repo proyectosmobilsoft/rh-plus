@@ -37,6 +37,8 @@ type FormField = {
   databaseField?: string;
   databaseValueField?: string;
   activo?: boolean;
+  // Nueva propiedad para campos de fecha
+  diasMinimos?: number;
   [key: string]: any;
 };
 
@@ -85,6 +87,7 @@ const createDefaultField = (): FormField => ({
   databaseField: 'nombre',
   databaseValueField: 'nombre',
   activo: true,
+  diasMinimos: undefined,
 });
 
 const createDefaultSection = (): FormSection => ({
@@ -1114,7 +1117,9 @@ const FormBuilder: React.FC<{
         // Campos adicionales para compatibilidad
         options: field.options,
         activo: field.activo,
-        isSystemField: field.isSystemField
+        isSystemField: field.isSystemField,
+        // Configuración específica para campos de fecha
+        diasMinimos: field.diasMinimos
       }))
     }))
   };
@@ -1562,9 +1567,46 @@ const FormBuilder: React.FC<{
                           <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
                           <div className="md:col-span-5">
                             <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                              {currentField.type === 'select' || currentField.type === 'radio' || currentField.type === 'foreignKey' ? 'Configuración de Opciones' : 'Placeholder'}
+                              {currentField.type === 'select' || currentField.type === 'radio' || currentField.type === 'foreignKey' ? 'Configuración de Opciones' : 
+                               currentField.type === 'date' ? 'Configuración de Fecha' : 'Placeholder'}
                             </label>
-                            {currentField.type === 'select' || currentField.type === 'radio' || currentField.type === 'foreignKey' ? (
+                            {currentField.type === 'date' ? (
+                              <div className="space-y-3">
+                                <div>
+                                  <label className="block text-xs text-gray-600 mb-1">Placeholder</label>
+                                  <input 
+                                    className={`w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm ${currentField.isSystemField ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                    name="placeholder" 
+                                    placeholder="Seleccione una fecha" 
+                                    value={currentField.placeholder} 
+                                    onChange={handleFieldChange} 
+                                    autoComplete="off"
+                                    disabled={currentField.isSystemField}
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs text-gray-600 mb-1">
+                                    Días mínimos después de hoy
+                                    <span className="text-gray-400 ml-1">(opcional)</span>
+                                  </label>
+                                  <input 
+                                    className={`w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm ${currentField.isSystemField ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                    name="diasMinimos" 
+                                    type="number"
+                                    min="0"
+                                    max="365"
+                                    placeholder="0" 
+                                    value={currentField.diasMinimos || ''} 
+                                    onChange={handleFieldChange} 
+                                    autoComplete="off"
+                                    disabled={currentField.isSystemField}
+                                  />
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    Ejemplo: 3 = la fecha más próxima será dentro de 3 días
+                                  </p>
+                                </div>
+                              </div>
+                            ) : currentField.type === 'select' || currentField.type === 'radio' || currentField.type === 'foreignKey' ? (
                               <div className="space-y-2">
                                 {/* Selector de fuente de datos */}
                                 <Select 

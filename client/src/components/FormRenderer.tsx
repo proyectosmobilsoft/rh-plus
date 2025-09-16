@@ -3,6 +3,7 @@ import { Users, Activity, User, Brain, TestTube, Clipboard, FileText, Building2,
 import { Button } from '@/components/ui/button';
 import { useTiposCandidatos } from '@/hooks/useTiposCandidatos';
 import { useDatabaseData } from '@/hooks/useDatabaseData';
+import { CustomDatePicker } from '@/components/ui/date-picker';
 
 interface FormRendererProps {
   estructura: any;
@@ -24,23 +25,40 @@ const FormRenderer: React.FC<FormRendererProps> = ({
   readOnly = false 
 }) => {
   const [formData, setFormData] = React.useState<Record<string, any>>(initialData);
+
+  // Función helper para calcular la fecha mínima
+  const calculateMinDate = (diasMinimos: number | string): Date | undefined => {
+    // Convertir a número si viene como string
+    const diasMinimosNum = typeof diasMinimos === 'string' ? parseInt(diasMinimos, 10) : diasMinimos;
+    
+    if (!diasMinimosNum || diasMinimosNum <= 0 || isNaN(diasMinimosNum)) return undefined;
+    
+    const today = new Date();
+    // Crear la fecha mínima sumando los días, normalizada al inicio del día
+    const minDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + diasMinimosNum);
+    
+    return minDate;
+  };
+
+  // Función helper para verificar si un día específico debe estar desactivado
+  const isDateDisabled = (day: Date, diasMinimos: number | string): boolean => {
+    // Convertir a número si viene como string
+    const diasMinimosNum = typeof diasMinimos === 'string' ? parseInt(diasMinimos, 10) : diasMinimos;
+    
+    if (!diasMinimosNum || diasMinimosNum <= 0 || isNaN(diasMinimosNum)) return false;
+    
+    const today = new Date();
+    const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const dayOnly = new Date(day.getFullYear(), day.getMonth(), day.getDate());
+    
+    // Desactivar días anteriores a hoy Y días del rango configurado
+    const maxDisabledDate = new Date(todayOnly);
+    maxDisabledDate.setDate(todayOnly.getDate() + diasMinimosNum); // +diasMinimos (no -1)
+    
+    // Desactivar si es anterior a hoy O está en el rango de días mínimos
+    return dayOnly < todayOnly || (dayOnly >= todayOnly && dayOnly <= maxDisabledDate);
+  };
   
-  // Debug: Log de la estructura recibida
-  React.useEffect(() => {
-    console.log('🔍 FormRenderer - Estructura recibida:', estructura);
-    if (estructura && estructura.secciones) {
-      estructura.secciones.forEach((seccion: any, index: number) => {
-        console.log(`🔍 FormRenderer - Sección ${index}:`, seccion);
-        if (seccion.campos) {
-          seccion.campos.forEach((campo: any, campoIndex: number) => {
-            if (campo.name === 'cargo' || campo.nombre === 'cargo') {
-              console.log(`🔍 FormRenderer - Campo cargo ${campoIndex}:`, campo);
-            }
-          });
-        }
-      });
-    }
-  }, [estructura]);
   
   // Hook para obtener tipos de candidatos
   const { data: tiposCandidatos = [], isLoading: isLoadingTiposCandidatos } = useTiposCandidatos();
@@ -200,12 +218,15 @@ const FormRenderer: React.FC<FormRendererProps> = ({
           )}
 
           {tipo === 'date' && (
-            <input
-              type="date"
-              value={value}
-              onChange={readOnly ? undefined : (e) => handleFieldChange(fieldName, e.target.value)}
-              className="w-full max-w-md px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors"
+            <CustomDatePicker
+              value={value ? new Date(value) : null}
+              onChange={(date) => handleFieldChange(fieldName, date ? date.toISOString().split('T')[0] : '')}
+              placeholder={String(placeholder)}
+              className="w-full max-w-md"
               disabled={readOnly}
+              minDate={calculateMinDate(campo.diasMinimos)}
+              diasMinimos={campo.diasMinimos}
+              isDateDisabled={isDateDisabled}
             />
           )}
 
@@ -472,12 +493,15 @@ const FormRenderer: React.FC<FormRendererProps> = ({
                   )}
 
                   {campo.tipo === 'date' && (
-                    <input
-                      type="date"
-                      value={formData[campo.nombre] || ''}
-                      onChange={readOnly ? undefined : (e) => handleFieldChange(campo.nombre, e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                    <CustomDatePicker
+                      value={formData[campo.nombre] ? new Date(formData[campo.nombre]) : null}
+                      onChange={(date) => handleFieldChange(campo.nombre, date ? date.toISOString().split('T')[0] : '')}
+                      placeholder={String(campo.placeholder || 'Seleccione una fecha')}
+                      className="w-full"
                       disabled={readOnly}
+                      minDate={calculateMinDate(campo.diasMinimos)}
+                      diasMinimos={campo.diasMinimos}
+                      isDateDisabled={isDateDisabled}
                     />
                   )}
 
