@@ -99,14 +99,14 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
       const solicitud = solicitudes.find(s => s.id === contactingSolicitudId);
       console.log('🔍 Solicitud encontrada:', solicitud?.id, 'Estado:', solicitud?.estado);
 
-      if (solicitud && solicitud.estado === 'PENDIENTE DOCUMENTOS') {
+      if (solicitud && solicitud.estado === 'pendiente documentos') {
         console.log('🔍 Operación de Contacto completada, limpiando estado...');
         setContactingSolicitudId(null);
         stopLoading(); // Detener loading global cuando se complete la operación de Contacto
         console.log('🔍 Loading global detenido por operación de Contacto');
       } else if (solicitud) {
-        console.log('🔍 Solicitud aún no en estado PENDIENTE DOCUMENTOS, esperando...');
-        console.log('🔍 Estado actual:', solicitud.estado, 'Esperando: PENDIENTE DOCUMENTOS');
+        console.log('🔍 Solicitud aún no en estado pendiente documentos, esperando...');
+        console.log('🔍 Estado actual:', solicitud.estado, 'Esperando: pendiente documentos');
       } else {
         console.log('🔍 Solicitud no encontrada, puede que se haya recargado la lista');
       }
@@ -298,37 +298,39 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     };
 
     // Si no tiene analista asignado y está en estado de asignación pendiente, mostrar badge morado especial
-    if (!hasAnalista && (estado?.toUpperCase() === 'PENDIENTE ASIGNACION' || estado?.toUpperCase() === 'PENDIENTE')) {
+    if (!hasAnalista && (estado?.toLowerCase() === 'pendiente asignacion' || estado?.toLowerCase() === 'pendiente')) {
       return <Badge className="bg-purple-400 hover:bg-purple-500 text-purple-900 border-purple-600 flex items-center justify-center text-center">Sin Asignar</Badge>;
     }
 
-    switch (estado?.toUpperCase()) {
-      case 'PENDIENTE':
+    switch (estado?.toLowerCase()) {
+      case 'pendiente':
         return <Badge className="bg-yellow-300 hover:bg-yellow-400 text-yellow-900 border-yellow-500 flex items-center justify-center text-center">Pendiente</Badge>;
-      case 'PENDIENTE ASIGNACION':
+      case 'pendiente asignacion':
         return <Badge className="bg-amber-300 hover:bg-amber-400 text-amber-900 border-amber-500 flex items-center justify-center text-center">Pendiente Asignación</Badge>;
-      case 'ASIGNADO':
+      case 'asignado':
         return <Badge className="bg-blue-300 hover:bg-blue-400 text-blue-900 border-blue-500 flex items-center justify-center text-center">Asignado</Badge>;
-      case 'PENDIENTE DOCUMENTOS':
+      case 'pendiente documentos':
         return <Badge className="bg-yellow-300 hover:bg-yellow-400 text-yellow-900 border-yellow-500 flex items-center justify-center text-center">Pendiente Documentos</Badge>;
-      case 'STAND BY':
+      case 'stand by':
         return <Badge className="bg-gray-300 hover:bg-gray-400 text-gray-900 border-gray-500 flex items-center justify-center text-center">Stand By</Badge>;
-      case 'APROBADA':
+      case 'aprobada':
         return <Badge className="bg-green-300 hover:bg-green-400 text-green-900 border-green-500 flex items-center justify-center text-center">Aprobada</Badge>;
-      case 'RECHAZADA':
+      case 'rechazada':
         return <Badge className="bg-red-300 hover:bg-red-400 text-red-900 border-red-500 flex items-center justify-center text-center">Rechazada</Badge>;
-      case 'EN_PROCESO':
+      case 'en_proceso':
         return <Badge className="bg-indigo-300 hover:bg-indigo-400 text-indigo-900 border-indigo-500 flex items-center justify-center text-center">En Proceso</Badge>;
-      case 'DESERTO':
+      case 'deserto':
         return <Badge className="bg-red-300 hover:bg-red-400 text-red-900 border-red-500 flex items-center justify-center text-center">Deserto</Badge>;
-      case 'CANCELADA':
+      case 'cancelada':
         return <Badge className="bg-red-300 hover:bg-red-400 text-red-900 border-red-500 flex items-center justify-center text-center">Cancelada</Badge>;
-      case 'DOCUMENTOS ENTREGADOS':
+      case 'descartado':
+        return <Badge className="bg-red-300 hover:bg-red-400 text-red-900 border-red-500 flex items-center justify-center text-center">Descartado</Badge>;
+      case 'documentos entregados':
         return <Badge className="bg-orange-400 hover:bg-orange-500 text-orange-900 border-orange-600 flex items-center justify-center text-center">Documentos Entregados</Badge>;
-      case 'Documentos Entregados':
-        return <Badge className="bg-orange-400 hover:bg-orange-500 text-orange-900 border-orange-600 flex items-center justify-center text-center">Documentos Entregados</Badge>;
-      case 'CITADO EXAMENES':
+      case 'citado examenes':
         return <Badge className="bg-cyan-300 hover:bg-cyan-400 text-cyan-900 border-cyan-500 flex items-center justify-center text-center">Citado Exámenes</Badge>;
+      case 'firma contrato':
+        return <Badge className="bg-emerald-300 hover:bg-emerald-400 text-emerald-900 border-emerald-500 flex items-center justify-center text-center">Firma Contrato</Badge>;
       default:
         return <Badge variant="outline" className="flex items-center justify-center text-center">{formatEstado(estado || 'Sin estado')}</Badge>;
     }
@@ -337,37 +339,39 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   // Función para obtener el color de fondo pálido de la fila según el estado y asignación de analista
   const getRowBackgroundColor = (estado: string, hasAnalista: boolean) => {
     // Si no tiene analista asignado y está en estado de asignación pendiente, aplicar color especial
-    if (!hasAnalista && (estado?.toUpperCase() === 'PENDIENTE ASIGNACION' || estado?.toUpperCase() === 'PENDIENTE')) {
+    if (!hasAnalista && (estado?.toLowerCase() === 'pendiente asignacion' || estado?.toLowerCase() === 'pendiente')) {
       return 'bg-purple-200';
     }
     
-    switch (estado?.toUpperCase()) {
-      case 'PENDIENTE':
+    switch (estado?.toLowerCase()) {
+      case 'pendiente':
         return 'bg-yellow-100';
-      case 'PENDIENTE ASIGNACION':
+      case 'pendiente asignacion':
         return 'bg-amber-100'; // Cambiado a amber para mejor diferenciación
-      case 'ASIGNADO':
+      case 'asignado':
         return 'bg-blue-100';
-      case 'PENDIENTE DOCUMENTOS':
+      case 'pendiente documentos':
         return 'bg-yellow-100';
-      case 'STAND BY':
+      case 'stand by':
         return 'bg-gray-100';
-      case 'APROBADA':
+      case 'aprobada':
         return 'bg-green-100';
-      case 'RECHAZADA':
+      case 'rechazada':
         return 'bg-red-100';
-      case 'EN_PROCESO':
+      case 'en_proceso':
         return 'bg-indigo-100';
-      case 'DESERTO':
+      case 'deserto':
         return 'bg-red-100';
-      case 'CANCELADA':
+      case 'cancelada':
         return 'bg-red-100';
-      case 'DOCUMENTOS ENTREGADOS':
+      case 'descartado':
+        return 'bg-red-100';
+      case 'documentos entregados':
         return 'bg-orange-100';
-      case 'Documentos Entregados':
-        return 'bg-orange-100';
-      case 'CITADO EXAMENES':
+      case 'citado examenes':
         return 'bg-cyan-100';
+      case 'firma contrato':
+        return 'bg-emerald-100';
       default:
         return '';
     }
@@ -375,16 +379,16 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
   // Determina si hay al menos una acción disponible según permisos y estado
   const hasAnyAvailableAction = (s: Solicitud): boolean => {
-    const puedeEditar = s.estado === 'ASIGNADO' && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-editar-solicitud');
+    const puedeEditar = s.estado === 'asignado' && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-editar-solicitud');
     const puedeVisualizar = hasAction('accion-visualizar-solicitud');
     const puedeAsignar = isPendienteAsignacion(s.estado) && !isStandBy(s.estado) && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-asignar-solicitud');
-    const puedeAprobar = s.estado === 'PENDIENTE' && !isStandBy(s.estado) && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-aprobar-solicitud');
-    const puedeContactar = s.estado === 'ASIGNADO' && !isStandBy(s.estado) && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-contactar-solicitud');
+    const puedeAprobar = s.estado === 'pendiente' && !isStandBy(s.estado) && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-aprobar-solicitud');
+    const puedeContactar = s.estado === 'asignado' && !isStandBy(s.estado) && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-contactar-solicitud');
     const puedeReactivar = isStandBy(s.estado) && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-reactivar-solicitud');
     const puedeStandBy = !isStandBy(s.estado) && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-standby-solicitud');
     const puedeDeserto = !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-deserto-solicitud');
-    const puedeCancelar = s.estado === 'ASIGNADO' && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-cancelar-solicitud');
-    const puedeValidarDocumentos = s.estado?.toUpperCase() === 'DOCUMENTOS ENTREGADOS' && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-validar-documentos-solicitud');
+    const puedeCancelar = s.estado === 'asignado' && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-cancelar-solicitud');
+    const puedeValidarDocumentos = s.estado?.toLowerCase() === 'documentos entregados' && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-validar-documentos-solicitud');
     return puedeEditar || puedeVisualizar || puedeAsignar || puedeAprobar || puedeContactar || puedeReactivar || puedeStandBy || puedeDeserto || puedeCancelar || puedeValidarDocumentos;
   };
 
@@ -416,17 +420,17 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   };
 
   // Función para verificar si la solicitud está en STAND BY
-  const isStandBy = (estado: string) => estado?.toUpperCase() === 'STAND BY';
+  const isStandBy = (estado: string) => estado?.toLowerCase() === 'stand by';
 
   // Función para verificar si la solicitud está en estado DESERTO
-  const isDeserto = (estado: string) => estado?.toUpperCase() === 'DESERTO';
+  const isDeserto = (estado: string) => estado?.toLowerCase() === 'deserto';
 
   // Función para verificar si la solicitud está en estado CANCELADA
-  const isCancelada = (estado: string) => estado?.toUpperCase() === 'CANCELADA';
+  const isCancelada = (estado: string) => estado?.toLowerCase() === 'cancelada';
 
   // Función para verificar si la solicitud está pendiente de asignación
-  const isPendienteAsignacion = (estado: string) => 
-    estado?.toUpperCase() === 'PENDIENTE ASIGNACION';
+  const isPendienteAsignacion = (estado: string) =>
+    estado?.toLowerCase() === 'pendiente asignacion';
 
   const getDisplayValue = (value: string | undefined, defaultValue: string = 'No especificado') => {
     return value && value.trim() !== '' ? value : defaultValue;
@@ -493,7 +497,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
       }
 
       // Obtener documentos subidos por el candidato para esta solicitud
-      let documentosSubidos = [];
+      let documentosSubidos: Array<{ tipo_documento_id: number }> = [];
       if (solicitud.candidato_id) {
         const { data, error: subidosError } = await supabase
           .from('candidatos_documentos')
@@ -509,7 +513,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
         documentosSubidos = data || [];
       }
 
-      const documentosSubidosIds = new Set(documentosSubidos?.map((doc: any) => doc.tipo_documento_id) || []);
+      const documentosSubidosIds = new Set(documentosSubidos.map((doc) => doc.tipo_documento_id));
       const documentosRequeridosIds = new Set(documentosRequeridos?.map((doc: any) => doc.tipos_documentos.id) || []);
       
       // Contar cuántos documentos requeridos están subidos
@@ -1002,7 +1006,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                           {hasAnyAvailableAction(solicitud) && (
                             <DropdownMenuContent align="start" className="w-48">
                             {/* Botón Editar - solo visible cuando esté en estado ASIGNADO */}
-                            {solicitud.estado === 'ASIGNADO' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                            {solicitud.estado === 'asignado' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
                               <Can action="accion-editar-solicitud">
                                 <DropdownMenuItem onClick={() => onEdit(solicitud)} className="cursor-pointer">
                                   <Edit className="h-4 w-4 mr-2 text-purple-600" />
@@ -1030,7 +1034,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                             )}
 
                             {/* Botón Aprobar - solo visible en estado PENDIENTE */}
-                            {solicitud.estado === 'PENDIENTE' && !isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                            {solicitud.estado === 'pendiente' && !isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
                               <Can action="accion-aprobar-solicitud">
                                 <DropdownMenuItem onClick={() => handleApproveClick(solicitud.id)} className="cursor-pointer">
                                   <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
@@ -1087,7 +1091,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                             )}
 
                             {/* Botón Cancelar */}
-                            {solicitud.estado === 'ASIGNADO' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                            {solicitud.estado === 'asignado' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
                               <Can action="accion-cancelar-solicitud">
                                 <DropdownMenuItem onClick={() => handleCancelClick(solicitud.id)} className="cursor-pointer">
                                   <X className="h-4 w-4 mr-2 text-red-600" />
@@ -1256,7 +1260,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
               ¿Estás seguro de que deseas marcar esta solicitud como contactada?
               <br />
               <span className="text-sm text-muted-foreground">
-                Esta acción cambiará el estado de la solicitud a "PENDIENTE DOCUMENTOS".
+                Esta acción cambiará el estado de la solicitud a "pendiente documentos".
               </span>
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -1595,7 +1599,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
               )}
               <br />
               <span className="text-sm text-muted-foreground">
-                Esta acción cambiará el estado de la solicitud a "ASIGNADO".
+                Esta acción cambiará el estado de la solicitud a "asignado".
               </span>
             </AlertDialogDescription>
           </AlertDialogHeader>

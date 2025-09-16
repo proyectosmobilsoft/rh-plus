@@ -51,7 +51,7 @@ const ordenSchema = z.object({
   pagosAuxilios: z.string().optional(),
   especificacionesAdicionales: z.string().optional(),
   
-  estado: z.string().default("PENDIENTE"),
+  estado: z.string().default("pendiente"),
   prioridad: z.string().default("media"),
   
   observaciones: z.string().optional(),
@@ -123,7 +123,7 @@ const OrdenForm: React.FC<OrdenFormProps> = ({ orden, onSubmit, onCancel }) => {
       pagosAuxilios: orden?.pagosAuxilios || "",
       especificacionesAdicionales: orden?.especificacionesAdicionales || "",
       
-      estado: orden?.estado || "PENDIENTE",
+      estado: orden?.estado || "pendiente",
       prioridad: orden?.prioridad || "media",
       
       observaciones: orden?.observaciones || "",

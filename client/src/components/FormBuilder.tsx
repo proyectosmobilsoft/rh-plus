@@ -971,12 +971,12 @@ const FormBuilder: React.FC<{
         if (sourceSectionIdx === targetSectionIdx) {
           // Mover dentro de la misma sección
           if (sourceFieldIdx !== targetFieldIdx) {
-            setSections(prev => {
-              const updated = [...prev];
+          setSections(prev => {
+            const updated = [...prev];
               const section = updated[targetSectionIdx];
-              const campos = [...section.campos];
-              
-              // Remover el campo arrastrado
+            const campos = [...section.campos];
+            
+            // Remover el campo arrastrado
               const [draggedField] = campos.splice(sourceFieldIdx, 1);
               
               // Calcular la nueva posición correcta
@@ -989,23 +989,23 @@ const FormBuilder: React.FC<{
               
               // Asegurar que la posición esté dentro de los límites válidos
               newPosition = Math.max(0, Math.min(newPosition, campos.length));
-              
-              // Insertar en la nueva posición
+            
+            // Insertar en la nueva posición
               campos.splice(newPosition, 0, draggedField);
-              
-              // Actualizar el orden de todos los campos
-              const reorderedCampos = campos.map((campo, index) => ({
-                ...campo,
-                order: index + 1
-              }));
-              
+            
+            // Actualizar el orden de todos los campos
+            const reorderedCampos = campos.map((campo, index) => ({
+              ...campo,
+              order: index + 1
+            }));
+            
               updated[targetSectionIdx] = {
-                ...section,
-                campos: reorderedCampos
-              };
-              
-              return updated;
-            });
+              ...section,
+              campos: reorderedCampos
+            };
+            
+            return updated;
+          });
           }
         } else {
           // Mover entre secciones a una posición específica
@@ -1109,22 +1109,22 @@ const FormBuilder: React.FC<{
     const gridColumnSpan = `span ${f.dimension}`;
     
          // Crear el contenedor del campo con estado de redimensionamiento
-      const renderFieldContainer = (children: React.ReactNode) => (
-               <div 
-           key={f.id} 
+     const renderFieldContainer = (children: React.ReactNode) => (
+              <div 
+          key={f.id} 
            className={`field-container ${resizingFieldId === f.id ? 'field-resizing' : ''} ${(f as any).isPreviewField ? 'preview-field' : ''} ${(f as any).isDragging ? 'field-dragging' : ''}`}
-                      style={{ 
-              gridColumn: gridColumnSpan, 
-              padding: 6,
-              minWidth: 0,
-              position: 'relative',
-              border: resizingFieldId === f.id ? '2px solid #3b82f6' : '1px solid transparent',
-              borderRadius: '6px',
-              backgroundColor: resizingFieldId === f.id ? '#eff6ff' : 'transparent',
-              boxShadow: resizingFieldId === f.id ? '0 4px 12px rgba(59, 130, 246, 0.2)' : 'none',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease-in-out'
-            }}
+                     style={{ 
+             gridColumn: gridColumnSpan, 
+             padding: 6,
+             minWidth: 0,
+             position: 'relative',
+             border: resizingFieldId === f.id ? '2px solid #3b82f6' : '1px solid transparent',
+             borderRadius: '6px',
+             backgroundColor: resizingFieldId === f.id ? '#eff6ff' : 'transparent',
+             boxShadow: resizingFieldId === f.id ? '0 4px 12px rgba(59, 130, 246, 0.2)' : 'none',
+             cursor: 'pointer',
+             transition: 'all 0.2s ease-in-out'
+           }}
           
                      onClick={(e) => {
              e.preventDefault();
@@ -1646,7 +1646,7 @@ const FormBuilder: React.FC<{
                opacity: 1;
                transform: scaleY(1.2);
              }
-           }
+          }
           
                      /* Estilos para los handles de redimensionamiento */
            .resize-handle-left,
@@ -2227,7 +2227,7 @@ const FormBuilder: React.FC<{
                               <div className="text-xs text-gray-500 flex-shrink-0">
                                 Mover campo a otra sección
                               </div>
-                            </div>
+                              </div>
                           </div>
                         </div>
                       )}

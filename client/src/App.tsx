@@ -50,6 +50,7 @@ import EspecialidadesPage from "./pages/clinica/EspecialidadesPage";
 import EspecialistasPage from "./pages/clinica/EspecialistasPage";
 import CitasProgramadasPage from "./pages/clinica/CitasProgramadasPage";
 import ExpedicionCertificadosPage from "./pages/certificados/ExpedicionCertificadosPage";
+import CertificadosMedicosPage from "./pages/certificados/CertificadosMedicosPage";
 import CrearCandidatoPage from "./pages/seguridad/CrearCandidatoPage";
 import CrearAdministradorPage from "./pages/seguridad/CrearAdministradorPage";
 import CrearCoordinadorPage from "./pages/seguridad/CrearCoordinadorPage";
@@ -562,6 +563,11 @@ function App() {
             <Route path="/expedicion-certificados" element={
               <ProtectedRoute>
                 <ExpedicionCertificadosPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/certificados-medicos" element={
+              <ProtectedRoute>
+                <CertificadosMedicosPage />
               </ProtectedRoute>
             } />
 

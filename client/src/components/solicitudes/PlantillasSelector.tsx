@@ -221,7 +221,7 @@ export default function PlantillasSelector({
     const e = (estado || '').toUpperCase();
     switch (e) {
       case 'PENDIENTE':
-      case 'PENDIENTE DOCUMENTOS':
+      case 'pendiente documentos':
         return 'text-purple-600';
       case 'ASIGNADO':
         return 'text-blue-600';
@@ -242,7 +242,7 @@ export default function PlantillasSelector({
     const e = (estado || '').toUpperCase();
     switch (e) {
       case 'PENDIENTE':
-      case 'PENDIENTE DOCUMENTOS':
+      case 'pendiente documentos':
         return 'bg-purple-500';
       case 'ASIGNADO':
         return 'bg-blue-500';

@@ -43,7 +43,7 @@ const solicitudSchema = z.object({
   pagosAuxilios: z.string().optional(),
   especificacionesAdicionales: z.string().optional(),
   
-  estado: z.string().default("PENDIENTE"),
+  estado: z.string().default("pendiente"),
   prioridad: z.string().default("media"),
   
   observaciones: z.string().optional(),
@@ -103,7 +103,7 @@ const SolicitudForm: React.FC<SolicitudFormProps> = ({
       jornadaLaboral: solicitud?.jornadaLaboral || "",
       pagosAuxilios: solicitud?.pagosAuxilios || "",
       especificacionesAdicionales: solicitud?.especificacionesAdicionales || "",
-      estado: solicitud?.estado || "PENDIENTE",
+      estado: solicitud?.estado || "pendiente",
       prioridad: solicitud?.prioridad || "media",
       observaciones: solicitud?.observaciones || "",
       notasInternas: solicitud?.notasInternas || "",

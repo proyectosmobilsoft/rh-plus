@@ -86,7 +86,7 @@ export const useSolicitudesLogs = () => {
     return crearLog({
       solicitud_id: solicitudId,
       accion: ACCIONES_SOLICITUDES.APROBAR,
-      estado_nuevo: 'APROBADA',
+      estado_nuevo: 'aprobada',
       observacion: observacion || 'Solicitud aprobada'
     });
   }, [crearLog]);
@@ -99,7 +99,7 @@ export const useSolicitudesLogs = () => {
     return crearLog({
       solicitud_id: solicitudId,
       accion: ACCIONES_SOLICITUDES.RECHAZAR,
-      estado_nuevo: 'RECHAZADA',
+      estado_nuevo: 'rechazada',
       observacion: observacion || 'Solicitud rechazada'
     });
   }, [crearLog]);
@@ -114,7 +114,7 @@ export const useSolicitudesLogs = () => {
       solicitud_id: solicitudId,
       accion: ACCIONES_SOLICITUDES.CONTACTAR,
       estado_anterior: estadoAnterior,
-      estado_nuevo: 'PENDIENTE DOCUMENTOS',
+      estado_nuevo: 'pendiente documentos',
       observacion: observacion || 'Solicitud marcada como contactada'
     });
   }, [crearLog]);
@@ -129,7 +129,7 @@ export const useSolicitudesLogs = () => {
       solicitud_id: solicitudId,
       accion: ACCIONES_SOLICITUDES.STAND_BY,
       estado_anterior: estadoAnterior,
-      estado_nuevo: 'STAND BY',
+      estado_nuevo: 'stand by',
       observacion: `Solicitud puesta en Stand By: ${observacion}`
     });
   }, [crearLog]);

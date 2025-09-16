@@ -84,7 +84,7 @@ const menuItems = [
   {
     title: "Certificados",
     icon: <FileText className="h-5 w-5" />,
-    path: "/expedicion-certificados",
+    path: "/certificados-medicos",
     subItems: [],
   },
   {
@@ -190,6 +190,7 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
 
     // Certificados
     '/expedicion-certificados': ['vista-certificados'],
+    '/certificados-medicos': ['vista-certificados'],
 
     // Analistas
     '/analistas': ['vista-analistas'],

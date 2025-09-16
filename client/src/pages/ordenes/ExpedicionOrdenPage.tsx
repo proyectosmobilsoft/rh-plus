@@ -40,7 +40,7 @@ const ExpedicionOrdenPage = () => {
     { value: 'PENDIENTE', label: 'Pendiente' },
     { value: 'PENDIENTE ASIGNACION', label: 'Pendiente Asignación' },
     { value: 'ASIGNADO', label: 'Asignado' },
-    { value: 'PENDIENTE DOCUMENTOS', label: 'Pendiente Documentos' },
+    { value: 'pendiente documentos', label: 'Pendiente Documentos' },
     { value: 'EN_PROCESO', label: 'En Proceso' },
     { value: 'APROBADA', label: 'Aprobada' },
     { value: 'RECHAZADA', label: 'Rechazada' }
@@ -336,7 +336,7 @@ const ExpedicionOrdenPage = () => {
   const handleValidateDocuments = async (id: number, observacion: string) => {
     setIsLoading(true);
     try {
-      await solicitudesService.updateStatus(id, 'CITADO EXAMENES', observacion);
+      await solicitudesService.updateStatus(id, 'citado examenes', observacion);
       await fetchSolicitudes();
       toast.success('Documentos validados exitosamente. Estado cambiado a "Citado Exámenes".');
     } catch (error) {

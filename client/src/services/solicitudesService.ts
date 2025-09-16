@@ -809,7 +809,7 @@ export const solicitudesService = {
             usuario_id: getUsuarioId(),
             accion: ACCIONES_SISTEMA.ASIGNAR_ANALISTA,
             estado_anterior: solicitud.estado,
-            estado_nuevo: "ASIGNADO",
+            estado_nuevo: "asignado",
             observacion: `Analista ${
               analista?.nombre || analistaId
             } asignado automáticamente`,
@@ -1458,8 +1458,8 @@ export const solicitudesService = {
             solicitud_id: solicitudTransformada.id!,
             usuario_id: getUsuarioId(),
             accion: ACCIONES_SISTEMA.ASIGNAR_ANALISTA,
-            estado_anterior: "PENDIENTE",
-            estado_nuevo: "ASIGNADO",
+            estado_anterior: "pendiente",
+            estado_nuevo: "asignado",
             observacion: `Analista ${
               analista?.nombre || analistaId
             } asignado automáticamente`,
@@ -1626,7 +1626,7 @@ export const solicitudesService = {
       const { error } = await supabase
         .from("hum_solicitudes")
         .update({
-          estado: "STAND BY",
+          estado: "stand by",
           previous_state: estadoAnterior,
           updated_at: new Date().toISOString(),
         })
@@ -1644,7 +1644,7 @@ export const solicitudesService = {
           usuario_id: getUsuarioId(),
           accion: ACCIONES_SISTEMA.PUT_STANDBY,
           estado_anterior: estadoAnterior,
-          estado_nuevo: "STAND BY",
+          estado_nuevo: "stand by",
           observacion: `Solicitud puesta en Stand By: ${observacion}`,
         });
       } catch (logError) {
@@ -1713,7 +1713,7 @@ export const solicitudesService = {
           solicitud_id: id,
           usuario_id: getUsuarioId(),
           accion: ACCIONES_SISTEMA.REACTIVAR,
-          estado_anterior: "STAND BY",
+          estado_anterior: "stand by",
           estado_nuevo: estadoAnterior,
           observacion: `Solicitud reactivada al estado: ${estadoAnterior}`,
         });
@@ -1741,7 +1741,7 @@ export const solicitudesService = {
     try {
       const success = await this.updateStatus(
         id,
-        "PENDIENTE DOCUMENTOS",
+        "pendiente documentos",
         observacion
       );
       
@@ -1752,7 +1752,7 @@ export const solicitudesService = {
             solicitud_id: id,
             usuario_id: getUsuarioId(),
             accion: ACCIONES_SISTEMA.CONTACTAR,
-            estado_nuevo: "PENDIENTE DOCUMENTOS",
+            estado_nuevo: "pendiente documentos",
             observacion: observacion || "Solicitud contactada",
           });
         } catch (logError) {
@@ -1798,7 +1798,7 @@ export const solicitudesService = {
             solicitud_id: id,
             usuario_id: getUsuarioId(),
             accion: ACCIONES_SISTEMA.RECHAZAR_SOLICITUD,
-            estado_nuevo: "RECHAZADA",
+            estado_nuevo: "rechazada",
             observacion: observacion || "Solicitud rechazada",
           });
         } catch (logError) {
@@ -1827,7 +1827,7 @@ export const solicitudesService = {
         .from("hum_solicitudes")
         .update({
           analista_id: analistaId,
-          estado: "ASIGNADO", // Cambiar estado a ASIGNADO cuando se asigna analista
+          estado: "asignado", // Cambiar estado a asignado cuando se asigna analista
           updated_at: new Date().toISOString(),
         })
         .eq("id", id);
@@ -1843,8 +1843,8 @@ export const solicitudesService = {
           solicitud_id: id,
           usuario_id: getUsuarioId(),
           accion: ACCIONES_SISTEMA.ASIGNAR_ANALISTA,
-          estado_anterior: "Pendiente Asignacion",
-          estado_nuevo: "ASIGNADO",
+          estado_anterior: "pendiente asignacion",
+          estado_nuevo: "asignado",
           observacion:
             observacion || `Analista ${analistaId} asignado manualmente`,
         });

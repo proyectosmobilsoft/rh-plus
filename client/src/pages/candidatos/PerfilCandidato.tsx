@@ -1135,11 +1135,11 @@ export default function PerfilCandidato() {
       if (todosLosDocumentosRequeridosSubidos && documentosRequeridosIds.length > 0) {
         console.log('✅ Todos los documentos requeridos están subidos, actualizando estado...');
         
-        // Actualizar estado de la solicitud a "Documentos Entregados"
+        // Actualizar estado de la solicitud a "documentos entregados"
         const { error } = await supabase
           .from('hum_solicitudes')
           .update({ 
-            estado: 'Documentos Entregados',
+            estado: 'documentos entregados',
             updated_at: new Date().toISOString()
           })
           .eq('id', solicitudId);
@@ -1147,7 +1147,7 @@ export default function PerfilCandidato() {
         if (error) {
           console.error('Error actualizando estado de solicitud:', error);
         } else {
-          console.log('✅ Estado de solicitud actualizado a "Documentos Entregados"');
+          console.log('✅ Estado de solicitud actualizado a "documentos entregados"');
           toast.success('¡Todos los documentos requeridos han sido entregados!');
         }
       } else {
