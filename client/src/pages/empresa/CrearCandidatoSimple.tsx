@@ -18,13 +18,38 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { validateTipoDocumento, validateNumeroDocumento, validateTextField, validateEmail } from '@/utils/validationUtils';
 
 const candidatoSimpleSchema = z.object({
   nombres: z.string().min(2, 'Nombres requeridos'),
   apellidos: z.string().min(2, 'Apellidos requeridos'),
-  cedula: z.string().min(6, 'Cédula requerida'),
-  email: z.string().email('Email inválido'),
-  tipoDocumento: z.string().min(1, 'Tipo de documento requerido'),
+  cedula: z.string()
+    .min(6, 'Cédula requerida')
+    .refine((val) => {
+      const validation = validateNumeroDocumento(val);
+      return validation.isValid;
+    }, (val) => {
+      const validation = validateNumeroDocumento(val);
+      return { message: validation.error || "Número de documento inválido" };
+    }),
+  email: z.string()
+    .email('Email inválido')
+    .refine((val) => {
+      const validation = validateEmail(val);
+      return validation.isValid;
+    }, (val) => {
+      const validation = validateEmail(val);
+      return { message: validation.error || "Email inválido" };
+    }),
+  tipoDocumento: z.string()
+    .min(1, 'Tipo de documento requerido')
+    .refine((val) => {
+      const validation = validateTipoDocumento(val);
+      return validation.isValid;
+    }, (val) => {
+      const validation = validateTipoDocumento(val);
+      return { message: validation.error || "Tipo de documento inválido" };
+    }),
 });
 
 type CandidatoSimpleForm = z.infer<typeof candidatoSimpleSchema>;
@@ -83,19 +108,28 @@ export default function CrearCandidatoSimple() {
           error?.code === '23505' ||
           (typeof error?.message === 'string' &&
             (error.message.includes('usuarios_email_key') ||
+              error.message.includes('usuarios_username_key') ||
               error.message.toLowerCase().includes('duplicate key')))
         ) {
-          toast.info(
-            'Ya existe un candidato con este correo electrónico.',
-            {
-              description:
-                'No es necesario volver a crearlo. Puedes buscarlo en la lista o usar otro correo para un candidato nuevo.',
-              action: {
-                label: 'Ver candidatos',
-                onClick: () => navigate('/empresa/candidatos'),
-              },
-            }
-          );
+          // Determinar el tipo de error específico
+          const isEmailError = error.message?.includes('usuarios_email_key');
+          const isUsernameError = error.message?.includes('usuarios_username_key');
+          
+          if (isEmailError || isUsernameError) {
+            toast.info(
+              'Ya existe un candidato con este correo electrónico.',
+              {
+                description:
+                  'No es necesario volver a crearlo. Puedes buscarlo en la lista o usar otro correo para un candidato nuevo.',
+                action: {
+                  label: 'Ver candidatos',
+                  onClick: () => navigate('/empresa/candidatos'),
+                },
+              }
+            );
+          } else {
+            toast.error('Error de duplicación: ' + (error.message || 'Datos duplicados'));
+          }
         } else {
           toast.error(error.message || 'Error creando candidato');
         }

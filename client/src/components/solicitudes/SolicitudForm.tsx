@@ -10,13 +10,30 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Users, Building, DollarSign, FileText } from 'lucide-react';
 import { Solicitud } from '@/services/solicitudesService';
+import { validateTipoDocumento, validateNumeroDocumento, validateTextField, validateEmail } from '@/utils/validationUtils';
 
 // Esquema de validación para crear solicitud
 const solicitudSchema = z.object({
   nombres: z.string().min(2, "Los nombres son requeridos"),
   apellidos: z.string().min(2, "Los apellidos son requeridos"),
-  tipoDocumento: z.string().min(1, "Tipo de documento requerido"),
-  numeroDocumento: z.string().min(6, "Número de documento requerido"),
+  tipoDocumento: z.string()
+    .min(1, "Tipo de documento requerido")
+    .refine((val) => {
+      const validation = validateTipoDocumento(val);
+      return validation.isValid;
+    }, (val) => {
+      const validation = validateTipoDocumento(val);
+      return { message: validation.error || "Tipo de documento inválido" };
+    }),
+  numeroDocumento: z.string()
+    .min(6, "Número de documento requerido")
+    .refine((val) => {
+      const validation = validateNumeroDocumento(val);
+      return validation.isValid;
+    }, (val) => {
+      const validation = validateNumeroDocumento(val);
+      return { message: validation.error || "Número de documento inválido" };
+    }),
   lugarExpedicion: z.string().optional(),
   celular: z.string().optional(),
   direccion: z.string().optional(),

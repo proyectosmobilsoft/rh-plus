@@ -9,6 +9,7 @@ import { candidatosService, type Candidato } from "./candidatosService";
 import { toast } from "sonner";
 import { emailService } from "./emailService";
 import { isNonBusinessDay, getNonBusinessDayInfo } from "./holidaysService";
+import { validateSolicitudData, normalizeTipoDocumento, normalizeCampo } from "@/utils/validationUtils";
 
 // Función helper para convertir null a undefined
 const getUsuarioId = (): number | undefined => {
@@ -528,10 +529,24 @@ export const solicitudesService = {
       let candidatoIdFinal = solicitud.candidato_id;
       if (!candidatoIdFinal && solicitud.estructura_datos) {
         const d = solicitud.estructura_datos as Record<string, any>;
+        
+        // Normalizar campos que pueden venir pegados
+        const datosNormalizados = { ...d };
+        Object.keys(datosNormalizados).forEach(key => {
+          if (typeof datosNormalizados[key] === 'string') {
+            datosNormalizados[normalizeCampo(key)] = datosNormalizados[key];
+          }
+        });
+        
         const numeroDocumento =
-          d.numero_documento || d.documento || d.cedula || d.cedula_ciudadania || d.identificacion;
-        const email = d.email || d.correo_electronico || d.correo;
-        const telefonoInicial = d.telefono || d.celular || d.phone || d.movil;
+          datosNormalizados.numero_documento || 
+          datosNormalizados.documento || 
+          datosNormalizados.cedula || 
+          datosNormalizados.cedula_ciudadania || 
+          datosNormalizados.cedulaciudadania ||
+          datosNormalizados.identificacion;
+        const email = datosNormalizados.email || datosNormalizados.correo_electronico || datosNormalizados.correo;
+        const telefonoInicial = datosNormalizados.telefono || datosNormalizados.celular || datosNormalizados.phone || datosNormalizados.movil;
         if (numeroDocumento && email) {
           const candidatoPayload: Partial<Candidato> = {
             numero_documento: String(numeroDocumento),
@@ -541,11 +556,13 @@ export const solicitudesService = {
 
           // Función para extraer nombres de manera inteligente
           const extractNames = (data: Record<string, any>) => {
-            // Buscar nombre completo en múltiples variaciones
+            // Buscar nombre completo en múltiples variaciones (incluyendo campos pegados)
             const nombreCompleto = data.nombre_completo || data.nombrecompleto || 
                                  data.nombres || data.nombre || data.nombres_completos ||
                                  data.nombre_y_apellidos || data.nombre_apellidos ||
-                                 data.nombre_completo_candidato || data.nombre_candidato;
+                                 data.nombre_completo_candidato || data.nombre_candidato ||
+                                 data.nombrecompleto || data.nombrescompletos ||
+                                 data.nombreyapellidos || data.nombreapellidos;
             
             if (nombreCompleto && typeof nombreCompleto === 'string' && nombreCompleto.trim()) {
               const partes = nombreCompleto.trim().split(/\s+/).filter(parte => parte.length > 0);
@@ -588,12 +605,12 @@ export const solicitudesService = {
               }
             }
             
-            // Si no hay nombre completo, buscar campos individuales
+            // Si no hay nombre completo, buscar campos individuales (incluyendo campos pegados)
             return {
-              primer_nombre: data.primer_nombre || data.primer_nombre_candidato || '',
-              segundo_nombre: data.segundo_nombre || data.segundo_nombre_candidato || '',
-              primer_apellido: data.primer_apellido || data.primer_apellido_candidato || '',
-              segundo_apellido: data.segundo_apellido || data.segundo_apellido_candidato || ''
+              primer_nombre: data.primer_nombre || data.primer_nombre_candidato || data.primer_nombre || data.primer_nombre_candidato || '',
+              segundo_nombre: data.segundo_nombre || data.segundo_nombre_candidato || data.segundo_nombre || data.segundo_nombre_candidato || '',
+              primer_apellido: data.primer_apellido || data.primer_apellido_candidato || data.primer_apellido || data.primer_apellido_candidato || '',
+              segundo_apellido: data.segundo_apellido || data.segundo_apellido_candidato || data.segundo_apellido || data.segundo_apellido_candidato || ''
             };
           };
 
@@ -624,7 +641,7 @@ export const solicitudesService = {
 
           console.log("📝 Payload del candidato a crear:", candidatoPayload);
 
-          // Opcionales si existen en el JSON
+          // Opcionales si existen en el JSON (incluyendo campos pegados)
           const map: Record<string, keyof Candidato> = {
             tipo_documento: "tipo_documento",
             direccion: "direccion",
@@ -632,7 +649,7 @@ export const solicitudesService = {
             empresa_id: "empresa_id",
           };
           for (const key in map) {
-            const v = (d as any)[key];
+            const v = (d as any)[key] || (d as any)[normalizeCampo(key)];
             if (v !== undefined && v !== null && v !== "") {
               (candidatoPayload as any)[map[key]] = v;
             }
@@ -1225,10 +1242,23 @@ export const solicitudesService = {
       let candidatoIdFinal = candidatoId;
       const d = estructuraDatos || {};
       if (!candidatoIdFinal && d) {
+        // Normalizar campos que pueden venir pegados
+        const datosNormalizados = { ...d };
+        Object.keys(datosNormalizados).forEach(key => {
+          if (typeof datosNormalizados[key] === 'string') {
+            datosNormalizados[normalizeCampo(key)] = datosNormalizados[key];
+          }
+        });
+        
         const numeroDocumento =
-          d.numero_documento || d.documento || d.cedula || d.cedula_ciudadania || d.identificacion;
-        const email = d.email || d.correo_electronico || d.correo;
-        const telefonoInicial = d.telefono || d.celular || d.phone || d.movil || null;
+          datosNormalizados.numero_documento || 
+          datosNormalizados.documento || 
+          datosNormalizados.cedula || 
+          datosNormalizados.cedula_ciudadania || 
+          datosNormalizados.cedulaciudadania ||
+          datosNormalizados.identificacion;
+        const email = datosNormalizados.email || datosNormalizados.correo_electronico || datosNormalizados.correo;
+        const telefonoInicial = datosNormalizados.telefono || datosNormalizados.celular || datosNormalizados.phone || datosNormalizados.movil || null;
         if (numeroDocumento && email) {
           const candidatoPayload: Partial<Candidato> = {
             numero_documento: String(numeroDocumento),
@@ -1237,11 +1267,13 @@ export const solicitudesService = {
           };
           // Función para extraer nombres de manera inteligente (misma lógica que en create)
           const extractNames = (data: Record<string, any>) => {
-            // Buscar nombre completo en múltiples variaciones
+            // Buscar nombre completo en múltiples variaciones (incluyendo campos pegados)
             const nombreCompleto = data.nombre_completo || data.nombrecompleto || 
                                  data.nombres || data.nombre || data.nombres_completos ||
                                  data.nombre_y_apellidos || data.nombre_apellidos ||
-                                 data.nombre_completo_candidato || data.nombre_candidato;
+                                 data.nombre_completo_candidato || data.nombre_candidato ||
+                                 data.nombrecompleto || data.nombrescompletos ||
+                                 data.nombreyapellidos || data.nombreapellidos;
             
             if (nombreCompleto && typeof nombreCompleto === 'string' && nombreCompleto.trim()) {
               const partes = nombreCompleto.trim().split(/\s+/).filter(parte => parte.length > 0);
@@ -1284,12 +1316,12 @@ export const solicitudesService = {
               }
             }
             
-            // Si no hay nombre completo, buscar campos individuales
+            // Si no hay nombre completo, buscar campos individuales (incluyendo campos pegados)
             return {
-              primer_nombre: data.primer_nombre || data.primer_nombre_candidato || '',
-              segundo_nombre: data.segundo_nombre || data.segundo_nombre_candidato || '',
-              primer_apellido: data.primer_apellido || data.primer_apellido_candidato || '',
-              segundo_apellido: data.segundo_apellido || data.segundo_apellido_candidato || ''
+              primer_nombre: data.primer_nombre || data.primer_nombre_candidato || data.primer_nombre || data.primer_nombre_candidato || '',
+              segundo_nombre: data.segundo_nombre || data.segundo_nombre_candidato || data.segundo_nombre || data.segundo_nombre_candidato || '',
+              primer_apellido: data.primer_apellido || data.primer_apellido_candidato || data.primer_apellido || data.primer_apellido_candidato || '',
+              segundo_apellido: data.segundo_apellido || data.segundo_apellido_candidato || data.segundo_apellido || data.segundo_apellido_candidato || ''
             };
           };
 
@@ -1328,7 +1360,7 @@ export const solicitudesService = {
             empresa_id: "empresa_id",
           };
           for (const key in map) {
-            const v = (d as any)[key];
+            const v = (d as any)[key] || (d as any)[normalizeCampo(key)];
             if (v !== undefined && v !== null && v !== "") {
               (candidatoPayload as any)[map[key]] = v;
             }

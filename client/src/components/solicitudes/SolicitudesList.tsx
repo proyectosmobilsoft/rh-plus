@@ -1179,6 +1179,12 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                             solicitud.estructura_datos?.documento ||
                             solicitud.estructura_datos?.cedula ||
                             solicitud.estructura_datos?.identificacion ||
+                            solicitud.estructura_datos?.cedulaciudadania ||
+                            solicitud.estructura_datos?.datos?.numero_documento ||
+                            solicitud.estructura_datos?.datos?.documento ||
+                            solicitud.estructura_datos?.datos?.cedula ||
+                            solicitud.estructura_datos?.datos?.identificacion ||
+                            solicitud.estructura_datos?.datos?.cedulaciudadania ||
                             getDisplayValue(solicitud.candidatos?.numero_documento, 'Sin número')
                           }
                         </span>

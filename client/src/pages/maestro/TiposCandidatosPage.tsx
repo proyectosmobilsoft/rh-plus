@@ -54,6 +54,7 @@ export default function TiposCandidatosPage() {
   const [loadingDocumentoId, setLoadingDocumentoId] = useState<number | null>(null);
   const [searchDocumentos, setSearchDocumentos] = useState("");
   const [documentosCounts, setDocumentosCounts] = useState<Record<number, number>>({});
+  const [selectAllDocumentos, setSelectAllDocumentos] = useState(false);
 
   // Hooks - TODOS LOS HOOKS DEBEN ESTAR AQUÍ AL INICIO
   const { toast } = useToast();
@@ -143,10 +144,19 @@ export default function TiposCandidatosPage() {
     }
   }, [showDocumentosConfig, selectedTipo?.id, queryClient]);
 
+  // Actualizar el estado del checkbox "Seleccionar todos" basado en los documentos asociados
+  useEffect(() => {
+    if (tiposDocumentosActivos && documentosAsociados) {
+      const totalDocumentos = tiposDocumentosActivos.length;
+      const documentosSeleccionados = documentosAsociados.length;
+      setSelectAllDocumentos(totalDocumentos > 0 && documentosSeleccionados === totalDocumentos);
+    }
+  }, [tiposDocumentosActivos, documentosAsociados]);
+
 
 
   // Filtrar tipos de candidatos - mostrar solo activos por defecto
-  const filteredTiposCandidatos = tiposCandidatos?.filter(tipo => {
+  const filteredTiposCandidatos: TipoCandidato[] = (tiposCandidatos?.filter(tipo => {
       const matchesSearch = 
         tipo.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         tipo.descripcion?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -155,7 +165,7 @@ export default function TiposCandidatosPage() {
         statusFilter === "active" ? tipo.activo : !tipo.activo;
 
       return matchesSearch && matchesStatus;
-    }) || []
+    }) || [])
     .sort((a, b) => {
       // Mostrar tipos activos primero
       if (a.activo !== b.activo) {
@@ -322,6 +332,7 @@ export default function TiposCandidatosPage() {
   const handleConfigureTipo = (tipo: TipoCandidato) => {
     setSelectedTipo(tipo);
     setSearchDocumentos(""); // Limpiar búsqueda al abrir modal
+    setSelectAllDocumentos(false); // Resetear selección de todos
     setShowDocumentosConfig(true);
   };
 
@@ -371,6 +382,10 @@ export default function TiposCandidatosPage() {
         ...prev,
         [selectedTipo.id]: updatedDocumentos.length
       }));
+
+      // Actualizar el estado del checkbox "Seleccionar todos"
+      const totalDocumentos = tiposDocumentosActivos?.length || 0;
+      setSelectAllDocumentos(totalDocumentos > 0 && updatedDocumentos.length === totalDocumentos);
     } finally {
       stopLoading();
       setLoadingDocumentoId(null);
@@ -408,6 +423,56 @@ export default function TiposCandidatosPage() {
     } finally {
       stopLoading();
       setLoadingDocumentoId(null);
+    }
+  };
+
+  const handleSelectAllDocumentos = async (selectAll: boolean) => {
+    if (!selectedTipo || !tiposDocumentosActivos) return;
+    
+    setSelectAllDocumentos(selectAll);
+    startLoading();
+    
+    try {
+      let updatedDocumentos = [...documentosAsociados];
+      
+      if (selectAll) {
+        // Agregar todos los documentos que no estén ya seleccionados
+        const documentosToAdd = tiposDocumentosActivos
+          .filter(doc => !updatedDocumentos.some(existing => existing.tipo_documento_id === doc.id))
+          .map((doc, index) => ({
+            tipo_candidato_id: selectedTipo.id,
+            tipo_documento_id: doc.id,
+            obligatorio: true,
+            requerido: false, // Por defecto no requerido
+            orden: updatedDocumentos.length + index,
+          } as any));
+        
+        updatedDocumentos = [...updatedDocumentos, ...documentosToAdd];
+      } else {
+        // Remover todos los documentos
+        updatedDocumentos = [];
+      }
+
+      // Preparar la lista para la actualización
+      const documentosParaActualizar = updatedDocumentos.map(doc => ({
+        tipo_documento_id: doc.tipo_documento_id,
+        obligatorio: doc.obligatorio,
+        requerido: doc.requerido || false,
+        orden: doc.orden
+      }));
+
+      await updateDocumentosForTipoCandidato.mutateAsync({
+        tipoCandidatoId: selectedTipo.id,
+        documentos: documentosParaActualizar,
+      });
+      
+      // Actualizar el contador de documentos
+      setDocumentosCounts(prev => ({
+        ...prev,
+        [selectedTipo.id]: updatedDocumentos.length
+      }));
+    } finally {
+      stopLoading();
     }
   };
 
@@ -748,7 +813,7 @@ export default function TiposCandidatosPage() {
 
       {/* Configuración de Documentos por Tipo */}
       <Dialog open={showDocumentosConfig} onOpenChange={setShowDocumentosConfig}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               Configurar Documentos - {selectedTipo?.nombre}
@@ -768,6 +833,18 @@ export default function TiposCandidatosPage() {
                     <p>• <strong>Checkbox "Requerido":</strong> Marca si el documento es obligatorio (aparece solo cuando el documento está seleccionado)</p>
                   </div>
                   
+                  {/* Checkbox para seleccionar todos */}
+                  <div className="flex items-center space-x-2 mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <Checkbox
+                      checked={selectAllDocumentos}
+                      onCheckedChange={(checked) => handleSelectAllDocumentos(checked === true)}
+                      disabled={isLoading}
+                    />
+                    <span className="text-sm font-medium text-blue-700">
+                      Seleccionar todos los documentos
+                    </span>
+                  </div>
+                  
                   {/* Filtro de búsqueda */}
                   <div className="relative mb-4">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -779,7 +856,7 @@ export default function TiposCandidatosPage() {
                     />
                   </div>
                   
-                  <div className="max-h-96 overflow-y-auto border rounded-lg p-4 bg-gray-50">
+                  <div className="max-h-[60vh] overflow-y-auto border rounded-lg p-4 bg-gray-50">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                       {(() => {
                         // Función para normalizar texto (remover tildes y acentos)
