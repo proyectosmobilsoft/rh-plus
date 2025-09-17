@@ -1271,18 +1271,22 @@ export default function PerfilCandidato() {
       }
     });
     
-    // Calcular progreso de experiencia laboral (15 puntos)
+    // Calcular progreso de experiencia laboral (15 puntos obligatorios)
+    puntajeTotal += 15; // Siempre sumar al total (obligatorio)
     if (experienciaLaboral.length > 0) {
-      puntajeTotal += 15;
       puntajeCompletado += 15;
       console.log('🔍 calcularProgresoPerfil - Experiencia laboral: +15 puntos');
+    } else {
+      console.log('🔍 calcularProgresoPerfil - Experiencia laboral: 0/15 puntos (FALTANTE)');
     }
     
-    // Calcular progreso de educación (15 puntos)
+    // Calcular progreso de educación (15 puntos obligatorios)
+    puntajeTotal += 15; // Siempre sumar al total (obligatorio)
     if (educacion.length > 0) {
-      puntajeTotal += 15;
       puntajeCompletado += 15;
       console.log('🔍 calcularProgresoPerfil - Educación: +15 puntos');
+    } else {
+      console.log('🔍 calcularProgresoPerfil - Educación: 0/15 puntos (FALTANTE)');
     }
     
     // Calcular progreso por documentos requeridos (20 puntos máximo)
@@ -1424,6 +1428,10 @@ export default function PerfilCandidato() {
 
   // Función para obtener el texto del progreso
   const getTextoProgreso = (progreso: number) => {
+    // Verificar si faltan experiencia o educación (obligatorios)
+    const faltaExperiencia = experienciaLaboral.length === 0;
+    const faltaEducacion = educacion.length === 0;
+    
     if (progreso < 30) return 'Incompleto';
     if (progreso < 60) return 'En progreso';
     if (progreso < 90) return 'Casi completo';
@@ -1431,6 +1439,11 @@ export default function PerfilCandidato() {
     // Si está al 100% pero tiene documentos no requeridos pendientes, mostrar "En proceso"
     if (progreso === 100 && tieneDocumentosNoRequeridosPendientes()) {
       return 'En proceso';
+    }
+    
+    // Si falta experiencia o educación, no puede estar completado
+    if (faltaExperiencia || faltaEducacion) {
+      return 'Faltan datos obligatorios';
     }
     
     return 'Completado';
@@ -1851,6 +1864,8 @@ export default function PerfilCandidato() {
                         ? 'bg-green-50 text-green-700 border-green-200' 
                         : getTextoProgreso(calcularProgresoPerfil()) === 'En proceso'
                         ? 'bg-amber-50 text-amber-700 border-amber-200'
+                        : getTextoProgreso(calcularProgresoPerfil()) === 'Faltan datos obligatorios'
+                        ? 'bg-red-50 text-red-700 border-red-200'
                         : 'bg-gray-50 text-gray-700 border-gray-200'
                     }`}
                   >

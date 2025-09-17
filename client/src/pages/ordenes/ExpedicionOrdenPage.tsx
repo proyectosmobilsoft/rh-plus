@@ -46,11 +46,11 @@ const ExpedicionOrdenPage = () => {
     { value: 'RECHAZADA', label: 'Rechazada' }
   ];
 
-  // Función para verificar si estamos en el período especial (del 14 al final del mes)
+  // Función para verificar si estamos en el período especial (del 25 al final del mes)
   const isInSpecialPeriod = () => {
     const today = new Date();
     const dayOfMonth = today.getDate();
-    return dayOfMonth >= 14;
+    return dayOfMonth >= 25;
   };
 
   // Función para obtener el primer día hábil del mes siguiente
@@ -723,7 +723,7 @@ const ExpedicionOrdenPage = () => {
                   Período Especial de Fechas
                 </p>
                 <p className="text-sm text-amber-700">
-                  Las solicitudes creadas desde el día 14 hasta el final del mes 
+                  Las solicitudes creadas desde el día 25 hasta el final del mes 
                   tendrán como fecha de solicitud el <strong>primer día hábil del mes siguiente</strong>.
                 </p>
                 <div className="mt-3 p-3 bg-white border border-amber-300 rounded">
