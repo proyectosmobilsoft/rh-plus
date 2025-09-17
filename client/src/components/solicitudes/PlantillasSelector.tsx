@@ -12,6 +12,9 @@ import FormRenderer from '@/components/FormRenderer';
 import { toast } from 'sonner';
 import { useLoading } from '@/contexts/LoadingContext';
 import useSystemColors from '@/hooks/useSystemColors';
+import { useAuth } from '@/contexts/AuthContext';
+import { canCreateSolicitud } from '@/utils/empresaValidation';
+import ModalSinEmpresa from './ModalSinEmpresa';
 
 interface PlantillasSelectorProps {
   empresaId?: number | null; // Opcional: si no hay empresa, mostrar todas las plantillas
@@ -31,6 +34,7 @@ export default function PlantillasSelector({
   readOnly = false
 }: PlantillasSelectorProps) {
   const { startLoading, stopLoading } = useLoading();
+  const { user } = useAuth();
   const [plantillas, setPlantillas] = useState<Plantilla[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,6 +44,7 @@ export default function PlantillasSelector({
   const [initialFormData, setInitialFormData] = useState<Record<string, any>>({});
   const [logs, setLogs] = useState<SolicitudLogDto[]>([]);
   const [logsLoading, setLogsLoading] = useState<boolean>(false);
+  const [showModalSinEmpresa, setShowModalSinEmpresa] = useState(false);
   const { toast: useToastHook } = useToast();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { getEstadoBadgeClasses } = useSystemColors();
@@ -400,6 +405,22 @@ export default function PlantillasSelector({
       return;
     }
 
+    // Validar si el usuario puede crear solicitudes (tiene empresa asociada)
+    const validation = canCreateSolicitud(user);
+    if (!validation.canCreate) {
+      console.warn('❌ Usuario no puede crear solicitud:', validation.errorMessage);
+      console.log('🔍 Mostrando modal sin empresa, estado actual:', showModalSinEmpresa);
+      
+      // Mostrar modal inmediatamente
+      setShowModalSinEmpresa(true);
+      console.log('🔍 Estado del modal después de setShowModalSinEmpresa(true):', showModalSinEmpresa);
+      
+      // También mostrar toast como fallback
+      toast.error('No puedes crear solicitudes sin tener una empresa asociada');
+      
+      return;
+    }
+
     // Activar loading global
     startLoading();
     console.log('🔍 PlantillasSelector - Loading global activado');
@@ -415,7 +436,7 @@ export default function PlantillasSelector({
         // Crear nueva solicitud
         console.log('🔍 PlantillasSelector - Creando nueva solicitud');
         await solicitudesService.createWithTemplate(
-          empresaId,
+          validation.empresaId || empresaId,
           selectedPlantilla.id,
           selectedPlantilla.nombre,
           formData
@@ -447,6 +468,25 @@ export default function PlantillasSelector({
       onCancel();
     }
   };
+
+  const handleContactAdmin = () => {
+    // Aquí puedes implementar la lógica para contactar al administrador
+    // Por ejemplo, abrir un modal de contacto, enviar un email, etc.
+    toast.info('Funcionalidad de contacto con administrador en desarrollo');
+    setShowModalSinEmpresa(false);
+  };
+
+  const handleCloseModalSinEmpresa = () => {
+    setShowModalSinEmpresa(false);
+  };
+
+  // Debug: Monitorear cambios en el estado del modal
+  useEffect(() => {
+    console.log('🔍 useEffect ejecutado - Estado del modal cambió:', showModalSinEmpresa);
+    if (showModalSinEmpresa) {
+      console.log('🔍 MODAL DEBERÍA ESTAR VISIBLE AHORA');
+    }
+  }, [showModalSinEmpresa]);
 
   if (isLoading) {
     return (
@@ -715,6 +755,45 @@ export default function PlantillasSelector({
           </div>
         </div>
       </div>
+
+      {/* Modal de advertencia para usuarios sin empresa */}
+      {console.log('🔍 Renderizando modal, showModalSinEmpresa:', showModalSinEmpresa)}
+      
+      {/* Modal de prueba simple */}
+      {showModalSinEmpresa && console.log('🔍 RENDERIZANDO MODAL DE PRUEBA')}
+      {showModalSinEmpresa && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center" 
+          style={{ zIndex: 9999 }}
+        >
+          <div className="bg-white p-8 rounded-lg max-w-md mx-4 shadow-2xl">
+            <h2 className="text-xl font-bold mb-4 text-red-600">⚠️ ADVERTENCIA</h2>
+            <p className="mb-6 text-gray-700">
+              No puedes crear solicitudes sin tener una empresa asociada a tu cuenta.
+            </p>
+            <div className="flex gap-3">
+              <button 
+                onClick={handleCloseModalSinEmpresa}
+                className="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600"
+              >
+                Entendido
+              </button>
+              <button 
+                onClick={handleContactAdmin}
+                className="bg-orange-500 text-white px-6 py-2 rounded hover:bg-orange-600"
+              >
+                Contactar Admin
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      <ModalSinEmpresa
+        isOpen={showModalSinEmpresa}
+        onClose={handleCloseModalSinEmpresa}
+        onContactAdmin={handleContactAdmin}
+      />
     </>
   );
 } 

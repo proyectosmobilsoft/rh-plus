@@ -31,6 +31,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { analystsService } from '@/services/analystsService';
 import { empresasService } from '@/services/empresasService';
 import { asociacionPrioridadService } from '@/services/asociacionPrioridadService';
+import { sucursalesService } from '@/services/sucursalesService';
 
 // Schema de validación simplificado para prioridades
 const analistaSchema = z.object({
@@ -78,17 +79,28 @@ const PRIORIDADES_OPTIONS: PrioridadOption[] = [
   { value: 'sucursal', label: 'Sucursal', icon: MapPin, description: 'Priorizar por ubicación' }
 ];
 
-// Datos de ejemplo para sucursales
-const SUCURSALES = [
-  { id: '1', nombre: 'Sucursal Centro' },
-  { id: '2', nombre: 'Sucursal Norte' },
-  { id: '3', nombre: 'Sucursal Sur' },
-];
+// Las sucursales se cargan desde la base de datos
 
 export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [analistaActualizado, setAnalistaActualizado] = useState<any>(analistaSeleccionado);
   const queryClient = useQueryClient();
+
+  // Cargar sucursales desde la base de datos
+  const { data: sucursales = [], isLoading: loadingSucursales } = useQuery({
+    queryKey: ['sucursales'],
+    queryFn: async () => {
+      try {
+        const data = await sucursalesService.getAll();
+        console.log('Sucursales cargadas:', data);
+        return data;
+      } catch (error) {
+        console.error('Error cargando sucursales:', error);
+        return [];
+      }
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutos
+  });
   
   console.log('AnalistaForm renderizado con analistaSeleccionado:', analistaSeleccionado);
   console.log('AnalistaForm con datos actualizados:', analistaActualizado);
@@ -484,7 +496,7 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
     const sucursalId = data.sucursal_1 || data.sucursal_2 || data.sucursal_3;
     
     if (sucursalId) {
-      sucursalSeleccionada = SUCURSALES.find((suc: any) => suc.id === sucursalId);
+      sucursalSeleccionada = sucursales.find((suc: any) => suc.id.toString() === sucursalId);
     }
     
     const analistaActualizado = {
@@ -746,18 +758,24 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel className="font-normal text-left mb-2">Seleccionar Sucursal *</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value}>
+                              <Select onValueChange={field.onChange} value={field.value} disabled={loadingSucursales}>
                                 <FormControl>
                                   <SelectTrigger>
-                                    <SelectValue placeholder="Seleccione una sucursal" />
+                                    <SelectValue placeholder={loadingSucursales ? "Cargando sucursales..." : "Seleccione una sucursal"} />
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  {SUCURSALES.map((sucursal) => (
-                                    <SelectItem key={sucursal.id} value={sucursal.id}>
-                                      {sucursal.nombre}
-                                    </SelectItem>
-                                  ))}
+                                  {loadingSucursales ? (
+                                    <SelectItem value="" disabled>Cargando sucursales...</SelectItem>
+                                  ) : sucursales.length === 0 ? (
+                                    <SelectItem value="" disabled>No hay sucursales disponibles</SelectItem>
+                                  ) : (
+                                    sucursales.map((sucursal) => (
+                                      <SelectItem key={sucursal.id} value={sucursal.id.toString()}>
+                                        {sucursal.nombre}
+                                      </SelectItem>
+                                    ))
+                                  )}
                                 </SelectContent>
                               </Select>
                               <FormMessage />
@@ -907,18 +925,24 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel className="font-normal text-left mb-2">Seleccionar Sucursal *</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value}>
+                              <Select onValueChange={field.onChange} value={field.value} disabled={loadingSucursales}>
                                 <FormControl>
                                   <SelectTrigger>
-                                    <SelectValue placeholder="Seleccione una sucursal" />
+                                    <SelectValue placeholder={loadingSucursales ? "Cargando sucursales..." : "Seleccione una sucursal"} />
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  {SUCURSALES.map((sucursal) => (
-                                    <SelectItem key={sucursal.id} value={sucursal.id}>
-                                      {sucursal.nombre}
-                                    </SelectItem>
-                                  ))}
+                                  {loadingSucursales ? (
+                                    <SelectItem value="" disabled>Cargando sucursales...</SelectItem>
+                                  ) : sucursales.length === 0 ? (
+                                    <SelectItem value="" disabled>No hay sucursales disponibles</SelectItem>
+                                  ) : (
+                                    sucursales.map((sucursal) => (
+                                      <SelectItem key={sucursal.id} value={sucursal.id.toString()}>
+                                        {sucursal.nombre}
+                                      </SelectItem>
+                                    ))
+                                  )}
                                 </SelectContent>
                               </Select>
                               <FormMessage />
@@ -1068,18 +1092,24 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel className="font-normal text-left mb-2">Seleccionar Sucursal *</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value}>
+                              <Select onValueChange={field.onChange} value={field.value} disabled={loadingSucursales}>
                                 <FormControl>
                                   <SelectTrigger>
-                                    <SelectValue placeholder="Seleccione una sucursal" />
+                                    <SelectValue placeholder={loadingSucursales ? "Cargando sucursales..." : "Seleccione una sucursal"} />
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  {SUCURSALES.map((sucursal) => (
-                                    <SelectItem key={sucursal.id} value={sucursal.id}>
-                                      {sucursal.nombre}
-                                    </SelectItem>
-                                  ))}
+                                  {loadingSucursales ? (
+                                    <SelectItem value="" disabled>Cargando sucursales...</SelectItem>
+                                  ) : sucursales.length === 0 ? (
+                                    <SelectItem value="" disabled>No hay sucursales disponibles</SelectItem>
+                                  ) : (
+                                    sucursales.map((sucursal) => (
+                                      <SelectItem key={sucursal.id} value={sucursal.id.toString()}>
+                                        {sucursal.nombre}
+                                      </SelectItem>
+                                    ))
+                                  )}
                                 </SelectContent>
                               </Select>
                               <FormMessage />

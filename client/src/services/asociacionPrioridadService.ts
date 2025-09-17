@@ -195,7 +195,8 @@ export const asociacionPrioridadService = {
         const { count: solicitudesReales } = await supabase
           .from('hum_solicitudes')
           .select('*', { count: 'exact', head: true })
-          .eq('analista_id', analista.id);
+          .eq('analista_id', analista.id)
+          .not('estado', 'in', '(CONTRATADO,CANCELADA,DESCARTADO,STAND_BY,DESERTO)');
 
         if (prioridades && prioridades.length > 0) {
           for (const prioridad of prioridades) {
