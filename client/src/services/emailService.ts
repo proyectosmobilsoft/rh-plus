@@ -634,6 +634,27 @@ class EmailService {
     });
   }
 
+  // Función para enviar notificación de solicitud creada en día no hábil
+  async sendSolicitudDiaNoHabil(params: {
+    to: string;
+    empresaNombre: string;
+    solicitudId: number;
+    fechaCreacion: string;
+    tipoDiaNoHabil: string;
+    nombreFestivo?: string;
+    sistemaUrl: string;
+  }): Promise<{ success: boolean; message: string }> {
+    const html = this.generateSolicitudDiaNoHabilHTML(params);
+    
+    return this.sendEmail({
+      to: params.to,
+      subject: `Notificación - Solicitud #${params.solicitudId} creada en día no hábil`,
+      html,
+      text: `Se ha creado una solicitud #${params.solicitudId} en ${params.empresaNombre} en un día no hábil (${params.tipoDiaNoHabil}). Fecha: ${params.fechaCreacion}${params.sistemaUrl ? ` / URL: ${params.sistemaUrl}` : ''}`,
+      from: 'noreply@rhcompensamos.com'
+    });
+  }
+
   // Generar HTML para correo de documentos devueltos
   generateDocumentosDevueltosHTML(params: {
     candidatoNombre: string;
@@ -697,6 +718,91 @@ class EmailService {
             
             <div style="text-align: center; margin: 30px 0;">
               <a href="${sistemaUrl}" class="button">Acceder al Sistema</a>
+            </div>
+            
+            <p>Si tiene alguna pregunta o necesita asistencia, no dude en contactarnos.</p>
+          </div>
+          
+          <div class="footer">
+            <p>Este es un correo automático del sistema de Recursos Humanos.</p>
+            <p>Por favor, no responda a este correo.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  // Generar HTML para notificación de solicitud creada en día no hábil
+  generateSolicitudDiaNoHabilHTML(params: {
+    empresaNombre: string;
+    solicitudId: number;
+    fechaCreacion: string;
+    tipoDiaNoHabil: string;
+    nombreFestivo?: string;
+    sistemaUrl: string;
+  }): string {
+    const { empresaNombre, solicitudId, fechaCreacion, tipoDiaNoHabil, nombreFestivo, sistemaUrl } = params;
+    
+    return `
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Notificación - Solicitud Creada en Día No Hábil</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; background-color: #f4f4f4; }
+          .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+          .header { background: linear-gradient(135deg, #f59e0b, #fbbf24); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
+          .header h1 { margin: 0; font-size: 24px; }
+          .content { margin-bottom: 20px; }
+          .info-box { background: #fef3c7; border: 1px solid #fde68a; border-radius: 8px; padding: 15px; margin: 15px 0; }
+          .info-box h3 { color: #d97706; margin-top: 0; }
+          .warning-box { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 15px; margin: 15px 0; }
+          .warning-box h3 { color: #dc2626; margin-top: 0; }
+          .button { display: inline-block; background: #f59e0b; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 10px 0; }
+          .button:hover { background: #d97706; }
+          .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 14px; }
+          .highlight { background: #fef3c7; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>⚠️ Notificación Importante</h1>
+            <p style="margin: 10px 0 0 0; opacity: 0.9;">Solicitud creada en día no hábil</p>
+          </div>
+          
+          <div class="content">
+            <p>Estimado/a <strong>${empresaNombre}</strong>,</p>
+            
+            <p>Le informamos que se ha creado una nueva solicitud en nuestro sistema en una fecha no hábil.</p>
+            
+            <div class="info-box">
+              <h3>📋 Información de la Solicitud</h3>
+              <p><strong>Número de Solicitud:</strong> #${solicitudId}</p>
+              <p><strong>Empresa:</strong> ${empresaNombre}</p>
+              <p><strong>Fecha de Creación:</strong> ${fechaCreacion}</p>
+              <p><strong>Tipo de Día:</strong> <span class="highlight">${tipoDiaNoHabil}</span></p>
+              ${nombreFestivo ? `<p><strong>Festivo:</strong> ${nombreFestivo}</p>` : ''}
+            </div>
+            
+            <div class="warning-box">
+              <h3>⚠️ Información Importante</h3>
+              <p>Esta solicitud fue creada en un <strong>día no hábil</strong> (${tipoDiaNoHabil.toLowerCase()}).</p>
+              <p>Por favor, tenga en cuenta que:</p>
+              <ul>
+                <li>El procesamiento de esta solicitud comenzará el próximo día hábil</li>
+                <li>Los tiempos de respuesta pueden verse afectados</li>
+                <li>Se recomienda contactar al equipo de soporte si tiene alguna urgencia</li>
+              </ul>
+            </div>
+            
+            <p>Puede acceder al sistema para revisar los detalles de la solicitud y su estado actual.</p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${sistemaUrl}" class="button">Ver Solicitud en el Sistema</a>
             </div>
             
             <p>Si tiene alguna pregunta o necesita asistencia, no dude en contactarnos.</p>

@@ -8,6 +8,7 @@ import {
 import { candidatosService, type Candidato } from "./candidatosService";
 import { toast } from "sonner";
 import { emailService } from "./emailService";
+import { isNonBusinessDay, getNonBusinessDayInfo } from "./holidaysService";
 
 // Función helper para convertir null a undefined
 const getUsuarioId = (): number | undefined => {
@@ -870,6 +871,59 @@ export const solicitudesService = {
         );
       }
 
+      // Verificar si la solicitud fue creada en un día no hábil y enviar notificación a la empresa
+      try {
+        const fechaCreacion = new Date(solicitudData.fecha_solicitud || new Date());
+        const diaNoHabilInfo = getNonBusinessDayInfo(fechaCreacion);
+        
+        if (diaNoHabilInfo.isNonBusinessDay) {
+          console.log("📅 Solicitud creada en día no hábil:", diaNoHabilInfo);
+          
+          // Obtener información de la empresa para el email
+          const empresaInfo = await supabase
+            .from("empresas")
+            .select("razon_social, email")
+            .eq("id", solicitudData.empresa_id)
+            .single();
+
+          if (empresaInfo.data) {
+            const emailEmpresa = empresaInfo.data.email;
+            
+            if (emailEmpresa) {
+              // Determinar el tipo de día no hábil
+              let tipoDiaNoHabil = "";
+              if (diaNoHabilInfo.isWeekend) {
+                tipoDiaNoHabil = diaNoHabilInfo.dayOfWeek;
+              } else if (diaNoHabilInfo.isHoliday) {
+                tipoDiaNoHabil = `Festivo (${diaNoHabilInfo.holidayName})`;
+              }
+
+              // Obtener la URL base del sistema
+              const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://localhost';
+              const sistemaUrl = `${baseUrl}/login`;
+
+              await emailService.sendSolicitudDiaNoHabil({
+                to: emailEmpresa,
+                empresaNombre: empresaInfo.data.razon_social,
+                solicitudId: data.id,
+                fechaCreacion: fechaCreacion.toLocaleString("es-ES"),
+                tipoDiaNoHabil: tipoDiaNoHabil,
+                nombreFestivo: diaNoHabilInfo.holidayName || undefined,
+                sistemaUrl: sistemaUrl
+              });
+
+              console.log("✅ Email de notificación de día no hábil enviado a la empresa");
+            } else {
+              console.warn("⚠️ No se encontró email de contacto para la empresa");
+            }
+          } else {
+            console.warn("⚠️ No se pudo obtener información de la empresa");
+          }
+        }
+      } catch (holidayErr) {
+        console.warn("⚠️ Error al verificar día no hábil o enviar notificación:", holidayErr);
+      }
+
       console.log(
         "✅ Solicitud creada exitosamente con analista:",
         solicitudTransformada.analista?.nombre || "Sin asignar"
@@ -1392,6 +1446,59 @@ export const solicitudesService = {
             "No se creó candidato (plantilla): faltan documento y/o email"
           );
         }
+      }
+
+      // Verificar si la solicitud fue creada en un día no hábil y enviar notificación a la empresa
+      try {
+        const fechaCreacion = new Date(solicitudData.fecha_solicitud || new Date());
+        const diaNoHabilInfo = getNonBusinessDayInfo(fechaCreacion);
+        
+        if (diaNoHabilInfo.isNonBusinessDay) {
+          console.log("📅 Solicitud creada en día no hábil (plantilla):", diaNoHabilInfo);
+          
+          // Obtener información de la empresa para el email
+          const empresaInfo = await supabase
+            .from("empresas")
+            .select("razon_social, email")
+            .eq("id", solicitudData.empresa_id)
+            .single();
+
+          if (empresaInfo.data) {
+            const emailEmpresa = empresaInfo.data.email;
+            
+            if (emailEmpresa) {
+              // Determinar el tipo de día no hábil
+              let tipoDiaNoHabil = "";
+              if (diaNoHabilInfo.isWeekend) {
+                tipoDiaNoHabil = diaNoHabilInfo.dayOfWeek;
+              } else if (diaNoHabilInfo.isHoliday) {
+                tipoDiaNoHabil = `Festivo (${diaNoHabilInfo.holidayName})`;
+              }
+
+              // Obtener la URL base del sistema
+              const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://localhost';
+              const sistemaUrl = `${baseUrl}/login`;
+
+              await emailService.sendSolicitudDiaNoHabil({
+                to: emailEmpresa,
+                empresaNombre: empresaInfo.data.razon_social,
+                solicitudId: data.id,
+                fechaCreacion: fechaCreacion.toLocaleString("es-ES"),
+                tipoDiaNoHabil: tipoDiaNoHabil,
+                nombreFestivo: diaNoHabilInfo.holidayName || undefined,
+                sistemaUrl: sistemaUrl
+              });
+
+              console.log("✅ Email de notificación de día no hábil enviado a la empresa (plantilla)");
+            } else {
+              console.warn("⚠️ No se encontró email de contacto para la empresa (plantilla)");
+            }
+          } else {
+            console.warn("⚠️ No se pudo obtener información de la empresa (plantilla)");
+          }
+        }
+      } catch (holidayErr) {
+        console.warn("⚠️ Error al verificar día no hábil o enviar notificación (plantilla):", holidayErr);
       }
 
       // Email con datos completos tras insertar
