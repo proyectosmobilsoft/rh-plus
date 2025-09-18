@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Edit, Pause, CheckCircle, Phone, Play, XCircle, Eye, X, Ban, User, Building2, FileText, Clock, Code, DollarSign, MoreHorizontal } from 'lucide-react';
+import { Edit, Pause, CheckCircle, Phone, Play, XCircle, Eye, X, Ban, User, Building2, FileText, Clock, Code, DollarSign, MoreHorizontal, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -89,6 +89,13 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   const [confirmReturnDocumentsOpen, setConfirmReturnDocumentsOpen] = useState(false);
   const [returningDocumentsSolicitudId, setReturningDocumentsSolicitudId] = useState<number | null>(null);
   const [returnDocumentsObservacion, setReturnDocumentsObservacion] = useState('');
+  
+  // Estado para el modal de documentos
+  const [modalDocumentos, setModalDocumentos] = useState<{isOpen: boolean, solicitud: Solicitud | null, documentos: any[]}>({
+    isOpen: false, 
+    solicitud: null, 
+    documentos: []
+  });
   
   // Estado para el progreso de documentos requeridos
   const [documentosRequeridosData, setDocumentosRequeridosData] = useState<Record<number, {
@@ -444,6 +451,52 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
   const getDisplayValue = (value: string | undefined, defaultValue: string = 'No especificado') => {
     return value && value.trim() !== '' ? value : defaultValue;
+  };
+
+  // Función para abrir el modal de documentos
+  const handleViewDocuments = async (solicitud: Solicitud) => {
+    try {
+      startLoading();
+      
+      // Obtener documentos del candidato para esta solicitud
+      const { data: documentos, error } = await supabase
+        .from('candidatos_documentos')
+        .select(`
+          *,
+          tipos_documentos (
+            id,
+            nombre,
+            descripcion
+          )
+        `)
+        .eq('candidato_id', solicitud.candidato_id)
+        .eq('solicitud_id', solicitud.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error cargando documentos:', error);
+        return;
+      }
+
+      setModalDocumentos({
+        isOpen: true,
+        solicitud,
+        documentos: documentos || []
+      });
+    } catch (error) {
+      console.error('Error abriendo documentos:', error);
+    } finally {
+      stopLoading();
+    }
+  };
+
+  // Función para cerrar el modal de documentos
+  const handleCloseDocumentModal = () => {
+    setModalDocumentos({
+      isOpen: false,
+      solicitud: null,
+      documentos: []
+    });
   };
 
   // Función para calcular el progreso de documentos requeridos de una solicitud
@@ -1256,6 +1309,30 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                             <span>Documentos requeridos:</span>
                             <span className="font-medium">{progresoData.subidos}/{progresoData.total}</span>
                           </div>
+                          <div className="flex items-center space-x-2">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleViewDocuments(solicitud)}
+                                    className="h-6 w-6 p-0 hover:bg-blue-50 rounded-full"
+                                    title="Ver documentos"
+                                  >
+                                    {progresoData.subidos > 0 ? (
+                                      <Eye className="h-3 w-3 text-blue-600" />
+                                    ) : (
+                                      <FolderOpen className="h-3 w-3 text-gray-400" />
+                                    )}
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>{progresoData.subidos > 0 ? 'Ver documentos entregados' : 'No hay documentos entregados'}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
                           <div className="flex-1">
                             <Progress 
                               value={progresoData.progreso} 
@@ -1771,6 +1848,93 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Modal para visualizar documentos */}
+      {modalDocumentos.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9998]">
+          <div className="bg-white rounded-lg w-11/12 h-5/6 max-w-6xl flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Documentos del Candidato
+                </h3>
+                <p className="text-sm text-gray-600">
+                  {modalDocumentos.solicitud?.candidatos?.primer_nombre} {modalDocumentos.solicitud?.candidatos?.segundo_nombre} {modalDocumentos.solicitud?.candidatos?.primer_apellido} {modalDocumentos.solicitud?.candidatos?.segundo_apellido}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleCloseDocumentModal}
+                className="h-8 w-8 p-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex-1 p-4 overflow-y-auto">
+              {modalDocumentos.documentos.length === 0 ? (
+                <div className="text-center py-12">
+                  <FolderOpen className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                  <p className="text-gray-500 font-medium">No hay documentos entregados</p>
+                  <p className="text-sm text-gray-400">El candidato aún no ha subido ningún documento</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {modalDocumentos.documentos.map((documento, index) => (
+                    <div key={index} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <FileText className="h-8 w-8 text-blue-600" />
+                          <div>
+                            <h4 className="font-medium text-gray-900">
+                              {documento.tipos_documentos?.nombre || 'Documento sin nombre'}
+                            </h4>
+                            <p className="text-sm text-gray-600">
+                              {documento.tipos_documentos?.descripcion || 'Sin descripción'}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Subido: {new Date(documento.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            // Crear un modal para ver el documento específico
+                            const modal = document.createElement('div');
+                            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]';
+                            modal.innerHTML = `
+                              <div class="bg-white rounded-lg w-11/12 h-5/6 max-w-4xl flex flex-col">
+                                <div class="flex items-center justify-between p-4 border-b">
+                                  <h3 class="text-lg font-semibold text-gray-900">${documento.nombre_archivo}</h3>
+                                  <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-gray-600">
+                                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                  </button>
+                                </div>
+                                <div class="flex-1 p-4">
+                                  <iframe src="data:application/pdf;base64,${documento.url_archivo}" class="w-full h-full border-0 rounded" title="${documento.nombre_archivo}"></iframe>
+                                </div>
+                              </div>
+                            `;
+                            document.body.appendChild(modal);
+                          }}
+                          className="flex items-center space-x-2"
+                        >
+                          <Eye className="h-4 w-4" />
+                          <span>Ver</span>
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
