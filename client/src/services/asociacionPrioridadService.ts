@@ -192,6 +192,8 @@ export const asociacionPrioridadService = {
           continue;
         }
 
+        console.log(`🔍 Prioridades para ${analista.username} (ID: ${analista.id}):`, prioridades);
+
         const { count: solicitudesReales } = await supabase
           .from('hum_solicitudes')
           .select('*', { count: 'exact', head: true })

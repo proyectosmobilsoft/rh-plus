@@ -41,11 +41,18 @@ export const analistaAsignacionService = {
       }
 
       console.log('📊 Analistas disponibles:', analistas.length);
+      
+      // Log detallado de todos los analistas antes del filtro
+      console.log('🔍 Analistas antes del filtro:');
+      analistas.forEach((analista, index) => {
+        console.log(`  ${index + 1}. ${analista.usuario_nombre} (ID: ${analista.usuario_id}) - Empresa: ${analista.empresa_id} - Prioridades: ${analista.nivel_prioridad_1 || 'N/A'}, ${analista.nivel_prioridad_2 || 'N/A'}, ${analista.nivel_prioridad_3 || 'N/A'}`);
+      });
 
-      // Filtrar analistas: deben pertenecer a la empresa del usuario autenticado
+      // Filtrar analistas: deben pertenecer a la empresa de la solicitud
       const analistasElegibles = analistas.filter(analista => {
-        // Solo considerar filas cuya empresa coincida con la del usuario
-        if (!analista.empresa_id || analista.empresa_id !== empresaUsuarioId) {
+        // Solo considerar filas cuya empresa coincida con la empresa de la solicitud
+        if (!analista.empresa_id || analista.empresa_id !== empresaId) {
+          console.log(`❌ Analista ${analista.usuario_nombre} (ID: ${analista.usuario_id}) no coincide con empresa ${empresaId} (tiene: ${analista.empresa_id})`);
           return false;
         }
 
@@ -78,7 +85,7 @@ export const analistaAsignacionService = {
       });
 
       if (analistasElegibles.length === 0) {
-        console.log('❌ No se encontraron analistas elegibles para la empresa del usuario');
+        console.log('❌ No se encontraron analistas elegibles para la empresa de la solicitud');
         return null;
       }
 

@@ -515,14 +515,33 @@ export const solicitudesService = {
         "🔍 Creando solicitud con asignación automática de analista..."
       );
       
-      // NO asignar analista automáticamente - dejar en "Pendiente Asignacion"
+      // Asignar analista automáticamente si no viene uno pre-asignado
       let analistaId = solicitud.analista_id;
       let estadoFinal = solicitud.estado;
       
-      // Si no hay analista asignado, poner en estado "Pendiente Asignacion"
-      if (!analistaId) {
-        estadoFinal = "Pendiente Asignacion";
-        console.log("🔄 Solicitud creada sin analista - Estado: Pendiente Asignacion");
+      // Si no hay analista asignado, intentar asignación automática
+      if (!analistaId && solicitud.empresa_id) {
+        console.log("🔄 Asignando analista automáticamente...");
+        console.log("🔍 Empresa ID de la solicitud:", solicitud.empresa_id);
+        
+        const analistaAsignado = await analistaAsignacionService.asignarAnalistaAutomatico(solicitud.empresa_id);
+        
+        if (analistaAsignado) {
+          analistaId = analistaAsignado.analista_id;
+          estadoFinal = "ASIGNADO";
+          console.log("✅ Analista asignado automáticamente:", analistaAsignado.analista_nombre);
+        } else {
+          estadoFinal = "pendiente asignacion";
+          console.log("⚠️ No se pudo asignar analista automáticamente - Estado: pendiente asignacion");
+          console.log("🔍 Posibles causas:");
+          console.log("  - No hay analistas configurados para la empresa", solicitud.empresa_id);
+          console.log("  - Los analistas no tienen prioridades configuradas");
+          console.log("  - Los analistas han alcanzado su límite de solicitudes");
+        }
+      } else if (!analistaId) {
+        estadoFinal = "pendiente asignacion";
+        console.log("🔄 Solicitud creada sin analista - Estado: pendiente asignacion");
+        console.log("🔍 Causa: La solicitud no tiene empresa_id:", solicitud.empresa_id);
       }
 
       // Si viene estructura_datos, intentar crear candidato con documento y email (obligatorios)
@@ -1132,11 +1151,33 @@ export const solicitudesService = {
         "🔍 Creando solicitud con plantilla y asignación automática de analista..."
       );
       
-      // NO asignar analista automáticamente - dejar en "Pendiente Asignacion"
+      // Asignar analista automáticamente si no viene uno pre-asignado
       let analistaId: number | undefined;
-      let estadoFinal = "Pendiente Asignacion"; // Estado por defecto
+      let estadoFinal = "pendiente asignacion"; // Estado por defecto
       
-      console.log("🔄 Solicitud creada sin analista - Estado: Pendiente Asignacion");
+      // Intentar asignación automática
+      if (empresaId) {
+        console.log("🔄 Asignando analista automáticamente...");
+        console.log("🔍 Empresa ID de la solicitud:", empresaId);
+        
+        const analistaAsignado = await analistaAsignacionService.asignarAnalistaAutomatico(empresaId);
+        
+        if (analistaAsignado) {
+          analistaId = analistaAsignado.analista_id;
+          estadoFinal = "ASIGNADO";
+          console.log("✅ Analista asignado automáticamente:", analistaAsignado.analista_nombre);
+        } else {
+          estadoFinal = "pendiente asignacion";
+          console.log("⚠️ No se pudo asignar analista automáticamente - Estado: pendiente asignacion");
+          console.log("🔍 Posibles causas:");
+          console.log("  - No hay analistas configurados para la empresa", empresaId);
+          console.log("  - Los analistas no tienen prioridades configuradas");
+          console.log("  - Los analistas han alcanzado su límite de solicitudes");
+        }
+      } else {
+        console.log("🔄 Solicitud creada sin analista - Estado: pendiente asignacion");
+        console.log("🔍 Causa: La solicitud no tiene empresa_id:", empresaId);
+      }
 
       // Función para obtener el primer día hábil del mes siguiente
       const getFirstBusinessDayOfNextMonth = () => {
@@ -2159,6 +2200,24 @@ export const solicitudesService = {
     } catch (error) {
       console.error("Error in returnDocuments:", error);
       return false;
+    }
+  },
+
+  // Función para probar asignación automática desde consola
+  async testAsignacionAutomatica(empresaId: number): Promise<void> {
+    console.log("🧪 === PRUEBA DE ASIGNACIÓN AUTOMÁTICA ===");
+    console.log("🧪 Empresa ID:", empresaId);
+    
+    try {
+      const resultado = await analistaAsignacionService.asignarAnalistaAutomatico(empresaId);
+      
+      if (resultado) {
+        console.log("✅ Asignación exitosa:", resultado);
+      } else {
+        console.log("❌ Asignación falló - revisa los logs anteriores");
+      }
+    } catch (error) {
+      console.error("❌ Error en prueba:", error);
     }
   },
 }; 
