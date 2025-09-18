@@ -17,6 +17,8 @@ import { Input } from "@/components/ui/input";
 import { Plantilla } from '@/services/plantillasService';
 import { empresasService, Empresa } from '@/services/empresasService';
 import { Can, usePermissions } from '@/contexts/PermissionsContext';
+import { validacionDocumentosService } from '@/services/validacionDocumentosService';
+import SeleccionarCiudadModal from '@/components/solicitudes/SeleccionarCiudadModal';
 
 const ExpedicionOrdenPage = () => {
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
@@ -33,6 +35,11 @@ const ExpedicionOrdenPage = () => {
   
   // Estado para el modal informativo de fechas
   const [showDateInfoModal, setShowDateInfoModal] = useState(false);
+  
+  // Estados para el modal de selección de ciudad
+  const [showSeleccionarCiudadModal, setShowSeleccionarCiudadModal] = useState(false);
+  const [solicitudParaValidar, setSolicitudParaValidar] = useState<{id: number, observacion: string, candidatoNombre: string} | null>(null);
+  
   const { hasAction } = usePermissions();
 
   // Estados disponibles para el filtro
@@ -336,9 +343,25 @@ const ExpedicionOrdenPage = () => {
   const handleValidateDocuments = async (id: number, observacion: string) => {
     setIsLoading(true);
     try {
-      await solicitudesService.updateStatus(id, 'citado examenes', observacion);
-      await fetchSolicitudes();
-      toast.success('Documentos validados exitosamente. Estado cambiado a "Citado Exámenes".');
+      // Obtener información del candidato para mostrar en el modal si es necesario
+      const candidato = await validacionDocumentosService.getCandidatoInfo(id);
+      const candidatoNombre = candidato ? `${candidato.nombres} ${candidato.apellidos}` : 'el candidato';
+
+      // Intentar validar documentos y enviar email
+      const resultado = await validacionDocumentosService.validarDocumentosYEnviarEmail(id, observacion);
+
+      if (resultado.success) {
+        await fetchSolicitudes();
+        toast.success(resultado.message);
+      } else {
+        // Si no hay prestadores en la ciudad del candidato, mostrar modal de selección
+        setSolicitudParaValidar({
+          id,
+          observacion,
+          candidatoNombre
+        });
+        setShowSeleccionarCiudadModal(true);
+      }
     } catch (error) {
       console.error('Error validando documentos:', error);
       toast.error('Error al validar documentos. Por favor intente nuevamente.');
@@ -359,6 +382,20 @@ const ExpedicionOrdenPage = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Función para manejar el éxito de la validación desde el modal de selección de ciudad
+  const handleValidacionExitosa = async (message: string) => {
+    await fetchSolicitudes();
+    toast.success(message);
+    setShowSeleccionarCiudadModal(false);
+    setSolicitudParaValidar(null);
+  };
+
+  // Función para cerrar el modal de selección de ciudad
+  const handleCerrarModalCiudad = () => {
+    setShowSeleccionarCiudadModal(false);
+    setSolicitudParaValidar(null);
   };
 
   const handlePlantillaSelect = (plantilla: Plantilla) => {
@@ -755,6 +792,18 @@ const ExpedicionOrdenPage = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Modal de selección de ciudad para prestadores médicos */}
+      {solicitudParaValidar && (
+        <SeleccionarCiudadModal
+          isOpen={showSeleccionarCiudadModal}
+          onClose={handleCerrarModalCiudad}
+          solicitudId={solicitudParaValidar.id}
+          observacion={solicitudParaValidar.observacion}
+          candidatoNombre={solicitudParaValidar.candidatoNombre}
+          onSuccess={handleValidacionExitosa}
+        />
+      )}
     </div>
   );
 };

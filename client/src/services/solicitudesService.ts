@@ -17,6 +17,33 @@ const getUsuarioId = (): number | undefined => {
   return usuarioId || undefined;
 };
 
+// Función auxiliar para obtener el nombre del cargo por ID
+async function obtenerNombreCargo(cargoId: any): Promise<string> {
+  if (!cargoId) return "-";
+  
+  // Si ya es un string (nombre), devolverlo
+  if (typeof cargoId === 'string' && isNaN(Number(cargoId))) {
+    return cargoId;
+  }
+  
+  // Si es un número o string numérico, buscar en la base de datos
+  const id = Number(cargoId);
+  if (isNaN(id)) return "-";
+  
+  try {
+    const { data: tipoCandidato } = await supabase
+      .from('tipos_candidatos')
+      .select('nombre')
+      .eq('id', id)
+      .single();
+    
+    return tipoCandidato?.nombre || `Cargo #${id}`;
+  } catch (error) {
+    console.warn('Error obteniendo nombre del cargo:', error);
+    return `Cargo #${id}`;
+  }
+}
+
 export interface Solicitud {
   id?: number;
   empresa_id?: number;
@@ -872,7 +899,8 @@ export const solicitudesService = {
           const temporal = (solDet?.estructura_datos as any)?.temporal;
           
           // Obtener el cargo de la estructura_datos si está disponible
-          const cargo = (solDet?.estructura_datos as any)?.cargo || solDet?.cargo || "-";
+          const cargoId = (solDet?.estructura_datos as any)?.cargo || solDet?.cargo || "-";
+          const cargo = await obtenerNombreCargo(cargoId);
           
           await emailService.sendSolicitudCreada({
             to: String(emailDestino),
@@ -1471,7 +1499,8 @@ export const solicitudesService = {
                   const temporal = (d as any)?.temporal;
                   
                   // Obtener el cargo de la estructura_datos si está disponible
-                  const cargo = (d as any)?.cargo || data.cargo || "-";
+                  const cargoId = (d as any)?.cargo || data.cargo || "-";
+                  const cargo = await obtenerNombreCargo(cargoId);
                   
                   await emailService.sendSolicitudCreada({
                     to: String(email),
