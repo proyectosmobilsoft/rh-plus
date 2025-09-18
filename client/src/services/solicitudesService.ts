@@ -528,7 +528,7 @@ export const solicitudesService = {
         
         if (analistaAsignado) {
           analistaId = analistaAsignado.analista_id;
-          estadoFinal = "ASIGNADO";
+          estadoFinal = "asignado";
           console.log("✅ Analista asignado automáticamente:", analistaAsignado.analista_nombre);
         } else {
           estadoFinal = "pendiente asignacion";
@@ -754,7 +754,7 @@ export const solicitudesService = {
         ...solicitud,
         candidato_id: candidatoIdFinal,
         analista_id: analistaId,
-        estado: estadoFinal, // Usar el estado final (ASIGNADO si se asignó analista)
+        estado: estadoFinal, // Usar el estado final (asignado si se asignó analista)
         fecha_solicitud: fechaSolicitud,
       };
 
@@ -1164,7 +1164,7 @@ export const solicitudesService = {
         
         if (analistaAsignado) {
           analistaId = analistaAsignado.analista_id;
-          estadoFinal = "ASIGNADO";
+          estadoFinal = "asignado";
           console.log("✅ Analista asignado automáticamente:", analistaAsignado.analista_nombre);
         } else {
           estadoFinal = "pendiente asignacion";
@@ -1213,7 +1213,7 @@ export const solicitudesService = {
         estructura_datos: estructuraDatos,
         candidato_id: candidatoId,
         analista_id: analistaId,
-        estado: estadoFinal, // Usar el estado final (ASIGNADO si se asignó analista)
+        estado: estadoFinal, // Usar el estado final (asignado si se asignó analista)
         fecha_solicitud: fechaSolicitud,
         // created_by se omite por ahora hasta implementar autenticación de usuarios
       };
