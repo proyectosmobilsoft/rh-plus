@@ -182,6 +182,7 @@ export default function PerfilCandidato() {
   const [progresoRefreshKey, setProgresoRefreshKey] = useState(0);
   const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState<number | null>(null);
   const [modalDocumento, setModalDocumento] = useState<{isOpen: boolean, documento: any}>({isOpen: false, documento: null});
+  const [acordeonesAbiertos, setAcordeonesAbiertos] = useState<string[]>([]);
   const [documentoACambiar, setDocumentoACambiar] = useState<{id: number, progressKey: string} | null>(null);
   const [ciudadesDisponibles, setCiudadesDisponibles] = useState<any[]>([]);
   const [solicitudesCandidato, setSolicitudesCandidato] = useState<any[]>([]);
@@ -929,13 +930,25 @@ export default function PerfilCandidato() {
     } catch (error) {
       console.error('❌ Error subiendo archivo:', error);
       toast.error("Error al subir el archivo");
+      
+      // Limpiar progreso inmediatamente en caso de error
       setUploadProgress(prev => {
         const newProgress = { ...prev };
         delete newProgress[tipoDocumentoId];
         return newProgress;
       });
-    } finally {
+      
+      // Limpiar estado de carga inmediatamente
       setUploadingDocuments(prev => ({ ...prev, [tipoDocumentoId]: false }));
+    } finally {
+      // Solo limpiar el estado de carga si no se hizo en el catch
+      setUploadingDocuments(prev => {
+        // Solo limpiar si no se limpió ya en el catch
+        if (prev[tipoDocumentoId] === true) {
+          return { ...prev, [tipoDocumentoId]: false };
+        }
+        return prev;
+      });
     }
   };
 
@@ -1037,6 +1050,15 @@ export default function PerfilCandidato() {
       toast.success(`${nombreDocumento} subido correctamente`);
       console.log('✅ Documento guardado exitosamente:', documentoData);
 
+      // Mantener abierto el acordeón donde se subió el documento
+      const acordeonKey = `grupo-${solicitudesCandidato.findIndex(sol => sol.id === solicitudId)}`;
+      setAcordeonesAbiertos(prev => {
+        if (!prev.includes(acordeonKey)) {
+          return [...prev, acordeonKey];
+        }
+        return prev;
+      });
+
       // Limpiar progreso después de un momento
       setTimeout(() => {
         setUploadProgress(prev => {
@@ -1050,14 +1072,26 @@ export default function PerfilCandidato() {
       console.error('❌ Error en handleFileChangeSolicitud:', error);
       toast.error('Error subiendo el archivo');
       const progressKey = `${solicitudId}_${tipoCargoId}_${tipoDocumentoId}`;
+      
+      // Limpiar progreso inmediatamente en caso de error
       setUploadProgress(prev => {
         const newProgress = { ...prev };
         delete newProgress[progressKey];
         return newProgress;
       });
-    } finally {
-      const progressKey = `${solicitudId}_${tipoCargoId}_${tipoDocumentoId}`;
+      
+      // Limpiar estado de carga inmediatamente
       setUploadingDocuments(prev => ({ ...prev, [progressKey]: false }));
+    } finally {
+      // Solo limpiar el estado de carga si no se hizo en el catch
+      const progressKey = `${solicitudId}_${tipoCargoId}_${tipoDocumentoId}`;
+      setUploadingDocuments(prev => {
+        // Solo limpiar si no se limpió ya en el catch
+        if (prev[progressKey] === true) {
+          return { ...prev, [progressKey]: false };
+        }
+        return prev;
+      });
     }
   };
 
@@ -2464,7 +2498,12 @@ export default function PerfilCandidato() {
                             ) : solicitudesCandidato.length === 0 ? (
                               <p className="text-sm text-gray-500">No hay solicitudes asociadas al candidato.</p>
                             ) : (
-                              <Accordion type="multiple" className="w-full">
+                              <Accordion 
+                                type="multiple" 
+                                className="w-full"
+                                value={acordeonesAbiertos}
+                                onValueChange={setAcordeonesAbiertos}
+                              >
                                 {(() => {
                                   const grupos: Record<string, any[]> = {};
                                   solicitudesCandidato.forEach((sol) => {
