@@ -11,10 +11,11 @@ export interface Prestador {
   direccion_laboratorio?: string;
   nombre_laboratorio?: string;
   contacto_laboratorio?: string;
-  ciudad_id?: number;
+  sucursal_id?: number;
   activo?: boolean;
   // Campos relacionados
   especialidad_nombre?: string;
+  sucursal_nombre?: string;
   ciudad_nombre?: string;
   departamento_nombre?: string;
 }
@@ -26,7 +27,7 @@ export const prestadoresService = {
       .select(`
         *,
         especialidades:especialidad_id(nombre),
-        ciudades:ciudad_id(nombre, departamentos:departamento_id(nombre))
+        sucursales:sucursal_id(nombre, ciudades:ciudad_id(nombre, departamentos:departamento_id(nombre)))
       `);
     if (error) throw error;
     
@@ -34,8 +35,9 @@ export const prestadoresService = {
     return (data || []).map(prestador => ({
       ...prestador,
       especialidad_nombre: prestador.especialidades?.nombre,
-      ciudad_nombre: prestador.ciudades?.nombre,
-      departamento_nombre: prestador.ciudades?.departamentos?.nombre
+      sucursal_nombre: prestador.sucursales?.nombre,
+      ciudad_nombre: prestador.sucursales?.ciudades?.nombre,
+      departamento_nombre: prestador.sucursales?.ciudades?.departamentos?.nombre
     }));
   },
   

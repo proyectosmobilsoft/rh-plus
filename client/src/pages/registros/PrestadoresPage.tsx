@@ -64,7 +64,6 @@ import {
 } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
 import { useApiData } from '@/hooks/useApiData';
-import { useCityData } from '@/hooks/useCityData';
 import { 
   Briefcase, 
   Search, 
@@ -84,6 +83,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { prestadoresService, Prestador } from '@/services/prestadoresService';
 import { especialidadesService, Especialidad } from '@/services/especialidadesService';
+import { sucursalesService, Sucursal } from '@/services/sucursalesService';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { useLoading } from '@/contexts/LoadingContext';
@@ -93,7 +93,6 @@ import { Can } from '@/contexts/PermissionsContext';
 const PrestadoresPage = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { data: cityData } = useCityData();
   const { startLoading, stopLoading } = useLoading();
   const { addAction: addPrestadoresListado } = useRegisterView('Prestadores', 'listado', 'Listado de Prestadores');
   const { addAction: addPrestadoresForm } = useRegisterView('Prestadores', 'formulario', 'Registro de Prestador');
@@ -119,7 +118,7 @@ const PrestadoresPage = () => {
   // Estados para filtros
   const [searchTerm, setSearchTerm] = useState("");
   const [especialidadFilter, setEspecialidadFilter] = useState<string>("all");
-  const [ciudadFilter, setCiudadFilter] = useState<string>("all");
+  const [sucursalFilter, setSucursalFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("activos");
   
   // Estados para el formulario
@@ -132,14 +131,14 @@ const PrestadoresPage = () => {
     direccion_laboratorio: '',
     nombre_laboratorio: '',
     contacto_laboratorio: '',
-    ciudad_id: undefined,
+    sucursal_id: undefined,
     activo: true,
   });
   const [editingId, setEditingId] = useState<number | null>(null);
 
   // Estados para los popovers de selects
   const [openEspecialidad, setOpenEspecialidad] = useState(false);
-  const [openCiudad, setOpenCiudad] = useState(false);
+  const [openSucursal, setOpenSucursal] = useState(false);
 
   // Query para prestadores
   const { data: prestadores = [], isLoading, refetch } = useQuery({
@@ -163,6 +162,21 @@ const PrestadoresPage = () => {
       startLoading();
       try {
         return await especialidadesService.getAll();
+      } finally {
+        stopLoading();
+      }
+    },
+    staleTime: 0,
+    refetchOnWindowFocus: false
+  });
+
+  // Query para sucursales
+  const { data: sucursales = [] } = useQuery({
+    queryKey: ['sucursales'],
+    queryFn: async () => {
+      startLoading();
+      try {
+        return await sucursalesService.getAll();
       } finally {
         stopLoading();
       }
@@ -257,7 +271,7 @@ const PrestadoresPage = () => {
       direccion_laboratorio: '',
       nombre_laboratorio: '',
       contacto_laboratorio: '',
-      ciudad_id: undefined,
+      sucursal_id: undefined,
       activo: true,
     });
     setEditingId(null);
@@ -279,7 +293,7 @@ const PrestadoresPage = () => {
       direccion_laboratorio: formData.direccion_laboratorio,
       nombre_laboratorio: formData.nombre_laboratorio,
       contacto_laboratorio: formData.contacto_laboratorio,
-      ciudad_id: formData.ciudad_id,
+      sucursal_id: formData.sucursal_id,
       activo: true,
     };
 
@@ -300,7 +314,7 @@ const PrestadoresPage = () => {
       direccion_laboratorio: prestador.direccion_laboratorio,
       nombre_laboratorio: prestador.nombre_laboratorio,
       contacto_laboratorio: prestador.contacto_laboratorio,
-      ciudad_id: prestador.ciudad_id,
+      sucursal_id: prestador.sucursal_id,
       activo: prestador.activo,
     });
     setEditingId(prestador.id!);
@@ -344,15 +358,15 @@ const PrestadoresPage = () => {
       const matchesEspecialidad = especialidadFilter === "all" || 
         prestador.especialidad_id?.toString() === especialidadFilter;
 
-      const matchesCiudad = ciudadFilter === "all" || 
-        prestador.ciudad_id?.toString() === ciudadFilter;
+      const matchesSucursal = sucursalFilter === "all" || 
+        prestador.sucursal_id?.toString() === sucursalFilter;
 
       const matchesStatus = 
         (statusFilter === "activos" && prestador.activo) ||
         (statusFilter === "inactivos" && !prestador.activo) ||
         statusFilter === "todos";
 
-      return matchesSearch && matchesEspecialidad && matchesCiudad && matchesStatus;
+      return matchesSearch && matchesEspecialidad && matchesSucursal && matchesStatus;
     })
     .sort((a, b) => {
       // Mostrar prestadores activos primero
@@ -363,21 +377,6 @@ const PrestadoresPage = () => {
       return (a.razon_social || "").localeCompare(b.razon_social || "");
     });
 
-  // Obtener departamento basado en ciudad seleccionada
-  const getDepartamentoByCiudad = (ciudadId?: number) => {
-    if (!ciudadId || !cityData) return null;
-    
-    for (const [depId, depData] of Object.entries(cityData)) {
-      const ciudad = depData.ciudades.find(c => c.id === ciudadId);
-      if (ciudad) {
-        return { id: parseInt(depId), nombre: depData.nombre };
-      }
-    }
-    return null;
-  };
-
-  const departamentoSeleccionado = getDepartamentoByCiudad(formData.ciudad_id);
-
   // Obtener nombre de especialidad seleccionada
   const getEspecialidadName = (id?: number) => {
     if (!id) return "";
@@ -385,14 +384,11 @@ const PrestadoresPage = () => {
     return especialidad?.nombre || "";
   };
 
-  // Obtener nombre de ciudad seleccionada
-  const getCiudadName = (id?: number) => {
-    if (!id || !cityData) return "";
-    for (const depData of Object.values(cityData)) {
-      const ciudad = depData.ciudades.find(c => c.id === id);
-      if (ciudad) return ciudad.nombre;
-    }
-    return "";
+  // Obtener nombre de sucursal seleccionada
+  const getSucursalName = (id?: number) => {
+    if (!id) return "";
+    const sucursal = sucursales.find(s => s.id === id);
+    return sucursal?.nombre || "";
   };
 
   return (
@@ -497,24 +493,22 @@ const PrestadoresPage = () => {
                                  <TooltipProvider>
                    <Tooltip>
                      <TooltipTrigger asChild>
-                       <Select value={ciudadFilter} onValueChange={setCiudadFilter}>
+                       <Select value={sucursalFilter} onValueChange={setSucursalFilter}>
                          <SelectTrigger>
-                           <SelectValue placeholder="Filtrar por ciudad" />
+                           <SelectValue placeholder="Filtrar por sucursal" />
                          </SelectTrigger>
                          <SelectContent>
-                           <SelectItem value="all">Todas las ciudades</SelectItem>
-                           {cityData && Object.values(cityData).flatMap(dep => 
-                             dep.ciudades.map(ciudad => (
-                               <SelectItem key={ciudad.id} value={ciudad.id.toString()}>
-                                 {ciudad.nombre}
-                               </SelectItem>
-                             ))
-                           )}
+                           <SelectItem value="all">Todas las sucursales</SelectItem>
+                           {sucursales.map(sucursal => (
+                             <SelectItem key={sucursal.id} value={sucursal.id.toString()}>
+                               {sucursal.nombre}
+                             </SelectItem>
+                           ))}
                          </SelectContent>
                        </Select>
                      </TooltipTrigger>
                      <TooltipContent>
-                       <p>Filtrar prestadores por ciudad</p>
+                       <p>Filtrar prestadores por sucursal</p>
                      </TooltipContent>
                    </Tooltip>
                  </TooltipProvider>
@@ -528,7 +522,7 @@ const PrestadoresPage = () => {
                            setSearchTerm("");
                            setStatusFilter("activos");
                            setEspecialidadFilter("all");
-                           setCiudadFilter("all");
+                           setSucursalFilter("all");
                          }}
                          className="flex items-center gap-2"
                        >
@@ -554,7 +548,7 @@ const PrestadoresPage = () => {
                     <TableHead className="px-4 py-3">Razón Social</TableHead>
                     <TableHead className="px-4 py-3">Especialidad</TableHead>
                     <TableHead className="px-4 py-3">Laboratorio</TableHead>
-                    <TableHead className="px-4 py-3">Ciudad</TableHead>
+                    <TableHead className="px-4 py-3">Sucursal</TableHead>
                     <TableHead className="px-4 py-3">Estado</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -721,7 +715,7 @@ const PrestadoresPage = () => {
                                                  <TableCell className="px-4 py-3 text-sm text-gray-900">{prestador.razon_social}</TableCell>
                         <TableCell className="px-4 py-3 text-sm text-gray-500">{prestador.especialidad_nombre || prestador.especialidad || 'N/A'}</TableCell>
                         <TableCell className="px-4 py-3 text-sm text-gray-500">{prestador.nombre_laboratorio || 'N/A'}</TableCell>
-                        <TableCell className="px-4 py-3 text-sm text-gray-500">{prestador.ciudad_nombre || 'N/A'}</TableCell>
+                        <TableCell className="px-4 py-3 text-sm text-gray-500">{prestador.sucursal_nombre || 'N/A'}</TableCell>
                         <TableCell className="px-4 py-3">
                           <Badge variant={prestador.activo ? "default" : "secondary"} className={prestador.activo ? "bg-brand-lime/10 text-brand-lime border-brand-lime/20" : "bg-gray-200 text-gray-600 border-gray-300"}>
                             {prestador.activo ? "Activo" : "Inactivo"}
@@ -812,7 +806,7 @@ const PrestadoresPage = () => {
                      <h3 className="text-lg font-semibold text-gray-800">Información Profesional</h3>
                    </div>
                    
-                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label className="text-sm">Especialidad</Label>
                       <Popover open={openEspecialidad} onOpenChange={setOpenEspecialidad}>
@@ -862,63 +856,51 @@ const PrestadoresPage = () => {
                     </div>
                     
                     <div className="space-y-2">
-                      <Label className="text-sm">Ciudad</Label>
-                      <Popover open={openCiudad} onOpenChange={setOpenCiudad}>
+                      <Label className="text-sm">Sucursal</Label>
+                      <Popover open={openSucursal} onOpenChange={setOpenSucursal}>
                         <PopoverTrigger asChild>
                                                      <Button
                              variant="outline"
                              role="combobox"
-                             aria-expanded={openCiudad}
+                             aria-expanded={openSucursal}
                              className="w-full justify-between h-9 font-normal"
                            >
-                             {formData.ciudad_id ? getCiudadName(formData.ciudad_id) : "Seleccionar ciudad..."}
+                             {formData.sucursal_id ? getSucursalName(formData.sucursal_id) : "Seleccionar sucursal..."}
                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                            </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-full p-0">
                           <Command>
-                            <CommandInput placeholder="Buscar ciudad..." />
+                            <CommandInput placeholder="Buscar sucursal..." />
                             <CommandList>
-                              <CommandEmpty>No se encontró ciudad.</CommandEmpty>
+                              <CommandEmpty>No se encontró sucursal.</CommandEmpty>
                               <CommandGroup>
-                                {cityData && Object.values(cityData).flatMap(dep => 
-                                  dep.ciudades.map(ciudad => (
-                                    <CommandItem
-                                      key={ciudad.id}
-                                      value={ciudad.nombre}
-                                      onSelect={() => {
-                                        setFormData(prev => ({ 
-                                          ...prev, 
-                                          ciudad_id: ciudad.id 
-                                        }));
-                                        setOpenCiudad(false);
-                                      }}
-                                    >
-                                      <Check
-                                        className={cn(
-                                          "mr-2 h-4 w-4",
-                                          formData.ciudad_id === ciudad.id ? "opacity-100" : "opacity-0"
-                                        )}
-                                      />
-                                      {ciudad.nombre}
-                                    </CommandItem>
-                                  ))
-                                )}
+                                {sucursales.map(sucursal => (
+                                  <CommandItem
+                                    key={sucursal.id}
+                                    value={sucursal.nombre}
+                                    onSelect={() => {
+                                      setFormData(prev => ({ 
+                                        ...prev, 
+                                        sucursal_id: sucursal.id 
+                                      }));
+                                      setOpenSucursal(false);
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        formData.sucursal_id === sucursal.id ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                    {sucursal.nombre}
+                                  </CommandItem>
+                                ))}
                               </CommandGroup>
                             </CommandList>
                           </Command>
                         </PopoverContent>
                       </Popover>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="departamento" className="text-sm">Departamento</Label>
-                                             <Input
-                         id="departamento"
-                         value={departamentoSeleccionado?.nombre || ""}
-                         disabled
-                         className="h-9 bg-gray-50"
-                       />
                     </div>
                   </div>
                 </div>
