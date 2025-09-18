@@ -47,9 +47,12 @@ export const CustomDatePicker: React.FC<DatePickerProps> = ({
   const [currentMonth, setCurrentMonth] = useState(value || new Date());
   const [showMonthDropdown, setShowMonthDropdown] = useState(false);
   const [showYearDropdown, setShowYearDropdown] = useState(false);
+  const [inputValue, setInputValue] = useState(value ? format(value, 'dd/MM/yyyy') : '');
+  const [isInputValid, setIsInputValid] = useState(true);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const yearDropdownRef = useRef<HTMLDivElement>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -69,6 +72,12 @@ export const CustomDatePicker: React.FC<DatePickerProps> = ({
   };
 
   const years = generateYears();
+
+  // Sincronizar inputValue con value
+  useEffect(() => {
+    setInputValue(value ? format(value, 'dd/MM/yyyy') : '');
+    setIsInputValid(true);
+  }, [value]);
 
   // Cerrar dropdown al hacer click fuera
   useEffect(() => {
@@ -101,6 +110,104 @@ export const CustomDatePicker: React.FC<DatePickerProps> = ({
   };
 
   const calendarDays = generateCalendarDays();
+
+  // Función para validar fecha ingresada manualmente
+  const validateInputDate = (dateString: string): { isValid: boolean; date: Date | null; isDisabled: boolean } => {
+    // Verificar formato dd/MM/yyyy
+    const dateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+    const match = dateString.match(dateRegex);
+    
+    if (!match) {
+      return { isValid: false, date: null, isDisabled: false };
+    }
+
+    const [, day, month, year] = match;
+    const dayNum = parseInt(day, 10);
+    const monthNum = parseInt(month, 10);
+    const yearNum = parseInt(year, 10);
+
+    // Validar rangos
+    if (dayNum < 1 || dayNum > 31 || monthNum < 1 || monthNum > 12 || yearNum < 1900 || yearNum > 2100) {
+      return { isValid: false, date: null, isDisabled: false };
+    }
+
+    const date = new Date(yearNum, monthNum - 1, dayNum);
+    
+    // Verificar que la fecha es válida (no es 31 de febrero, etc.)
+    if (date.getDate() !== dayNum || date.getMonth() !== monthNum - 1 || date.getFullYear() !== yearNum) {
+      return { isValid: false, date: null, isDisabled: false };
+    }
+
+    // Verificar si está deshabilitada usando la misma lógica del calendario
+    let isDisabled = false;
+    if (isDateDisabled && diasMinimos) {
+      isDisabled = isDateDisabled(date, diasMinimos);
+    } else {
+      const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const minDateOnly = minDate ? new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate()) : null;
+      const maxDateOnly = maxDate ? new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate()) : null;
+      
+      if (minDateOnly && dateOnly < minDateOnly) isDisabled = true;
+      if (maxDateOnly && dateOnly > maxDateOnly) isDisabled = true;
+    }
+
+    return { isValid: true, date, isDisabled };
+  };
+
+  // Función para formatear automáticamente la fecha mientras se escribe
+  const formatInputValue = (value: string): string => {
+    // Remover caracteres no numéricos
+    const numbers = value.replace(/\D/g, '');
+    
+    if (numbers.length <= 2) {
+      return numbers;
+    } else if (numbers.length <= 4) {
+      return `${numbers.slice(0, 2)}/${numbers.slice(2)}`;
+    } else {
+      return `${numbers.slice(0, 2)}/${numbers.slice(2, 4)}/${numbers.slice(4, 8)}`;
+    }
+  };
+
+  // Función para manejar cambios en el input de texto
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawValue = e.target.value;
+    const formattedValue = formatInputValue(rawValue);
+    setInputValue(formattedValue);
+    
+    if (formattedValue === '') {
+      setIsInputValid(true);
+      onChange(null);
+      return;
+    }
+
+    // Solo validar si tiene el formato completo dd/MM/yyyy
+    if (formattedValue.length === 10) {
+      const validation = validateInputDate(formattedValue);
+      setIsInputValid(validation.isValid && !validation.isDisabled);
+      
+      if (validation.isValid && !validation.isDisabled && validation.date) {
+        onChange(validation.date);
+      }
+    } else {
+      // Mientras se está escribiendo, considerar válido temporalmente
+      setIsInputValid(true);
+    }
+  };
+
+  // Función para manejar el blur del input
+  const handleInputBlur = () => {
+    if (inputValue === '') {
+      onChange(null);
+      return;
+    }
+
+    const validation = validateInputDate(inputValue);
+    if (!validation.isValid || validation.isDisabled) {
+      // Restaurar el valor anterior si la validación falla
+      setInputValue(value ? format(value, 'dd/MM/yyyy') : '');
+      setIsInputValid(true);
+    }
+  };
 
   const handleDateSelect = (date: Date) => {
     // Usar la función personalizada de desactivación si está disponible
@@ -150,16 +257,34 @@ export const CustomDatePicker: React.FC<DatePickerProps> = ({
       {/* Input Field */}
       <div 
         className={cn(
-          "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer",
+          "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+          !isInputValid && "border-red-500 focus-visible:ring-red-500",
           className
         )}
-        onClick={() => !disabled && setIsOpen(!isOpen)}
       >
-        <span className="flex-1 text-left">
-          {value ? format(value, 'dd/MM/yyyy') : placeholder}
-        </span>
-        <Calendar className="h-4 w-4 text-muted-foreground" />
+        <input
+          ref={inputRef}
+          type="text"
+          value={inputValue}
+          onChange={handleInputChange}
+          onBlur={handleInputBlur}
+          onFocus={() => !disabled && setIsOpen(true)}
+          placeholder={placeholder}
+          disabled={disabled}
+          className="flex-1 bg-transparent border-none outline-none text-left"
+        />
+        <Calendar 
+          className="h-4 w-4 text-muted-foreground cursor-pointer" 
+          onClick={() => !disabled && setIsOpen(!isOpen)}
+        />
       </div>
+
+      {/* Error Message */}
+      {!isInputValid && inputValue && inputValue.length === 10 && (
+        <div className="absolute top-full left-0 mt-1 text-xs text-red-500 bg-red-50 px-2 py-1 rounded border border-red-200 z-50">
+          Esta fecha no está permitida según la configuración
+        </div>
+      )}
 
       {/* Calendar Dropdown */}
       {isOpen && (
