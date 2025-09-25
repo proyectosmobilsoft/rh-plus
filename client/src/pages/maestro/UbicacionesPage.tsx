@@ -181,6 +181,12 @@ export default function UbicacionesPage() {
   // Estado para formulario de regionales
   const [selectedDeptosRegional, setSelectedDeptosRegional] = useState<number[]>([]);
   const [regionalError, setRegionalError] = useState<string | null>(null);
+  
+  // Estados para formulario de sucursales
+  const [selectedDepartamentoSucursal, setSelectedDepartamentoSucursal] = useState<number | null>(null);
+  const [selectedCiudadSucursal, setSelectedCiudadSucursal] = useState<number | null>(null);
+  const [openDepartamentoSucursal, setOpenDepartamentoSucursal] = useState(false);
+  const [openCiudadSucursal, setOpenCiudadSucursal] = useState(false);
 
   // Cargar datos usando React Query
   const { data: paises = [], isLoading: paisesLoading, error: paisesError } = useQuery({
@@ -227,6 +233,28 @@ export default function UbicacionesPage() {
     staleTime: 5 * 60 * 1000, // 5 minutos
   });
 
+  // useEffect para inicializar el departamento y ciudad cuando se está editando una sucursal
+  useEffect(() => {
+    if (editingItem && activeTab === 'sucursales' && ciudades.length > 0 && editingItem.ciudad_id) {
+      try {
+        const ciudadSucursal = ciudades.find(c => c.id === editingItem.ciudad_id);
+        if (ciudadSucursal?.departamento_id) {
+          setSelectedDepartamentoSucursal(ciudadSucursal.departamento_id);
+          setSelectedCiudadSucursal(editingItem.ciudad_id);
+        }
+      } catch (error) {
+        console.warn('Error inicializando departamento para sucursal:', error);
+        setSelectedDepartamentoSucursal(null);
+        setSelectedCiudadSucursal(null);
+      }
+    } else if (!editingItem || activeTab !== 'sucursales') {
+      // Limpiar el estado cuando no se está editando o no estamos en la pestaña de sucursales
+      setSelectedDepartamentoSucursal(null);
+      setSelectedCiudadSucursal(null);
+    }
+  }, [editingItem, activeTab, ciudades]);
+
+
   // Sucursales
   const { data: sucursales = [], isLoading: sucursalesLoading, error: sucursalesError } = useQuery({
     queryKey: ['sucursales'],
@@ -236,6 +264,7 @@ export default function UbicacionesPage() {
     },
     staleTime: 5 * 60 * 1000,
   });
+
 
   // Cargar regionales y sus asociaciones
   const { data: regionales = [], isLoading: regionalesLoading, error: regionalesError } = useQuery({
@@ -272,6 +301,30 @@ export default function UbicacionesPage() {
 
     initializeTables();
   }, []); // Solo se ejecuta una vez al montar el componente
+
+  // useEffect para generar código autoincrementable para nuevas sucursales
+  useEffect(() => {
+    if (activeTab === 'sucursales' && !editingItem && sucursales.length >= 0) {
+      // Usar setTimeout para asegurar que el DOM esté renderizado
+      const timer = setTimeout(() => {
+        try {
+          // Generar código autoincrementable basado en el número de sucursales existentes
+          const siguienteNumero = sucursales.length + 1;
+          const codigoGenerado = `S${siguienteNumero.toString().padStart(3, '0')}`;
+          
+          // Actualizar el campo código
+          const codigoInput = document.getElementById('suc-codigo') as HTMLInputElement;
+          if (codigoInput) {
+            codigoInput.value = codigoGenerado;
+          }
+        } catch (error) {
+          console.warn('Error generando código autoincrementable:', error);
+        }
+      }, 100);
+
+      return () => clearTimeout(timer);
+    }
+  }, [activeTab, editingItem, sucursales]);
 
   // Filtrar datos
   const filteredPaises = paises.filter(pais => {
@@ -1961,23 +2014,78 @@ export default function UbicacionesPage() {
         return (
           <Can action={editingItem ? "accion-actualizar-sucursal" : "accion-crear-sucursal"}>
             <form onSubmit={onSubmitSucursal} className="space-y-6">
-            <div className="grid grid-cols-3 gap-4">
-              <div>
+            <div className="grid grid-cols-12 gap-4">
+              <div className="col-span-2">
                 <label className="block text-sm font-medium mb-1">Código</label>
-                <Input id="suc-codigo" defaultValue={editingItem?.codigo || ''} placeholder="Ej: S001" />
+                <Input 
+                  id="suc-codigo" 
+                  defaultValue={editingItem?.codigo || ''} 
+                  className="text-sm bg-red-50 border-red-200 text-red-700 font-mono cursor-not-allowed" 
+                  onKeyDown={(e) => e.preventDefault()}
+                  onPaste={(e) => e.preventDefault()}
+                  onInput={(e) => e.preventDefault()}
+                />
               </div>
-              <div>
+              <div className="col-span-3">
                 <label className="block text-sm font-medium mb-1">Nombre *</label>
-                <Input id="suc-nombre" defaultValue={editingItem?.nombre || ''} placeholder="Ej: Sucursal Norte" />
+                <Input id="suc-nombre" defaultValue={editingItem?.nombre || ''} />
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Ciudad</label>
-                <Popover>
+              <div className="col-span-3">
+                <label className="block text-sm font-medium mb-1">Departamento *</label>
+                <Popover open={openDepartamentoSucursal} onOpenChange={setOpenDepartamentoSucursal}>
                   <PopoverTrigger asChild>
                     <Button type="button" variant="outline" role="combobox" className="w-full justify-between">
                       {(() => {
-                        const sc = ciudades.find(c => c.id === editingItem?.ciudad_id);
-                        return sc ? sc.nombre : 'Seleccionar ciudad';
+                        const selectedDepto = departamentos.find(d => d.id === selectedDepartamentoSucursal);
+                        return selectedDepto ? selectedDepto.nombre : 'Seleccionar departamento';
+                      })()}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                    <Command>
+                      <CommandInput placeholder="Buscar departamento..." className="h-9 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none" />
+                      <CommandList>
+                        <CommandEmpty>No se encontraron departamentos.</CommandEmpty>
+                        <CommandGroup>
+                          {departamentos.filter(d => d.estado).map((d) => (
+                            <CommandItem
+                              key={d.id}
+                              onSelect={() => {
+                                setSelectedDepartamentoSucursal(d.id);
+                                setSelectedCiudadSucursal(null);
+                                setOpenDepartamentoSucursal(false);
+                                // Limpiar la ciudad seleccionada cuando cambia el departamento
+                                const ciudadInput = document.getElementById('suc-ciudad') as HTMLInputElement;
+                                if (ciudadInput) ciudadInput.value = '';
+                              }}
+                              className="cursor-pointer"
+                            >
+                              <Check className={cn('mr-2 h-4 w-4', selectedDepartamentoSucursal === d.id ? 'opacity-100' : 'opacity-0')} />
+                              {d.nombre}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="col-span-4">
+                <label className="block text-sm font-medium mb-1">Ciudad *</label>
+                <Popover open={openCiudadSucursal} onOpenChange={setOpenCiudadSucursal}>
+                  <PopoverTrigger asChild>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      role="combobox" 
+                      className="w-full justify-between"
+                      disabled={!selectedDepartamentoSucursal}
+                    >
+                      {(() => {
+                        const ciudadId = selectedCiudadSucursal || editingItem?.ciudad_id;
+                        const sc = ciudades.find(c => c.id === ciudadId);
+                        return sc ? sc.nombre : selectedDepartamentoSucursal ? 'Seleccionar ciudad' : 'Seleccione un departamento primero';
                       })()}
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
@@ -1990,16 +2098,20 @@ export default function UbicacionesPage() {
                         <CommandGroup>
                           {/* Campo oculto para almacenar el valor */}
                           <input id="suc-ciudad" type="hidden" defaultValue={editingItem?.ciudad_id ?? ''} />
-                          {ciudades.map((c) => (
+                          {ciudades
+                            .filter(c => c.departamento_id === selectedDepartamentoSucursal)
+                            .map((c) => (
                             <CommandItem
                               key={c.id}
                               onSelect={() => {
+                                setSelectedCiudadSucursal(c.id);
                                 const input = document.getElementById('suc-ciudad') as HTMLInputElement;
                                 if (input) input.value = String(c.id);
+                                setOpenCiudadSucursal(false);
                               }}
                               className="cursor-pointer"
                             >
-                              <Check className={cn('mr-2 h-4 w-4', editingItem?.ciudad_id === c.id ? 'opacity-100' : 'opacity-0')} />
+                              <Check className={cn('mr-2 h-4 w-4', (selectedCiudadSucursal || editingItem?.ciudad_id) === c.id ? 'opacity-100' : 'opacity-0')} />
                               {c.nombre}
                             </CommandItem>
                           ))}
@@ -2009,17 +2121,17 @@ export default function UbicacionesPage() {
                   </PopoverContent>
                 </Popover>
               </div>
-              <div className="col-span-2">
+              <div className="col-span-4">
                 <label className="block text-sm font-medium mb-1">Dirección</label>
-                <Input id="suc-direccion" defaultValue={editingItem?.direccion || ''} placeholder="Calle 123 #45-67" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Teléfono</label>
-                <Input id="suc-telefono" defaultValue={editingItem?.telefono || ''} placeholder="3001234567" />
+                <Input id="suc-direccion" defaultValue={editingItem?.direccion || ''} />
               </div>
               <div className="col-span-3">
+                <label className="block text-sm font-medium mb-1">Teléfono</label>
+                <Input id="suc-telefono" defaultValue={editingItem?.telefono || ''} />
+              </div>
+              <div className="col-span-5">
                 <label className="block text-sm font-medium mb-1">Email</label>
-                <Input id="suc-email" defaultValue={editingItem?.email || ''} placeholder="sucursal@dominio.com" />
+                <Input id="suc-email" defaultValue={editingItem?.email || ''} />
               </div>
             </div>
             <div className="flex justify-end space-x-2">
