@@ -26,6 +26,7 @@ import { supabase } from '@/services/supabaseClient';
 import { emailService } from '@/services/emailService';
 import { Can, usePermissions } from '@/contexts/PermissionsContext';
 
+
 const CertificadosMedicosPage = () => {
   const { hasAction } = usePermissions();
   const [activeTab, setActiveTab] = useState("listado");
@@ -49,7 +50,8 @@ const CertificadosMedicosPage = () => {
     area: '',
     eps: '',
     arl: '',
-    restricciones: '',
+    restriccionMacro: '',
+    resumenRestriccion: '',
     remision: 'no',
     requiereMedicacion: 'no',
     elementosProteccionPersonal: '',
@@ -207,7 +209,8 @@ const CertificadosMedicosPage = () => {
               area: solicitud.estructura_datos?.area || '',
               eps: solicitud.estructura_datos?.eps || '',
               arl: solicitud.estructura_datos?.arl || '',
-              restricciones: certificadoExistente.restricciones || '',
+              restriccionMacro: certificadoExistente.restriccion_macro || '',
+              resumenRestriccion: certificadoExistente.resumen_restriccion || '',
               remision: certificadoExistente.remision ? 'si' : 'no',
               requiereMedicacion: certificadoExistente.requiere_medicacion ? 'si' : 'no',
               elementosProteccionPersonal: certificadoExistente.elementos_proteccion_personal || '',
@@ -222,7 +225,8 @@ const CertificadosMedicosPage = () => {
               area: solicitud.estructura_datos?.area || '',
               eps: solicitud.estructura_datos?.eps || '',
               arl: solicitud.estructura_datos?.arl || '',
-              restricciones: '',
+              restriccionMacro: '',
+              resumenRestriccion: '',
               remision: 'no',
               requiereMedicacion: 'no',
               elementosProteccionPersonal: '',
@@ -239,7 +243,8 @@ const CertificadosMedicosPage = () => {
             area: solicitud.estructura_datos?.area || '',
             eps: solicitud.estructura_datos?.eps || '',
             arl: solicitud.estructura_datos?.arl || '',
-            restricciones: '',
+            restriccionMacro: '',
+            resumenRestriccion: '',
             remision: 'no',
             requiereMedicacion: 'no',
             elementosProteccionPersonal: '',
@@ -255,7 +260,8 @@ const CertificadosMedicosPage = () => {
           area: solicitud.estructura_datos?.area || '',
           eps: solicitud.estructura_datos?.eps || '',
           arl: solicitud.estructura_datos?.arl || '',
-          restricciones: '',
+          restriccionMacro: '',
+          resumenRestriccion: '',
           remision: 'no',
           requiereMedicacion: 'no',
           elementosProteccionPersonal: '',
@@ -351,7 +357,8 @@ const CertificadosMedicosPage = () => {
       const certificadoData = {
         solicitud_id: selectedSolicitud.id!,
         candidato_id: selectedSolicitud.candidato_id!,
-        restricciones: formData.restricciones,
+        restriccion_macro: formData.restriccionMacro,
+        resumen_restriccion: formData.resumenRestriccion,
         remision: formData.remision === 'si',
         requiere_medicacion: formData.requiereMedicacion === 'si',
         elementos_proteccion_personal: formData.elementosProteccionPersonal,
@@ -660,8 +667,8 @@ const CertificadosMedicosPage = () => {
                             #{solicitud.id || 'N/A'}
                           </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-900">
-                            {solicitud.nombres && solicitud.apellidos 
-                              ? `${solicitud.nombres} ${solicitud.apellidos}`
+                            {solicitud.candidatos?.primer_nombre && solicitud.candidatos?.primer_apellido 
+                              ? `${solicitud.candidatos.primer_nombre} ${solicitud.candidatos.segundo_nombre || ''} ${solicitud.candidatos.primer_apellido} ${solicitud.candidatos.segundo_apellido || ''}`.trim()
                               : 'N/A'
                             }
                           </TableCell>
@@ -755,16 +762,35 @@ const CertificadosMedicosPage = () => {
                   <div className="bg-orange-50 p-4 rounded-lg border border-orange-200 space-y-4">
                     <h3 className="text-lg font-semibold text-orange-800">RESTRICCIONES Y REMISIÓN</h3>
                     
-                    <div className="space-y-2">
-                      <Label htmlFor="restricciones" className="text-sm font-medium text-gray-700">RESTRICCIONES</Label>
-                      <Textarea
-                        id="restricciones"
-                        value={formData.restricciones}
-                        onChange={(e) => handleFormChange('restricciones', e.target.value)}
-                        placeholder="Ingrese las restricciones..."
-                        className="w-full min-h-[100px] resize-y"
-                        disabled={solicitudSeleccionada?.estado === 'validacion cliente'}
-                      />
+                    {/* Campos de restricciones en dos columnas */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Can action="campo-restriccion-macro">
+                          <Label htmlFor="restriccionMacro" className="text-sm font-medium text-gray-700">RESTRICCIÓN MACRO</Label>
+                          <Textarea
+                            id="restriccionMacro"
+                            value={formData.restriccionMacro}
+                            onChange={(e) => handleFormChange('restriccionMacro', e.target.value)}
+                            placeholder="Ingrese la restricción macro..."
+                            className="w-full min-h-[100px] resize-y"
+                            disabled={solicitudSeleccionada?.estado === 'validacion cliente'}
+                          />
+                        </Can>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Can action="campo-resumen-restriccion">
+                          <Label htmlFor="resumenRestriccion" className="text-sm font-medium text-gray-700">RESUMEN RESTRICCIÓN</Label>
+                          <Textarea
+                            id="resumenRestriccion"
+                            value={formData.resumenRestriccion}
+                            onChange={(e) => handleFormChange('resumenRestriccion', e.target.value)}
+                            placeholder="Ingrese el resumen de la restricción..."
+                            className="w-full min-h-[100px] resize-y"
+                            disabled={solicitudSeleccionada?.estado === 'validacion cliente'}
+                          />
+                        </Can>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -809,31 +835,35 @@ const CertificadosMedicosPage = () => {
                   </div>
 
                   {/* Uso de Elementos de Protección Personal */}
-                  <div className="bg-teal-50 p-4 rounded-lg border border-teal-200 space-y-2">
-                    <Label htmlFor="elementosProteccion" className="text-sm font-medium text-teal-800">USO DE ELEMENTOS DE PROTECCIÓN PERSONAL RECOMENDADO PARA LA LABOR ASIGNADA</Label>
-                    <Textarea
-                      id="elementosProteccion"
-                      value={formData.elementosProteccionPersonal}
-                      onChange={(e) => handleFormChange('elementosProteccionPersonal', e.target.value)}
-                      placeholder="Ingrese los elementos de protección personal recomendados..."
-                      className="w-full min-h-[100px] resize-y"
-                      disabled={solicitudSeleccionada?.estado === 'validacion cliente'}
-                    />
-                  </div>
+                  <Can action="campo-restriccion-macro">
+                    <div className="bg-teal-50 p-4 rounded-lg border border-teal-200 space-y-2">
+                      <Label htmlFor="elementosProteccion" className="text-sm font-medium text-teal-800">USO DE ELEMENTOS DE PROTECCIÓN PERSONAL RECOMENDADO PARA LA LABOR ASIGNADA</Label>
+                      <Textarea
+                        id="elementosProteccion"
+                        value={formData.elementosProteccionPersonal}
+                        onChange={(e) => handleFormChange('elementosProteccionPersonal', e.target.value)}
+                        placeholder="Ingrese los elementos de protección personal recomendados..."
+                        className="w-full min-h-[100px] resize-y"
+                        disabled={solicitudSeleccionada?.estado === 'validacion cliente'}
+                      />
+                    </div>
+                  </Can>
 
 
                   {/* Recomendaciones Generales */}
-                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 space-y-2">
-                    <Label htmlFor="recomendacionesGenerales" className="text-sm font-medium text-blue-800">RECOMENDACIONES GENERALES</Label>
-                    <Textarea
-                      id="recomendacionesGenerales"
-                      value={formData.recomendacionesGenerales}
-                      onChange={(e) => handleFormChange('recomendacionesGenerales', e.target.value)}
-                      placeholder="Ingrese las recomendaciones generales..."
-                      className="w-full min-h-[100px] resize-y"
-                      disabled={solicitudSeleccionada?.estado === 'validacion cliente'}
-                    />
-                  </div>
+                  <Can action="campo-restriccion-macro">
+                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 space-y-2">
+                      <Label htmlFor="recomendacionesGenerales" className="text-sm font-medium text-blue-800">RECOMENDACIONES GENERALES</Label>
+                      <Textarea
+                        id="recomendacionesGenerales"
+                        value={formData.recomendacionesGenerales}
+                        onChange={(e) => handleFormChange('recomendacionesGenerales', e.target.value)}
+                        placeholder="Ingrese las recomendaciones generales..."
+                        className="w-full min-h-[100px] resize-y"
+                        disabled={solicitudSeleccionada?.estado === 'validacion cliente'}
+                      />
+                    </div>
+                  </Can>
 
                   {/* Botones de Concepto Médico - Solo mostrar si NO es validacion cliente */}
                   {solicitudSeleccionada?.estado !== 'validacion cliente' && (

@@ -4,7 +4,8 @@ export interface CertificadoMedico {
   id?: number;
   solicitud_id: number;
   candidato_id: number;
-  restricciones?: string;
+  restriccion_macro?: string;
+  resumen_restriccion?: string;
   remision: boolean;
   requiere_medicacion: boolean;
   elementos_proteccion_personal?: string;
@@ -19,7 +20,8 @@ export interface CertificadoMedico {
 export interface CertificadoMedicoFormData {
   solicitud_id: number;
   candidato_id: number;
-  restricciones?: string;
+  restriccion_macro?: string;
+  resumen_restriccion?: string;
   remision?: boolean;
   requiere_medicacion?: boolean;
   elementos_proteccion_personal?: string;

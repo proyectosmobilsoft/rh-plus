@@ -181,7 +181,7 @@ export default function UbicacionesPage() {
   // Estado para formulario de regionales
   const [selectedDeptosRegional, setSelectedDeptosRegional] = useState<number[]>([]);
   const [regionalError, setRegionalError] = useState<string | null>(null);
-  
+
   // Estados para formulario de sucursales
   const [selectedDepartamentoSucursal, setSelectedDepartamentoSucursal] = useState<number | null>(null);
   const [selectedCiudadSucursal, setSelectedCiudadSucursal] = useState<number | null>(null);
