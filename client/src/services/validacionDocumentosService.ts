@@ -118,27 +118,83 @@ export const validacionDocumentosService = {
     }));
   },
 
-  // Obtener todas las ciudades disponibles
+  // Obtener ciudades que tienen prestadores registrados
   async getCiudadesDisponibles(): Promise<Array<{id: number, nombre: string, departamento: string}>> {
-    const { data, error } = await supabase
-      .from('ciudades')
-      .select(`
-        id,
-        nombre,
-        departamentos:departamento_id(nombre)
-      `)
-      .order('nombre');
+    try {
+      // Primero obtener todas las sucursales activas con sus ciudades
+      const { data: sucursales, error: sucursalesError } = await supabase
+        .from('gen_sucursales')
+        .select(`
+          id,
+          ciudades:ciudad_id(
+            id,
+            nombre,
+            departamentos:departamento_id(nombre)
+          )
+        `)
+        .eq('activo', true);
 
-    if (error) {
-      console.error('Error obteniendo ciudades:', error);
+      if (sucursalesError) {
+        console.error('Error obteniendo sucursales:', sucursalesError);
+        return [];
+      }
+
+      if (!sucursales || sucursales.length === 0) {
+        return [];
+      }
+
+      // Obtener los IDs de las sucursales
+      const sucursalIds = sucursales.map(s => s.id);
+
+      // Buscar prestadores que estén asociados a esas sucursales
+      const { data: prestadores, error: prestadoresError } = await supabase
+        .from('prestadores')
+        .select(`
+          sucursal_id,
+          sucursales:sucursal_id(
+            ciudades:ciudad_id(
+              id,
+              nombre,
+              departamentos:departamento_id(nombre)
+            )
+          )
+        `)
+        .eq('activo', true)
+        .in('sucursal_id', sucursalIds)
+        .not('sucursal_id', 'is', null);
+
+      if (prestadoresError) {
+        console.error('Error obteniendo prestadores:', prestadoresError);
+        return [];
+      }
+
+      if (!prestadores || prestadores.length === 0) {
+        return [];
+      }
+
+      // Crear un mapa de ciudades únicas que tienen prestadores
+      const ciudadesConPrestadores = new Map<number, {id: number, nombre: string, departamento: string}>();
+
+      prestadores.forEach(prestador => {
+        const ciudad = prestador.sucursales?.ciudades;
+        if (ciudad && ciudad.id) {
+          ciudadesConPrestadores.set(ciudad.id, {
+            id: ciudad.id,
+            nombre: ciudad.nombre,
+            departamento: ciudad.departamentos?.nombre || 'Sin departamento'
+          });
+        }
+      });
+
+      // Convertir el mapa a array y ordenar por nombre
+      return Array.from(ciudadesConPrestadores.values()).sort((a, b) => 
+        a.nombre.localeCompare(b.nombre)
+      );
+
+    } catch (error) {
+      console.error('Error obteniendo ciudades con prestadores:', error);
       return [];
     }
-
-    return (data || []).map(ciudad => ({
-      id: ciudad.id,
-      nombre: ciudad.nombre,
-      departamento: ciudad.departamentos?.nombre || 'Sin departamento'
-    }));
   },
 
   // Enviar email con información de prestadores

@@ -733,6 +733,92 @@ class EmailService {
     `;
   }
 
+  // Función para enviar correo de descarte por restricciones médicas
+  async sendDescartadoPorRestricciones(params: {
+    to: string;
+    candidatoNombre: string;
+    empresaNombre: string;
+    solicitudId: number;
+    observaciones: string;
+  }): Promise<{ success: boolean; message: string }> {
+    const html = this.generateDescartadoPorRestriccionesHTML(params);
+    
+    return this.sendEmail({
+      to: params.to,
+      subject: `Solicitud #${params.solicitudId} - Descarte por restricciones médicas`,
+      html,
+      text: `Su solicitud #${params.solicitudId} en ${params.empresaNombre} ha sido descartada debido a restricciones médicas detectadas en los exámenes. Observaciones: ${params.observaciones}`,
+      from: 'noreply@rhcompensamos.com'
+    });
+  }
+
+  // Generar HTML para correo de descarte por restricciones médicas
+  generateDescartadoPorRestriccionesHTML(params: {
+    candidatoNombre: string;
+    empresaNombre: string;
+    solicitudId: number;
+    observaciones: string;
+  }): string {
+    const { candidatoNombre, empresaNombre, solicitudId, observaciones } = params;
+    
+    return `
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Descarte por Restricciones Médicas</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; background-color: #f4f4f4; }
+          .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+          .header { background: linear-gradient(135deg, #dc2626, #ef4444); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
+          .header h1 { margin: 0; font-size: 24px; }
+          .content { margin-bottom: 20px; }
+          .info-box { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 15px; margin: 15px 0; }
+          .info-box h3 { color: #dc2626; margin-top: 0; }
+          .observations { background: #fef3c7; border: 1px solid #fde68a; border-radius: 8px; padding: 15px; margin: 15px 0; }
+          .observations h3 { color: #d97706; margin-top: 0; }
+          .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 14px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>⚠️ Descarte por Restricciones Médicas</h1>
+          </div>
+          
+          <div class="content">
+            <p>Estimado/a <strong>${candidatoNombre}</strong>,</p>
+            
+            <p>Lamentamos informarle que su solicitud de empleo ha sido descartada debido a restricciones médicas detectadas en los exámenes ocupacionales.</p>
+            
+            <div class="info-box">
+              <h3>📋 Información de la Solicitud</h3>
+              <p><strong>Número de Solicitud:</strong> #${solicitudId}</p>
+              <p><strong>Empresa:</strong> ${empresaNombre}</p>
+              <p><strong>Fecha:</strong> ${new Date().toLocaleDateString('es-ES')}</p>
+            </div>
+            
+            <div class="observations">
+              <h3>⚠️ Observaciones Médicas</h3>
+              <p>${observaciones}</p>
+            </div>
+            
+            <p>Entendemos que esta noticia puede ser decepcionante. Le recomendamos consultar con su médico de confianza para obtener más información sobre las restricciones identificadas.</p>
+            
+            <p>Si tiene alguna pregunta o necesita aclaraciones adicionales, no dude en contactarnos.</p>
+          </div>
+          
+          <div class="footer">
+            <p>Este es un correo automático del sistema de Recursos Humanos.</p>
+            <p>Por favor, no responda a este correo.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
   // Generar HTML para notificación de solicitud creada en día no hábil
   generateSolicitudDiaNoHabilHTML(params: {
     empresaNombre: string;

@@ -23,15 +23,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Solicitud, solicitudesService } from '@/services/solicitudesService';
 import { certificadosMedicosService, CertificadoMedicoFormData } from '@/services/certificadosMedicosService';
 import { supabase } from '@/services/supabaseClient';
+import { emailService } from '@/services/emailService';
+import { Can, usePermissions } from '@/contexts/PermissionsContext';
 
 const CertificadosMedicosPage = () => {
+  const { hasAction } = usePermissions();
   const [activeTab, setActiveTab] = useState("listado");
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedSolicitud, setSelectedSolicitud] = useState<Solicitud | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalType, setModalType] = useState<'apto' | 'no-apto' | null>(null);
+  const [modalType, setModalType] = useState<'apto' | 'no-apto' | 'aprobar' | 'no-aprobar' | null>(null);
   const [observaciones, setObservaciones] = useState('');
   const [isConfirming, setIsConfirming] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -73,6 +76,7 @@ const CertificadosMedicosPage = () => {
         statusFilter === "pendiente" ? solicitud.estado === 'pendiente documentos' :
         statusFilter === "documentos" ? solicitud.estado === 'documentos entregados' :
         statusFilter === "citado" ? solicitud.estado === 'citado examenes' :
+        statusFilter === "restricciones" ? solicitud.estado === 'validacion cliente' :
         statusFilter === "descartado" ? solicitud.estado === 'descartado' :
         true;
 
@@ -104,14 +108,23 @@ const CertificadosMedicosPage = () => {
       
       const idsConCertificados = new Set(certificadosExistentes?.map(c => c.solicitud_id) || []);
       
-      // Filtrar solicitudes que estén en estado 'documentos entregados', 'pendiente documentos' o 'citado examenes'
-      // y que NO tengan certificado médico ya creado
-      const solicitudesParaCertificacion = data.filter(solicitud => 
-        (solicitud.estado === 'documentos entregados' || 
-         solicitud.estado === 'pendiente documentos' || 
-         solicitud.estado === 'citado examenes') &&
-        !idsConCertificados.has(solicitud.id!)
-      );
+      // Filtrar solicitudes que estén en estado 'documentos entregados', 'pendiente documentos', 'citado examenes' o 'validacion cliente'
+      // Para 'validacion cliente' siempre mostrar (incluso si ya tiene certificado)
+      // Para otros estados, solo mostrar si NO tienen certificado médico ya creado
+      const solicitudesParaCertificacion = data.filter(solicitud => {
+        const esEstadoValido = (solicitud.estado === 'documentos entregados' || 
+                               solicitud.estado === 'pendiente documentos' || 
+                               solicitud.estado === 'citado examenes' ||
+                               solicitud.estado === 'validacion cliente');
+        
+        if (solicitud.estado === 'validacion cliente') {
+          // Para validacion cliente, siempre mostrar (necesita acciones Aprobar/No Aprobar)
+          return esEstadoValido;
+        } else {
+          // Para otros estados, solo mostrar si NO tienen certificado médico
+          return esEstadoValido && !idsConCertificados.has(solicitud.id!);
+        }
+      });
       
       setSolicitudes(solicitudesParaCertificacion);
     } catch (error) {
@@ -137,6 +150,20 @@ const CertificadosMedicosPage = () => {
     setIsModalOpen(true);
   };
 
+  const handleAprobar = (solicitud: Solicitud) => {
+    setSelectedSolicitud(solicitud);
+    setModalType('aprobar');
+    setObservaciones('');
+    setIsModalOpen(true);
+  };
+
+  const handleNoAprobar = (solicitud: Solicitud) => {
+    setSelectedSolicitud(solicitud);
+    setModalType('no-aprobar');
+    setObservaciones('');
+    setIsModalOpen(true);
+  };
+
   const handleSeleccionar = async (solicitud: Solicitud) => {
     setSolicitudSeleccionada(solicitud);
     
@@ -155,19 +182,72 @@ const CertificadosMedicosPage = () => {
         identificacion = solicitud.numero_documento || '';
       }
       
-        // Obtener el nombre del cargo desde la relación tipos_candidatos
-        let nombreCargo = '';
-        if ((solicitud as any).tipos_candidatos?.nombre) {
-          nombreCargo = (solicitud as any).tipos_candidatos.nombre;
-        } else if (solicitud.cargo) {
-          // Si no hay relación, usar el cargo directo (puede ser nombre o ID)
-          nombreCargo = solicitud.cargo;
-        } else if (solicitud.estructura_datos?.cargo) {
-          // Si no hay relación, usar el cargo de estructura_datos (puede ser nombre o ID)
-          nombreCargo = solicitud.estructura_datos.cargo;
-        }
+      // Obtener el nombre del cargo desde la relación tipos_candidatos
+      let nombreCargo = '';
+      if ((solicitud as any).tipos_candidatos?.nombre) {
+        nombreCargo = (solicitud as any).tipos_candidatos.nombre;
+      } else if (solicitud.cargo) {
+        // Si no hay relación, usar el cargo directo (puede ser nombre o ID)
+        nombreCargo = solicitud.cargo;
+      } else if (solicitud.estructura_datos?.cargo) {
+        // Si no hay relación, usar el cargo de estructura_datos (puede ser nombre o ID)
+        nombreCargo = solicitud.estructura_datos.cargo;
+      }
 
-        // Llenar el formulario con los datos
+      // Si es validacion cliente, cargar datos del certificado médico existente
+      if (solicitud.estado === 'validacion cliente') {
+        try {
+          const certificadoExistente = await certificadosMedicosService.getBySolicitudId(solicitud.id!);
+          if (certificadoExistente) {
+            // Llenar el formulario con los datos del certificado existente
+            setFormData({
+              nombresApellidos,
+              identificacion,
+              cargo: nombreCargo,
+              area: solicitud.estructura_datos?.area || '',
+              eps: solicitud.estructura_datos?.eps || '',
+              arl: solicitud.estructura_datos?.arl || '',
+              restricciones: certificadoExistente.restricciones || '',
+              remision: certificadoExistente.remision ? 'si' : 'no',
+              requiereMedicacion: certificadoExistente.requiere_medicacion ? 'si' : 'no',
+              elementosProteccionPersonal: certificadoExistente.elementos_proteccion_personal || '',
+              recomendacionesGenerales: certificadoExistente.recomendaciones_generales || ''
+            });
+          } else {
+            // Si no hay certificado, usar datos vacíos
+            setFormData({
+              nombresApellidos,
+              identificacion,
+              cargo: nombreCargo,
+              area: solicitud.estructura_datos?.area || '',
+              eps: solicitud.estructura_datos?.eps || '',
+              arl: solicitud.estructura_datos?.arl || '',
+              restricciones: '',
+              remision: 'no',
+              requiereMedicacion: 'no',
+              elementosProteccionPersonal: '',
+              recomendacionesGenerales: ''
+            });
+          }
+        } catch (error) {
+          console.error('Error cargando certificado existente:', error);
+          // En caso de error, usar datos vacíos
+          setFormData({
+            nombresApellidos,
+            identificacion,
+            cargo: nombreCargo,
+            area: solicitud.estructura_datos?.area || '',
+            eps: solicitud.estructura_datos?.eps || '',
+            arl: solicitud.estructura_datos?.arl || '',
+            restricciones: '',
+            remision: 'no',
+            requiereMedicacion: 'no',
+            elementosProteccionPersonal: '',
+            recomendacionesGenerales: ''
+          });
+        }
+      } else {
+        // Para otros estados, llenar con datos vacíos (crear nuevo certificado)
         setFormData({
           nombresApellidos,
           identificacion,
@@ -181,6 +261,7 @@ const CertificadosMedicosPage = () => {
           elementosProteccionPersonal: '',
           recomendacionesGenerales: ''
         });
+      }
       
       setActiveTab("registro");
     } catch (error) {
@@ -254,6 +335,12 @@ const CertificadosMedicosPage = () => {
       } else if (modalType === 'no-apto') {
         nuevoEstado = 'descartado';
         conceptoMedico = 'no-apto';
+      } else if (modalType === 'aprobar') {
+        nuevoEstado = 'firma contrato';
+        conceptoMedico = 'apto';
+      } else if (modalType === 'no-aprobar') {
+        nuevoEstado = 'descartado';
+        conceptoMedico = 'no-apto';
       } else {
         // apto-con-restricciones
         nuevoEstado = 'validacion cliente';
@@ -280,6 +367,38 @@ const CertificadosMedicosPage = () => {
       await solicitudesService.update(selectedSolicitud.id!, {
         estado: nuevoEstado
       });
+
+      // Si se descarta por restricciones, enviar email al candidato
+      if (modalType === 'no-aprobar') {
+        try {
+          // Obtener datos del candidato para el email
+          const candidatoNombre = selectedSolicitud.nombres && selectedSolicitud.apellidos 
+            ? `${selectedSolicitud.nombres} ${selectedSolicitud.apellidos}`
+            : 'Candidato';
+          
+          const empresaNombre = (selectedSolicitud as any).empresas?.razon_social || selectedSolicitud.empresa_usuaria || 'Empresa';
+          
+          // Obtener email del candidato
+          const { data: candidatoData } = await supabase
+            .from('candidatos')
+            .select('email')
+            .eq('id', selectedSolicitud.candidato_id)
+            .single();
+          
+          if (candidatoData?.email) {
+            await emailService.sendDescartadoPorRestricciones({
+              to: candidatoData.email,
+              candidatoNombre,
+              empresaNombre,
+              solicitudId: selectedSolicitud.id!,
+              observaciones: observaciones || 'Restricciones médicas detectadas en los exámenes'
+            });
+          }
+        } catch (emailError) {
+          console.error('Error enviando email de descarte:', emailError);
+          // No fallar la operación principal por error de email
+        }
+      }
 
       toast.success(`Certificado médico guardado y solicitud actualizada a "${nuevoEstado}" correctamente.`);
       
@@ -319,6 +438,9 @@ const CertificadosMedicosPage = () => {
     if (estado === 'pendiente documentos' || estado === 'documentos entregados' || estado === 'citado examenes') {
       return 'secondary';
     }
+    if (estado === 'validacion cliente') {
+      return 'destructive';
+    }
     if (estado === 'firma contrato') {
       return 'secondary';
     }
@@ -329,6 +451,9 @@ const CertificadosMedicosPage = () => {
     // Mostrar "CITADO EXAMENES MEDICOS" para solicitudes en "pendiente documentos", "documentos entregados" y "citado examenes"
     if (estado === 'pendiente documentos' || estado === 'documentos entregados' || estado === 'citado examenes') {
       return "bg-blue-100 text-blue-800 border-blue-200";
+    }
+    if (estado === 'validacion cliente') {
+      return "bg-orange-100 text-orange-800 border-orange-200";
     }
     if (estado === 'firma contrato') {
       return "bg-purple-100 text-purple-800 border-purple-300";
@@ -347,12 +472,18 @@ const CertificadosMedicosPage = () => {
     if (estado === 'pendiente documentos' || estado === 'documentos entregados' || estado === 'citado examenes') {
       return 'Citado Exámenes Médicos';
     }
+    if (estado === 'validacion cliente') {
+      return 'Con Restricciones';
+    }
     return estado;
   };
 
   const getRowBackgroundColor = (estado: string) => {
     if (estado === 'pendiente documentos' || estado === 'documentos entregados' || estado === 'citado examenes') {
       return 'bg-blue-50 hover:bg-blue-100';
+    }
+    if (estado === 'validacion cliente') {
+      return 'bg-orange-50 hover:bg-orange-100';
     }
     if (estado === 'firma contrato') {
       return 'bg-purple-50 hover:bg-purple-100';
@@ -425,6 +556,7 @@ const CertificadosMedicosPage = () => {
                     <SelectItem value="pendiente">Pendiente Documentos</SelectItem>
                     <SelectItem value="documentos">Documentos Entregados</SelectItem>
                     <SelectItem value="citado">Citado Exámenes</SelectItem>
+                    <SelectItem value="restricciones">Con Restricciones</SelectItem>
                     <SelectItem value="descartado">Descartado</SelectItem>
                   </SelectContent>
                 </Select>
@@ -470,15 +602,58 @@ const CertificadosMedicosPage = () => {
                         <TableRow key={solicitud.id} className={getRowBackgroundColor(solicitud.estado)}>
                           <TableCell className="px-2 py-1">
                             <div className="flex flex-row gap-1 items-center">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleSeleccionar(solicitud)}
-                                aria-label="Seleccionar solicitud"
-                                className="h-8 w-8"
-                              >
-                                <Eye className="h-4 w-4 text-blue-600 hover:text-blue-800 transition-colors" />
-                              </Button>
+                              {solicitud.estado === 'validacion cliente' ? (
+                                <>
+                                  <Can action="accion-aprobar-certificado-medico">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleAprobar(solicitud)}
+                                      aria-label="Aprobar solicitud"
+                                      className="h-8 w-8 text-green-600 hover:text-green-800 hover:bg-green-50"
+                                      title="Aprobar"
+                                    >
+                                      <CheckCircle className="h-4 w-4" />
+                                    </Button>
+                                  </Can>
+                                  <Can action="accion-no-aprobar-certificado-medico">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleNoAprobar(solicitud)}
+                                      aria-label="No aprobar solicitud"
+                                      className="h-8 w-8 text-red-600 hover:text-red-800 hover:bg-red-50"
+                                      title="No Aprobar"
+                                    >
+                                      <XCircle className="h-4 w-4" />
+                                    </Button>
+                                  </Can>
+                                  <Can action="accion-visualizar-certificado-medico">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleSeleccionar(solicitud)}
+                                      aria-label="Visualizar certificado médico"
+                                      className="h-8 w-8 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                                      title="Visualizar"
+                                    >
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                  </Can>
+                                </>
+                              ) : (
+                                <Can action="accion-visualizar-certificado-medico">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleSeleccionar(solicitud)}
+                                    aria-label="Seleccionar solicitud"
+                                    className="h-8 w-8"
+                                  >
+                                    <Eye className="h-4 w-4 text-blue-600 hover:text-blue-800 transition-colors" />
+                                  </Button>
+                                </Can>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-900 font-medium">
@@ -588,6 +763,7 @@ const CertificadosMedicosPage = () => {
                         onChange={(e) => handleFormChange('restricciones', e.target.value)}
                         placeholder="Ingrese las restricciones..."
                         className="w-full min-h-[100px] resize-y"
+                        disabled={solicitudSeleccionada?.estado === 'validacion cliente'}
                       />
                     </div>
 
@@ -598,13 +774,14 @@ const CertificadosMedicosPage = () => {
                           value={formData.remision}
                           onValueChange={(value) => handleFormChange('remision', value)}
                           className="flex space-x-4"
+                          disabled={solicitudSeleccionada?.estado === 'validacion cliente'}
                         >
                           <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="si" id="remision-si" />
+                            <RadioGroupItem value="si" id="remision-si" disabled={solicitudSeleccionada?.estado === 'validacion cliente'} />
                             <Label htmlFor="remision-si" className="text-sm">SI</Label>
                           </div>
                           <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="no" id="remision-no" />
+                            <RadioGroupItem value="no" id="remision-no" disabled={solicitudSeleccionada?.estado === 'validacion cliente'} />
                             <Label htmlFor="remision-no" className="text-sm">NO</Label>
                           </div>
                         </RadioGroup>
@@ -616,13 +793,14 @@ const CertificadosMedicosPage = () => {
                           value={formData.requiereMedicacion}
                           onValueChange={(value) => handleFormChange('requiereMedicacion', value)}
                           className="flex space-x-4"
+                          disabled={solicitudSeleccionada?.estado === 'validacion cliente'}
                         >
                           <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="si" id="medicacion-si" />
+                            <RadioGroupItem value="si" id="medicacion-si" disabled={solicitudSeleccionada?.estado === 'validacion cliente'} />
                             <Label htmlFor="medicacion-si" className="text-sm">SI</Label>
                           </div>
                           <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="no" id="medicacion-no" />
+                            <RadioGroupItem value="no" id="medicacion-no" disabled={solicitudSeleccionada?.estado === 'validacion cliente'} />
                             <Label htmlFor="medicacion-no" className="text-sm">NO</Label>
                           </div>
                         </RadioGroup>
@@ -639,6 +817,7 @@ const CertificadosMedicosPage = () => {
                       onChange={(e) => handleFormChange('elementosProteccionPersonal', e.target.value)}
                       placeholder="Ingrese los elementos de protección personal recomendados..."
                       className="w-full min-h-[100px] resize-y"
+                      disabled={solicitudSeleccionada?.estado === 'validacion cliente'}
                     />
                   </div>
 
@@ -652,51 +831,80 @@ const CertificadosMedicosPage = () => {
                       onChange={(e) => handleFormChange('recomendacionesGenerales', e.target.value)}
                       placeholder="Ingrese las recomendaciones generales..."
                       className="w-full min-h-[100px] resize-y"
+                      disabled={solicitudSeleccionada?.estado === 'validacion cliente'}
                     />
                   </div>
 
-                  {/* Botones de Concepto Médico */}
-                  <div className="bg-cyan-50 p-6 rounded-lg border border-cyan-200">
-                    <h3 className="text-lg font-semibold text-cyan-800 mb-4 text-center">CONCEPTO MÉDICO</h3>
-                    <div className="flex justify-center space-x-3">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          setSolicitudSeleccionada(null);
-                          setActiveTab("listado");
-                        }}
-                        className="px-4 py-2 text-sm border-gray-300 text-gray-600 hover:bg-gray-500 hover:text-white hover:border-gray-500 transition-colors"
-                      >
-                        <X className="h-3 w-3 mr-1" />
-                        Cancelar
-                      </Button>
-                      <Button
-                        type="button"
-                        onClick={() => handleConceptoMedico('apto')}
-                        className="bg-green-100/80 hover:bg-green-500 hover:text-white text-green-800 border border-green-200 hover:border-green-500 px-4 py-2 text-sm shadow-sm transition-colors"
-                      >
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Apto
-                      </Button>
-                      <Button
-                        type="button"
-                        onClick={() => handleConceptoMedico('no-apto')}
-                        className="bg-red-100/80 hover:bg-red-500 hover:text-white text-red-800 border border-red-200 hover:border-red-500 px-4 py-2 text-sm shadow-sm transition-colors"
-                      >
-                        <XCircle className="h-3 w-3 mr-1" />
-                        No Apto
-                      </Button>
-                      <Button
-                        type="button"
-                        onClick={() => handleConceptoMedico('apto-con-restricciones')}
-                        className="bg-yellow-100/80 hover:bg-yellow-500 hover:text-white text-yellow-800 border border-yellow-200 hover:border-yellow-500 px-4 py-2 text-sm shadow-sm transition-colors"
-                      >
-                        <FileText className="h-3 w-3 mr-1" />
-                        Apto con Restricciones
-                      </Button>
+                  {/* Botones de Concepto Médico - Solo mostrar si NO es validacion cliente */}
+                  {solicitudSeleccionada?.estado !== 'validacion cliente' && (
+                    <div className="bg-cyan-50 p-6 rounded-lg border border-cyan-200">
+                      <h3 className="text-lg font-semibold text-cyan-800 mb-4 text-center">CONCEPTO MÉDICO</h3>
+                      <div className="flex justify-center space-x-3">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setSolicitudSeleccionada(null);
+                            setActiveTab("listado");
+                          }}
+                          className="px-4 py-2 text-sm border-gray-300 text-gray-600 hover:bg-gray-500 hover:text-white hover:border-gray-500 transition-colors"
+                        >
+                          <X className="h-3 w-3 mr-1" />
+                          Cancelar
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={() => handleConceptoMedico('apto')}
+                          className="bg-green-100/80 hover:bg-green-500 hover:text-white text-green-800 border border-green-200 hover:border-green-500 px-4 py-2 text-sm shadow-sm transition-colors"
+                        >
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Apto
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={() => handleConceptoMedico('no-apto')}
+                          className="bg-red-100/80 hover:bg-red-500 hover:text-white text-red-800 border border-red-200 hover:border-red-500 px-4 py-2 text-sm shadow-sm transition-colors"
+                        >
+                          <XCircle className="h-3 w-3 mr-1" />
+                          No Apto
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={() => handleConceptoMedico('apto-con-restricciones')}
+                          className="bg-yellow-100/80 hover:bg-yellow-500 hover:text-white text-yellow-800 border border-yellow-200 hover:border-yellow-500 px-4 py-2 text-sm shadow-sm transition-colors"
+                        >
+                          <FileText className="h-3 w-3 mr-1" />
+                          Apto con Restricciones
+                        </Button>
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {/* Mensaje informativo para validacion cliente */}
+                  {solicitudSeleccionada?.estado === 'validacion cliente' && (
+                    <div className="bg-orange-50 p-6 rounded-lg border border-orange-200">
+                      <h3 className="text-lg font-semibold text-orange-800 mb-4 text-center">CERTIFICADO MÉDICO CON RESTRICCIONES</h3>
+                      <div className="text-center space-y-4">
+                        <p className="text-orange-700">
+                          Este certificado médico ya fue creado con restricciones. Los datos mostrados son de solo lectura.
+                        </p>
+                        <div className="flex justify-center space-x-3">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              setSolicitudSeleccionada(null);
+                              setActiveTab("listado");
+                            }}
+                            className="px-4 py-2 text-sm border-gray-300 text-gray-600 hover:bg-gray-500 hover:text-white hover:border-gray-500 transition-colors"
+                          >
+                            <X className="h-3 w-3 mr-1" />
+                            Volver al Listado
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </form>
               </CardContent>
             </Card>
@@ -728,6 +936,16 @@ const CertificadosMedicosPage = () => {
                   <XCircle className="h-5 w-5 text-red-600" />
                   <span>Marcar como No Apto</span>
                 </>
+              ) : modalType === 'aprobar' ? (
+                <>
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <span>Aprobar Solicitud</span>
+                </>
+              ) : modalType === 'no-aprobar' ? (
+                <>
+                  <XCircle className="h-5 w-5 text-red-600" />
+                  <span>No Aprobar Solicitud</span>
+                </>
               ) : (
                 <>
                   <FileText className="h-5 w-5 text-yellow-600" />
@@ -740,9 +958,13 @@ const CertificadosMedicosPage = () => {
           <div className="space-y-4">
             <div>
               <p className="text-sm text-muted-foreground">
-                ¿Está seguro de que desea marcar esta solicitud como{' '}
+                ¿Está seguro de que desea{' '}
                 <span className="font-semibold">
-                  {modalType === 'apto' ? 'Apto' : modalType === 'no-apto' ? 'No Apto' : 'Apto con Restricciones'}
+                  {modalType === 'apto' ? 'marcar esta solicitud como Apto' : 
+                   modalType === 'no-apto' ? 'marcar esta solicitud como No Apto' : 
+                   modalType === 'aprobar' ? 'aprobar esta solicitud' : 
+                   modalType === 'no-aprobar' ? 'no aprobar esta solicitud (se descartará por restricciones médicas)' : 
+                   'marcar esta solicitud como Apto con Restricciones'}
                 </span>?
               </p>
             </div>
@@ -772,9 +994,9 @@ const CertificadosMedicosPage = () => {
               onClick={handleConfirmAction}
               disabled={isConfirming}
               className={
-                modalType === 'apto' 
+                modalType === 'apto' || modalType === 'aprobar'
                   ? 'bg-green-600 hover:bg-green-700 text-white disabled:bg-green-400' 
-                  : modalType === 'no-apto'
+                  : modalType === 'no-apto' || modalType === 'no-aprobar'
                   ? 'bg-red-600 hover:bg-red-700 text-white disabled:bg-red-400'
                   : 'bg-yellow-600 hover:bg-yellow-700 text-white disabled:bg-yellow-400'
               }
@@ -785,7 +1007,11 @@ const CertificadosMedicosPage = () => {
                   Procesando...
                 </>
               ) : (
-                modalType === 'apto' ? 'Confirmar Apto' : modalType === 'no-apto' ? 'Confirmar No Apto' : 'Confirmar Apto con Restricciones'
+                modalType === 'apto' ? 'Confirmar Apto' : 
+                modalType === 'no-apto' ? 'Confirmar No Apto' : 
+                modalType === 'aprobar' ? 'Confirmar Aprobación' : 
+                modalType === 'no-aprobar' ? 'Confirmar Descarte' : 
+                'Confirmar Apto con Restricciones'
               )}
             </Button>
           </DialogFooter>
