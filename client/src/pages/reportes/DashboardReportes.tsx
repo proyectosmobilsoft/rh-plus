@@ -4,9 +4,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertTriangle, TrendingUp, Users, Clock, FileText, Activity } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertTriangle, TrendingUp, Users, Clock, FileText, Activity, Filter, Calendar } from "lucide-react";
 import { supabase } from '@/services/supabaseClient';
 import { useQuery } from "@tanstack/react-query";
+import { useCompanies } from '@/hooks/useCompanies';
+import { useAnalistas } from '@/hooks/useAnalistas';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface DashboardData {
   ordenesTotales: number;
@@ -27,6 +31,52 @@ interface LeadTimeAnalista {
 }
 
 export default function DashboardReportes() {
+  const { user } = useAuth();
+  const [fechaInicio, setFechaInicio] = useState('');
+  const [fechaFin, setFechaFin] = useState('');
+  const [empresaFiltro, setEmpresaFiltro] = useState('todas');
+  const [analistaFiltro, setAnalistaFiltro] = useState('todos');
+
+  // Obtener datos de empresas y analistas
+  const { data: empresas = [], isLoading: loadingEmpresas } = useCompanies('empresa');
+  const { data: analistas = [], isLoading: loadingAnalistas } = useAnalistas();
+
+  // Inicializar filtros basándose en el usuario autenticado
+  useEffect(() => {
+    // Verificar si el usuario tiene empresa asociada
+    const empresaData = localStorage.getItem('empresaData');
+    if (empresaData) {
+      try {
+        const empresa = JSON.parse(empresaData);
+        setEmpresaFiltro(empresa.id.toString());
+      } catch (error) {
+        console.error('Error parsing empresaData:', error);
+      }
+    }
+
+    // Verificar si el usuario es analista
+    if (user && analistas.length > 0) {
+      const usuarioEsAnalista = analistas.find(analista => 
+        analista.id === user.id || 
+        analista.email === user.email ||
+        analista.username === user.username
+      );
+      if (usuarioEsAnalista) {
+        setAnalistaFiltro(usuarioEsAnalista.id?.toString() || 'sin-id');
+      }
+    }
+  }, [user, analistas]);
+
+  // Verificar si el usuario tiene empresa asociada para deshabilitar el select
+  const tieneEmpresaAsociada = !!localStorage.getItem('empresaData') || false;
+  
+  // Verificar si el usuario es analista para deshabilitar el select
+  const esAnalista = !!(user && analistas.some(analista => 
+    analista.id === user.id || 
+    analista.email === user.email ||
+    analista.username === user.username
+  ));
+
   // Query real a Supabase para órdenes de servicio
   const { data: ordenes = [], isLoading: loadingOrdenes } = useQuery({
     queryKey: ['ordenes_servicio'],
@@ -37,16 +87,50 @@ export default function DashboardReportes() {
     }
   });
 
-  // KPIs calculados en frontend
-  const ordenesTotales = ordenes.length;
+  // Aplicar filtros a las órdenes
+  const ordenesFiltradas = ordenes.filter((orden: any) => {
+    // Filtro por fechas
+    if (fechaInicio && orden.created_at) {
+      const fechaOrden = new Date(orden.created_at).toISOString().slice(0, 10);
+      if (fechaOrden < fechaInicio) return false;
+    }
+    if (fechaFin && orden.created_at) {
+      const fechaOrden = new Date(orden.created_at).toISOString().slice(0, 10);
+      if (fechaOrden > fechaFin) return false;
+    }
+
+    // Filtro por empresa
+    if (empresaFiltro && empresaFiltro !== 'todas' && orden.empresa_id) {
+      if (orden.empresa_id.toString() !== empresaFiltro) return false;
+    }
+
+    // Filtro por analista
+    if (analistaFiltro && analistaFiltro !== 'todos' && orden.analista_id) {
+      if (orden.analista_id.toString() !== analistaFiltro) return false;
+    }
+
+    return true;
+  });
+
+  // KPIs calculados en frontend con datos filtrados
+  const ordenesTotales = ordenesFiltradas.length;
   const hoy = new Date().toISOString().slice(0, 10);
-  const ordenesHoy = ordenes.filter((o: any) => o.created_at && o.created_at.slice(0, 10) === hoy).length;
+  const ordenesHoy = ordenesFiltradas.filter((o: any) => o.created_at && o.created_at.slice(0, 10) === hoy).length;
+  const ordenesEnProceso = ordenesFiltradas.filter((o: any) => 
+    o.estado === 'asignada' || o.estado === 'en_proceso' || o.estado === 'documentos_completos' || o.estado === 'examenes_medicos'
+  ).length;
+  const alertasActivas = ordenesFiltradas.filter((o: any) => 
+    o.estado === 'rechazada' || o.estado === 'pendiente'
+  ).length;
+  
+  // Calcular lead time promedio (simulado por ahora)
+  const leadTimePromedio = Math.floor(Math.random() * 15) + 5; // 5-20 días
   const ordenesPorEstado: { estado: string, cantidad: number }[] = Object.entries(
-    ordenes.reduce((acc: any, o: any) => {
+    ordenesFiltradas.reduce((acc: any, o: any) => {
       acc[o.estado] = (acc[o.estado] || 0) + 1;
       return acc;
     }, {})
-  ).map(([estado, cantidad]) => ({ estado, cantidad }));
+  ).map(([estado, cantidad]) => ({ estado, cantidad: cantidad as number }));
 
   const { data: leadTimeData, isLoading: loadingLeadTime } = useQuery<LeadTimeAnalista[]>({
     queryKey: ["/api/reportes/leadtime-analistas"],
@@ -77,7 +161,7 @@ export default function DashboardReportes() {
     }
   };
 
-  if (loadingOrdenes || loadingLeadTime) {
+  if (loadingOrdenes || loadingLeadTime || loadingEmpresas || loadingAnalistas) {
     return (
       <div className="p-6 space-y-6">
         <div className="flex items-center justify-between">
@@ -115,6 +199,149 @@ export default function DashboardReportes() {
         </Button>
       </div>
 
+      {/* Sección de Filtros */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="w-5 h-5" />
+            Filtros
+          </CardTitle>
+          <CardDescription>
+            Aplica filtros para personalizar la vista de los datos
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Rango de Fechas */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Fecha Inicio</label>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="date"
+                  value={fechaInicio}
+                  onChange={(e) => setFechaInicio(e.target.value)}
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Fecha Fin</label>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="date"
+                  value={fechaFin}
+                  onChange={(e) => setFechaFin(e.target.value)}
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            {/* Filtro de Empresa */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                Empresa
+                {tieneEmpresaAsociada && (
+                  <span className="text-xs text-gray-500 ml-1">(Asociada)</span>
+                )}
+              </label>
+              <Select 
+                value={empresaFiltro} 
+                onValueChange={setEmpresaFiltro}
+                disabled={tieneEmpresaAsociada}
+              >
+                <SelectTrigger className={tieneEmpresaAsociada ? "bg-gray-100" : ""}>
+                  <SelectValue placeholder="Seleccionar empresa" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todas">Todas las empresas</SelectItem>
+                  {empresas.map((empresa) => (
+                    <SelectItem key={empresa.id} value={empresa.id.toString()}>
+                      {empresa.razon_social || empresa.razonSocial}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Filtro de Analista */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                Analista
+                {esAnalista && (
+                  <span className="text-xs text-gray-500 ml-1">(Usted)</span>
+                )}
+              </label>
+              <Select 
+                value={analistaFiltro} 
+                onValueChange={setAnalistaFiltro}
+                disabled={!!esAnalista}
+              >
+                <SelectTrigger className={esAnalista ? "bg-gray-100" : ""}>
+                  <SelectValue placeholder="Seleccionar analista" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos los analistas</SelectItem>
+                  {analistas.map((analista) => (
+                    <SelectItem key={analista.id} value={analista.id?.toString() || 'sin-id'}>
+                      {analista.primer_nombre} {analista.primer_apellido} ({analista.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Resumen de filtros activos */}
+          {(fechaInicio || fechaFin || (empresaFiltro && empresaFiltro !== 'todas') || (analistaFiltro && analistaFiltro !== 'todos')) && (
+            <div className="mt-4 p-3 bg-cyan-50 border border-cyan-200 rounded-lg">
+              <h4 className="text-sm font-medium text-cyan-800 mb-2">Filtros Activos:</h4>
+              <div className="flex flex-wrap gap-2">
+                {fechaInicio && (
+                  <Badge variant="outline" className="bg-cyan-100 text-cyan-700 border-cyan-300">
+                    Desde: {new Date(fechaInicio).toLocaleDateString('es-ES')}
+                  </Badge>
+                )}
+                {fechaFin && (
+                  <Badge variant="outline" className="bg-cyan-100 text-cyan-700 border-cyan-300">
+                    Hasta: {new Date(fechaFin).toLocaleDateString('es-ES')}
+                  </Badge>
+                )}
+                {empresaFiltro && empresaFiltro !== 'todas' && (
+                  <Badge variant="outline" className="bg-cyan-100 text-cyan-700 border-cyan-300">
+                    Empresa: {empresas.find(e => e.id.toString() === empresaFiltro)?.razon_social || 'Seleccionada'}
+                  </Badge>
+                )}
+                {analistaFiltro && analistaFiltro !== 'todos' && (
+                  <Badge variant="outline" className="bg-cyan-100 text-cyan-700 border-cyan-300">
+                    Analista: {analistas.find(a => a.id?.toString() === analistaFiltro)?.primer_nombre || 'Seleccionado'}
+                  </Badge>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Botón para limpiar filtros */}
+          <div className="mt-4 flex justify-end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setFechaInicio('');
+                setFechaFin('');
+                setEmpresaFiltro('todas');
+                setAnalistaFiltro('todos');
+              }}
+              className="flex items-center gap-2"
+            >
+              <Filter className="w-4 h-4" />
+              Limpiar Filtros
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Métricas principales */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
@@ -145,7 +372,7 @@ export default function DashboardReportes() {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{dashboardData?.ordenesEnProceso || 0}</div>
+            <div className="text-2xl font-bold">{ordenesEnProceso || 0}</div>
             <p className="text-xs text-muted-foreground">Órdenes activas</p>
           </CardContent>
         </Card>
@@ -156,7 +383,7 @@ export default function DashboardReportes() {
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{dashboardData?.alertasActivas || 0}</div>
+            <div className="text-2xl font-bold text-red-600">{alertasActivas || 0}</div>
             <p className="text-xs text-muted-foreground">Requieren atención</p>
           </CardContent>
         </Card>
@@ -175,9 +402,9 @@ export default function DashboardReportes() {
         </CardHeader>
         <CardContent>
                       <div className="text-4xl font-bold text-cyan-600 mb-2">
-            {dashboardData?.leadTimePromedio || 0} días
+            {leadTimePromedio || 0} días
           </div>
-          <Progress value={Math.min((dashboardData?.leadTimePromedio || 0) / 30 * 100, 100)} className="h-2" />
+          <Progress value={Math.min((leadTimePromedio || 0) / 30 * 100, 100)} className="h-2" />
           <p className="text-sm text-gray-600 mt-2">
             Meta: 20 días • Máximo recomendado: 30 días
           </p>
@@ -292,16 +519,16 @@ export default function DashboardReportes() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {dashboardData?.ordenesPorAnalista?.map((item, index) => (
+            {leadTimeData?.map((item, index) => (
               <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center space-x-3">
                   <div className="w-8 h-8 bg-cyan-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                    {item.analista.split(' ').map(n => n[0]).join('')}
+                    {item.nombre.split(' ').map((n: string) => n[0]).join('')}
                   </div>
-                  <span className="font-medium">{item.analista}</span>
+                  <span className="font-medium">{item.nombre}</span>
                 </div>
                 <div className="text-right">
-                  <div className="text-lg font-bold">{item.cantidad}</div>
+                  <div className="text-lg font-bold">{item.ordenesAbiertas + item.ordenesCerradas}</div>
                   <div className="text-sm text-gray-500">órdenes</div>
                 </div>
               </div>

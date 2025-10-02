@@ -187,6 +187,8 @@ export default function UbicacionesPage() {
   const [selectedCiudadSucursal, setSelectedCiudadSucursal] = useState<number | null>(null);
   const [openDepartamentoSucursal, setOpenDepartamentoSucursal] = useState(false);
   const [openCiudadSucursal, setOpenCiudadSucursal] = useState(false);
+  const [codigoSucursal, setCodigoSucursal] = useState<string>('');
+  const [ciudadIdSucursal, setCiudadIdSucursal] = useState<number | null>(null);
 
   // Cargar datos usando React Query
   const { data: paises = [], isLoading: paisesLoading, error: paisesError } = useQuery({
@@ -241,16 +243,19 @@ export default function UbicacionesPage() {
         if (ciudadSucursal?.departamento_id) {
           setSelectedDepartamentoSucursal(ciudadSucursal.departamento_id);
           setSelectedCiudadSucursal(editingItem.ciudad_id);
+          setCiudadIdSucursal(editingItem.ciudad_id);
         }
       } catch (error) {
         console.warn('Error inicializando departamento para sucursal:', error);
         setSelectedDepartamentoSucursal(null);
         setSelectedCiudadSucursal(null);
+        setCiudadIdSucursal(null);
       }
     } else if (!editingItem || activeTab !== 'sucursales') {
       // Limpiar el estado cuando no se está editando o no estamos en la pestaña de sucursales
       setSelectedDepartamentoSucursal(null);
       setSelectedCiudadSucursal(null);
+      setCiudadIdSucursal(null);
     }
   }, [editingItem, activeTab, ciudades]);
 
@@ -304,25 +309,29 @@ export default function UbicacionesPage() {
 
   // useEffect para generar código autoincrementable para nuevas sucursales
   useEffect(() => {
+    console.log('🔄 useEffect código sucursal:', { activeTab, editingItem: !!editingItem, sucursalesLength: sucursales.length });
+    
     if (activeTab === 'sucursales' && !editingItem && sucursales.length >= 0) {
-      // Usar setTimeout para asegurar que el DOM esté renderizado
-      const timer = setTimeout(() => {
-        try {
-          // Generar código autoincrementable basado en el número de sucursales existentes
-          const siguienteNumero = sucursales.length + 1;
-          const codigoGenerado = `S${siguienteNumero.toString().padStart(3, '0')}`;
-          
-          // Actualizar el campo código
-          const codigoInput = document.getElementById('suc-codigo') as HTMLInputElement;
-          if (codigoInput) {
-            codigoInput.value = codigoGenerado;
-          }
-        } catch (error) {
-          console.warn('Error generando código autoincrementable:', error);
-        }
-      }, 100);
-
-      return () => clearTimeout(timer);
+      try {
+        // Generar código autoincrementable basado en el número de sucursales existentes
+        const siguienteNumero = sucursales.length + 1;
+        const codigoGenerado = `S${siguienteNumero.toString().padStart(3, '0')}`;
+        
+        console.log('✅ Generando código:', { siguienteNumero, codigoGenerado });
+        
+        // Actualizar el estado del código
+        setCodigoSucursal(codigoGenerado);
+      } catch (error) {
+        console.warn('Error generando código autoincrementable:', error);
+      }
+    } else if (editingItem && editingItem.codigo) {
+      // Si estamos editando, usar el código existente
+      console.log('📝 Editando sucursal, código existente:', editingItem.codigo);
+      setCodigoSucursal(editingItem.codigo);
+    } else {
+      // Limpiar el código si no estamos en sucursales
+      console.log('🧹 Limpiando código');
+      setCodigoSucursal('');
     }
   }, [activeTab, editingItem, sucursales]);
 
@@ -660,6 +669,10 @@ export default function UbicacionesPage() {
 
   const handleNewItem = () => {
     setEditingItem(null);
+    setCodigoSucursal('');
+    setSelectedDepartamentoSucursal(null);
+    setSelectedCiudadSucursal(null);
+    setCiudadIdSucursal(null);
     setActiveSubTab("formulario");
   };
 
@@ -1989,13 +2002,15 @@ export default function UbicacionesPage() {
           try {
             startLoading();
             const payload = {
-              codigo: (document.getElementById('suc-codigo') as HTMLInputElement)?.value || undefined,
+              codigo: codigoSucursal || undefined,
               nombre: (document.getElementById('suc-nombre') as HTMLInputElement)?.value || '',
               direccion: (document.getElementById('suc-direccion') as HTMLInputElement)?.value || undefined,
               telefono: (document.getElementById('suc-telefono') as HTMLInputElement)?.value || undefined,
               email: (document.getElementById('suc-email') as HTMLInputElement)?.value || undefined,
-              ciudad_id: (document.getElementById('suc-ciudad') as HTMLInputElement)?.value ? parseInt((document.getElementById('suc-ciudad') as HTMLInputElement).value) : null,
+              ciudad_id: ciudadIdSucursal,
             };
+            
+            console.log('🏢 Guardando sucursal:', payload);
             if (editingItem?.id) {
               await ubicacionesService.updateSucursal(editingItem.id, payload);
             } else {
@@ -2003,6 +2018,10 @@ export default function UbicacionesPage() {
             }
             toast.success('Sucursal guardada correctamente');
             setEditingItem(null);
+            setCodigoSucursal('');
+            setSelectedDepartamentoSucursal(null);
+            setSelectedCiudadSucursal(null);
+            setCiudadIdSucursal(null);
             handleSaved();
           } catch (err) {
             console.error('Error guardando sucursal:', err);
@@ -2019,11 +2038,10 @@ export default function UbicacionesPage() {
                 <label className="block text-sm font-medium mb-1">Código</label>
                 <Input 
                   id="suc-codigo" 
-                  defaultValue={editingItem?.codigo || ''} 
-                  className="text-sm bg-red-50 border-red-200 text-red-700 font-mono cursor-not-allowed" 
-                  onKeyDown={(e) => e.preventDefault()}
-                  onPaste={(e) => e.preventDefault()}
-                  onInput={(e) => e.preventDefault()}
+                  value={codigoSucursal} 
+                  className="text-sm bg-gray-50 border-gray-300 text-gray-700 font-mono cursor-not-allowed" 
+                  readOnly
+                  placeholder="Se genera automáticamente"
                 />
               </div>
               <div className="col-span-3">
@@ -2054,10 +2072,8 @@ export default function UbicacionesPage() {
                               onSelect={() => {
                                 setSelectedDepartamentoSucursal(d.id);
                                 setSelectedCiudadSucursal(null);
+                                setCiudadIdSucursal(null);
                                 setOpenDepartamentoSucursal(false);
-                                // Limpiar la ciudad seleccionada cuando cambia el departamento
-                                const ciudadInput = document.getElementById('suc-ciudad') as HTMLInputElement;
-                                if (ciudadInput) ciudadInput.value = '';
                               }}
                               className="cursor-pointer"
                             >
@@ -2096,8 +2112,6 @@ export default function UbicacionesPage() {
                       <CommandList>
                         <CommandEmpty>No se encontraron ciudades.</CommandEmpty>
                         <CommandGroup>
-                          {/* Campo oculto para almacenar el valor */}
-                          <input id="suc-ciudad" type="hidden" defaultValue={editingItem?.ciudad_id ?? ''} />
                           {ciudades
                             .filter(c => c.departamento_id === selectedDepartamentoSucursal)
                             .map((c) => (
@@ -2105,8 +2119,7 @@ export default function UbicacionesPage() {
                               key={c.id}
                               onSelect={() => {
                                 setSelectedCiudadSucursal(c.id);
-                                const input = document.getElementById('suc-ciudad') as HTMLInputElement;
-                                if (input) input.value = String(c.id);
+                                setCiudadIdSucursal(c.id);
                                 setOpenCiudadSucursal(false);
                               }}
                               className="cursor-pointer"

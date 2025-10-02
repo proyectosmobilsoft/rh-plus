@@ -40,6 +40,14 @@ import { supabase } from '@/services/supabaseClient';
 import { format, subDays, startOfMonth, endOfMonth } from "date-fns";
 import { es } from "date-fns/locale";
 import { Can } from '@/contexts/PermissionsContext';
+import { useCompanies } from '@/hooks/useCompanies';
+import { useAnalistas } from '@/hooks/useAnalistas';
+import { useAuth } from '@/contexts/AuthContext';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SelectWithSearch } from "@/components/ui/select-with-search";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DateRangePicker, DateRange } from "@/components/ui/DateRangePicker";
 import {
   Users,
   Building,
@@ -72,6 +80,9 @@ import {
   Eye,
   DollarSign,
   Info,
+  ClipboardList,
+  Stethoscope,
+  X,
   Lightbulb,
   Rocket,
   Crown,
@@ -116,8 +127,9 @@ interface DashboardStats {
   totalPrestadores: number;
   solicitudesHoy: number;
   solicitudesPendientes: number;
-  solicitudesAprobadas: number;
-  solicitudesRechazadas: number;
+  examenesMedicos: number;
+  solicitudesContratadas: number;
+  solicitudesDescartadas: number;
   promedioTiempoProcesamiento: number;
   topEmpresas: Array<{ nombre: string; cantidad: number }>;
   solicitudesPorEstado: Array<{ estado: string; cantidad: number }>;
@@ -168,18 +180,94 @@ const StatCard = ({ title, value, description, icon, trend, color = "brand-lime"
 );
 
 const Dashboard = () => {
-  const [dateRange, setDateRange] = useState<{
-    from: Date;
-    to: Date;
-  }>({
+  const { user } = useAuth();
+  const [dateRange, setDateRange] = useState<DateRange>({
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date())
   });
   const [activeTab, setActiveTab] = useState("overview");
+  const [empresaFiltro, setEmpresaFiltro] = useState('todas');
+  const [analistaFiltro, setAnalistaFiltro] = useState('todos');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalData, setModalData] = useState<any[]>([]);
+  const [modalTitle, setModalTitle] = useState('');
+  const [solicitudesData, setSolicitudesData] = useState<any[]>([]);
+
+  // Obtener datos de empresas y analistas
+  const { data: empresas = [], isLoading: loadingEmpresas } = useCompanies('empresa');
+  const { data: analistas = [], isLoading: loadingAnalistas } = useAnalistas();
+
+  // Inicializar filtros basándose en el usuario autenticado
+  useEffect(() => {
+    // Verificar si el usuario tiene empresa asociada
+    const empresaData = localStorage.getItem('empresaData');
+    if (empresaData) {
+      try {
+        const empresa = JSON.parse(empresaData);
+        setEmpresaFiltro(empresa.id.toString());
+      } catch (error) {
+        console.error('Error parsing empresaData:', error);
+      }
+    }
+
+    // Verificar si el usuario es analista
+    if (user && analistas.length > 0) {
+      const usuarioEsAnalista = analistas.find(analista => 
+        analista.id === user.id || 
+        analista.email === user.email ||
+        analista.username === user.username
+      );
+      if (usuarioEsAnalista) {
+        setAnalistaFiltro(usuarioEsAnalista.id?.toString() || 'sin-id');
+      }
+    }
+  }, [user, analistas]);
+
+  // Verificar si el usuario tiene empresa asociada para deshabilitar el select
+  const tieneEmpresaAsociada = !!localStorage.getItem('empresaData') || false;
+  
+  // Verificar si el usuario es analista para deshabilitar el select
+  const esAnalista = !!(user && analistas.some(analista => 
+    analista.id === user.id || 
+    analista.email === user.email ||
+    analista.username === user.username
+  ));
+
+  // Función para calcular tendencia vs mes anterior
+  const calcularTendencia = (actual: number, anterior: number) => {
+    if (anterior === 0) return actual > 0 ? 100 : 0;
+    return Math.round(((actual - anterior) / anterior) * 100);
+  };
+
+  // Función para manejar click en card
+  const handleCardClick = (estado: string, titulo: string) => {
+    let solicitudesFiltradas = [];
+    
+    switch (estado) {
+      case 'asignado':
+        solicitudesFiltradas = solicitudesData.filter(s => s.estado === 'asignado');
+        break;
+      case 'citado_examenes':
+        solicitudesFiltradas = solicitudesData.filter(s => s.estado === 'citado_examenes');
+        break;
+      case 'contratado':
+        solicitudesFiltradas = solicitudesData.filter(s => s.estado === 'contratado');
+        break;
+      case 'descartado':
+        solicitudesFiltradas = solicitudesData.filter(s => 
+          s.estado === 'descartado' || s.estado === 'cancelada' || s.estado === 'stand_by'
+        );
+        break;
+    }
+    
+    setModalData(solicitudesFiltradas);
+    setModalTitle(titulo);
+    setModalOpen(true);
+  };
 
   // Query principal para obtener todas las estadísticas del dashboard
   const { data: stats, isLoading, error } = useQuery({
-    queryKey: ["dashboard-stats", dateRange.from, dateRange.to],
+    queryKey: ["dashboard-stats", dateRange.from, dateRange.to, empresaFiltro, analistaFiltro],
     queryFn: async (): Promise<DashboardStats> => {
       try {
         // Obtener estadísticas de empresas
@@ -196,12 +284,120 @@ const Dashboard = () => {
 
         if (candidatosError) throw candidatosError;
 
-        // Obtener estadísticas de solicitudes
-        const { data: solicitudes, error: solicitudesError } = await supabase
+        // Obtener estadísticas de solicitudes con filtros
+        let solicitudesQuery = supabase
           .from('hum_solicitudes')
-          .select('id, estado, created_at, empresa_id');
+          .select(`
+            id, 
+            estado, 
+            created_at, 
+            empresa_id, 
+            analista_id,
+            candidato_id,
+            estructura_datos,
+            empresas!empresa_id(
+              razon_social, 
+              ciudad
+            ),
+            candidatos!candidato_id(
+              primer_nombre, 
+              segundo_nombre,
+              primer_apellido, 
+              segundo_apellido,
+              email,
+              numero_documento
+            )
+          `);
+        
+        // Aplicar filtro de empresa
+        if (empresaFiltro && empresaFiltro !== 'todas') {
+          solicitudesQuery = solicitudesQuery.eq('empresa_id', empresaFiltro);
+        }
+        
+        // Aplicar filtro de analista
+        if (analistaFiltro && analistaFiltro !== 'todos') {
+          solicitudesQuery = solicitudesQuery.eq('analista_id', analistaFiltro);
+        }
+        
+        // Aplicar filtro de fechas
+        if (dateRange.from && dateRange.to) {
+          const fechaInicio = dateRange.from.toISOString().split('T')[0];
+          const fechaFin = dateRange.to.toISOString().split('T')[0];
+          solicitudesQuery = solicitudesQuery
+            .gte('created_at', fechaInicio)
+            .lte('created_at', fechaFin + 'T23:59:59.999Z');
+        }
+        
+        const { data: solicitudes, error: solicitudesError } = await solicitudesQuery;
 
         if (solicitudesError) throw solicitudesError;
+
+        // Enriquecer solicitudes con tipos_candidatos y analistas
+        let solicitudesEnriquecidas = solicitudes || [];
+        
+        // Obtener IDs de cargos únicos
+        const cargoIds = [...new Set(
+          solicitudesEnriquecidas
+            .map(s => s.estructura_datos?.cargo)
+            .filter(cargo => cargo != null)
+            .map(cargo => Number(cargo))
+            .filter(id => !isNaN(id))
+        )];
+
+        // Obtener IDs de analistas únicos
+        const analistaIds = [...new Set(
+          solicitudesEnriquecidas
+            .map(s => s.analista_id)
+            .filter(id => id != null)
+        )];
+
+        // Obtener tipos de candidatos
+        let tiposMap = new Map<number, { id: number; nombre: string }>();
+        if (cargoIds.length > 0) {
+          try {
+            const { data: tipos } = await supabase
+              .from('tipos_candidatos')
+              .select('id, nombre')
+              .in('id', cargoIds);
+            (tipos || []).forEach((t: any) => tiposMap.set(t.id, t));
+          } catch (error) {
+            console.error('Error obteniendo tipos de candidatos:', error);
+          }
+        }
+
+        // Obtener analistas
+        let analistasMap = new Map<number, { id: number; primer_nombre: string; segundo_nombre: string; primer_apellido: string; segundo_apellido: string; email: string }>();
+        if (analistaIds.length > 0) {
+          try {
+            const { data: analistasData } = await supabase
+              .from('gen_usuarios')
+              .select('id, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, email')
+              .in('id', analistaIds);
+            (analistasData || []).forEach((a: any) => analistasMap.set(a.id, a));
+          } catch (error) {
+            console.error('Error obteniendo analistas:', error);
+          }
+        }
+
+        // Enriquecer solicitudes con tipos_candidatos y analistas
+        solicitudesEnriquecidas = solicitudesEnriquecidas.map((s: any) => {
+          const cargoId = s.estructura_datos?.cargo != null ? Number(s.estructura_datos.cargo) : undefined;
+          const tipo = cargoId ? tiposMap.get(cargoId) : undefined;
+          const analista = s.analista_id ? analistasMap.get(s.analista_id) : undefined;
+          return { 
+            ...s, 
+            tipos_candidatos: tipo,
+            gen_usuarios: analista
+          };
+        });
+
+        // Debug: Log de datos obtenidos
+        console.log('Solicitudes enriquecidas:', solicitudesEnriquecidas.slice(0, 2));
+        console.log('Tipos map:', tiposMap);
+        console.log('Analistas map:', analistasMap);
+
+        // Guardar datos de solicitudes para los modales
+        setSolicitudesData(solicitudesEnriquecidas);
 
         // Obtener estadísticas de usuarios
         const { data: usuarios, error: usuariosError } = await supabase
@@ -248,19 +444,24 @@ const Dashboard = () => {
           s.created_at && s.created_at.slice(0, 10) === hoy
         ).length || 0;
 
-        // Solicitudes pendientes
+        // Solicitudes pendientes (estado asignado)
         const solicitudesPendientes = solicitudes?.filter(s =>
-          s.estado === 'pendiente' || s.estado === 'asignada'
+          s.estado === 'asignado'
         ).length || 0;
 
-        // Solicitudes aprobadas
-        const solicitudesAprobadas = solicitudes?.filter(s =>
-          s.estado === 'aprobada' || s.estado === 'finalizada'
+        // Exámenes médicos (estado citado examenes)
+        const examenesMedicos = solicitudes?.filter(s =>
+          s.estado === 'citado_examenes'
         ).length || 0;
 
-        // Solicitudes rechazadas
-        const solicitudesRechazadas = solicitudes?.filter(s =>
-          s.estado === 'rechazada'
+        // Solicitudes contratadas
+        const solicitudesContratadas = solicitudes?.filter(s =>
+          s.estado === 'contratado'
+        ).length || 0;
+
+        // Solicitudes descartadas, canceladas, stand by
+        const solicitudesDescartadas = solicitudes?.filter(s =>
+          s.estado === 'descartado' || s.estado === 'cancelada' || s.estado === 'stand_by'
         ).length || 0;
 
         // Top empresas por cantidad de solicitudes
@@ -331,8 +532,9 @@ const Dashboard = () => {
           totalPrestadores,
           solicitudesHoy,
           solicitudesPendientes,
-          solicitudesAprobadas,
-          solicitudesRechazadas,
+          examenesMedicos,
+          solicitudesContratadas,
+          solicitudesDescartadas,
           promedioTiempoProcesamiento,
           topEmpresas,
           solicitudesPorEstado: solicitudesPorEstadoArray,
@@ -399,90 +601,114 @@ const Dashboard = () => {
   return (
     <Can action="vista-dashboard">
       <div className="p-6 space-y-6 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
-        {/* Header del Dashboard */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
-        <div>
-          <p className="text-gray-600">Vista general del sistema y métricas clave</p>
+        {/* Filtros alineados a la derecha */}
+        <div className="flex justify-end">
+          <div className="flex items-center gap-4 flex-wrap">
+            {/* Selector de rango de fechas moderno */}
+            <DateRangePicker
+              value={dateRange}
+              onChange={setDateRange}
+              placeholder="Seleccionar rango de fechas"
+              className="w-[320px] min-w-[280px] max-w-[400px]"
+              showPresets={true}
+            />
+
+            {/* Filtro de Empresa */}
+            <SelectWithSearch
+              value={empresaFiltro}
+              onValueChange={setEmpresaFiltro}
+              placeholder="Seleccionar empresa"
+              disabled={tieneEmpresaAsociada}
+              className={`w-[280px] min-w-[200px] max-w-[400px] ${tieneEmpresaAsociada ? "bg-gray-100" : ""}`}
+              options={[
+                { value: "todas", label: "Todas las empresas" },
+                ...empresas.map((empresa) => ({
+                  value: empresa.id.toString(),
+                  label: empresa.razon_social || empresa.razonSocial,
+                  searchText: `${empresa.razon_social || empresa.razonSocial} ${empresa.nit || ''} ${empresa.email || ''}`
+                }))
+              ]}
+              emptyText="No se encontraron empresas"
+            />
+
+            {/* Filtro de Analista */}
+            <SelectWithSearch
+              value={analistaFiltro}
+              onValueChange={setAnalistaFiltro}
+              placeholder="Seleccionar analista"
+              disabled={!!esAnalista}
+              className={`w-[280px] min-w-[200px] max-w-[400px] ${esAnalista ? "bg-gray-100" : ""}`}
+              options={[
+                { value: "todos", label: "Todos los analistas" },
+                ...analistas.map((analista) => ({
+                  value: analista.id?.toString() || 'sin-id',
+                  label: `${analista.primer_nombre || ''} ${analista.primer_apellido || ''} (${analista.email || ''})`,
+                  searchText: `${analista.primer_nombre || ''} ${analista.primer_apellido || ''} ${analista.email || ''} ${analista.username || ''}`
+                }))
+              ]}
+              emptyText="No se encontraron analistas"
+            />
+          </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className="w-[280px] justify-start text-left font-normal bg-white border-blue-200 hover:bg-blue-50"
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateRange.from ? (
-                  dateRange.to ? (
-                    <>
-                      {format(dateRange.from, "LLL dd, y", { locale: es })} -{" "}
-                      {format(dateRange.to, "LLL dd, y", { locale: es })}
-                    </>
-                  ) : (
-                    format(dateRange.from, "LLL dd, y", { locale: es })
-                  )
-                ) : (
-                  <span>Seleccionar fechas</span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-              <Calendar
-                initialFocus
-                mode="range"
-                defaultMonth={dateRange.from}
-                selected={dateRange}
-                onSelect={(range) => {
-                  if (range?.from && range?.to) {
-                    setDateRange({
-                      from: range.from,
-                      to: range.to
-                    });
-                  }
-                }}
-                numberOfMonths={2}
-                locale={es}
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
-      </div>
+        {/* Separador */}
+        <hr className="border-gray-200" />
+
 
       {/* Métricas Principales */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Empresas Afiliadas"
-          value={stats?.totalEmpresas || 0}
-          description="Total de empresas registradas"
-          icon={<Building className="h-5 w-5" />}
-          color="blue"
-          trend={{ value: 12, isPositive: true }}
-        />
-        <StatCard
-          title="Candidatos Activos"
-          value={stats?.totalCandidatos || 0}
-          description="Candidatos en el sistema"
-          icon={<Users className="h-5 w-5" />}
-          color="green"
-          trend={{ value: 8, isPositive: true }}
-        />
-        <StatCard
-          title="Solicitudes Hoy"
-          value={stats?.solicitudesHoy || 0}
-          description="Nuevas solicitudes hoy"
-          icon={<FileText className="h-5 w-5" />}
-          color="purple"
-          trend={{ value: 15, isPositive: true }}
-        />
-        <StatCard
-          title="Usuarios Activos"
-          value={stats?.totalUsuarios || 0}
-          description="Usuarios del sistema"
-          icon={<UserCheck className="h-5 w-5" />}
-          color="orange"
-          trend={{ value: 5, isPositive: true }}
-        />
+        <div 
+          onClick={() => handleCardClick('asignado', 'Solicitudes Pendientes')}
+          className="cursor-pointer hover:shadow-lg transition-shadow duration-200"
+        >
+          <StatCard
+            title="Solicitudes Pendientes"
+            value={stats?.solicitudesPendientes || 0}
+            description="Solicitudes en estado asignado"
+            icon={<ClipboardList className="h-5 w-5" />}
+            color="blue"
+            trend={{ value: calcularTendencia(stats?.solicitudesPendientes || 0, 10), isPositive: true }}
+          />
+        </div>
+        <div 
+          onClick={() => handleCardClick('citado_examenes', 'Exámenes Médicos')}
+          className="cursor-pointer hover:shadow-lg transition-shadow duration-200"
+        >
+          <StatCard
+            title="Exámenes Médicos"
+            value={stats?.examenesMedicos || 0}
+            description="Solicitudes citadas para exámenes"
+            icon={<Stethoscope className="h-5 w-5" />}
+            color="green"
+            trend={{ value: calcularTendencia(stats?.examenesMedicos || 0, 8), isPositive: true }}
+          />
+        </div>
+        <div 
+          onClick={() => handleCardClick('contratado', 'Solicitudes Contratadas')}
+          className="cursor-pointer hover:shadow-lg transition-shadow duration-200"
+        >
+          <StatCard
+            title="Solicitudes Contratadas"
+            value={stats?.solicitudesContratadas || 0}
+            description="Solicitudes exitosas"
+            icon={<Briefcase className="h-5 w-5" />}
+            color="purple"
+            trend={{ value: calcularTendencia(stats?.solicitudesContratadas || 0, 15), isPositive: true }}
+          />
+        </div>
+        <div 
+          onClick={() => handleCardClick('descartado', 'Solicitudes Desertadas, Canceladas, Stand By')}
+          className="cursor-pointer hover:shadow-lg transition-shadow duration-200"
+        >
+          <StatCard
+            title="Solicitudes Desertadas, Canceladas, Stand By"
+            value={stats?.solicitudesDescartadas || 0}
+            description="Solicitudes descartadas, canceladas y stand by"
+            icon={<XCircle className="h-5 w-5" />}
+            color="orange"
+            trend={{ value: calcularTendencia(stats?.solicitudesDescartadas || 0, 5), isPositive: true }}
+          />
+        </div>
       </div>
 
       {/* Tabs del Dashboard */}
@@ -606,7 +832,7 @@ const Dashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold text-green-600 mb-2">
-                  {stats?.solicitudesAprobadas || 0}
+                  {stats?.solicitudesContratadas || 0}
                 </div>
                 <p className="text-sm text-gray-600">
                   Procesadas exitosamente
@@ -937,11 +1163,11 @@ const Dashboard = () => {
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-medium">Tasa de Aprobación</span>
                       <span className="text-sm font-bold text-green-600">
-                        {stats?.totalSolicitudes ? Math.round((stats.solicitudesAprobadas / stats.totalSolicitudes) * 100) : 0}%
+                        {stats?.totalSolicitudes ? Math.round((stats.solicitudesContratadas / stats.totalSolicitudes) * 100) : 0}%
                       </span>
                     </div>
                     <Progress
-                      value={stats?.totalSolicitudes ? (stats.solicitudesAprobadas / stats.totalSolicitudes) * 100 : 0}
+                      value={stats?.totalSolicitudes ? (stats.solicitudesContratadas / stats.totalSolicitudes) * 100 : 0}
                       className="h-2 bg-gray-200"
                     />
                   </div>
@@ -950,11 +1176,11 @@ const Dashboard = () => {
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-medium">Tasa de Rechazo</span>
                       <span className="text-sm font-bold text-red-600">
-                        {stats?.totalSolicitudes ? Math.round((stats.solicitudesRechazadas / stats.totalSolicitudes) * 100) : 0}%
+                        {stats?.totalSolicitudes ? Math.round((stats.solicitudesDescartadas / stats.totalSolicitudes) * 100) : 0}%
                       </span>
                     </div>
                     <Progress
-                      value={stats?.totalSolicitudes ? (stats.solicitudesRechazadas / stats.totalSolicitudes) * 100 : 0}
+                      value={stats?.totalSolicitudes ? (stats.solicitudesDescartadas / stats.totalSolicitudes) * 100 : 0}
                       className="h-2 bg-gray-200"
                     />
                   </div>
@@ -1140,6 +1366,142 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal para mostrar solicitudes */}
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent className="max-w-7xl max-h-[90vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              {modalTitle}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="mt-4 overflow-y-auto max-h-[75vh]">
+            {/* Contenedor con diseño similar a tipos de documentos */}
+            <div className="bg-white rounded-lg border">
+              {/* Tabla con diseño profesional */}
+              <div className="overflow-x-auto rounded-lg shadow-sm">
+                <Table className="min-w-[1000px] w-full text-xs">
+                  <TableHeader className="bg-cyan-50">
+                    <TableRow className="text-left font-semibold text-gray-700">
+                      <TableHead className="px-2 py-1 text-teal-600">ID</TableHead>
+                      <TableHead className="px-4 py-3">Empresa</TableHead>
+                      <TableHead className="px-4 py-3">Candidato</TableHead>
+                      <TableHead className="px-4 py-3">Cargo</TableHead>
+                      <TableHead className="px-4 py-3">Analista</TableHead>
+                      <TableHead className="px-4 py-3">Fecha</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {modalData.length > 0 ? (
+                      modalData.map((solicitud) => (
+                        <TableRow key={solicitud.id} className="hover:bg-gray-50">
+                          <TableCell className="px-2 py-1">
+                            <span className="font-bold text-cyan-600">#{solicitud.id}</span>
+                          </TableCell>
+                          <TableCell className="px-4 py-3">
+                            <div className="flex flex-col">
+                              <span className="text-sm text-gray-900 font-medium">
+                                {solicitud.empresas?.razon_social || 'Sin empresa'}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {solicitud.empresas?.ciudad || 'Sin ciudad'}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="px-4 py-3">
+                            <div className="flex flex-col">
+                              <span className="text-sm text-gray-900 font-medium">
+                                {solicitud.candidatos ? 
+                                  `${solicitud.candidatos.primer_nombre || ''} ${solicitud.candidatos.segundo_nombre || ''} ${solicitud.candidatos.primer_apellido || ''} ${solicitud.candidatos.segundo_apellido || ''}`.trim() || 'Sin nombre' 
+                                  : 'Sin candidato'
+                                }
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {solicitud.candidatos?.email || 'Sin email'}
+                              </span>
+                              <span className="text-xs text-gray-400">
+                                {solicitud.candidatos?.numero_documento || 'Sin documento'}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="px-4 py-3">
+                            <div className="flex flex-col">
+                              <span className="text-sm text-gray-500">
+                                {solicitud.tipos_candidatos?.nombre || 
+                                 solicitud.estructura_datos?.cargo || 
+                                 solicitud.estructura_datos?.datos?.cargo || 
+                                 '-'}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="px-4 py-3">
+                            <div className="flex flex-col">
+                              {solicitud.gen_usuarios ? (
+                                <>
+                                  <span className="text-sm text-gray-900 font-medium">
+                                    {`${solicitud.gen_usuarios.primer_nombre || ''} ${solicitud.gen_usuarios.segundo_nombre || ''} ${solicitud.gen_usuarios.primer_apellido || ''} ${solicitud.gen_usuarios.segundo_apellido || ''}`.trim() || 'Sin nombre'}
+                                  </span>
+                                  <span className="text-xs text-gray-500">
+                                    {solicitud.gen_usuarios.email || 'Sin email'}
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="text-sm text-gray-400 italic">
+                                  Sin asignar
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="px-4 py-3">
+                            <div className="flex flex-col">
+                              <span className="text-sm text-gray-500">
+                                {solicitud.created_at ? 
+                                  new Date(solicitud.created_at).toLocaleDateString('es-ES') 
+                                  : '-'
+                                }
+                              </span>
+                              <span className="text-xs text-gray-400">
+                                {solicitud.created_at ? 
+                                  new Date(solicitud.created_at).toLocaleTimeString('es-ES', { 
+                                    hour: '2-digit', 
+                                    minute: '2-digit' 
+                                  }) 
+                                  : ''
+                                }
+                              </span>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={6} className="h-24 text-center">
+                          <div className="flex flex-col items-center justify-center space-y-4">
+                            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                              <FileText className="h-8 w-8 text-gray-400" />
+                            </div>
+                            <div className="space-y-2">
+                              <h3 className="text-lg font-semibold text-gray-600">No hay registros</h3>
+                              <p className="text-sm text-gray-500 max-w-sm">
+                                No se encontraron solicitudes en este estado con los filtros aplicados
+                              </p>
+                            </div>
+                            <div className="flex items-center space-x-2 text-xs text-gray-400">
+                              <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
+                              <span>Intenta ajustar los filtros para ver más resultados</span>
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Can>
   );
 };

@@ -43,7 +43,7 @@ const PlantillasPage: React.FC = () => {
       const empresa = JSON.parse(empresaData);
       setEmpresaAutenticada(empresa.nombre || 'Empresa');
     } else {
-      setEmpresaAutenticada('Sistema');
+      setEmpresaAutenticada('CoreHuman');
     }
   }, []);
 

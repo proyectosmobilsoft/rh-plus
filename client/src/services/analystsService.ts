@@ -19,7 +19,23 @@ export const analystsService = {
   // Listar solo analistas (usuarios con permiso rol_analista)
   getAll: async (): Promise<Analyst[]> => {
     try {
-      // Obtener roles que tienen el permiso 'rol_analista' en gen_roles_modulos
+      // Obtener todos los usuarios activos primero
+      const { data: usuarios, error: usuariosError } = await supabase
+        .from('gen_usuarios')
+        .select(`
+          *,
+          gen_usuario_roles(
+            gen_roles(id, nombre)
+          )
+        `)
+        .eq('activo', true);
+
+      if (usuariosError) {
+        console.error('Error al obtener usuarios:', usuariosError);
+        return [];
+      }
+
+      // Obtener roles que tienen el permiso 'rol_analista'
       const { data: rolesConPermisoAnalista, error: rolesError } = await supabase
         .from('gen_roles_modulos')
         .select(`
@@ -40,32 +56,16 @@ export const analystsService = {
         return [];
       }
 
-      // Obtener usuarios con esos roles
-      const { data, error } = await supabase
-        .from('gen_usuarios')
-        .select(`
-          *,
-          gen_usuario_roles(
-            gen_roles(id, nombre)
-          )
-        `)
-        .eq('activo', true)
-        .or(`rol_id.in.(${rolIds.join(',')}),gen_usuario_roles.gen_roles.id.in.(${rolIds.join(',')})`);
-
-      if (error) {
-        console.error('Error al obtener analistas:', error);
-        return [];
-      }
-
-      // Filtrar usuarios que realmente tengan el rol de analista
-      const analistas = data?.filter((usuario: any) => {
+      // Filtrar usuarios que tengan el rol de analista (principal o adicional)
+      const analistas = usuarios?.filter((usuario: any) => {
         const tieneRolPrincipal = usuario.rol_id && rolIds.includes(usuario.rol_id);
         const tieneRolesAdicionales = usuario.gen_usuario_roles?.some((ur: any) => 
-          rolIds.includes(ur.gen_roles.id)
+          rolIds.includes(ur.gen_roles?.id)
         );
         return tieneRolPrincipal || tieneRolesAdicionales;
       }) || [];
 
+      console.log('Analistas encontrados:', analistas.length);
       return analistas;
     } catch (error) {
       console.error('Error en getAll de analystsService:', error);

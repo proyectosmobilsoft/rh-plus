@@ -692,13 +692,17 @@ export const solicitudesService = {
             tipo_documento: "tipo_documento",
             direccion: "direccion",
             ciudad: "ciudad",
-            empresa_id: "empresa_id",
           };
           for (const key in map) {
             const v = (d as any)[key] || (d as any)[normalizeCampo(key)];
             if (v !== undefined && v !== null && v !== "") {
               (candidatoPayload as any)[map[key]] = v;
             }
+          }
+          
+          // Asignar empresa_id desde la solicitud
+          if (solicitud.empresa_id) {
+            candidatoPayload.empresa_id = solicitud.empresa_id;
           }
           try {
             const creado = await candidatosService.create(candidatoPayload);
@@ -1426,13 +1430,17 @@ export const solicitudesService = {
             tipo_documento: "tipo_documento",
             direccion: "direccion",
             ciudad: "ciudad",
-            empresa_id: "empresa_id",
           };
           for (const key in map) {
             const v = (d as any)[key] || (d as any)[normalizeCampo(key)];
             if (v !== undefined && v !== null && v !== "") {
               (candidatoPayload as any)[map[key]] = v;
             }
+          }
+          
+          // Asignar empresa_id desde la solicitud
+          if (solicitud.empresa_id) {
+            candidatoPayload.empresa_id = solicitud.empresa_id;
           }
           
           // Verificar si el candidato ya existe antes de intentar crearlo

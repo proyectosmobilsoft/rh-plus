@@ -33,5 +33,24 @@ export const sucursalesService = {
       ciudad_nombre: sucursal.ciudades?.nombre,
       departamento_nombre: sucursal.ciudades?.departamentos?.nombre
     }));
+  },
+
+  getAllIncludingInactive: async (): Promise<Sucursal[]> => {
+    const { data, error } = await supabase
+      .from('gen_sucursales')
+      .select(`
+        *,
+        ciudades:ciudad_id(nombre, departamentos:departamento_id(nombre))
+      `)
+      .order('nombre');
+    
+    if (error) throw error;
+    
+    // Transformar los datos para incluir nombres relacionados
+    return (data || []).map(sucursal => ({
+      ...sucursal,
+      ciudad_nombre: sucursal.ciudades?.nombre,
+      departamento_nombre: sucursal.ciudades?.departamentos?.nombre
+    }));
   }
 };

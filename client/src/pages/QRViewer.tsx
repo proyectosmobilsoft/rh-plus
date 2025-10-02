@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
   User, Mail, Phone, Calendar, FileText, CheckCircle, XCircle, Clock, 
-  MapPin, Cake, Users, Shield, AlertTriangle
+  MapPin, Cake, Users, Shield, AlertTriangle, Heart, Droplets, UserCheck
 } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { qrService } from '@/services/qrService';
@@ -32,6 +32,11 @@ interface CandidatoInfo {
   direccion?: string;
   ciudad_nombre?: string;
   departamento_nombre?: string;
+  fotografia?: string;
+  grupo_sanguineo?: string;
+  contacto_emergencia_nombre?: string;
+  contacto_emergencia_telefono?: string;
+  contacto_emergencia_relacion?: string;
 }
 
 export default function QRViewer() {
@@ -102,6 +107,11 @@ export default function QRViewer() {
             estado_civil,
             direccion,
             ciudad_id,
+            fotografia,
+            grupo_sanguineo,
+            contacto_emergencia_nombre,
+            contacto_emergencia_telefono,
+            contacto_emergencia_relacion,
             ciudades:ciudad_id(nombre, departamentos:departamento_id(nombre))
           `)
           .eq('id', qrInfo.id)
@@ -129,18 +139,28 @@ export default function QRViewer() {
             direccion: candidatoData.direccion,
             ciudad_nombre: candidatoData.ciudades?.nombre,
             departamento_nombre: candidatoData.ciudades?.departamentos?.nombre,
+            fotografia: candidatoData.fotografia,
+            grupo_sanguineo: candidatoData.grupo_sanguineo,
+            contacto_emergencia_nombre: candidatoData.contacto_emergencia_nombre,
+            contacto_emergencia_telefono: candidatoData.contacto_emergencia_telefono,
+            contacto_emergencia_relacion: candidatoData.contacto_emergencia_relacion,
           };
           setCandidatoInfo(candidatoInfo);
 
-          // Obtener la foto del candidato
-          const { data: usuarioData, error: usuarioError } = await supabase
-            .from('gen_usuarios')
-            .select('foto_base64')
-            .eq('id', candidatoData.usuario_id)
-            .single();
+          // Usar la fotografía del candidato si está disponible
+          if (candidatoData.fotografia) {
+            setCandidatoFoto(candidatoData.fotografia);
+          } else {
+            // Si no hay fotografía en candidatos, intentar obtenerla del usuario
+            const { data: usuarioData, error: usuarioError } = await supabase
+              .from('gen_usuarios')
+              .select('foto_base64')
+              .eq('id', candidatoData.usuario_id)
+              .single();
 
-          if (!usuarioError && usuarioData?.foto_base64) {
-            setCandidatoFoto(usuarioData.foto_base64);
+            if (!usuarioError && usuarioData?.foto_base64) {
+              setCandidatoFoto(usuarioData.foto_base64);
+            }
           }
         }
 
@@ -232,7 +252,7 @@ export default function QRViewer() {
           </Badge>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {/* Información Personal */}
           <Card className="shadow-lg">
             <CardHeader className="pb-4 bg-gradient-to-r from-cyan-50 to-blue-50">
@@ -323,6 +343,70 @@ export default function QRViewer() {
                     }
                   </p>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Información Médica y de Emergencia */}
+          <Card className="shadow-lg">
+            <CardHeader className="pb-4 bg-gradient-to-r from-red-50 to-pink-50">
+              <CardTitle className="flex items-center text-xl text-gray-800">
+                <Heart className="w-6 h-6 mr-3 text-red-600" />
+                Información Médica y de Emergencia
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-4">
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Grupo Sanguíneo</label>
+                    <p className="text-gray-800 mt-1 flex items-center">
+                      <Droplets className="w-4 h-4 mr-2 text-red-400" />
+                      {candidatoInfo.grupo_sanguineo || 'No especificado'}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Estado de Salud</label>
+                    <p className="text-gray-800 mt-1 flex items-center">
+                      <Heart className="w-4 h-4 mr-2 text-green-400" />
+                      Información disponible
+                    </p>
+                  </div>
+                </div>
+
+                {(candidatoInfo.contacto_emergencia_nombre || candidatoInfo.contacto_emergencia_telefono) && (
+                  <div className="border-t pt-4">
+                    <h4 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                      <UserCheck className="w-5 h-5 mr-2 text-blue-600" />
+                      Contacto de Emergencia
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Nombre</label>
+                        <p className="text-gray-800 mt-1 font-medium">
+                          {candidatoInfo.contacto_emergencia_nombre || 'No especificado'}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Relación</label>
+                        <p className="text-gray-800 mt-1">
+                          {candidatoInfo.contacto_emergencia_relacion || 'No especificada'}
+                        </p>
+                      </div>
+                    </div>
+                    {candidatoInfo.contacto_emergencia_telefono && (
+                      <div className="mt-4">
+                        <label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Teléfono de Emergencia</label>
+                        <p className="text-gray-800 mt-1 flex items-center">
+                          <Phone className="w-4 h-4 mr-2 text-red-500" />
+                          <span className="font-mono text-lg font-semibold text-red-600">
+                            {candidatoInfo.contacto_emergencia_telefono}
+                          </span>
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

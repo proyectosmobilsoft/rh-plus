@@ -158,7 +158,7 @@ Equipo de Recursos Humanos`);
             
             return {
               ...candidato,
-              empresa_nombre: empresa?.razonSocial || 'Empresa no encontrada',
+              empresa_nombre: empresa?.razon_social || empresa?.razonSocial || 'Empresa no encontrada',
               qrGenerado: !!qrData && !qrService.isQRExpired(qrData),
               fechaGeneracionQR: qrData?.fecha_generacion,
               qrData: qrData || undefined

@@ -134,9 +134,16 @@ const Header = ({ sidebarOpen, toggleSidebar }: { sidebarOpen: boolean; toggleSi
             ></div>
           </div>
         ) : (
-          <h1 className="text-2xl font-bold text-gray-900 bg-gradient-to-r from-cyan-600 to-cyan-800 bg-clip-text text-transparent">
-            {empresaData?.razon_social || empresaData?.nombre || 'Sistema'}
-          </h1>
+          <div className="flex items-center space-x-3">
+            <div className="flex flex-col">
+              <h1 className="text-2xl font-bold text-gray-900 bg-gradient-to-r from-cyan-600 to-cyan-800 bg-clip-text text-transparent">
+                {empresaData?.razon_social || empresaData?.nombre || 'CoreHuman'}
+              </h1>
+              <p className="text-xs text-gray-500 mt-1 font-medium tracking-wide">
+                GESTIÓN HUMANA ESTRATÉGICА
+              </p>
+            </div>
+          </div>
         )}
       </div>
       
