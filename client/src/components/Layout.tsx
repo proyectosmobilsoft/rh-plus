@@ -147,9 +147,23 @@ const Header = ({ sidebarOpen, toggleSidebar }: { sidebarOpen: boolean; toggleSi
         )}
       </div>
       
-      {/* Información del usuario */}
+      {/* Logo CoreHuman del lado derecho */}
       <div className="flex items-center space-x-4">
-        {/* El avatar del usuario ahora está solo en el sidebar */}
+        <div className="flex items-center space-x-3">
+           <img 
+             src="/src/assets/logo.png" 
+             alt="CoreHuman Logo" 
+             className="h-16 w-auto object-contain"
+           />
+          <div className="flex flex-col">
+            <h2 className="text-lg font-bold text-gray-900">
+              CoreHuman
+            </h2>
+            <p className="text-xs text-gray-500 font-medium tracking-wide">
+              GESTIÓN HUMANA ESTRATÉGICA
+            </p>
+          </div>
+        </div>
       </div>
       
     </header>

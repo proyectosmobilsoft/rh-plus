@@ -9,7 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { authService } from '@/services/authService';
 import { guardarEmpresaSeleccionadaConConsulta } from '@/utils/empresaUtils';
 import { Eye, EyeOff, LogIn, Building2 } from 'lucide-react';
-import logo from '/logo2.svg';
+import logo from '/src/assets/logo.png';
 
 export default function LoginUnificado() {
   const [username, setUsername] = useState('');
@@ -294,14 +294,22 @@ export default function LoginUnificado() {
     <div className="min-h-screen bg-gradient-to-br from-brand-lime/10 to-brand-turquoise/10 flex items-center justify-center p-4">
       <div className="w-full max-w-md animate-slide-in">
         {/* Header */}
-        <div className="text-center mb-8">
-
-          <div className="logo-login"
-            style={{
-              backgroundImage: `url(${logo})`
-            }}
-          ></div>
-          <p className="text-gray-600 animate-slide-in mt-[-15px] mb-[-15px] pt-[-14px] pb-[-14px]">Sistema de Gestión de Contratación</p>
+        <div className="text-center mb-4">
+          <div className="flex flex-col items-center space-y-0">
+            <img 
+              src={logo} 
+              alt="CoreHuman Logo" 
+              className="h-32 w-auto object-contain"
+            />
+            <div className="flex flex-col -mt-2">
+              <h1 className="text-2xl font-bold text-gray-900">
+                CoreHuman
+              </h1>
+              <p className="text-sm text-gray-600 font-medium tracking-wide">
+                GESTIÓN HUMANA ESTRATÉGICA
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Login Form */}

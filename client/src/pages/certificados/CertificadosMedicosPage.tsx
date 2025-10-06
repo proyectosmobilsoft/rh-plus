@@ -576,7 +576,7 @@ const CertificadosMedicosPage = () => {
       return 'Citado Exámenes Médicos';
     }
     if (estado === 'validacion cliente') {
-      return 'Con Restricciones o Recomendación';
+      return 'Con Restricciones y/o Recomendación';
     }
     return estado;
   };
@@ -659,7 +659,7 @@ const CertificadosMedicosPage = () => {
                     <SelectItem value="pendiente">Pendiente Documentos</SelectItem>
                     <SelectItem value="documentos">Documentos Entregados</SelectItem>
                     <SelectItem value="citado">Citado Exámenes</SelectItem>
-                    <SelectItem value="restricciones">Con Restricciones o Recomendación</SelectItem>
+                    <SelectItem value="restricciones">Con Restricciones y/o Recomendación</SelectItem>
                     <SelectItem value="descartado">Descartado</SelectItem>
                   </SelectContent>
                 </Select>
@@ -856,7 +856,7 @@ const CertificadosMedicosPage = () => {
 
                   {/* Restricciones y Remisión */}
                   <div className="bg-orange-50 p-4 rounded-lg border border-orange-200 space-y-4">
-                    <h3 className="text-lg font-semibold text-orange-800">RESTRICCIONES o RECOMENDACIÓN Y REMISIÓN</h3>
+                    <h3 className="text-lg font-semibold text-orange-800">RESTRICCIONES Y/O RECOMENDACIÓN Y REMISIÓN</h3>
                     
                     {/* Campos de restricciones en dos columnas */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1130,7 +1130,7 @@ const CertificadosMedicosPage = () => {
                           className="bg-yellow-100/80 hover:bg-yellow-500 hover:text-white text-yellow-800 border border-yellow-200 hover:border-yellow-500 px-4 py-2 text-sm shadow-sm transition-colors"
                         >
                           <FileText className="h-3 w-3 mr-1" />
-                          Apto con Restricciones o Recomendación
+                          Apto con Restricciones y/o Recomendación
                         </Button>
                       </div>
                     </div>
@@ -1139,7 +1139,7 @@ const CertificadosMedicosPage = () => {
                   {/* Mensaje informativo para validacion cliente */}
                   {solicitudSeleccionada?.estado === 'validacion cliente' && (
                     <div className="bg-orange-50 p-6 rounded-lg border border-orange-200">
-                      <h3 className="text-lg font-semibold text-orange-800 mb-4 text-center">CERTIFICADO MÉDICO CON RESTRICCIONES o RECOMENDACIÓN</h3>
+                      <h3 className="text-lg font-semibold text-orange-800 mb-4 text-center">CERTIFICADO MÉDICO CON RESTRICCIONES Y/O RECOMENDACIÓN</h3>
                       <div className="text-center space-y-4">
                         <p className="text-orange-700">
                           Este certificado médico ya fue creado con restricciones o recomendaciones. Los datos mostrados son de solo lectura.
@@ -1205,7 +1205,7 @@ const CertificadosMedicosPage = () => {
               ) : (
                 <>
                   <FileText className="h-5 w-5 text-yellow-600" />
-                  <span>Marcar como Apto con Restricciones o Recomendación</span>
+                  <span>Marcar como Apto con Restricciones y/o Recomendación</span>
                 </>
               )}
             </DialogTitle>
@@ -1220,7 +1220,7 @@ const CertificadosMedicosPage = () => {
                    modalType === 'no-apto' ? 'marcar esta solicitud como No Apto' : 
                    modalType === 'aprobar' ? 'aprobar esta solicitud' : 
                    modalType === 'no-aprobar' ? 'no aprobar esta solicitud (se descartará por restricciones médicas)' : 
-                   'marcar esta solicitud como Apto con Restricciones o Recomendación'}
+                   'marcar esta solicitud como Apto con Restricciones y/o Recomendación'}
                 </span>?
               </p>
             </div>
