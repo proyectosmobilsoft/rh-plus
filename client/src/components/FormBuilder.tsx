@@ -90,6 +90,27 @@ const createDefaultField = (): FormField => ({
   diasMinimos: undefined,
 });
 
+const createTemporalField = (): FormField => ({
+  id: uuidv4(),
+  type: 'select',
+  label: 'Temporal',
+  nombre: 'temporal',
+  placeholder: 'Seleccione una opción',
+  required: false,
+  order: 4,
+  dimension: 6,
+  options: '', // Sin opciones por defecto - el usuario las agregará
+  dataSource: 'static',
+  databaseTable: '',
+  databaseField: 'nombre',
+  databaseValueField: 'nombre',
+  activo: true,
+  diasMinimos: undefined,
+  disabled: false, // Campo habilitado - completamente funcional
+  isSystemField: true, // Campo del sistema - no editable
+  allowOptionsEdit: true, // Permitir editar opciones
+});
+
 const createDefaultSection = (): FormSection => ({
   id: uuidv4(),
   titulo: '',
@@ -149,15 +170,28 @@ const FormBuilder: React.FC<{
         fieldName === 'documento' || 
         fieldName === 'correo_electronico' || 
         fieldName === 'cargo' ||
+        fieldName === 'temporal' ||
         fieldLabel.toLowerCase().includes('documento') ||
         fieldLabel.toLowerCase().includes('correo') ||
-        fieldLabel.toLowerCase().includes('cargo');
+        fieldLabel.toLowerCase().includes('cargo') ||
+        fieldLabel.toLowerCase().includes('temporal');
       
       if (isSystemField && !campo.isSystemField) {
         console.log('🔍 Marcando campo como del sistema:', campo);
         return {
           ...campo,
-          isSystemField: true
+          isSystemField: true,
+          // Si es campo temporal, agregar allowOptionsEdit
+          allowOptionsEdit: fieldName === 'temporal' ? true : campo.allowOptionsEdit
+        };
+      }
+      
+      // Si ya es campo del sistema pero es temporal y no tiene allowOptionsEdit, agregarlo
+      if (campo.isSystemField && fieldName === 'temporal' && !campo.allowOptionsEdit) {
+        console.log('🔍 Agregando allowOptionsEdit a campo temporal existente:', campo);
+        return {
+          ...campo,
+          allowOptionsEdit: true
         };
       }
       
@@ -329,19 +363,7 @@ const FormBuilder: React.FC<{
           activo: true,
           isSystemField: true // Campo del sistema - solo editable tamaño y orden
         },
-        {
-          id: uuidv4(),
-          type: 'text',
-          label: 'Temporal a Ingresar',
-          name: 'temporal',
-          placeholder: 'Ingrese el temporal a ingresar',
-          required: false,
-          order: 4,
-          dimension: 12,
-          options: '',
-          activo: true,
-          isSystemField: true // Campo del sistema - solo editable tamaño y orden
-        }
+        createTemporalField() // Campo temporal por defecto - ahora debajo de cargo
       ];
       setSections([defaultSection]);
     }
@@ -443,6 +465,17 @@ const FormBuilder: React.FC<{
   const handleFieldChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     let newValue: any = value;
+    
+    // Debug para campo temporal
+    if (name === 'options' && currentField.nombre === 'temporal') {
+      console.log('🔍 Campo temporal - handleFieldChange:', {
+        name,
+        value,
+        currentField: currentField.nombre,
+        isSystemField: currentField.isSystemField,
+        allowOptionsEdit: currentField.allowOptionsEdit
+      });
+    }
 
     if (type === 'checkbox') {
       newValue = (e.target as HTMLInputElement).checked;
@@ -482,12 +515,14 @@ const FormBuilder: React.FC<{
             // Preservar propiedades críticas que no deben cambiar
             type: f.type,
             name: f.name,
-            options: f.options,
+            // Permitir actualizar opciones si allowOptionsEdit es true
+            options: (name === 'options' && f.allowOptionsEdit) ? newValue : f.options,
             dataSource: f.dataSource,
             databaseTable: f.databaseTable,
             databaseField: f.databaseField,
             databaseValueField: f.databaseValueField,
-            isSystemField: true
+            isSystemField: true,
+            allowOptionsEdit: f.allowOptionsEdit // Preservar allowOptionsEdit
           };
         } else {
           return {
@@ -619,8 +654,9 @@ const FormBuilder: React.FC<{
               ...(currentField.isSystemField && {
                 type: f.type, // No permitir cambiar el tipo
                 name: f.name, // No permitir cambiar el nombre
-                options: f.options, // No permitir cambiar las opciones
-                isSystemField: true // Mantener la marca de campo del sistema
+                options: currentField.allowOptionsEdit ? currentField.options : f.options, // Permitir cambiar opciones si allowOptionsEdit es true
+                isSystemField: true, // Mantener la marca de campo del sistema
+                allowOptionsEdit: currentField.allowOptionsEdit // Preservar allowOptionsEdit
               })
             } : f
           )
@@ -1148,7 +1184,7 @@ const FormBuilder: React.FC<{
               position: 'absolute',
               top: '4px',
               right: '4px',
-              backgroundColor: '#f59e0b',
+              backgroundColor: f.allowOptionsEdit ? '#10b981' : '#f59e0b',
               color: 'white',
               fontSize: '10px',
               padding: '2px 6px',
@@ -1156,7 +1192,7 @@ const FormBuilder: React.FC<{
               fontWeight: 'bold',
               zIndex: 2
             }}>
-              SISTEMA
+              {f.allowOptionsEdit ? 'OPCIONES' : 'SISTEMA'}
             </div>
           )}
         </div>
@@ -1392,6 +1428,19 @@ const FormBuilder: React.FC<{
         } else {
           // Usar opciones estáticas
           selectOptions = toOptionsArray(f.options);
+          
+          // Debug para campo temporal
+          if (f.nombre === 'temporal') {
+            console.log('🔍 Campo temporal - Opciones en vista previa:', {
+              options: f.options,
+              selectOptions: selectOptions,
+              optionsLength: selectOptions.length,
+              isSystemField: f.isSystemField,
+              disabled: f.disabled,
+              type: f.type,
+              dataSource: f.dataSource
+            });
+          }
         }
         
         return renderFieldContainer(
@@ -1402,8 +1451,10 @@ const FormBuilder: React.FC<{
               padding: 6, 
               borderRadius: 6, 
               border: '1px solid #e0e7ef', 
-              fontSize: 13 
-            }}>
+              fontSize: 13,
+              backgroundColor: f.disabled ? '#f5f5f5' : 'white',
+              cursor: f.disabled ? 'not-allowed' : 'default'
+            }} disabled={f.disabled}>
               <option value="">{f.placeholder || 'Seleccione una opción'}</option>
               {selectOptions.map((opt: string, idx: number) => (
                 <option key={idx} value={opt}>{opt}</option>
@@ -2074,9 +2125,29 @@ const FormBuilder: React.FC<{
                               <div className="space-y-2">
                                 {/* Selector de fuente de datos */}
                                 <Select 
-                                  onValueChange={(value: 'static' | 'database') => setCurrentField(f => ({ ...f, dataSource: value }))} 
+                                  onValueChange={(value: 'static' | 'database') => {
+                                    // Usar la misma lógica de actualización que handleFieldChange
+                                    setCurrentField(f => {
+                                      if (f.isSystemField && f.allowOptionsEdit) {
+                                        return { ...f, dataSource: value };
+                                      } else if (!f.isSystemField) {
+                                        return { ...f, dataSource: value };
+                                      }
+                                      return f; // No actualizar si es campo del sistema sin allowOptionsEdit
+                                    });
+                                  }} 
                                   value={currentField.dataSource || 'static'}
-                                  disabled={currentField.isSystemField}
+                                  disabled={(() => {
+                                    const isDisabled = currentField.isSystemField && !currentField.allowOptionsEdit;
+                                    if (currentField.nombre === 'temporal') {
+                                      console.log('🔍 Campo temporal - Selector de fuente:', {
+                                        isSystemField: currentField.isSystemField,
+                                        allowOptionsEdit: currentField.allowOptionsEdit,
+                                        isDisabled: isDisabled
+                                      });
+                                    }
+                                    return isDisabled;
+                                  })()}
                                 >
                                   <SelectTrigger className="text-sm">
                                     <SelectValue placeholder="Seleccionar fuente" />
@@ -2090,13 +2161,23 @@ const FormBuilder: React.FC<{
                                 {/* Opciones estáticas */}
                                 {(currentField.dataSource === 'static' || !currentField.dataSource) && (
                               <input 
-                                  className={`w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm ${currentField.isSystemField ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                  className={`w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm ${(currentField.isSystemField && !currentField.allowOptionsEdit) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                                 name="options" 
                                 placeholder="Opciones (separadas por coma)" 
                                 value={currentField.options as any} 
                                 onChange={handleFieldChange} 
                                 autoComplete="off"
-                                disabled={currentField.isSystemField}
+                                disabled={(() => {
+                                  const isDisabled = currentField.isSystemField && !currentField.allowOptionsEdit;
+                                  if (currentField.nombre === 'temporal') {
+                                    console.log('🔍 Campo temporal - Campo de opciones:', {
+                                      isSystemField: currentField.isSystemField,
+                                      allowOptionsEdit: currentField.allowOptionsEdit,
+                                      isDisabled: isDisabled
+                                    });
+                                  }
+                                  return isDisabled;
+                                })()}
                               />
                                 )}
                                 
