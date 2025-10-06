@@ -4,7 +4,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthGuard, PublicRoute } from './components/AuthGuard';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import Layout from './components/Layout';
-import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -123,9 +122,8 @@ function App() {
     <Router>
       <div className="App">
         <LoadingOverlay isLoading={isLoading} />
-        {/* Toasters globales para notificaciones */}
-        <Sonner position="top-right" richColors />
-        <Toaster />
+        {/* Toaster global para notificaciones */}
+        <Sonner position="top-center" richColors />
         <Routes>
           {/* Ruta de prueba para verificar providers */}
           <Route path="/test" element={
@@ -655,3 +653,4 @@ function App() {
 }
 
 export default App;
+

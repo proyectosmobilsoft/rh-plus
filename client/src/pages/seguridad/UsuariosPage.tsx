@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Edit, Trash2, Plus, Search, Users, Save, RefreshCw, Loader2, Lock, CheckCircle, User, ImagePlus, Eye, EyeOff } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Link } from "wouter";
 import {
@@ -149,7 +150,6 @@ const UsuariosPage = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState<Usuario | null>(null);
   const [candidatosRelacionados, setCandidatosRelacionados] = useState<any[]>([]);
-  const { toast } = useToast();
   const { startLoading, stopLoading } = useLoading();
   const queryClient = useQueryClient();
 
@@ -226,20 +226,13 @@ const UsuariosPage = () => {
       }
     },
     onSuccess: () => {
-      toast({
-        title: "Usuario creado",
-        description: "El usuario ha sido creado exitosamente",
-      });
+      toast.success("El usuario ha sido creado exitosamente");
       queryClient.invalidateQueries({ queryKey: ["usuarios"] });
       form.reset();
       setActiveTab("usuarios");
     },
     onError: (error: any) => {
-      toast({
-        title: "Error al crear usuario",
-        description: error.message || "Hubo un error al crear el usuario",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Hubo un error al crear el usuario");
     },
   });
 
@@ -260,20 +253,13 @@ const UsuariosPage = () => {
       }
     },
     onSuccess: () => {
-      toast({
-        title: "Usuario actualizado",
-        description: "El usuario ha sido actualizado exitosamente",
-      });
+      toast.success("El usuario ha sido actualizado exitosamente");
       queryClient.invalidateQueries({ queryKey: ["usuarios"] });
       setEditingUser(null);
       setActiveTab("usuarios");
     },
     onError: (error: any) => {
-      toast({
-        title: "Error al actualizar usuario",
-        description: error.message || "Hubo un error al actualizar el usuario",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Hubo un error al actualizar el usuario");
     },
   });
 
@@ -287,18 +273,11 @@ const UsuariosPage = () => {
       }
     },
     onSuccess: () => {
-      toast({
-        title: "Usuario eliminado",
-        description: "El usuario ha sido eliminado exitosamente",
-      });
+      toast.success("El usuario ha sido eliminado exitosamente");
       queryClient.invalidateQueries({ queryKey: ["usuarios"] });
     },
     onError: (error: any) => {
-      toast({
-        title: "Error al eliminar usuario",
-        description: error.message || "Hubo un error al eliminar el usuario",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Hubo un error al eliminar el usuario");
     },
   });
 
@@ -312,18 +291,11 @@ const UsuariosPage = () => {
       }
     },
     onSuccess: () => {
-      toast({
-        title: "Usuario activado",
-        description: "El usuario ha sido activado exitosamente",
-      });
+      toast.success("El usuario ha sido activado exitosamente");
       queryClient.invalidateQueries({ queryKey: ["usuarios"] });
     },
     onError: (error: any) => {
-      toast({
-        title: "Error al activar usuario",
-        description: error.message || "Hubo un error al activar el usuario",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Hubo un error al activar el usuario");
     },
   });
 
@@ -337,18 +309,11 @@ const UsuariosPage = () => {
       }
     },
     onSuccess: () => {
-      toast({
-        title: "Usuario desactivado",
-        description: "El usuario ha sido desactivado exitosamente",
-      });
+      toast.success("El usuario ha sido desactivado exitosamente");
       queryClient.invalidateQueries({ queryKey: ["usuarios"] });
     },
     onError: (error: any) => {
-      toast({
-        title: "Error al desactivar usuario",
-        description: error.message || "Hubo un error al desactivar el usuario",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Hubo un error al desactivar el usuario");
     },
   });
 
@@ -382,11 +347,7 @@ const UsuariosPage = () => {
       // Buscar el usuario en la lista
       const usuario = usuarios.find(u => u.id === id);
       if (!usuario) {
-        toast({
-          title: "Error",
-          description: "Usuario no encontrado",
-          variant: "destructive",
-        });
+        toast.error("Usuario no encontrado");
         return;
       }
 
@@ -404,11 +365,7 @@ const UsuariosPage = () => {
       // Si se puede eliminar, proceder con la eliminación
     deleteUserMutation.mutate(id);
     } catch (error: any) {
-      toast({
-        title: "Error al verificar eliminación",
-        description: error.message || "Error al verificar si se puede eliminar el usuario",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Error al verificar si se puede eliminar el usuario");
     }
   };
 
@@ -1302,3 +1259,7 @@ const UsuariosPage = () => {
 };
 
 export default UsuariosPage;
+
+
+
+

@@ -231,3 +231,4 @@ const EmpresaLayout = () => {
 };
 
 export default EmpresaLayout;
+

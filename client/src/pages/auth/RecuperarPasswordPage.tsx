@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Mail, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from "sonner";
 import { authService } from '@/services/authService';
 import logo from '/logo2.svg';
 
@@ -177,3 +177,4 @@ export default function RecuperarPasswordPage() {
     </div>
   );
 } 
+

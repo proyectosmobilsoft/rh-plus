@@ -63,3 +63,4 @@ class ProyectosService {
 }
 
 export const proyectosService = new ProyectosService();
+

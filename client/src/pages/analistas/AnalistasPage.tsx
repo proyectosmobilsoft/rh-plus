@@ -17,7 +17,7 @@ import {
   User,
   Settings
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from "sonner";
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -92,7 +92,7 @@ export default function AnalistasPage() {
     addAnalistasForm('guardar', 'Guardar Prioridades');
     addAnalistasForm('cancelar', 'Cancelar');
   }, [addAnalistasListado, addAnalistasForm]);
-  const { toast } = useToast();
+  
 
   // Usar React Query para cargar analistas con prioridades
   const { data: analistasConPrioridades = [], isLoading, error } = useQuery({
@@ -116,11 +116,7 @@ export default function AnalistasPage() {
         return data || [];
       } catch (error) {
         console.error('Error cargando analistas con prioridades:', error);
-        toast({
-          title: "❌ Error",
-          description: "Error al cargar analistas de Supabase",
-          variant: "destructive"
-        });
+        toast.error("Error al cargar analistas de Supabase");
         throw error;
       }
     },
@@ -212,21 +208,13 @@ export default function AnalistasPage() {
     try {
       startLoading();
       await analystsService.remove(selectedAnalista.usuario_id);
-      toast({
-        title: "✅ Éxito",
-        description: "Analista eliminado correctamente",
-        variant: "default"
-      });
+      toast.success("Analista eliminado correctamente");
       queryClient.invalidateQueries({ queryKey: ['analistas-prioridades'] });
       setShowDeleteModal(false);
       setSelectedAnalista(null);
     } catch (error: any) {
       console.error('Error eliminando analista:', error);
-      toast({
-        title: "❌ Error",
-        description: error.message || "Error al eliminar analista",
-        variant: "destructive"
-      });
+      toast.error(error.message || "Error al eliminar analista");
     } finally {
       stopLoading();
     }
@@ -243,21 +231,13 @@ export default function AnalistasPage() {
     try {
       startLoading();
       await analystsService.activate(selectedAnalista.usuario_id);
-      toast({
-        title: "✅ Éxito",
-        description: "Analista activado correctamente",
-        variant: "default"
-      });
+      toast.success("Analista activado correctamente");
       queryClient.invalidateQueries({ queryKey: ['analistas-prioridades'] });
       setShowActivateModal(false);
       setSelectedAnalista(null);
     } catch (error: any) {
       console.error('Error activando analista:', error);
-      toast({
-        title: "❌ Error",
-        description: error.message || "Error al activar analista",
-        variant: "destructive"
-      });
+      toast.error(error.message || "Error al activar analista");
     } finally {
       stopLoading();
     }
@@ -274,21 +254,13 @@ export default function AnalistasPage() {
     try {
       startLoading();
       await analystsService.deactivate(selectedAnalista.usuario_id);
-      toast({
-        title: "✅ Éxito",
-        description: "Analista desactivado correctamente",
-        variant: "default"
-      });
+      toast.success("Analista desactivado correctamente");
       queryClient.invalidateQueries({ queryKey: ['analistas-prioridades'] });
       setShowDeactivateModal(false);
       setSelectedAnalista(null);
     } catch (error: any) {
       console.error('Error desactivando analista:', error);
-      toast({
-        title: "❌ Error",
-        description: error.message || "Error al desactivar analista",
-        variant: "destructive"
-      });
+      toast.error(error.message || "Error al desactivar analista");
     } finally {
       stopLoading();
     }
@@ -443,19 +415,11 @@ export default function AnalistasPage() {
          URL.revokeObjectURL(url);
        }, 5000);
        
-       toast({
-         title: "✅ Éxito",
-         description: `Archivo Excel "${fileName}" descargado correctamente`,
-         variant: "default"
-       });
+       toast.success(`Archivo Excel "${fileName}" descargado correctamente`);
       
     } catch (error) {
       console.error('Error exportando analistas a Excel:', error);
-      toast({
-        title: "❌ Error",
-        description: "Error al exportar la lista de analistas a Excel",
-        variant: "destructive"
-      });
+      toast.error("Error al exportar la lista de analistas a Excel");
     }
   };
 
@@ -475,11 +439,7 @@ export default function AnalistasPage() {
   };
 
   const handleView = (analista: AnalistaPrioridad) => {
-    toast({
-      title: "ℹ️ Información",
-      description: "Vista de detalles no implementada aún",
-      variant: "default"
-    });
+    toast.success("Vista de detalles no implementada aún");
   };
 
   const getNivelBadge = (nivel: string) => {
@@ -914,3 +874,7 @@ export default function AnalistasPage() {
       </div>
     );
   }
+
+
+
+

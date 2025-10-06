@@ -36,7 +36,7 @@ interface Candidato {
 }
 
 export default function QrPageMejorado() {
-  const { toast } = useToast();
+  
   const [candidatos] = useState<Candidato[]>([
     {
       id: 1,
@@ -141,16 +141,9 @@ Equipo de Recursos Humanos`);
   const generateQR = async (candidato: Candidato) => {
     try {
       // Simular generación de QR
-      toast({
-        title: "QR Generado",
-        description: `Código QR generado para ${candidato.nombre} ${candidato.apellido}`,
-      });
+      toast.success(`Código QR generado para ${candidato.nombre} ${candidato.apellido}`);
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "No se pudo generar el código QR",
-        variant: "destructive",
-      });
+      toast.error("No se pudo generar el código QR");
     }
   };
 
@@ -167,10 +160,7 @@ Equipo de Recursos Humanos`);
       window.open(whatsappUrl, '_blank');
     }
     
-    toast({
-      title: "WhatsApp enviado",
-      description: `Mensaje enviado a ${candidatosSeleccionados.length} candidatos`,
-    });
+    toast.success(`Mensaje enviado a ${candidatosSeleccionados.length} candidatos`);
   };
 
   const sendEmail = async () => {
@@ -192,10 +182,7 @@ Equipo de Recursos Humanos`);
       window.open(mailtoUrl, '_blank');
     }
     
-    toast({
-      title: "Email enviado",
-      description: `Correo electrónico enviado a ${candidatosSeleccionados.length} candidatos`,
-    });
+    toast.success(`Correo electrónico enviado a ${candidatosSeleccionados.length} candidatos`);
   };
 
   // Función para cargar plantilla de WhatsApp
@@ -209,10 +196,7 @@ Equipo de Recursos Humanos`);
     if (plantilla) {
       setMensajeWhatsApp(plantilla.mensaje);
       setPlantillaWhatsAppSeleccionada(plantillaId);
-      toast({
-        title: "Plantilla cargada",
-        description: `Plantilla "${plantilla.nombre}" cargada correctamente`,
-      });
+      toast.success(`Plantilla "${plantilla.nombre}" cargada correctamente`);
     }
   };
 
@@ -230,10 +214,7 @@ Equipo de Recursos Humanos`);
         setAsuntoEmail(plantilla.asunto);
       }
       setPlantillaEmailSeleccionada(plantillaId);
-      toast({
-        title: "Plantilla cargada",
-        description: `Plantilla "${plantilla.nombre}" cargada correctamente`,
-      });
+      toast.success(`Plantilla "${plantilla.nombre}" cargada correctamente`);
     }
   };
 
@@ -573,3 +554,6 @@ Equipo de Recursos Humanos`);
     </div>
   );
 }
+
+
+

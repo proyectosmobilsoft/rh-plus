@@ -32,3 +32,4 @@ export const formatDateTime = (dateString: string | undefined) => {
     return 'Hora inválida';
   }
 };
+

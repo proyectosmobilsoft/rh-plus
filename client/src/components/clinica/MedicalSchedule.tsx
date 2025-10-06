@@ -250,3 +250,4 @@ const MedicalSchedule = ({ view }: MedicalScheduleProps) => {
 };
 
 export default MedicalSchedule;
+

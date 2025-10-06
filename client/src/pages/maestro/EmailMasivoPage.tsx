@@ -35,7 +35,7 @@ import { supabase } from '@/services/supabaseClient';
 import { emailTemplatesService } from '@/services/emailTemplatesService';
 import { initDatabase } from '@/services/initDatabase';
 import { checkTables } from '@/services/checkTables';
-import { toast } from 'sonner';
+import { toast } from "sonner";
 import { emailService } from '@/services/emailService';
 
 interface EmailTemplate {
@@ -2325,3 +2325,4 @@ export default function EmailMasivoPage() {
     </>
   );
 } 
+

@@ -41,17 +41,13 @@ export const ExperienciaLaboralTab: React.FC<ExperienciaLaboralTabProps> = ({ ex
     salario: '',
     motivoRetiro: '',
   });
-  const { toast } = useToast();
+  
 
   // Función para actualizar un registro específico en la base de datos
   const updateExperienciaInDB = async (experiencia: ExperienciaLaboral, index: number) => {
     if (!candidatoId || !experiencia.id) {
       console.error('❌ No se puede actualizar: candidatoId o experiencia.id faltante');
-      toast({
-        title: "❌ Error",
-        description: "Error: No se puede actualizar el registro",
-        variant: "destructive",
-      });
+      toast.error("Error: No se puede actualizar el registro");
       return;
     }
 
@@ -75,19 +71,12 @@ export const ExperienciaLaboralTab: React.FC<ExperienciaLaboralTabProps> = ({ ex
 
       if (error) {
       console.error('❌ Error actualizando experiencia:', error);
-      toast({
-        title: "❌ Error",
-        description: "Error al actualizar la experiencia laboral",
-        variant: "destructive",
-      });
+      toast.error("Error al actualizar la experiencia laboral");
       throw error;
       }
 
       console.log('✅ Experiencia actualizada exitosamente en BD');
-      toast({
-        title: "✅ Experiencia actualizada",
-        description: "Experiencia laboral actualizada correctamente",
-      });
+      toast.success("Experiencia laboral actualizada correctamente");
     } catch (error) {
       console.error('❌ Error en updateExperienciaInDB:', error);
       throw error;
@@ -398,3 +387,6 @@ export const ExperienciaLaboralTab: React.FC<ExperienciaLaboralTabProps> = ({ ex
     </div>
   );
 };
+
+
+

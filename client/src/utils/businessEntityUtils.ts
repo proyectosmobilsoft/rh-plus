@@ -68,3 +68,4 @@ export const handleEntityDelete = async (entity: Company, entityType: 'empresa' 
     return false;
   }
 };
+

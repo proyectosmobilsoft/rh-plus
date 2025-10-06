@@ -2813,3 +2813,4 @@ export default function PerfilCandidato() {
     </div>
   );
 }
+

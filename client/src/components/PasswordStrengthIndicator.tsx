@@ -120,3 +120,4 @@ const PasswordStrengthIndicator = ({ password }: PasswordStrengthIndicatorProps)
 };
 
 export default PasswordStrengthIndicator;
+

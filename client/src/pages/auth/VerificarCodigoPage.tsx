@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Key, Loader2, Eye, EyeOff } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from "sonner";
 import { authService } from '@/services/authService';
 import logo from '/logo2.svg';
 
@@ -262,3 +262,4 @@ export default function VerificarCodigoPage() {
     </div>
   );
 } 
+

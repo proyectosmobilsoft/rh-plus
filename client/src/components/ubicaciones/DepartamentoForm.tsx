@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { X, Save, ChevronsUpDown, Check } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from "sonner";
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -155,3 +155,4 @@ export function DepartamentoForm({ initialData, paises, onSaved }: DepartamentoF
     </Form>
   );
 }
+

@@ -11,7 +11,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast";
+
 
 // Schema for the permission form
 const permissionSchema = z.object({
@@ -73,7 +73,7 @@ const MenuPage = () => {
   const [expandedNodes, setExpandedNodes] = useState<Set<number>>(new Set());
   
   const queryClient = useQueryClient();
-  const { toast } = useToast();
+  
 
   // Fetch menu nodes
   const { data: nodes = [], isLoading } = useQuery({
@@ -144,18 +144,10 @@ const MenuPage = () => {
       setIsAddNodeModalOpen(false);
       addNodeForm.reset();
       
-      toast({
-        title: "Éxito",
-        description: `Nodo "${newNode.name}" creado correctamente`,
-        variant: "default",
-      });
+      toast.success(`Nodo "${newNode.name}" creado correctamente`);
     },
     onError: (error) => {
-      toast({
-        title: "Error",
-        description: "No se pudo crear el nodo. Intente nuevamente.",
-        variant: "destructive",
-      });
+      toast.error("No se pudo crear el nodo. Intente nuevamente.");
     }
   });
 
@@ -173,18 +165,10 @@ const MenuPage = () => {
       setSelectedNode(null);
       setSelectedNodeType(null);
       
-      toast({
-        title: "Éxito",
-        description: "Nodo eliminado correctamente",
-        variant: "default",
-      });
+      toast.success("Nodo eliminado correctamente");
     },
     onError: (error) => {
-      toast({
-        title: "Error",
-        description: "No se pudo eliminar el nodo. Intente nuevamente.",
-        variant: "destructive",
-      });
+      toast.error("No se pudo eliminar el nodo. Intente nuevamente.");
     }
   });
 
@@ -202,18 +186,10 @@ const MenuPage = () => {
     onSuccess: (updatedNode) => {
       queryClient.invalidateQueries({ queryKey: ['menu-nodes'] });
       
-      toast({
-        title: "Éxito",
-        description: `Nodo "${updatedNode.name}" actualizado correctamente`,
-        variant: "default",
-      });
+      toast.success(`Nodo "${updatedNode.name}" actualizado correctamente`);
     },
     onError: (error) => {
-      toast({
-        title: "Error",
-        description: "No se pudo actualizar el nodo. Intente nuevamente.",
-        variant: "destructive",
-      });
+      toast.error("No se pudo actualizar el nodo. Intente nuevamente.");
     }
   });
 
@@ -231,18 +207,10 @@ const MenuPage = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['menu-permissions', selectedNode] });
       
-      toast({
-        title: "Éxito",
-        description: "Permisos guardados correctamente",
-        variant: "default",
-      });
+      toast.success("Permisos guardados correctamente");
     },
     onError: (error) => {
-      toast({
-        title: "Error",
-        description: "No se pudieron guardar los permisos. Intente nuevamente.",
-        variant: "destructive",
-      });
+      toast.error("No se pudieron guardar los permisos. Intente nuevamente.");
     }
   });
 
@@ -827,3 +795,6 @@ const MenuPage = () => {
 };
 
 export default MenuPage;
+
+
+

@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { FileText } from "lucide-react";
-import { toast } from 'sonner';
+import { toast } from "sonner";
 
 import { Dialog, DialogContent, DialogTitle, DialogHeader } from "@/components/ui/dialog";
 import CertificadosList from '@/components/certificados/CertificadosList';
@@ -118,3 +118,4 @@ const ExpedicionCertificadosPage = () => {
 };
 
 export default ExpedicionCertificadosPage;
+

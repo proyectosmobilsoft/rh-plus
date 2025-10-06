@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -58,12 +59,12 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
 import { candidatosService, Candidato } from '@/services/candidatosService';
 import { empresasService, Empresa } from '@/services/empresasService';
 import { qrService, QRCodeData, QRConfiguracion } from '@/services/qrService';
 import { whatsappService, WhatsAppMessage, WhatsAppResponse } from '@/services/whatsappService';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from "sonner";
 import { useLoading } from '@/contexts/LoadingContext';
 import { emailService } from '@/services/emailService';
 
@@ -75,7 +76,7 @@ interface CandidatoConEmpresa extends Candidato {
 }
 
 export default function QrPage() {
-  const { toast } = useToast();
+  
   const queryClient = useQueryClient();
   const { startLoading, stopLoading } = useLoading();
   
@@ -215,10 +216,10 @@ Equipo de Recursos Humanos`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['candidatos-con-empresa-qr'] });
-      toast({ title: 'Éxito', description: 'Código QR generado correctamente' });
+      toast.success('Código QR generado correctamente');
     },
     onError: (error: Error) => {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast.error(error.message);
     },
   });
 
@@ -234,10 +235,10 @@ Equipo de Recursos Humanos`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['candidatos-con-empresa-qr'] });
-      toast({ title: 'Éxito', description: 'Código QR regenerado correctamente' });
+      toast.success('Código QR regenerado correctamente');
     },
     onError: (error: Error) => {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast.error(error.message);
     },
   });
 
@@ -252,10 +253,10 @@ Equipo de Recursos Humanos`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['candidatos-con-empresa-qr'] });
-      toast({ title: 'Éxito', description: 'Código QR eliminado correctamente' });
+      toast.success('Código QR eliminado correctamente');
     },
     onError: (error: Error) => {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast.error(error.message);
     },
   });
 
@@ -270,10 +271,10 @@ Equipo de Recursos Humanos`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['candidatos-con-empresa-qr'] });
-      toast({ title: 'Éxito', description: 'Candidato activado correctamente' });
+      toast.success('Candidato activado correctamente');
     },
     onError: (error: Error) => {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast.error(error.message);
     },
   });
 
@@ -288,10 +289,10 @@ Equipo de Recursos Humanos`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['candidatos-con-empresa-qr'] });
-      toast({ title: 'Éxito', description: 'Candidato desactivado correctamente' });
+      toast.success('Candidato desactivado correctamente');
     },
     onError: (error: Error) => {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast.error(error.message);
     },
   });
 
@@ -306,10 +307,10 @@ Equipo de Recursos Humanos`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['candidatos-con-empresa-qr'] });
-      toast({ title: 'Éxito', description: 'Candidato eliminado correctamente' });
+      toast.success('Candidato eliminado correctamente');
     },
     onError: (error: Error) => {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast.error(error.message);
     },
   });
 
@@ -324,10 +325,10 @@ Equipo de Recursos Humanos`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['qr-configuracion'] });
-      toast({ title: 'Éxito', description: 'Configuración guardada correctamente' });
+      toast.success('Configuración guardada correctamente');
     },
     onError: (error: Error) => {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast.error(error.message);
     },
   });
 
@@ -369,36 +370,21 @@ Equipo de Recursos Humanos`);
 
   const downloadQR = async (candidato: CandidatoConEmpresa) => {
     if (!candidato.qrData) {
-      toast({
-        title: "Error",
-        description: "No hay código QR para descargar",
-        variant: "destructive",
-      });
+      toast.error("No hay código QR para descargar");
       return;
     }
 
     try {
       await qrService.downloadQR(candidato.qrData);
-      toast({
-        title: "Descarga iniciada",
-        description: `QR descargado para ${candidato.primer_nombre} ${candidato.primer_apellido}`,
-      });
+      toast.success(`QR descargado para ${candidato.primer_nombre} ${candidato.primer_apellido}`);
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "No se pudo descargar el código QR",
-        variant: "destructive",
-      });
+      toast.error("No se pudo descargar el código QR");
     }
   };
 
   const deleteQR = async (candidato: CandidatoConEmpresa) => {
     if (!candidato.qrData) {
-      toast({
-        title: "Error",
-        description: "No hay código QR para eliminar",
-        variant: "destructive",
-      });
+      toast.error("No hay código QR para eliminar");
       return;
     }
 
@@ -408,22 +394,14 @@ Equipo de Recursos Humanos`);
   const viewQR = async (candidato: CandidatoConEmpresa) => {
     try {
       if (!candidato.qrData) {
-        toast({
-          title: "Error",
-          description: "No hay QR generado para este candidato",
-          variant: "destructive",
-        });
+        toast.error("No hay QR generado para este candidato");
         return;
       }
 
       // Verificar que el QR existe en la base de datos
       const qrFromDB = await qrService.getQRByCandidato(candidato.id!);
       if (!qrFromDB) {
-        toast({
-          title: "Error",
-          description: "El QR ya no existe en la base de datos",
-          variant: "destructive",
-        });
+        toast.error("El QR ya no existe en la base de datos");
         return;
       }
 
@@ -432,16 +410,9 @@ Equipo de Recursos Humanos`);
       setSelectedCandidatoData(candidato);
       setShowQRModal(true);
       
-      toast({
-        title: "QR mostrado",
-        description: `QR visualizado para ${candidato.primer_nombre} ${candidato.primer_apellido}`,
-      });
+      toast.success(`QR visualizado para ${candidato.primer_nombre} ${candidato.primer_apellido}`);
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "No se pudo mostrar el código QR",
-        variant: "destructive",
-      });
+      toast.error("No se pudo mostrar el código QR");
     }
   };
 
@@ -498,11 +469,7 @@ Equipo de Recursos Humanos`);
       }
       
       if (messages.length === 0) {
-        toast({
-          title: "Error",
-          description: "No hay candidatos con números de teléfono válidos",
-          variant: "destructive"
-        });
+        toast.error("No hay candidatos con números de teléfono válidos");
         return;
       }
       
@@ -513,16 +480,9 @@ Equipo de Recursos Humanos`);
       const failedMessages = results.filter(r => !r.success).length;
       
       if (successfulMessages > 0) {
-        toast({
-          title: "Mensajes enviados",
-          description: `${successfulMessages} mensajes enviados exitosamente${failedMessages > 0 ? `, ${failedMessages} fallaron` : ''}`,
-        });
+        toast.success(`${successfulMessages} mensajes enviados exitosamente${failedMessages > 0 ? `, ${failedMessages} fallaron` : ''}`);
       } else {
-        toast({
-          title: "Error",
-          description: "No se pudieron enviar los mensajes de WhatsApp",
-          variant: "destructive"
-        });
+        toast.error("No se pudieron enviar los mensajes de WhatsApp");
       }
       
       // Clear selection after sending
@@ -531,11 +491,7 @@ Equipo de Recursos Humanos`);
       
     } catch (error) {
       console.error('Error sending WhatsApp messages:', error);
-      toast({
-        title: "Error",
-        description: "Error al enviar mensajes de WhatsApp",
-        variant: "destructive"
-      });
+      toast.error("Error al enviar mensajes de WhatsApp");
     } finally {
       stopLoading();
     }
@@ -543,20 +499,12 @@ Equipo de Recursos Humanos`);
 
   const sendEmail = async () => {
     if (selectedCandidatos.length === 0) {
-      toast({
-        title: "Error",
-        description: "No hay candidatos seleccionados",
-        variant: "destructive"
-      });
+      toast.error("No hay candidatos seleccionados");
       return;
     }
 
     if (!asuntoEmail.trim() || !mensajeEmail.trim()) {
-      toast({
-        title: "Error",
-        description: "El asunto y mensaje son obligatorios",
-        variant: "destructive"
-      });
+      toast.error("El asunto y mensaje son obligatorios");
       return;
     }
 
@@ -891,18 +839,11 @@ Equipo de Recursos Humanos`);
 
       // Mostrar resultado del envío
       if (emailsEnviados > 0) {
-    toast({
-          title: "Éxito",
-          description: `Se enviaron ${emailsEnviados} emails exitosamente${emailsFallidos > 0 ? `, ${emailsFallidos} fallaron` : ''}`,
-        });
+    toast.success(`Se enviaron ${emailsEnviados} emails exitosamente${emailsFallidos > 0 ? `, ${emailsFallidos} fallaron` : ''}`);
       }
 
       if (emailsFallidos > 0) {
-        toast({
-          title: "Advertencia",
-          description: `${emailsFallidos} emails fallaron. Revisa la consola para más detalles.`,
-          variant: "destructive"
-        });
+        toast.warning(`${emailsFallidos} emails fallaron. Revisa la consola para más detalles.`);
         
         // Mostrar errores en consola para debugging
         console.error('Errores en envío de emails:', errores);
@@ -914,11 +855,7 @@ Equipo de Recursos Humanos`);
 
     } catch (error) {
       console.error('Error en envío masivo de emails:', error);
-      toast({
-        title: "Error",
-        description: "Error al enviar los emails. Revisa la consola para más detalles.",
-        variant: "destructive"
-      });
+      toast.error("Error al enviar los emails. Revisa la consola para más detalles.");
     } finally {
       stopLoading();
     }
@@ -1487,17 +1424,10 @@ Equipo de Recursos Humanos`);
                         });
                         
                         if (success) {
-                          toast({
-                            title: "Plantilla guardada",
-                            description: "La plantilla se ha guardado exitosamente"
-                          });
+                          toast.success("La plantilla se ha guardado exitosamente");
                           queryClient.invalidateQueries({ queryKey: ['whatsapp-templates'] });
                         } else {
-                          toast({
-                            title: "Error",
-                            description: "No se pudo guardar la plantilla",
-                            variant: "destructive"
-                          });
+                          toast.error("No se pudo guardar la plantilla");
                         }
                       }
                     }}
@@ -1921,3 +1851,8 @@ Equipo de Recursos Humanos`);
     </div>
   );
 }
+
+
+
+
+

@@ -22,3 +22,4 @@ const HistoriaLaboralPage = () => {
 };
 
 export default HistoriaLaboralPage;
+

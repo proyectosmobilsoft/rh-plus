@@ -7,7 +7,6 @@ import { plantillasService, Plantilla, verificarEstructuraDB } from '@/services/
 import { solicitudesService, Solicitud } from '@/services/solicitudesService';
 import { solicitudesLogsService } from '@/services/solicitudesLogsService';
 import type { SolicitudLog as SolicitudLogDto } from '@/services/solicitudesLogsService';
-import { useToast } from '@/hooks/use-toast';
 import FormRenderer from '@/components/FormRenderer';
 import { toast } from 'sonner';
 import { useLoading } from '@/contexts/LoadingContext';
@@ -45,7 +44,7 @@ export default function PlantillasSelector({
   const [logs, setLogs] = useState<SolicitudLogDto[]>([]);
   const [logsLoading, setLogsLoading] = useState<boolean>(false);
   const [showModalSinEmpresa, setShowModalSinEmpresa] = useState(false);
-  const { toast: useToastHook } = useToast();
+  
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { getEstadoBadgeClasses } = useSystemColors();
 
@@ -301,11 +300,7 @@ export default function PlantillasSelector({
       setError('Error al cargar las plantillas');
       setIsLoading(false);
       stopLoading(); // Detener loading global en caso de error
-      useToastHook({
-        title: "Error",
-        description: "No se pudieron cargar las plantillas de la empresa",
-        variant: "destructive"
-      });
+      toast.error("No se pudieron cargar las plantillas de la empresa");
     }
   };
 
@@ -367,29 +362,17 @@ export default function PlantillasSelector({
         } else {
           console.warn('⚠️ La plantilla no tiene estructura de formulario definida');
           setEstructuraFormulario(null);
-          useToastHook({
-            title: "Advertencia",
-            description: "Esta plantilla no tiene estructura de formulario configurada",
-            variant: "destructive"
-          });
+          toast.warning("Esta plantilla no tiene estructura de formulario configurada");
         }
       } else {
         console.error('❌ No se pudo obtener la plantilla completa');
         setEstructuraFormulario(null);
-        useToastHook({
-          title: "Error",
-          description: "No se pudo obtener la información completa de la plantilla",
-          variant: "destructive"
-        });
+        toast.error("No se pudo obtener la información completa de la plantilla");
       }
     } catch (error) {
       console.error('❌ Error al obtener estructura del formulario:', error);
       setEstructuraFormulario(null);
-      useToastHook({
-        title: "Error",
-        description: "Error al cargar la estructura del formulario",
-        variant: "destructive"
-      });
+      toast.error("Error al cargar la estructura del formulario");
     } finally {
       setIsLoadingEstructura(false);
     }
@@ -788,3 +771,5 @@ export default function PlantillasSelector({
     </>
   );
 } 
+
+

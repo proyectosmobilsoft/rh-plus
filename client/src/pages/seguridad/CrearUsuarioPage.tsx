@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Save, UserPlus, User, Lock, Users, ImagePlus, Trash2, Eye, EyeOff } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+
 import { apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
 import PasswordStrengthIndicator from "@/components/PasswordStrengthIndicator";
@@ -42,7 +42,7 @@ interface Perfil {
 
 const CrearUsuarioPage = () => {
   const [, setLocation] = useLocation();
-  const { toast } = useToast();
+  
   const queryClient = useQueryClient();
   const [selectedPerfiles, setSelectedPerfiles] = useState<number[]>([]);
 
@@ -100,11 +100,7 @@ const CrearUsuarioPage = () => {
     onSuccess: () => {
       // Limpiar errores de campos
       setFieldErrors({});
-      toast({
-        title: "✅ Usuario creado exitosamente",
-        description: "El nuevo usuario ha sido registrado en el sistema.",
-        className: "bg-brand-lime/10 border-brand-lime/20",
-      });
+      toast.success("El nuevo usuario ha sido registrado en el sistema.");
       queryClient.invalidateQueries({ queryKey: ["/api/usuarios"] });
       setLocation("/seguridad/usuarios");
     },
@@ -131,18 +127,10 @@ const CrearUsuarioPage = () => {
       // Si hay errores específicos de campos, marcarlos
       if (Object.keys(newFieldErrors).length > 0) {
         setFieldErrors(newFieldErrors);
-        toast({
-          title: "❌ Error de validación",
-          description: "Por favor, corrige los campos marcados y vuelve a intentar.",
-          variant: "destructive",
-        });
+        toast.error("Por favor, corrige los campos marcados y vuelve a intentar.");
       } else {
         // Error general
-        toast({
-          title: "❌ Error al crear usuario",
-          description: errorMessage || "No se pudo crear el usuario. Verifica los datos e intenta nuevamente.",
-          variant: "destructive",
-        });
+        toast.error(errorMessage || "No se pudo crear el usuario. Verifica los datos e intenta nuevamente.");
       }
     },
   });
@@ -470,3 +458,6 @@ const CrearUsuarioPage = () => {
 };
 
 export default CrearUsuarioPage;
+
+
+

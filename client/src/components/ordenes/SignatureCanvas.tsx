@@ -108,3 +108,4 @@ const SignatureCanvas: React.FC<SignatureCanvasProps> = ({ onSignatureChange, in
 };
 
 export default SignatureCanvas;
+

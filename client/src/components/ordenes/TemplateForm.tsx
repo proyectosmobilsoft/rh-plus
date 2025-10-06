@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { useToast } from "@/components/ui/use-toast";
+
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { X, Check, ChevronDown } from "lucide-react";
@@ -70,7 +70,7 @@ interface TemplateFormProps {
 }
 
 export function TemplateForm({ initialData, onSaved }: TemplateFormProps) {
-  const { toast } = useToast();
+  
   const [templateOption, setTemplateOption] = useState<'new' | 'existing' | 'basic'>('new');
   const [fieldConfig, setFieldConfig] = useState<Record<string, { visible: boolean; required: boolean }>>({});
   const [formBuilderData, setFormBuilderData] = useState<{ nombre: string, descripcion: string, fields: any[] } | null>(null);
@@ -169,11 +169,7 @@ export function TemplateForm({ initialData, onSaved }: TemplateFormProps) {
       // Si estamos usando el FormBuilder, no usar esta función
       // El FormBuilder maneja su propio guardado a través del callback
       if (templateOption === 'new' || templateOption === 'existing' || templateOption === 'basic') {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Por favor use el botón 'Guardar plantilla' del FormBuilder para guardar la plantilla.",
-        });
+        toast.error("Por favor use el botón 'Guardar plantilla' del FormBuilder para guardar la plantilla.");
         return;
       }
 
@@ -196,20 +192,13 @@ export function TemplateForm({ initialData, onSaved }: TemplateFormProps) {
         await plantillasService.create(payload);
       }
 
-      toast({
-        title: "Plantilla guardada exitosamente",
-        description: "La plantilla ha sido creada/actualizada correctamente.",
-      });
+      toast.success("Plantilla guardada exitosamente", { description: "La plantilla ha sido creada/actualizada correctamente." });
       if (onSaved) {
         onSaved();
       }
     } catch (error) {
       console.error("Error:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Hubo un error al procesar la solicitud. Por favor, intente nuevamente.",
-      });
+      toast.error("Hubo un error al procesar la solicitud. Por favor, intente nuevamente.");
     } finally {
       setIsLoading(false);
     }
@@ -246,21 +235,14 @@ export function TemplateForm({ initialData, onSaved }: TemplateFormProps) {
 
       if (result) {
         console.log('✅ Plantilla guardada exitosamente:', result);
-        toast({
-          title: "Plantilla guardada exitosamente",
-          description: "La plantilla ha sido creada/actualizada correctamente.",
-        });
+        toast.success("Plantilla guardada exitosamente", { description: "La plantilla ha sido creada/actualizada correctamente." });
         if (onSaved) onSaved();
       } else {
         throw new Error('No se pudo guardar la plantilla');
       }
     } catch (error) {
       console.error('❌ Error al guardar plantilla:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Hubo un error al guardar la plantilla. Por favor, intente nuevamente.",
-      });
+      toast.error("Hubo un error al guardar la plantilla. Por favor, intente nuevamente.");
     } finally {
       setIsLoading(false);
     }
@@ -280,11 +262,7 @@ export function TemplateForm({ initialData, onSaved }: TemplateFormProps) {
         }
       } catch (error) {
         console.error('Error al cargar plantilla:', error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "No se pudo cargar la plantilla seleccionada.",
-        });
+        toast.error("No se pudo cargar la plantilla seleccionada.");
       }
     } else {
       setSelectedPlantillaData(null);
@@ -397,3 +375,6 @@ export function TemplateForm({ initialData, onSaved }: TemplateFormProps) {
     </Form>
   );
 } 
+
+
+

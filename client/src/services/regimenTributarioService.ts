@@ -105,3 +105,4 @@ export const regimenTributarioService = {
   getById: getRegimenTributarioById,
   getByCodigo: getRegimenTributarioByCodigo
 }; 
+

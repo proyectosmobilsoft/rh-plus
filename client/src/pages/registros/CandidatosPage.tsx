@@ -55,7 +55,7 @@ interface Candidato {
 }
 
 const CandidatosPage = () => {
-  const { toast } = useToast();
+  
   const { startLoading, stopLoading } = useLoading();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -113,11 +113,7 @@ const CandidatosPage = () => {
   // Función para buscar candidato por cédula
   const buscarCandidatoPorCedula = async () => {
     if (!searchTerm.trim()) {
-      toast({
-        title: "Error",
-        description: "Por favor ingresa un número de cédula",
-        variant: "destructive",
-      });
+      toast.error("Por favor ingresa un número de cédula");
       return;
     }
 
@@ -131,19 +127,11 @@ const CandidatosPage = () => {
         setDocumentosCandidato(documentos);
         setModalDocumentosOpen(true);
       } else {
-        toast({
-          title: "No encontrado",
-          description: "No se encontró ningún candidato con esa cédula",
-          variant: "destructive",
-        });
+        toast.error("No se encontró ningún candidato con esa cédula");
       }
     } catch (error) {
       console.error('Error buscando candidato:', error);
-      toast({
-        title: "Error",
-        description: "Error al buscar el candidato",
-        variant: "destructive",
-      });
+      toast.error("Error al buscar el candidato");
     } finally {
       setBuscandoCandidato(false);
     }
@@ -160,11 +148,7 @@ const CandidatosPage = () => {
       setModalDocumentosOpen(true);
     } catch (error) {
       console.error('Error buscando documentos:', error);
-      toast({
-        title: "Error",
-        description: "Error al buscar los documentos",
-        variant: "destructive",
-      });
+      toast.error("Error al buscar los documentos");
     } finally {
       setBuscandoCandidato(false);
     }
@@ -187,11 +171,7 @@ const CandidatosPage = () => {
     if (documento.url_archivo) {
       window.open(documento.url_archivo, '_blank');
     } else {
-      toast({
-        title: "Error",
-        description: "No se puede descargar el documento",
-        variant: "destructive",
-      });
+      toast.error("No se puede descargar el documento");
     }
   };
 
@@ -218,10 +198,7 @@ const CandidatosPage = () => {
       await refetch();
       setDialogOpen(false);
       resetForm();
-      toast({
-        title: "Éxito",
-        description: "Candidato creado correctamente",
-      });
+      toast.success("Candidato creado correctamente");
     },
     onError: (error: any) => {
       const code = error?.code || error?.cause?.code;
@@ -231,17 +208,10 @@ const CandidatosPage = () => {
         (message && (message.includes('usuarios_email_key') || message.toLowerCase().includes('duplicate key')));
 
       if (isDuplicate) {
-        toast({
-          title: "Ya existe un candidato con este correo",
-          description: "No es necesario volver a crearlo. Puedes buscarlo en la lista o usar otro correo para un candidato nuevo.",
-        });
+        toast.warning("Ya existe un candidato con este correo", { description: "No es necesario volver a crearlo. Puedes buscarlo en la lista o usar otro correo para un candidato nuevo." });
         setActiveTab("candidatos");
       } else {
-        toast({
-          title: "Error",
-          description: message || "Error al crear el candidato",
-          variant: "destructive",
-        });
+        toast.error(message || "Error al crear el candidato");
       }
     },
   });
@@ -253,17 +223,10 @@ const CandidatosPage = () => {
     },
     onSuccess: async () => {
       await refetch();
-      toast({
-        title: "Eliminado",
-        description: "Candidato eliminado correctamente",
-      });
+      toast.success("Candidato eliminado correctamente");
     },
     onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(error.message);
     },
   });
 
@@ -331,19 +294,13 @@ const CandidatosPage = () => {
           await refetch();
           setActiveTab("candidatos");
           resetForm();
-          toast({
-            title: "✅ Candidato Actualizado Exitosamente",
-            description: `Se ha actualizado el candidato ${candidatoPayload.primer_nombre} ${candidatoPayload.primer_apellido}`,
-          });
+          toast.success(`Se ha actualizado el candidato ${candidatoPayload.primer_nombre} ${candidatoPayload.primer_apellido}`);
         } else {
           // Crear nuevo candidato
           await candidatosService.create(candidatoPayload);
           await refetch();
           resetForm();
-          toast({
-            title: "✅ Candidato Creado Exitosamente",
-            description: `Se ha creado el candidato ${candidatoPayload.primer_nombre} ${candidatoPayload.primer_apellido} con el email ${candidatoPayload.email}`,
-          });
+          toast.success(`Se ha creado el candidato ${candidatoPayload.primer_nombre} ${candidatoPayload.primer_apellido} con el email ${candidatoPayload.email}`);
         }
       } catch (error: any) {
         const code = error?.code || error?.cause?.code;
@@ -353,17 +310,10 @@ const CandidatosPage = () => {
           (message && (message.includes('usuarios_email_key') || message.toLowerCase().includes('duplicate key')));
 
         if (isDuplicate) {
-          toast({
-            title: "Ya existe un candidato con este correo",
-            description: "No es necesario volver a crearlo. Puedes buscarlo en la lista o usar otro correo para un candidato nuevo.",
-          });
+          toast.warning("Ya existe un candidato con este correo", { description: "No es necesario volver a crearlo. Puedes buscarlo en la lista o usar otro correo para un candidato nuevo." });
           setActiveTab("candidatos");
         } else {
-          toast({
-            title: "❌ Error",
-            description: message || "Error al procesar la solicitud",
-            variant: "destructive",
-          });
+          toast.error(message || "Error al procesar la solicitud");
         }
       } finally {
         setIsSubmitting(false);
@@ -392,11 +342,7 @@ const CandidatosPage = () => {
         errorTitle = "❌ Correo Inválido";
       }
       
-      toast({
-        title: errorTitle,
-        description: errorMessage,
-        variant: "destructive",
-      });
+      toast.error(errorMessage);
     }
   };
 
@@ -458,25 +404,13 @@ const CandidatosPage = () => {
       startLoading();
       const success = await candidatosService.activate(candidato.id);
       if (success) {
-        toast({
-          title: "✅ Éxito",
-          description: "Candidato activado correctamente",
-          variant: "default"
-        });
+        toast.success("Candidato activado correctamente");
         await refetch(); // Recargar datos
       } else {
-        toast({
-          title: "❌ Error",
-          description: "No se pudo activar el candidato",
-          variant: "destructive"
-        });
+        toast.error("No se pudo activar el candidato");
       }
     } catch (error) {
-      toast({
-        title: "❌ Error",
-        description: "Error al activar el candidato",
-        variant: "destructive"
-      });
+      toast.error("Error al activar el candidato");
     } finally {
       stopLoading();
     }
@@ -489,25 +423,13 @@ const CandidatosPage = () => {
       startLoading();
       const success = await candidatosService.deactivate(candidato.id);
       if (success) {
-        toast({
-          title: "✅ Éxito",
-          description: "Candidato inactivado correctamente",
-          variant: "default"
-        });
+        toast.success("Candidato inactivado correctamente");
         await refetch(); // Recargar datos
       } else {
-        toast({
-          title: "❌ Error",
-          description: "No se pudo inactivar el candidato",
-          variant: "destructive"
-        });
+        toast.error("No se pudo inactivar el candidato");
       }
     } catch (error) {
-      toast({
-        title: "❌ Error",
-        description: "Error al inactivar el candidato",
-        variant: "destructive"
-      });
+      toast.error("Error al inactivar el candidato");
     } finally {
       stopLoading();
     }
@@ -1202,3 +1124,7 @@ const CandidatosPage = () => {
 };
 
 export default CandidatosPage;
+
+
+
+

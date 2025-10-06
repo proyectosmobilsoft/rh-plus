@@ -53,3 +53,4 @@ export function useAuth(): AuthState {
 
   return authState;
 }
+

@@ -119,3 +119,4 @@ export const getUsuarioActual = (): number => {
     return 1; // Fallback a ID 1
   }
 };
+

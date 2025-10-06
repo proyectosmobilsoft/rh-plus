@@ -232,3 +232,4 @@ const SolicitudLogs: React.FC<SolicitudLogsProps> = ({ solicitudId, solicitudEst
 };
 
 export default SolicitudLogs;
+

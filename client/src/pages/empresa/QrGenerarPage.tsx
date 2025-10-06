@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { QrCode, Download, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from "sonner";
 import QRCode from 'qrcode';
 
 import { Button } from '@/components/ui/button';
@@ -241,3 +241,4 @@ export default function QrGenerarPage() {
     </div>
   );
 }
+

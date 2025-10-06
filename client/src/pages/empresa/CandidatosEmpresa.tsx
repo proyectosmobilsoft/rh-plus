@@ -10,7 +10,7 @@ import {
   Filter,
   MoreHorizontal
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from "sonner";
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -314,3 +314,4 @@ export default function CandidatosEmpresa() {
     </div>
   );
 }
+

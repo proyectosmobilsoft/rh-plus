@@ -241,3 +241,4 @@ export function getPreviousBusinessDay(date: Date): Date {
   
   return prevDay;
 }
+

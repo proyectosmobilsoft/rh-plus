@@ -174,3 +174,4 @@ export const useColors = (): ColorsContextType => {
 };
 
 export default ColorsContext;
+

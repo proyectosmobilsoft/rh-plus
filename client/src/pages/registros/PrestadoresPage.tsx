@@ -92,7 +92,7 @@ import { useRegisterView } from '@/hooks/useRegisterView';
 import { Can } from '@/contexts/PermissionsContext';
 
 const PrestadoresPage = () => {
-  const { toast } = useToast();
+  
   const queryClient = useQueryClient();
   const { startLoading, stopLoading } = useLoading();
   const { addAction: addPrestadoresListado } = useRegisterView('Prestadores', 'listado', 'Listado de Prestadores');
@@ -282,9 +282,9 @@ const PrestadoresPage = () => {
       await refetch(); 
       resetForm(); 
       setActiveTab("prestadores");
-      toast({ title: 'Éxito', description: 'Prestador registrado correctamente' }); 
+      toast.success("Prestador registrado correctamente"); 
     },
-    onError: (error: Error) => { toast({ title: 'Error', description: error.message, variant: 'destructive' }); },
+    onError: (error: Error) => { toast.error(error.message); },
   });
 
   const updatePrestadorMutation = useMutation({
@@ -300,9 +300,9 @@ const PrestadoresPage = () => {
       await refetch(); 
       resetForm(); 
       setActiveTab("prestadores");
-      toast({ title: 'Éxito', description: 'Prestador actualizado correctamente' }); 
+      toast.success("Prestador actualizado correctamente"); 
     },
-    onError: (error: Error) => { toast({ title: 'Error', description: error.message, variant: 'destructive' }); },
+    onError: (error: Error) => { toast.error(error.message); },
   });
 
   const deletePrestadorMutation = useMutation({
@@ -314,8 +314,8 @@ const PrestadoresPage = () => {
         stopLoading();
       }
     },
-    onSuccess: async () => { await refetch(); toast({ title: 'Éxito', description: 'Prestador eliminado correctamente' }); },
-    onError: (error: Error) => { toast({ title: 'Error', description: error.message, variant: 'destructive' }); },
+    onSuccess: async () => { await refetch(); toast.success("Prestador eliminado correctamente"); },
+    onError: (error: Error) => { toast.error(error.message); },
   });
 
   const activatePrestadorMutation = useMutation({
@@ -327,8 +327,8 @@ const PrestadoresPage = () => {
         stopLoading();
       }
     },
-    onSuccess: async () => { await refetch(); toast({ title: 'Éxito', description: 'Prestador activado correctamente' }); },
-    onError: (error: Error) => { toast({ title: 'Error', description: error.message, variant: 'destructive' }); },
+    onSuccess: async () => { await refetch(); toast.success("Prestador activado correctamente"); },
+    onError: (error: Error) => { toast.error(error.message); },
   });
 
   const deactivatePrestadorMutation = useMutation({
@@ -340,8 +340,8 @@ const PrestadoresPage = () => {
         stopLoading();
       }
     },
-    onSuccess: async () => { await refetch(); toast({ title: 'Éxito', description: 'Prestador desactivado correctamente' }); },
-    onError: (error: Error) => { toast({ title: 'Error', description: error.message, variant: 'destructive' }); },
+    onSuccess: async () => { await refetch(); toast.success("Prestador desactivado correctamente"); },
+    onError: (error: Error) => { toast.error(error.message); },
   });
 
   const resetForm = () => {
@@ -363,7 +363,7 @@ const PrestadoresPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.identificacion || !formData.razon_social) {
-      toast({ title: 'Error de validación', description: 'Por favor complete los campos requeridos', variant: 'destructive' });
+      toast.error("Por favor complete los campos requeridos");
       return;
     }
     
@@ -427,11 +427,7 @@ const PrestadoresPage = () => {
       setActiveTab("registro");
     } catch (error) {
       console.error('Error al cargar prestador:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo cargar la información del prestador.",
-        variant: "destructive",
-      });
+      toast.error("No se pudo cargar la información del prestador.");
     }
   };
 
@@ -1238,3 +1234,8 @@ const PrestadoresPage = () => {
 };
 
 export default PrestadoresPage;
+
+
+
+
+

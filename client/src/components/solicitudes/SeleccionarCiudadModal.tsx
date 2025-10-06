@@ -47,7 +47,7 @@ const SeleccionarCiudadModal: React.FC<SeleccionarCiudadModalProps> = ({
   const [ciudadSeleccionada, setCiudadSeleccionada] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingCiudades, setIsLoadingCiudades] = useState(false);
-  const { toast } = useToast();
+  
 
   // Cargar ciudades al abrir el modal
   useEffect(() => {
@@ -63,11 +63,7 @@ const SeleccionarCiudadModal: React.FC<SeleccionarCiudadModalProps> = ({
       setCiudades(ciudadesData);
     } catch (error) {
       console.error('Error cargando ciudades:', error);
-      toast({
-        title: 'Error',
-        description: 'No se pudieron cargar las ciudades disponibles',
-        variant: 'destructive'
-      });
+      toast.error("No se pudieron cargar las ciudades disponibles");
     } finally {
       setIsLoadingCiudades(false);
     }
@@ -75,11 +71,7 @@ const SeleccionarCiudadModal: React.FC<SeleccionarCiudadModalProps> = ({
 
   const handleConfirmar = async () => {
     if (!ciudadSeleccionada) {
-      toast({
-        title: 'Error',
-        description: 'Por favor seleccione una ciudad',
-        variant: 'destructive'
-      });
+      toast.error("Por favor seleccione una ciudad");
       return;
     }
 
@@ -96,19 +88,11 @@ const SeleccionarCiudadModal: React.FC<SeleccionarCiudadModalProps> = ({
         onSuccess(resultado.message);
         onClose();
       } else {
-        toast({
-          title: 'Error',
-          description: resultado.message,
-          variant: 'destructive'
-        });
+        toast.error(resultado.message);
       }
     } catch (error) {
       console.error('Error validando documentos:', error);
-      toast({
-        title: 'Error',
-        description: 'Error al validar documentos. Por favor intente nuevamente.',
-        variant: 'destructive'
-      });
+      toast.error("Error al validar documentos. Por favor intente nuevamente.");
     } finally {
       setIsLoading(false);
     }
@@ -185,3 +169,6 @@ const SeleccionarCiudadModal: React.FC<SeleccionarCiudadModalProps> = ({
 };
 
 export default SeleccionarCiudadModal;
+
+
+

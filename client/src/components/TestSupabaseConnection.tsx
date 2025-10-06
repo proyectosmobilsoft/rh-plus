@@ -85,3 +85,4 @@ const TestSupabaseConnection: React.FC = () => {
 };
 
 export default TestSupabaseConnection;
+

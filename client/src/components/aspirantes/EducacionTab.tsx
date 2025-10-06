@@ -246,3 +246,4 @@ export const EducacionTab: React.FC<EducacionTabProps> = ({ educacion, onChange 
     </div>
   );
 };
+

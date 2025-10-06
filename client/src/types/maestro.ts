@@ -96,3 +96,4 @@ export interface DocumentoTipoForm {
   lleva_fecha_vigencia: boolean;
   fecha_vigencia?: string;
 } 
+

@@ -626,3 +626,4 @@ export const ubicacionesService = {
     if (error) throw error;
   }
 }; 
+

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Edit, Trash2, Plus, Search, Shield, Save, RefreshCw, Loader2, Lock, CheckCircle, Eye, X, Settings, Pause, Play, Trash, AlertTriangle, Info } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLoading } from "@/contexts/LoadingContext";
@@ -58,7 +58,7 @@ const PermisosPage: React.FC = () => {
   const [moduloParaEliminar, setModuloParaEliminar] = useState<Modulo | null>(null);
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
 
-  const { toast } = useToast();
+  
   const { startLoading, stopLoading } = useLoading();
   const queryClient = useQueryClient();
 
@@ -164,14 +164,11 @@ const PermisosPage: React.FC = () => {
       }
 
       if (!moduloId) {
-        toast({ title: 'Error', description: 'No se pudo determinar el ID del módulo', variant: 'destructive' });
+        toast.error("No se pudo determinar el ID del módulo");
         return;
       }
 
-      toast({
-        title: editingModulo ? 'Módulo actualizado' : 'Módulo creado',
-        description: 'Se guardó el módulo exitosamente.',
-      });
+      toast.success(editingModulo ? 'Módulo actualizado' : 'Módulo creado', { description: 'Se guardó el módulo exitosamente.' });
 
       // Reset UI
       setEditingModulo(null);
@@ -180,7 +177,7 @@ const PermisosPage: React.FC = () => {
       setActiveTab('modulos'); // Solo aquí se redirige al listado
       queryClient.invalidateQueries({ queryKey: ['modulos'] });
     } catch (e: any) {
-      toast({ title: 'Error', description: e?.message || 'No se pudo guardar', variant: 'destructive' });
+      toast.error(e?.message || 'No se pudo guardar');
     } finally {
       stopLoading();
     }
@@ -207,19 +204,12 @@ const PermisosPage: React.FC = () => {
       // Agregar el nuevo permiso a la lista del módulo
       setPermisosDelModulo(prev => [...prev, nuevoPermiso]);
 
-      toast({
-        title: 'Permiso creado',
-        description: 'El nuevo permiso se creó exitosamente.',
-      });
+      toast.success('El nuevo permiso se creó exitosamente.');
 
       // Solo resetear el formulario, mantener el modal abierto
       permisoForm.reset();
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error?.message || 'No se pudo crear el permiso',
-        variant: 'destructive',
-      });
+      toast.error(error?.message || 'No se pudo crear el permiso');
     } finally {
       stopLoading();
     }
@@ -281,19 +271,11 @@ const PermisosPage: React.FC = () => {
     try {
       startLoading();
       await deleteModulo(moduloParaEliminar.id);
-      toast({
-        title: "✅ Módulo eliminado",
-        description: `El módulo "${moduloParaEliminar.nombre}" y todos sus permisos han sido eliminados exitosamente.`,
-        variant: "default",
-      });
+      toast.success(`El módulo "${moduloParaEliminar.nombre}" y todos sus permisos han sido eliminados exitosamente.`);
       setShowDeleteConfirmModal(false);
       setModuloParaEliminar(null);
     } catch (error: any) {
-      toast({
-        title: "❌ Error al eliminar módulo",
-        description: error.message || "Hubo un error al eliminar el módulo",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Hubo un error al eliminar el módulo");
     } finally {
       stopLoading();
     }
@@ -1048,3 +1030,8 @@ const PermisosPage: React.FC = () => {
 };
 
 export default PermisosPage;
+
+
+
+
+

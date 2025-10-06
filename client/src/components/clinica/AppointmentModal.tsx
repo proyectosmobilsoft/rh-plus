@@ -229,3 +229,4 @@ export const AppointmentModal = ({ isOpen, onClose, date, time, especialistaId }
     </Dialog>
   );
 };
+

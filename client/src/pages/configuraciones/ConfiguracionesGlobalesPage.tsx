@@ -28,7 +28,7 @@ import {
   Palette
 } from 'lucide-react';
 import { supabase } from '@/services/supabaseClient';
-import { toast } from 'sonner';
+import { toast } from "sonner";
 import ConfiguracionColores from '@/components/configuracion/ConfiguracionColores';
 
 interface ConfigEmpresa {
@@ -657,3 +657,4 @@ export default function ConfiguracionesGlobalesPage() {
     </div>
   );
 } 
+

@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Save, UserCheck, Building2, FileText, MapPin, ArrowUpDown, User, X } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from "sonner";
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Button } from '@/components/ui/button';
@@ -1210,3 +1210,4 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
     </div>
   );
 }
+

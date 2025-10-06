@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { toast } from "sonner";
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -22,7 +23,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useTiposDocumentos } from '@/hooks/useTiposDocumentos';
 import { TipoDocumento, DocumentoTipoForm } from '@/types/maestro';
 import { useQueryClient } from '@tanstack/react-query';
-import { useToast } from '@/hooks/use-toast';
 import { useLoading } from '@/contexts/LoadingContext';
 import { Can } from "@/contexts/PermissionsContext";
 
@@ -48,7 +48,7 @@ export default function TiposDocumentosPage() {
   const [documentoToAction, setDocumentoToAction] = useState<TipoDocumento | null>(null);
 
   // Hooks
-  const { toast } = useToast();
+  
   const queryClient = useQueryClient();
   const { startLoading, stopLoading, isLoading } = useLoading();
 
@@ -149,17 +149,9 @@ export default function TiposDocumentosPage() {
     startLoading();
     try {
       await deleteTipoDocumento(documentoToAction.id);
-      toast({
-        title: "✅ Éxito",
-        description: "Tipo de documento inactivado correctamente",
-        variant: "default"
-      });
+      toast.success("Tipo de documento inactivado correctamente");
     } catch (error) {
-      toast({
-        title: "❌ Error",
-        description: "Error al inactivar el tipo de documento",
-        variant: "destructive"
-      });
+      toast.error("Error al inactivar el tipo de documento");
     } finally {
       stopLoading();
       setShowInactivateModal(false);
@@ -173,17 +165,9 @@ export default function TiposDocumentosPage() {
     startLoading();
     try {
       await activateTipoDocumento(documentoToAction.id);
-      toast({
-        title: "✅ Éxito",
-        description: "Tipo de documento activado correctamente",
-        variant: "default"
-      });
+      toast.success("Tipo de documento activado correctamente");
     } catch (error) {
-      toast({
-        title: "❌ Error",
-        description: "Error al activar el tipo de documento",
-        variant: "destructive"
-      });
+      toast.error("Error al activar el tipo de documento");
     } finally {
       stopLoading();
       setShowActivateModal(false);
@@ -197,17 +181,9 @@ export default function TiposDocumentosPage() {
     startLoading();
     try {
       deleteTipoDocumento(documentoToAction.id);
-      toast({
-        title: "✅ Éxito",
-        description: "Tipo de documento eliminado correctamente",
-        variant: "default"
-      });
+      toast.success("Tipo de documento eliminado correctamente");
     } catch (error) {
-      toast({
-        title: "❌ Error",
-        description: "Error al eliminar el tipo de documento",
-        variant: "destructive"
-      });
+      toast.error("Error al eliminar el tipo de documento");
     } finally {
       stopLoading();
       setShowDeleteModal(false);
@@ -238,16 +214,10 @@ export default function TiposDocumentosPage() {
     try {
       if (editingDocumento) {
         await updateTipoDocumento({ id: editingDocumento.id!, data });
-        toast({
-          title: "Éxito",
-          description: "Tipo de documento actualizado exitosamente",
-        });
+        toast.success("Tipo de documento actualizado exitosamente");
       } else {
         await createTipoDocumento(data);
-        toast({
-          title: "Éxito",
-          description: "Tipo de documento creado exitosamente",
-        });
+        toast.success("Tipo de documento creado exitosamente");
       }
       
       // Refrescar la tabla
@@ -257,11 +227,7 @@ export default function TiposDocumentosPage() {
       setEditingDocumento(null);
       setActiveTab("listado");
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Error al guardar el tipo de documento",
-        variant: "destructive",
-      });
+      toast.error("Error al guardar el tipo de documento");
     } finally {
       stopLoading();
     }
@@ -688,3 +654,7 @@ export default function TiposDocumentosPage() {
     </div>
   );
 }
+
+
+
+

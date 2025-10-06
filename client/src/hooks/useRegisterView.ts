@@ -26,3 +26,4 @@ export function useRegisterView(moduleName: string, tipo: 'listado' | 'formulari
 }
 
 
+

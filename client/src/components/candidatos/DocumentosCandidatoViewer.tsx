@@ -31,7 +31,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { candidatosDocumentosService, CandidatoDocumentoConDetalles } from '@/services/candidatosDocumentosService';
 import { supabase } from '@/services/supabaseClient';
-import { toast } from 'sonner';
+import { toast } from "sonner";
 
 interface Empresa {
   id: number;
@@ -741,3 +741,4 @@ const DocumentosCandidatoViewer: React.FC<DocumentosCandidatoViewerProps> = ({
 };
 
 export default DocumentosCandidatoViewer;
+

@@ -136,3 +136,4 @@ export const emailTemplatesService = {
     return true;
   },
 }; 
+

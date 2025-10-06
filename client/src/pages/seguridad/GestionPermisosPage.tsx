@@ -482,3 +482,4 @@ const GestionPermisosPage: React.FC = () => {
 };
 
 export default GestionPermisosPage;
+

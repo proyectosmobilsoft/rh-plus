@@ -72,3 +72,4 @@ const PlantillasPage: React.FC = () => {
 };
 
 export default PlantillasPage; 
+

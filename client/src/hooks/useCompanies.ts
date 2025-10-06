@@ -79,3 +79,4 @@ export function useCompanies(entityType: 'empresa' | 'prestador') {
   console.log('🎯 Empresas mapeadas para la tabla:', empresasMapeadas);
   return { data: empresasMapeadas, isLoading, error, fetchData };
 }
+

@@ -159,3 +159,4 @@ export const tiposDocumentosService = {
 
 // Re-exportar tipos para compatibilidad
 export type { TipoDocumento, CreateTipoDocumentoData, UpdateTipoDocumentoData }; 
+

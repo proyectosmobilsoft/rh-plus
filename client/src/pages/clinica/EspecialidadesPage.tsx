@@ -22,3 +22,4 @@ const EspecialidadesPage = () => {
 };
 
 export default EspecialidadesPage;
+

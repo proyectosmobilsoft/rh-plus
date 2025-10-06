@@ -36,3 +36,4 @@ export interface Company {
     updated_at?: string;
     activo?: boolean;
 }
+

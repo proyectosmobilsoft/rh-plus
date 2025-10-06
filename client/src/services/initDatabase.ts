@@ -86,3 +86,4 @@ export const initDatabase = async () => {
     console.error('Error verificando base de datos:', error);
   }
 }; 
+

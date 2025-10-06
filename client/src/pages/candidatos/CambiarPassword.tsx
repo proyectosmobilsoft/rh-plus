@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { toast } from 'sonner';
+import { toast } from "sonner";
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Lock, Shield, AlertTriangle, Check, X } from 'lucide-react';
 import { supabase } from '@/services/supabaseClient';
@@ -557,3 +557,4 @@ export default function CambiarPassword() {
     </div>
   );
 }
+

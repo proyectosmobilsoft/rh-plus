@@ -11,14 +11,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Settings, Plus, Edit, Trash2, Star, Search, Filter, Layers, Eye, Lock, CheckCircle, Crown } from "lucide-react";
 import { TemplateForm } from "@/components/ordenes/TemplateForm";
 import { plantillasService, Plantilla } from "@/services/plantillasService";
-import { useToast } from "@/hooks/use-toast";
+
 import { useLoading } from "@/contexts/LoadingContext";
 import { empresasService } from "@/services/empresasService";
 import { empresaService } from "@/services/empresaService";
 import { Can } from "@/contexts/PermissionsContext";
 
 const PlantillasPage: React.FC = () => {
-  const { toast } = useToast();
+  
   const { startLoading, stopLoading, isLoading } = useLoading();
   const [isCreating, setIsCreating] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<Plantilla | null>(null);
@@ -93,21 +93,13 @@ const PlantillasPage: React.FC = () => {
 
   const handleSaved = () => {
     resetForm();
-    toast({
-      title: "✅ Éxito",
-      description: editingTemplate ? "Plantilla actualizada correctamente" : "Plantilla creada correctamente",
-      variant: "default"
-    });
+    toast.success(editingTemplate ? "Plantilla actualizada correctamente" : "Plantilla creada correctamente");
     // Recargar las plantillas desde Supabase
     plantillasService.getAll()
       .then(setTemplates)
       .catch(() => {
         setError("Error al recargar las plantillas");
-        toast({
-          title: "❌ Error",
-          description: "Error al recargar las plantillas",
-          variant: "destructive"
-        });
+        toast.error("Error al recargar las plantillas");
       });
   };
 
@@ -124,20 +116,12 @@ const PlantillasPage: React.FC = () => {
     startLoading();
     try {
       await plantillasService.delete(template.id);
-      toast({
-        title: "✅ Éxito",
-        description: "Plantilla eliminada correctamente",
-        variant: "default"
-      });
+      toast.success("Plantilla eliminada correctamente");
       // Recargar la lista
       const data = await plantillasService.getAll();
       setTemplates(data);
     } catch (err) {
-      toast({
-        title: "❌ Error",
-        description: "Error al eliminar la plantilla",
-        variant: "destructive"
-      });
+      toast.error("Error al eliminar la plantilla");
     } finally {
       stopLoading();
       setShowDeleteModal(false);
@@ -167,28 +151,16 @@ const PlantillasPage: React.FC = () => {
       console.log('✅ Resultado de activate:', success);
       
       if (success) {
-        toast({
-          title: "✅ Éxito",
-          description: "Plantilla activada correctamente",
-          variant: "default"
-        });
+        toast.success("Plantilla activada correctamente");
         // Recargar la lista
         const data = await plantillasService.getAll();
         setTemplates(data);
       } else {
-        toast({
-          title: "❌ Error",
-          description: "Error al activar la plantilla",
-          variant: "destructive"
-        });
+        toast.error("Error al activar la plantilla");
       }
     } catch (err) {
       console.error('❌ Error en confirmActivate:', err);
-      toast({
-        title: "❌ Error",
-        description: "Error al activar la plantilla",
-        variant: "destructive"
-      });
+      toast.error("Error al activar la plantilla");
     } finally {
       stopLoading();
       setShowActivateModal(false);
@@ -218,28 +190,16 @@ const PlantillasPage: React.FC = () => {
       console.log('✅ Resultado de deactivate:', success);
       
       if (success) {
-        toast({
-          title: "✅ Éxito",
-          description: "Plantilla inactivada correctamente",
-          variant: "default"
-        });
+        toast.success("Plantilla inactivada correctamente");
         // Recargar la lista
         const data = await plantillasService.getAll();
         setTemplates(data);
       } else {
-        toast({
-          title: "❌ Error",
-          description: "Error al inactivar la plantilla",
-          variant: "destructive"
-        });
+        toast.error("Error al inactivar la plantilla");
       }
     } catch (err) {
       console.error('❌ Error en confirmDeactivate:', err);
-      toast({
-        title: "❌ Error",
-        description: "Error al inactivar la plantilla",
-        variant: "destructive"
-      });
+      toast.error("Error al inactivar la plantilla");
     } finally {
       stopLoading();
       setShowDeactivateModal(false);
@@ -269,28 +229,16 @@ const PlantillasPage: React.FC = () => {
       console.log('✅ Resultado de setDefault:', success);
       
       if (success) {
-        toast({
-          title: "✅ Éxito",
-          description: "Plantilla establecida como predeterminada correctamente",
-          variant: "default"
-        });
+        toast.success("Plantilla establecida como predeterminada correctamente");
         // Recargar la lista
         const data = await plantillasService.getAll();
         setTemplates(data);
       } else {
-        toast({
-          title: "❌ Error",
-          description: "Error al establecer como predeterminada",
-          variant: "destructive"
-        });
+        toast.error("Error al establecer como predeterminada");
       }
     } catch (err) {
       console.error('❌ Error en confirmSetDefault:', err);
-      toast({
-        title: "❌ Error",
-        description: "Error al establecer como predeterminada",
-        variant: "destructive"
-      });
+      toast.error("Error al establecer como predeterminada");
     } finally {
       stopLoading();
       setShowDefaultModal(false);
@@ -809,3 +757,6 @@ const PlantillasPage: React.FC = () => {
 };
 
 export default PlantillasPage; 
+
+
+

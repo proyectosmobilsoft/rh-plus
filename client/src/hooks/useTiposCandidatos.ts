@@ -69,3 +69,4 @@ export const useTipoCandidato = (id: number) => {
     enabled: !!id,
   });
 };
+

@@ -721,9 +721,7 @@ export const solicitudesService = {
               e?.code === "23505" ||
               String(e?.message || "").includes("usuarios_username_key")
             ) {
-              toast.info("Este candidato ya está registrado en el sistema", {
-                position: "bottom-right",
-              });
+              toast.info("Este candidato ya está registrado en el sistema");
               try {
                 const existente = await candidatosService.getByDocumento(
                   String(numeroDocumento)
@@ -1478,9 +1476,7 @@ export const solicitudesService = {
                 console.log("✅ Solicitud actualizada con candidato_id existente:", candidatoIdFinal);
               }
               
-              toast.info("Este candidato ya está registrado en el sistema", {
-                position: "bottom-right",
-              });
+              toast.info("Este candidato ya está registrado en el sistema");
             } else {
               // El candidato no existe, crearlo
             const creado = await candidatosService.create(candidatoPayload);
@@ -2306,3 +2302,4 @@ export const solicitudesService = {
     }
   },
 }; 
+

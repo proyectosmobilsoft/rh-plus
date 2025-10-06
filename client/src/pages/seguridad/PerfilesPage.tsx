@@ -16,7 +16,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast";
+
 import { useLoading } from "@/contexts/LoadingContext";
 import { apiRequest } from "@/lib/queryClient";
 import { AdvancedProfileManager } from "@/components/profiles/AdvancedProfileManager";
@@ -279,7 +279,7 @@ const PerfilesPage = () => {
   const [statusFilter, setStatusFilter] = useState<string>("active");
 
   const queryClient = useQueryClient();
-  const { toast } = useToast();
+  
   const { startLoading, stopLoading } = useLoading();
 
   // Funciones auxiliares para las vistas
@@ -344,7 +344,7 @@ const PerfilesPage = () => {
   React.useEffect(() => {
     if (queryError) {
       console.error("Error al cargar perfiles:", queryError);
-      toast({ title: 'Error', description: 'No se pudieron cargar los perfiles', variant: 'destructive' });
+      toast.error("No se pudieron cargar los perfiles");
     }
   }, [queryError, toast]);
 
@@ -395,10 +395,10 @@ const PerfilesPage = () => {
       await refetch();
       setActiveTab('perfiles');
       form.reset({ codigo: 0, nombre: '', descripcion: '', permisos: [] });
-      toast({ title: '✅ Éxito', description: editingPerfil ? 'Perfil actualizado correctamente' : 'Perfil creado correctamente', variant: 'default' });
+      toast.success(editingPerfil ? 'Perfil actualizado correctamente' : 'Perfil creado correctamente');
     },
     onError: (error: Error) => {
-      toast({ title: 'Error', description: error.message || 'Error al guardar el perfil', variant: 'destructive' });
+      toast.error(error.message || 'Error al guardar el perfil');
     }
   });
 
@@ -415,10 +415,10 @@ const PerfilesPage = () => {
     onSuccess: async () => {
       queryClient.removeQueries({ queryKey: ['roles'] });
       await refetch();
-      toast({ title: '✅ Éxito', description: 'Perfil eliminado correctamente', variant: 'default' });
+      toast.success("Perfil eliminado correctamente");
     },
     onError: (error: Error) => {
-      toast({ title: 'Error', description: error.message || 'Error al eliminar el perfil', variant: 'destructive' });
+      toast.error(error.message || 'Error al eliminar el perfil');
     }
   });
 
@@ -435,10 +435,10 @@ const PerfilesPage = () => {
     onSuccess: async () => {
       queryClient.removeQueries({ queryKey: ['roles'] });
       await refetch();
-      toast({ title: '✅ Éxito', description: 'Perfil eliminado permanentemente', variant: 'default' });
+      toast.success("Perfil eliminado permanentemente");
     },
     onError: (error: Error) => {
-      toast({ title: 'Error', description: error.message || 'Error al eliminar el perfil', variant: 'destructive' });
+      toast.error(error.message || 'Error al eliminar el perfil');
     }
   });
 
@@ -454,10 +454,10 @@ const PerfilesPage = () => {
     onSuccess: async () => {
       queryClient.removeQueries({ queryKey: ['roles'] });
       await refetch();
-      toast({ title: '✅ Éxito', description: 'Perfil activado correctamente', variant: 'default' });
+      toast.success("Perfil activado correctamente");
     },
     onError: (error: Error) => {
-      toast({ title: 'Error', description: error.message || 'Error al activar el perfil', variant: 'destructive' });
+      toast.error(error.message || 'Error al activar el perfil');
     }
   });
 
@@ -507,7 +507,7 @@ const PerfilesPage = () => {
       setActiveTab('vistas');
     } catch (error) {
       console.error("Error al cargar permisos del perfil:", error);
-      toast({ title: 'Error', description: 'No se pudieron cargar los permisos del perfil', variant: 'destructive' });
+      toast.error("No se pudieron cargar los permisos del perfil");
       form.reset({ codigo: perfil.id, nombre: perfil.nombre, descripcion: perfil.descripcion || '', permisos: [] });
       setActiveTab('vistas');
     } finally {
@@ -528,11 +528,7 @@ const PerfilesPage = () => {
       await refetch();
 
       // Mostrar notificación de éxito
-      toast({
-        title: "Perfil Avanzado Creado",
-        description: `El perfil "${profile.name}" ha sido creado exitosamente con permisos granulares.`,
-        variant: "default",
-      });
+      toast.success(`El perfil "${profile.name}" ha sido creado exitosamente con permisos granulares.`);
     } finally {
       stopLoading();
     }
@@ -547,7 +543,7 @@ const PerfilesPage = () => {
       setViewingModules(uniqueModules);
       setIsModulesModalOpen(true);
     } catch (error) {
-      toast({ title: 'Error', description: 'No se pudieron cargar los módulos del perfil', variant: 'destructive' });
+      toast.error("No se pudieron cargar los módulos del perfil");
     } finally {
       stopLoading();
     }
@@ -1164,3 +1160,8 @@ const PerfilesPage = () => {
 
 
 export default PerfilesPage;
+
+
+
+
+

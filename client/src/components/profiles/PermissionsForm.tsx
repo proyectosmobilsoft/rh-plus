@@ -297,3 +297,4 @@ export function PermissionsForm({ selectedPermissions, onPermissionsChange }: Pe
     </div>
   );
 }
+

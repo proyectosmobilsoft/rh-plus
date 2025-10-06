@@ -99,3 +99,4 @@ export const useCandidatosDocumentos = (candidatoId?: number) => {
     deleteFileMutation,
   };
 }; 
+

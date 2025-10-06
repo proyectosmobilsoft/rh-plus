@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 
 export default function QrPlantillasPage() {
-  const { toast } = useToast();
+  
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPlantilla, setEditingPlantilla] = useState<PlantillaMensaje | null>(null);
@@ -54,10 +54,10 @@ export default function QrPlantillasPage() {
       queryClient.invalidateQueries({ queryKey: ['plantillas-email'] });
       setDialogOpen(false);
       resetForm();
-      toast({ title: 'Éxito', description: 'Plantilla creada correctamente' });
+      toast.success("Plantilla creada correctamente");
     },
     onError: (error: Error) => {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast.error(error.message);
     },
   });
 
@@ -69,10 +69,10 @@ export default function QrPlantillasPage() {
       queryClient.invalidateQueries({ queryKey: ['plantillas-email'] });
       setDialogOpen(false);
       resetForm();
-      toast({ title: 'Éxito', description: 'Plantilla actualizada correctamente' });
+      toast.success("Plantilla actualizada correctamente");
     },
     onError: (error: Error) => {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast.error(error.message);
     },
   });
 
@@ -81,10 +81,10 @@ export default function QrPlantillasPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['plantillas-whatsapp'] });
       queryClient.invalidateQueries({ queryKey: ['plantillas-email'] });
-      toast({ title: 'Éxito', description: 'Plantilla eliminada correctamente' });
+      toast.success("Plantilla eliminada correctamente");
     },
     onError: (error: Error) => {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast.error(error.message);
     },
   });
 
@@ -103,12 +103,12 @@ export default function QrPlantillasPage() {
     e.preventDefault();
     
     if (!formData.nombre || !formData.mensaje) {
-      toast({ title: 'Error', description: 'Por favor completa todos los campos requeridos', variant: 'destructive' });
+      toast.error("Por favor completa todos los campos requeridos");
       return;
     }
 
     if (formData.tipo === 'email' && !formData.asunto) {
-      toast({ title: 'Error', description: 'El asunto es requerido para plantillas de email', variant: 'destructive' });
+      toast.error("El asunto es requerido para plantillas de email");
       return;
     }
 
@@ -391,3 +391,6 @@ export default function QrPlantillasPage() {
     </div>
   );
 } 
+
+
+

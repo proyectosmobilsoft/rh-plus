@@ -82,3 +82,4 @@ export const SolicitudesListWithColorsExample = () => {
 };
 
 export default SolicitudesListWithColorsExample;
+

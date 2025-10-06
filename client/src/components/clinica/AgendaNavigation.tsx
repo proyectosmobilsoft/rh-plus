@@ -125,3 +125,4 @@ export const AgendaNavigation = ({ view, setView }: AgendaNavigationProps) => {
     </div>
   );
 };
+

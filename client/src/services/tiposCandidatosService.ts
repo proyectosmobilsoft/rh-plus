@@ -137,3 +137,4 @@ export const tiposCandidatosService = {
 
 // Re-exportar tipos para compatibilidad
 export type { TipoCandidato, CreateTipoCandidatoData, UpdateTipoCandidatoData }; 
+

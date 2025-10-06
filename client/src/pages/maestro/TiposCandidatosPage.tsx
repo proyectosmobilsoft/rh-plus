@@ -57,7 +57,7 @@ export default function TiposCandidatosPage() {
   const [selectAllDocumentos, setSelectAllDocumentos] = useState(false);
 
   // Hooks - TODOS LOS HOOKS DEBEN ESTAR AQUÍ AL INICIO
-  const { toast } = useToast();
+  
   const queryClient = useQueryClient();
   const { startLoading, stopLoading, isLoading } = useLoading();
 
@@ -207,17 +207,9 @@ export default function TiposCandidatosPage() {
     startLoading();
     try {
       await deleteTipoCandidato(tipoToAction.id);
-      toast({
-        title: "✅ Éxito",
-        description: "Tipo de cargo inactivado correctamente",
-        variant: "default"
-      });
+      toast.success("Tipo de cargo inactivado correctamente");
     } catch (error) {
-      toast({
-        title: "❌ Error",
-        description: "Error al inactivar el tipo de cargo",
-        variant: "destructive"
-      });
+      toast.error("Error al inactivar el tipo de cargo");
     } finally {
       stopLoading();
       setShowInactivateModal(false);
@@ -231,17 +223,9 @@ export default function TiposCandidatosPage() {
     startLoading();
     try {
       await activateTipoCandidato(tipoToAction.id);
-      toast({
-        title: "✅ Éxito",
-        description: "Tipo de cargo activado correctamente",
-        variant: "default"
-      });
+      toast.success("Tipo de cargo activado correctamente");
     } catch (error) {
-      toast({
-        title: "❌ Error",
-        description: "Error al activar el tipo de cargo",
-        variant: "destructive"
-      });
+      toast.error("Error al activar el tipo de cargo");
     } finally {
       stopLoading();
       setShowActivateModal(false);
@@ -255,17 +239,9 @@ export default function TiposCandidatosPage() {
     startLoading();
     try {
       await deleteTipoCandidato(tipoToAction.id);
-      toast({
-        title: "✅ Éxito",
-        description: "Tipo de cargo eliminado correctamente",
-        variant: "default"
-      });
+      toast.success("Tipo de cargo eliminado correctamente");
     } catch (error) {
-      toast({
-        title: "❌ Error",
-        description: "Error al eliminar el tipo de cargo",
-        variant: "destructive"
-      });
+      toast.error("Error al eliminar el tipo de cargo");
     } finally {
       stopLoading();
       setShowDeleteModal(false);
@@ -279,17 +255,9 @@ export default function TiposCandidatosPage() {
     startLoading();
     try {
       await deleteTipoDocumento(documento.id);
-      toast({
-        title: "✅ Éxito",
-        description: "Tipo de documento eliminado correctamente",
-        variant: "default"
-      });
+      toast.success("Tipo de documento eliminado correctamente");
     } catch (error) {
-      toast({
-        title: "❌ Error",
-        description: "Error al eliminar el tipo de documento",
-        variant: "destructive"
-      });
+      toast.error("Error al eliminar el tipo de documento");
     } finally {
       stopLoading();
     }
@@ -301,17 +269,9 @@ export default function TiposCandidatosPage() {
     startLoading();
     try {
       await activateTipoDocumento(documento.id);
-      toast({
-        title: "✅ Éxito",
-        description: "Tipo de documento activado correctamente",
-        variant: "default"
-      });
+      toast.success("Tipo de documento activado correctamente");
     } catch (error) {
-      toast({
-        title: "❌ Error",
-        description: "Error al activar el tipo de documento",
-        variant: "destructive"
-      });
+      toast.error("Error al activar el tipo de documento");
     } finally {
       stopLoading();
     }
@@ -1005,3 +965,7 @@ export default function TiposCandidatosPage() {
     </div>
   );
 }
+
+
+
+

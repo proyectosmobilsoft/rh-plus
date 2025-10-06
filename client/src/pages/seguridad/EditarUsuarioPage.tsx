@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Save, UserCheck, ImagePlus, Trash2, Eye, EyeOff, Lock } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+
 import { apiRequest } from "@/lib/queryClient";
 import { usuariosService, UsuarioData } from "@/services/usuariosService";
 import { rolesService } from "@/services/rolesService";
@@ -75,7 +75,7 @@ interface Usuario {
 
 const EditarUsuarioPage = () => {
   const [, setLocation] = useLocation();
-  const { toast } = useToast();
+  
   const queryClient = useQueryClient();
   const [selectedPerfiles, setSelectedPerfiles] = useState<number[]>([]);
   const [fieldErrors, setFieldErrors] = useState<{[key: string]: string}>({});
@@ -240,11 +240,7 @@ const EditarUsuarioPage = () => {
     onSuccess: () => {
       // Limpiar errores de campos
       setFieldErrors({});
-      toast({
-        title: "✅ Usuario actualizado exitosamente",
-        description: "Los cambios han sido guardados correctamente.",
-        className: "bg-cyan-50 border-cyan-200",
-      });
+      toast.success("Los cambios han sido guardados correctamente.");
       queryClient.invalidateQueries({ queryKey: ["usuarios"] });
       queryClient.invalidateQueries({ queryKey: ["usuario", userId] });
       setLocation("/seguridad/usuarios");
@@ -272,18 +268,10 @@ const EditarUsuarioPage = () => {
       // Si hay errores específicos de campos, marcarlos
       if (Object.keys(newFieldErrors).length > 0) {
         setFieldErrors(newFieldErrors);
-        toast({
-          title: "❌ Error de validación",
-          description: "Por favor, corrige los campos marcados y vuelve a intentar.",
-          variant: "destructive",
-        });
+        toast.error("Por favor, corrige los campos marcados y vuelve a intentar.");
       } else {
         // Error general
-        toast({
-          title: "❌ Error al actualizar usuario",
-          description: errorMessage || "No se pudieron guardar los cambios. Verifica los datos e intenta nuevamente.",
-          variant: "destructive",
-        });
+        toast.error(errorMessage || "No se pudieron guardar los cambios. Verifica los datos e intenta nuevamente.");
       }
     },
   });
@@ -697,3 +685,6 @@ const EditarUsuarioPage = () => {
 };
 
 export default EditarUsuarioPage;
+
+
+

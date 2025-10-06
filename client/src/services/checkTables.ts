@@ -117,3 +117,4 @@ export const checkTables = async () => {
     console.error('Error general verificando tablas:', error);
   }
 }; 
+

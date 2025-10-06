@@ -7,11 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { ArrowLeft, UserPlus } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+
 import { createCandidatoFromPerfilSchema, type CreateCandidatoFromPerfil } from "@shared/schema";
 
 const CrearCandidatoPage = () => {
-  const { toast } = useToast();
+  
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<CreateCandidatoFromPerfil>({
@@ -38,10 +38,7 @@ const CrearCandidatoPage = () => {
       });
 
       if (response.ok) {
-        toast({
-          title: "Candidato creado exitosamente",
-          description: `Se ha creado la cuenta para ${data.nombres} ${data.apellidos}. Usuario: ${data.email}, Contraseña inicial: ${data.cedula}`,
-        });
+        toast.success(`Se ha creado la cuenta para ${data.nombres} ${data.apellidos}. Usuario: ${data.email}, Contraseña inicial: ${data.cedula}`);
         form.reset();
         // Redirigir de vuelta a la página de perfiles después de 2 segundos
         setTimeout(() => {
@@ -56,25 +53,16 @@ const CrearCandidatoPage = () => {
               errorData.message.toLowerCase().includes('duplicate key')));
 
         if (isDuplicate) {
-          toast({
-            title: "Ya existe un candidato con este correo",
+          toast.warning("Ya existe un candidato con este correo", {
             description:
               "No es necesario volver a crearlo. Puedes buscarlo en la lista de perfiles o usar otro correo para un candidato nuevo.",
           });
         } else {
-          toast({
-            title: "Error",
-            description: errorData.message || "No se pudo crear el candidato",
-            variant: "destructive",
-          });
+          toast.error(errorData.message || "No se pudo crear el candidato");
         }
       }
     } catch (error) {
-      toast({
-        title: "Error de conexión",
-        description: "No se pudo conectar con el servidor",
-        variant: "destructive",
-      });
+      toast.error("No se pudo conectar con el servidor");
     } finally {
       setIsLoading(false);
     }
@@ -245,3 +233,6 @@ const CrearCandidatoPage = () => {
 };
 
 export default CrearCandidatoPage;
+
+
+

@@ -16,7 +16,7 @@ import { handleEntityDelete } from "@/utils/businessEntityUtils";
 import { BusinessEntityRow } from "@/components/shared/BusinessEntityRow";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+
 import { empresasService } from "@/services/empresasService";
 import { empresaService } from "@/services/empresaService";
 import { useLoading } from "@/contexts/LoadingContext";
@@ -28,7 +28,7 @@ export default function RegistroEmpresas() {
   const [activeTab, setActiveTab] = useState("empresas");
   const { data: companies = [], isLoading, fetchData } = useCompanies('empresa');
   const { data: cityData = {} } = useCityData();
-  const { toast } = useToast();
+  
   const { startLoading, stopLoading } = useLoading();
   const { addAction: addEmpresasListado } = useRegisterView('Empresas', 'listado', 'Listado de Empresas');
   const { addAction: addEmpresasForm } = useRegisterView('Empresas', 'formulario', 'Registro de Empresa');
@@ -67,19 +67,11 @@ export default function RegistroEmpresas() {
         setEditingCompany(empresaCompleta);
         setActiveTab("registro");
       } else {
-        toast({
-          title: "❌ Error",
-          description: "No se pudo obtener la información completa de la empresa",
-          variant: "destructive"
-        });
+        toast.error("No se pudo obtener la información completa de la empresa");
       }
     } catch (error) {
       console.error('Error al obtener datos completos de la empresa:', error);
-      toast({
-        title: "❌ Error",
-        description: "Error al cargar los datos de la empresa",
-        variant: "destructive"
-      });
+      toast.error("Error al cargar los datos de la empresa");
     } finally {
       stopLoading();
     }
@@ -92,25 +84,13 @@ export default function RegistroEmpresas() {
       startLoading();
       const success = await empresasService.delete(company.id);
       if (success) {
-        toast({
-          title: "✅ Éxito",
-          description: "Empresa eliminada correctamente",
-          variant: "default"
-        });
+        toast.success("Empresa eliminada correctamente");
         await fetchData(); // Recargar datos
       } else {
-        toast({
-          title: "❌ Error",
-          description: "No se pudo eliminar la empresa",
-          variant: "destructive"
-        });
+        toast.error("No se pudo eliminar la empresa");
       }
     } catch (error) {
-      toast({
-        title: "❌ Error",
-        description: "Error al eliminar la empresa",
-        variant: "destructive"
-      });
+      toast.error("Error al eliminar la empresa");
     } finally {
       stopLoading();
     }
@@ -123,25 +103,13 @@ export default function RegistroEmpresas() {
       startLoading();
       const success = await empresasService.activate(company.id);
       if (success) {
-        toast({
-          title: "✅ Éxito",
-          description: "Empresa activada correctamente",
-          variant: "default"
-        });
+        toast.success("Empresa activada correctamente");
         await fetchData(); // Recargar datos
       } else {
-        toast({
-          title: "❌ Error",
-          description: "No se pudo activar la empresa",
-          variant: "destructive"
-        });
+        toast.error("No se pudo activar la empresa");
       }
     } catch (error) {
-      toast({
-        title: "❌ Error",
-        description: "Error al activar la empresa",
-        variant: "destructive"
-      });
+      toast.error("Error al activar la empresa");
     } finally {
       stopLoading();
     }
@@ -154,25 +122,13 @@ export default function RegistroEmpresas() {
       startLoading();
       const success = await empresasService.deactivate(company.id);
       if (success) {
-        toast({
-          title: "✅ Éxito",
-          description: "Empresa inactivada correctamente",
-          variant: "default"
-        });
+        toast.success("Empresa inactivada correctamente");
         await fetchData(); // Recargar datos
       } else {
-        toast({
-          title: "❌ Error",
-          description: "No se pudo inactivar la empresa",
-          variant: "destructive"
-        });
+        toast.error("No se pudo inactivar la empresa");
       }
     } catch (error) {
-      toast({
-        title: "❌ Error",
-        description: "Error al inactivar la empresa",
-        variant: "destructive"
-      });
+      toast.error("Error al inactivar la empresa");
     } finally {
       stopLoading();
     }
@@ -527,3 +483,6 @@ export default function RegistroEmpresas() {
     </div>
   );
 }
+
+
+

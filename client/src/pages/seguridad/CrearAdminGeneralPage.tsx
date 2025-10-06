@@ -6,11 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { ArrowLeft, Settings } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+
 import { createAdminUserSchema, type CreateAdminUser } from "@shared/schema";
 
 const CrearAdminGeneralPage = () => {
-  const { toast } = useToast();
+  
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<CreateAdminUser>({
@@ -36,10 +36,7 @@ const CrearAdminGeneralPage = () => {
       });
 
       if (response.ok) {
-        toast({
-          title: "Administrador General creado exitosamente",
-          description: `Se ha creado el administrador general ${data.nombres} ${data.apellidos}. Usuario: ${data.username}, Contraseña temporal: 12345678`,
-        });
+        toast.success(`Se ha creado el administrador general ${data.nombres} ${data.apellidos}. Usuario: ${data.username}, Contraseña temporal: 12345678`);
         form.reset();
         // Redirigir de vuelta a la página de perfiles después de 2 segundos
         setTimeout(() => {
@@ -47,18 +44,10 @@ const CrearAdminGeneralPage = () => {
         }, 2000);
       } else {
         const errorData = await response.json();
-        toast({
-          title: "Error",
-          description: errorData.message || "No se pudo crear el administrador general",
-          variant: "destructive",
-        });
+        toast.error(errorData.message || "No se pudo crear el administrador general");
       }
     } catch (error) {
-      toast({
-        title: "Error de conexión",
-        description: "No se pudo conectar con el servidor",
-        variant: "destructive",
-      });
+      toast.error("No se pudo conectar con el servidor");
     } finally {
       setIsLoading(false);
     }
@@ -190,3 +179,6 @@ const CrearAdminGeneralPage = () => {
 };
 
 export default CrearAdminGeneralPage;
+
+
+

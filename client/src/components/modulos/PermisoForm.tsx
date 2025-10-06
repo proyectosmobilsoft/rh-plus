@@ -155,3 +155,4 @@ export const PermisoForm: React.FC<PermisoFormProps> = ({
     </Card>
   );
 };
+

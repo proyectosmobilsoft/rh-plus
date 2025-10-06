@@ -34,7 +34,7 @@ import {
   Mail,
   Key
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from "sonner";
 import { 
   mockSystemViews, 
   mockViewActions, 
@@ -587,3 +587,4 @@ export const AdvancedProfileManager: React.FC<AdvancedProfileManagerProps> = ({
     </Dialog>
   );
 };
+

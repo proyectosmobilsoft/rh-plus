@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { templatesService } from "@/services/templatesService";
 import { empresasService } from "@/services/empresasService";
 import { EmpresaOrderTemplate, InsertEmpresaOrderTemplate, Empresa, FieldConfiguration } from "@shared/schema";
@@ -65,10 +65,10 @@ export function TemplateManager({ empresaId }: TemplateManagerProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/empresas", selectedEmpresaId, "templates"] });
       resetForm();
-      toast({ title: "Plantilla creada exitosamente" });
+      toast.success("Plantilla creada exitosamente");
     },
     onError: (error) => {
-      toast({ title: "Error al crear plantilla", description: error.message, variant: "destructive" });
+      toast.error("Error al crear plantilla: " + error.message);
     }
   });
 
@@ -79,10 +79,10 @@ export function TemplateManager({ empresaId }: TemplateManagerProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/empresas", selectedEmpresaId, "templates"] });
       resetForm();
-      toast({ title: "Plantilla actualizada exitosamente" });
+      toast.success("Plantilla actualizada exitosamente");
     },
     onError: (error) => {
-      toast({ title: "Error al actualizar plantilla", description: error.message, variant: "destructive" });
+      toast.error("Error al actualizar plantilla: " + error.message);
     }
   });
 
@@ -91,10 +91,10 @@ export function TemplateManager({ empresaId }: TemplateManagerProps) {
     mutationFn: templatesService.deleteTemplate,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/empresas", selectedEmpresaId, "templates"] });
-      toast({ title: "Plantilla eliminada exitosamente" });
+      toast.success("Plantilla eliminada exitosamente");
     },
     onError: (error) => {
-      toast({ title: "Error al eliminar plantilla", description: error.message, variant: "destructive" });
+      toast.error("Error al eliminar plantilla: " + error.message);
     }
   });
 
@@ -104,10 +104,10 @@ export function TemplateManager({ empresaId }: TemplateManagerProps) {
       templatesService.setDefaultTemplate(empresaId, templateId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/empresas", selectedEmpresaId, "templates"] });
-      toast({ title: "Plantilla establecida como predeterminada" });
+      toast.success("Plantilla establecida como predeterminada");
     },
     onError: (error) => {
-      toast({ title: "Error al establecer plantilla predeterminada", description: error.message, variant: "destructive" });
+      toast.error("Error al establecer plantilla predeterminada: " + error.message);
     }
   });
 
@@ -150,7 +150,7 @@ export function TemplateManager({ empresaId }: TemplateManagerProps) {
 
   const handleSaveTemplate = () => {
     if (!selectedEmpresaId || !templateName.trim()) {
-      toast({ title: "Error", description: "Empresa y nombre de plantilla son requeridos", variant: "destructive" });
+      toast.error("Empresa y nombre de plantilla son requeridos");
       return;
     }
 
@@ -390,3 +390,7 @@ export function TemplateManager({ empresaId }: TemplateManagerProps) {
     </div>
   );
 }
+
+
+
+

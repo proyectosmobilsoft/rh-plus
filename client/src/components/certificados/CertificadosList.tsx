@@ -77,3 +77,4 @@ const CertificadosList = ({ ordenes, onCreateCertificate }: CertificadosListProp
 };
 
 export default CertificadosList;
+

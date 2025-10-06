@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Building, Save } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+
 import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,7 +23,7 @@ const clienteSchema = z.object({
 type ClienteForm = z.infer<typeof clienteSchema>;
 
 const CrearClientePage = () => {
-  const { toast } = useToast();
+  
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -98,26 +98,15 @@ const CrearClientePage = () => {
       });
 
       if (response.ok) {
-        toast({
-          title: "Cliente creado exitosamente",
-          description: "El nuevo usuario cliente ha sido registrado en el sistema",
-        });
+        toast.success("El nuevo usuario cliente ha sido registrado en el sistema");
         navigate('/seguridad/perfiles');
       } else {
         const error = await response.json();
-        toast({
-          title: "Error al crear cliente",
-          description: error.message || "Ha ocurrido un error inesperado",
-          variant: "destructive",
-        });
+        toast.error(error.message || "Ha ocurrido un error inesperado");
       }
     } catch (error) {
       console.error('Error creating cliente:', error);
-      toast({
-        title: "Error de conexión",
-        description: "No se pudo conectar con el servidor",
-        variant: "destructive",
-      });
+      toast.error("No se pudo conectar con el servidor");
     } finally {
       setIsSubmitting(false);
     }
@@ -305,3 +294,6 @@ const CrearClientePage = () => {
 };
 
 export default CrearClientePage;
+
+
+

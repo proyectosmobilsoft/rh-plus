@@ -87,3 +87,4 @@ const OrdenesStatistics: React.FC<OrdenesStatisticsProps> = ({ ordenes }) => {
 };
 
 export default OrdenesStatistics;
+

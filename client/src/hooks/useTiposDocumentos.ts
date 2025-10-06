@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { toast } from "sonner";
 import { tiposDocumentosService } from '@/services/tiposDocumentosService';
 import { 
   TipoDocumento, 
@@ -164,3 +164,4 @@ export const useTiposDocumentos = () => {
     },
   };
 }; 
+

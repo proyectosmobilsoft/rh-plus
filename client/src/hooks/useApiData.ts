@@ -167,3 +167,4 @@ export function useApiData<T>(endpoint: string, initialData: T, options: ApiOpti
     isFetched
   };
 }
+

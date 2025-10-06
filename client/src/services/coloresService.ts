@@ -288,3 +288,4 @@ function getCategoryDescription(categoria: string): string {
 }
 
 export default coloresService;
+

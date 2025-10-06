@@ -1,12 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { modulosService, Modulo, ModuloConPermisos, CreateModuloData, UpdateModuloData, CreateModuloPermisoData, UpdateModuloPermisoData } from '@/services/modulosService';
 import { useLoading } from '@/contexts/LoadingContext';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 export const useModulos = () => {
   const queryClient = useQueryClient();
   const { startLoading, stopLoading } = useLoading();
-  const { toast } = useToast();
+  
 
   const modulosQuery = useQuery({
     queryKey: ['modulos'],
@@ -30,18 +30,10 @@ export const useModulos = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['modulos'] });
       queryClient.invalidateQueries({ queryKey: ['modulos-con-permisos'] });
-      toast({
-        title: '✅ Éxito',
-        description: 'Módulo creado correctamente',
-        variant: 'default',
-      });
+      toast.success('Módulo creado correctamente');
     },
     onError: (error: Error) => {
-      toast({
-        title: '❌ Error',
-        description: error.message || 'Error al crear el módulo',
-        variant: 'destructive',
-      });
+      toast.error(error.message || 'Error al crear el módulo');
     },
   });
 
@@ -57,18 +49,10 @@ export const useModulos = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['modulos'] });
       queryClient.invalidateQueries({ queryKey: ['modulos-con-permisos'] });
-      toast({
-        title: '✅ Éxito',
-        description: 'Módulo actualizado correctamente',
-        variant: 'default',
-      });
+      toast.success('Módulo actualizado correctamente');
     },
     onError: (error: Error) => {
-      toast({
-        title: '❌ Error',
-        description: error.message || 'Error al actualizar el módulo',
-        variant: 'destructive',
-      });
+      toast.error(error.message || 'Error al actualizar el módulo');
     },
   });
 
@@ -84,18 +68,10 @@ export const useModulos = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['modulos'] });
       queryClient.invalidateQueries({ queryKey: ['modulos-con-permisos'] });
-      toast({
-        title: '✅ Éxito',
-        description: 'Módulo activado correctamente',
-        variant: 'default',
-      });
+      toast.success('Módulo activado correctamente');
     },
     onError: (error: Error) => {
-      toast({
-        title: '❌ Error',
-        description: error.message || 'Error al activar el módulo',
-        variant: 'destructive',
-      });
+      toast.error(error.message || 'Error al activar el módulo');
     },
   });
 
@@ -111,18 +87,10 @@ export const useModulos = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['modulos'] });
       queryClient.invalidateQueries({ queryKey: ['modulos-con-permisos'] });
-      toast({
-        title: '✅ Éxito',
-        description: 'Módulo desactivado correctamente',
-        variant: 'default',
-      });
+      toast.success('Módulo desactivado correctamente');
     },
     onError: (error: Error) => {
-      toast({
-        title: '❌ Error',
-        description: error.message || 'Error al desactivar el módulo',
-        variant: 'destructive',
-      });
+      toast.error(error.message || 'Error al desactivar el módulo');
     },
   });
 
@@ -138,18 +106,10 @@ export const useModulos = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['modulos'] });
       queryClient.invalidateQueries({ queryKey: ['modulos-con-permisos'] });
-      toast({
-        title: '✅ Éxito',
-        description: 'Módulo eliminado correctamente',
-        variant: 'default',
-      });
+      toast.success('Módulo eliminado correctamente');
     },
     onError: (error: Error) => {
-      toast({
-        title: '❌ Error',
-        description: error.message || 'Error al eliminar el módulo',
-        variant: 'destructive',
-      });
+      toast.error(error.message || 'Error al eliminar el módulo');
     },
   });
 
@@ -164,18 +124,10 @@ export const useModulos = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['modulos-con-permisos'] });
-      toast({
-        title: '✅ Éxito',
-        description: 'Permiso creado correctamente',
-        variant: 'default',
-      });
+      toast.success('Permiso creado correctamente');
     },
     onError: (error: Error) => {
-      toast({
-        title: '❌ Error',
-        description: error.message || 'Error al crear el permiso',
-        variant: 'destructive',
-      });
+      toast.error(error.message || 'Error al crear el permiso');
     },
   });
 
@@ -190,18 +142,10 @@ export const useModulos = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['modulos-con-permisos'] });
-      toast({
-        title: '✅ Éxito',
-        description: 'Permiso actualizado correctamente',
-        variant: 'default',
-      });
+      toast.success('Permiso actualizado correctamente');
     },
     onError: (error: Error) => {
-      toast({
-        title: '❌ Error',
-        description: error.message || 'Error al actualizar el permiso',
-        variant: 'destructive',
-      });
+      toast.error(error.message || 'Error al actualizar el permiso');
     },
   });
 
@@ -216,18 +160,10 @@ export const useModulos = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['modulos-con-permisos'] });
-      toast({
-        title: '✅ Éxito',
-        description: 'Permiso eliminado correctamente',
-        variant: 'default',
-      });
+      toast.success('Permiso eliminado correctamente');
     },
     onError: (error: Error) => {
-      toast({
-        title: '❌ Error',
-        description: error.message || 'Error al eliminar el permiso',
-        variant: 'destructive',
-      });
+      toast.error(error.message || 'Error al eliminar el permiso');
     },
   });
 
@@ -263,3 +199,7 @@ export const useModulos = () => {
     isDeletingPermiso: deleteModuloPermisoMutation.isPending,
   };
 };
+
+
+
+

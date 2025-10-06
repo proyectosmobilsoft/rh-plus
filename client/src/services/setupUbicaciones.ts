@@ -113,3 +113,4 @@ const insertDatosEjemplo = async () => {
     console.error('Error insertando datos de ejemplo:', error);
   }
 }; 
+

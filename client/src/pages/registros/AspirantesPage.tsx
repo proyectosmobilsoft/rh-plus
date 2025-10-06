@@ -123,7 +123,7 @@ interface Aspirante {
 }
 
 const AspirantesPage = () => {
-  const { toast } = useToast();
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState<Partial<Aspirante>>({
     identificacion: '',
@@ -214,28 +214,18 @@ const AspirantesPage = () => {
     try {
       // Validaciones básicas
       if (!formData.identificacion || !formData.nombre || !formData.apellido) {
-        toast({
-          title: "Error de validación",
-          description: "Por favor complete los campos requeridos",
-          variant: "destructive",
-        });
+        toast.error("Por favor complete los campos requeridos");
         return;
       }
 
       if (editingId) {
         // Actualizando aspirante existente
         await updateData(editingId, formData);
-        toast({
-          title: "Éxito",
-          description: "Aspirante actualizado correctamente",
-        });
+        toast.success("Aspirante actualizado correctamente");
       } else {
         // Creando nuevo aspirante
         await createData(formData);
-        toast({
-          title: "Éxito",
-          description: "Aspirante registrado correctamente",
-        });
+        toast.success("Aspirante registrado correctamente");
       }
 
       // Recargar datos después de crear/actualizar
@@ -258,11 +248,7 @@ const AspirantesPage = () => {
       setEditingId(null);
     } catch (error) {
       console.error('Error al procesar aspirante:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo guardar el aspirante",
-        variant: "destructive",
-      });
+      toast.error("No se pudo guardar el aspirante");
     }
   };
 
@@ -317,11 +303,7 @@ const AspirantesPage = () => {
       }
     } catch (error) {
       console.error('Error fetching aspirante details:', error);
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar los detalles del aspirante",
-        variant: "destructive",
-      });
+      toast.error("No se pudieron cargar los detalles del aspirante");
       return {
         educacion: [],
         experienciaLaboral: []
@@ -382,30 +364,19 @@ const AspirantesPage = () => {
       }));
     } catch (error) {
       console.error('Error preparing aspirante for edit:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo cargar la información completa del aspirante",
-        variant: "destructive",
-      });
+      toast.error("No se pudo cargar la información completa del aspirante");
     }
   };
 
   const handleDelete = async (id: number) => {
     try {
       await deleteData(id);
-      toast({
-        title: "Éxito",
-        description: "Aspirante eliminado correctamente",
-      });
+      toast.success("Aspirante eliminado correctamente");
       // Recargar datos después de eliminar
       await fetchData();
     } catch (error) {
       console.error('Error al eliminar aspirante:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo eliminar el aspirante",
-        variant: "destructive",
-      });
+      toast.error("No se pudo eliminar el aspirante");
     }
   };
 
@@ -592,3 +563,7 @@ const AspirantesPage = () => {
 };
 
 export default AspirantesPage;
+
+
+
+

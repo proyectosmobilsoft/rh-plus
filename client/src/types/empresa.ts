@@ -56,3 +56,4 @@ export interface DocumentoEmpresa {
   url_archivo: string;
   fecha_carga: string;
 }
+

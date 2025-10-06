@@ -78,7 +78,7 @@ const convertFileToBase64 = (file: File): Promise<string> => {
 };
 
 export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afiliada' }: CompanyFormProps) {
-  const { toast } = useToast();
+  
   const { startLoading, stopLoading } = useLoading();
   const [existingDocuments, setExistingDocuments] = useState<{ [key: string]: string }>({});
   const [selectedPlantilla, setSelectedPlantilla] = useState<number | null>(null);
@@ -458,14 +458,16 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
         await empresaService.create(empresaPayload);
       }
 
-      toast({
-        title: initialData
+      toast.success(
+        initialData
           ? `${entityType === 'prestador' ? 'Prestador' : 'Empresa'} actualizada`
           : `${entityType === 'prestador' ? 'Prestador' : 'Empresa'} registrada`,
-        description: initialData
-          ? `La información del ${entityType === 'prestador' ? 'prestador' : 'la empresa'} ha sido actualizada exitosamente.`
-          : `${entityType === 'prestador' ? 'El prestador' : 'La empresa'} ha sido registrada exitosamente.`,
-      });
+        { 
+          description: initialData
+            ? `La información del ${entityType === 'prestador' ? 'prestador' : 'la empresa'} ha sido actualizada exitosamente.`
+            : `${entityType === 'prestador' ? 'El prestador' : 'La empresa'} ha sido registrada exitosamente.`
+        }
+      );
       if (!initialData) {
         form.reset();
         setUploadedFiles({});
@@ -475,11 +477,7 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
       }
     } catch (error) {
       console.error("Error:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Hubo un error al procesar la solicitud. Por favor, intente nuevamente.",
-      });
+      toast.error("Hubo un error al procesar la solicitud. Por favor, intente nuevamente.");
     } finally {
       stopLoading();
     }
@@ -501,18 +499,10 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
           ...prev,
         [documentType]: file.name
       }));
-      toast({
-        title: "Documento subido",
-        description: `${file.name} se ha subido correctamente.`,
-        variant: "default",
-      });
+      toast.success("Documento subido", { description: `${file.name} se ha subido correctamente.` });
     } catch (error) {
       console.error('Error al convertir archivo:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo procesar el archivo.",
-        variant: "destructive",
-      });
+      toast.error("No se pudo procesar el archivo.");
     }
   };
 
@@ -553,21 +543,13 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
 
     // Validar que sea una imagen
     if (!file.type.startsWith('image/')) {
-        toast({
-        title: "Error",
-        description: "Por favor selecciona un archivo de imagen válido.",
-        variant: "destructive",
-      });
+        toast.error("Por favor selecciona un archivo de imagen válido.");
       return;
     }
 
     // Validar tamaño (máximo 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: "Error",
-        description: "El logo debe ser menor a 5MB.",
-        variant: "destructive",
-      });
+      toast.error("El logo debe ser menor a 5MB.");
       return;
     }
 
@@ -577,17 +559,9 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
       
       // Mostrar información sobre la imagen
       if (validation.isValid) {
-        toast({
-          title: "Imagen óptima",
-          description: validation.message,
-          variant: "default",
-        });
+        toast.success("Imagen óptima", { description: validation.message });
       } else {
-        toast({
-          title: "Imagen detectada",
-          description: validation.message,
-          variant: "default",
-        });
+        toast.info("Imagen detectada", { description: validation.message });
       }
       
       // Comprimir la imagen antes de convertir a Base64
@@ -596,18 +570,10 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
       form.setValue('logo_base64', base64);
       setLogoPreview(base64);
       
-      toast({
-        title: "Logo procesado",
-        description: "Imagen optimizada y convertida a 1600x900px (16:9 ratio).",
-        variant: "default",
-      });
+      toast.success("Logo procesado", { description: "Imagen optimizada y convertida a 1600x900px (16:9 ratio)." });
     } catch (error) {
       console.error('Error al procesar logo:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo procesar el logo.",
-        variant: "destructive",
-      });
+      toast.error("No se pudo procesar el logo.");
     }
   };
 
@@ -714,11 +680,7 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
       });
       setShowDocumentPreview(true);
     } else {
-      toast({
-        title: "Documento no disponible",
-        description: "No se encontró un documento válido para visualizar.",
-        variant: "destructive"
-      });
+      toast.error("No se encontró un documento válido para visualizar.");
     }
   };
 
@@ -1622,3 +1584,6 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
     </Form>
   );
 }
+
+
+

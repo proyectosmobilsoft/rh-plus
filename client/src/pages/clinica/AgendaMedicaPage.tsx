@@ -31,3 +31,4 @@ const AgendaMedicaPage = () => {
 };
 
 export default AgendaMedicaPage;
+

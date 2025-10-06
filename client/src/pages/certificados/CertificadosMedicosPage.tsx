@@ -1278,3 +1278,4 @@ const CertificadosMedicosPage = () => {
 };
 
 export default CertificadosMedicosPage;
+

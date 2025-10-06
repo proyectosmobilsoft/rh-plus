@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { toast } from 'sonner';
+import { toast } from "sonner";
 import { useNavigate } from 'react-router-dom';
 import { Building2, Mail, Lock, LogIn } from 'lucide-react';
 
@@ -162,3 +162,4 @@ export default function LoginEmpresa() {
     </div>
   );
 }
+

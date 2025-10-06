@@ -351,3 +351,4 @@ export const TipoCandidatoSelector: React.FC<TipoCandidatoSelectorProps> = ({
     </div>
   );
 }; 
+

@@ -676,3 +676,4 @@ export const plantillasService = {
   setDefault: setDefaultPlantilla,
   verificarEstructura: verificarEstructuraDB
 }; 
+

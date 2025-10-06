@@ -22,3 +22,4 @@ const HistoriaMedicaPage = () => {
 };
 
 export default HistoriaMedicaPage;
+

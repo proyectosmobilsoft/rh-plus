@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { coloresService, type ColorCategory, type ColorConfig } from '@/services/coloresService';
 import { useColors } from '@/contexts/ColorsContext';
-import { toast } from 'sonner';
+import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Plus, Minus, Edit3, Palette } from 'lucide-react';
@@ -216,3 +216,4 @@ export default function ConfiguracionColores() {
     </div>
   );
 }
+

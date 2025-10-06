@@ -595,3 +595,4 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
     </div>
   );
 }
+

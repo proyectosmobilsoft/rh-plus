@@ -69,3 +69,4 @@ export const useSucursales = () => useDatabaseData('gen_sucursales');
 
 // Hook específico para centros de costo
 export const useCentrosCosto = () => useDatabaseData('centros_costo');
+

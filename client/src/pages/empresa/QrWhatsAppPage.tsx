@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { MessageSquare, Send, CheckCircle, User, QrCode, Phone } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from "sonner";
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -282,3 +282,4 @@ Equipo de Recursos Humanos`);
     </div>
   );
 }
+

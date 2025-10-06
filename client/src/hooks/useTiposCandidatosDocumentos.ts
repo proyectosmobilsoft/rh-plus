@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { toast } from "sonner";
 import { tiposCandidatosDocumentosService } from '@/services/tiposCandidatosDocumentosService';
 import { tiposCandidatosService } from '@/services/tiposCandidatosService';
 import { tiposDocumentosService } from '@/services/tiposDocumentosService';
@@ -102,3 +102,4 @@ export const useTiposCandidatosDocumentos = () => {
     updateDocumentosForTipoCandidato,
   };
 }; 
+

@@ -14,3 +14,4 @@ if (typeof window !== 'undefined' && import.meta.env) {
 }
 
 export const supabase = createClient(finalSupabaseUrl, finalSupabaseAnonKey); 
+

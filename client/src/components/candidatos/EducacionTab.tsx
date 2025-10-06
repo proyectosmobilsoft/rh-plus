@@ -39,17 +39,13 @@ export function EducacionTab({ educacion, onChange, triggerAutoSave, candidatoId
     ciudad: '',
     nivelEducativo: ''
   });
-  const { toast } = useToast();
+  
 
   // Función para actualizar un registro específico en la base de datos
   const updateEducacionInDB = async (educacion: Educacion, index: number) => {
     if (!candidatoId || !educacion.id) {
       console.error('❌ No se puede actualizar: candidatoId o educacion.id faltante');
-      toast({
-        title: "❌ Error",
-        description: "Error: No se puede actualizar el registro",
-        variant: "destructive",
-      });
+      toast.error("Error: No se puede actualizar el registro");
       return;
     }
 
@@ -72,19 +68,12 @@ export function EducacionTab({ educacion, onChange, triggerAutoSave, candidatoId
 
       if (error) {
         console.error('❌ Error actualizando educación:', error);
-        toast({
-          title: "❌ Error",
-          description: "Error al actualizar la educación",
-          variant: "destructive",
-        });
+        toast.error("Error al actualizar la educación");
         throw error;
       }
 
       console.log('✅ Educación actualizada exitosamente en BD');
-      toast({
-        title: "✅ Educación actualizada",
-        description: "Educación actualizada correctamente",
-      });
+      toast.success("Educación actualizada correctamente");
     } catch (error) {
       console.error('❌ Error en updateEducacionInDB:', error);
       throw error;
@@ -379,3 +368,6 @@ export function EducacionTab({ educacion, onChange, triggerAutoSave, candidatoId
     </div>
   );
 }
+
+
+

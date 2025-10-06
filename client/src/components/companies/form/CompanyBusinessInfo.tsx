@@ -19,7 +19,7 @@ import {
   import { Button } from "@/components/ui/button";
   import { Upload, Check, FileText } from "lucide-react";
   import { useState, useEffect } from "react";
-  import { useToast } from "@/components/ui/use-toast";
+  
   import { actividadesEconomicasService } from "@/services/actividadesEconomicasService";
   
   interface CompanyBusinessInfoProps {
@@ -28,7 +28,7 @@ import {
   }
   
   export function CompanyBusinessInfo({ form, existingDocuments }: CompanyBusinessInfoProps) {
-    const { toast } = useToast();
+    
     
     // Obtener actividades económicas
     const { data: actividadesEconomicas = [], isLoading: loadingActividades } = useQuery({
@@ -81,11 +81,7 @@ import {
       const file = e.target.files?.[0];
       if (file) {
         if (file.type !== 'application/pdf') {
-          toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Solo se permiten archivos PDF",
-          });
+          toast.error("Solo se permiten archivos PDF");
           return;
         }
   
@@ -98,10 +94,7 @@ import {
         form.setValue('documentos', documentos);
         setUploadedFiles(prev => ({...prev, [tipo]: file.name}));
         
-        toast({
-          title: "Archivo seleccionado",
-          description: `${file.name} ha sido seleccionado correctamente.`,
-        });
+        toast.success("Archivo seleccionado", { description: `${file.name} ha sido seleccionado correctamente.` });
       }
     };
   
@@ -231,3 +224,6 @@ import {
       </div>
     );
   }
+
+
+

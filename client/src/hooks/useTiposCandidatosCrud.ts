@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { tiposCandidatosService } from '@/services/tiposCandidatosService';
 import { TipoCandidato, CreateTipoCandidatoData, UpdateTipoCandidatoData } from '@/types/maestro';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 export const useTiposCandidatosCrud = () => {
-  const { toast } = useToast();
+  
   const queryClient = useQueryClient();
 
   // Query para obtener todos los tipos de candidatos
@@ -32,18 +32,10 @@ export const useTiposCandidatosCrud = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tipos-candidatos-all'] });
       queryClient.invalidateQueries({ queryKey: ['tipos-candidatos-activos'] });
-      toast({
-        title: "Éxito",
-        description: "Tipo de candidato creado correctamente",
-        variant: "default",
-      });
+      toast.success("Tipo de candidato creado correctamente");
     },
     onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Error al crear el tipo de candidato",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Error al crear el tipo de candidato");
     },
   });
 
@@ -54,18 +46,10 @@ export const useTiposCandidatosCrud = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tipos-candidatos-all'] });
       queryClient.invalidateQueries({ queryKey: ['tipos-candidatos-activos'] });
-      toast({
-        title: "Éxito",
-        description: "Tipo de candidato actualizado correctamente",
-        variant: "default",
-      });
+      toast.success("Tipo de candidato actualizado correctamente");
     },
     onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Error al actualizar el tipo de candidato",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Error al actualizar el tipo de candidato");
     },
   });
 
@@ -75,18 +59,10 @@ export const useTiposCandidatosCrud = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tipos-candidatos-all'] });
       queryClient.invalidateQueries({ queryKey: ['tipos-candidatos-activos'] });
-      toast({
-        title: "Éxito",
-        description: "Tipo de candidato eliminado correctamente",
-        variant: "default",
-      });
+      toast.success("Tipo de candidato eliminado correctamente");
     },
     onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Error al eliminar el tipo de candidato",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Error al eliminar el tipo de candidato");
     },
   });
 
@@ -96,18 +72,10 @@ export const useTiposCandidatosCrud = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tipos-candidatos-all'] });
       queryClient.invalidateQueries({ queryKey: ['tipos-candidatos-activos'] });
-      toast({
-        title: "Éxito",
-        description: "Tipo de candidato activado correctamente",
-        variant: "default",
-      });
+      toast.success("Tipo de candidato activado correctamente");
     },
     onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Error al activar el tipo de candidato",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Error al activar el tipo de candidato");
     },
   });
 
@@ -127,3 +95,7 @@ export const useTiposCandidatosCrud = () => {
     isActivating: activateMutation.isPending,
   };
 };
+
+
+
+

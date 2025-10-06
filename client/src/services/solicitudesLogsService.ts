@@ -322,3 +322,4 @@ export const getUsuarioPorDefecto = async (): Promise<number | null> => {
     return null;
   }
 };
+
