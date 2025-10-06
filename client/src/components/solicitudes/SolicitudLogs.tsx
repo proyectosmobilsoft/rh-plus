@@ -167,49 +167,63 @@ const SolicitudLogs: React.FC<SolicitudLogsProps> = ({ solicitudId, solicitudEst
             <p className="text-sm">Las acciones se registrarán automáticamente</p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {logs.map((log) => (
-              <div key={log.id} className="flex items-start gap-3 p-3 rounded-lg border bg-card">
-                <div className="flex-shrink-0 mt-1">
-                  {getAccionIcon(log.accion)}
-                </div>
-                
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Badge variant={getAccionBadgeVariant(log.accion)}>
-                      {getAccionLabel(log.accion)}
-                    </Badge>
-                    
-                    {log.estado_anterior && log.estado_nuevo && (
-                      <div className="text-sm text-muted-foreground">
-                        <span className="font-medium">{log.estado_anterior}</span>
-                        <span className="mx-1">→</span>
-                        <span className="font-medium">{log.estado_nuevo}</span>
-                      </div>
+          <div className="overflow-x-auto">
+            <div className="flex space-x-4 min-w-max pb-4">
+              {logs.map((log, index) => (
+                <div key={log.id} className="flex-shrink-0 w-80">
+                  <div className="flex flex-col items-center">
+                    {/* Línea conectora horizontal */}
+                    {index < logs.length - 1 && (
+                      <div className="absolute top-8 left-1/2 w-full h-0.5 bg-gray-300 transform translate-x-40"></div>
                     )}
-                  </div>
-                  
-                  {log.observacion && (
-                    <p className="text-sm text-foreground mb-2">
-                      {log.observacion}
-                    </p>
-                  )}
-                  
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <User className="h-3 w-3" />
-                      <span>{log.usuario?.nombre || `Usuario ${log.usuario_id}`}</span>
+                    
+                    {/* Icono y círculo */}
+                    <div className="relative z-10 flex items-center justify-center w-16 h-16 rounded-full bg-white border-4 border-gray-200 shadow-md">
+                      {getAccionIcon(log.accion)}
                     </div>
                     
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      <span>{formatDateTime(log.fecha_accion)}</span>
-                      <span className="text-xs">({formatDate(log.fecha_accion)})</span>
+                    {/* Contenido de la tarjeta */}
+                    <div className="mt-4 w-full p-4 rounded-lg border bg-card shadow-sm">
+                      <div className="text-center mb-2">
+                        <Badge variant={getAccionBadgeVariant(log.accion)} className="mb-2">
+                          {getAccionLabel(log.accion)}
+                        </Badge>
+                        
+                        {log.estado_anterior && log.estado_nuevo && (
+                          <div className="text-sm text-muted-foreground">
+                            <span className="font-medium">{log.estado_anterior}</span>
+                            <span className="mx-1">→</span>
+                            <span className="font-medium">{log.estado_nuevo}</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {log.observacion && (
+                        <p className="text-sm text-foreground mb-3 text-center">
+                          {log.observacion}
+                        </p>
+                      )}
+                      
+                      <div className="space-y-2 text-xs text-muted-foreground">
+                        <div className="flex items-center justify-center gap-1">
+                          <User className="h-3 w-3" />
+                          <span>{log.usuario?.nombre || `Usuario ${log.usuario_id}`}</span>
+                        </div>
+                        
+                        <div className="flex items-center justify-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          <span>{formatDateTime(log.fecha_accion)}</span>
+                        </div>
+                        
+                        <div className="text-center">
+                          <span className="text-xs">({formatDate(log.fecha_accion)})</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
       </CardContent>

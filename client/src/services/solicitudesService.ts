@@ -861,7 +861,7 @@ export const solicitudesService = {
           solicitud_id: solicitudTransformada.id!,
           usuario_id: getUsuarioId(),
           accion: ACCIONES_SISTEMA.CREAR_SOLICITUD,
-          estado_nuevo: solicitudTransformada.estado,
+          estado_nuevo: "creada",
           observacion: `Solicitud creada para empresa ${solicitud.empresa_id}`,
         });
 
@@ -1668,7 +1668,7 @@ export const solicitudesService = {
           solicitud_id: solicitudTransformada.id!,
           usuario_id: getUsuarioId(),
           accion: ACCIONES_SISTEMA.CREAR_SOLICITUD,
-          estado_nuevo: solicitudTransformada.estado,
+          estado_nuevo: "creada",
           observacion: `Solicitud creada con plantilla "${plantillaNombre}" para empresa ${empresaId}`,
         });
 

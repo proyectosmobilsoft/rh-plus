@@ -588,65 +588,56 @@ export default function PlantillasSelector({
                       ) : logs.length === 0 ? (
                         <div className="text-gray-500 text-sm">Sin registros de historial</div>
                       ) : (
-                        <div ref={containerRef} className="relative py-12">
-                          {/* Línea horizontal principal desde primer al último estado */}
-                          <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0">
-                            <div className="relative w-full">
-                              {/* calculamos offset para iniciar en el primer ítem y terminar en el último */}
-                              <div className="absolute left-[8%] right-[8%] h-1 bg-gray-600 rounded-full"></div>
-                              {/* Puntos extremos */}
-                              <div className="absolute left-[8%] -top-0.5 w-2 h-2 bg-black rounded-full"></div>
-                              <div className="absolute right-[8%] -top-0.5 w-2 h-2 bg-black rounded-full"></div>
-                            </div>
-                          </div>
-
-                          {/* Contenedor horizontal distribuido */}
-                          <div className="flex items-stretch justify-between gap-4">
-                            {logs.map((log, idx) => {
-                              const isTop = idx % 2 === 0;
+                        <div ref={containerRef} className="relative py-8 overflow-x-auto">
+                          {/* Timeline horizontal simplificado */}
+                          <div className="flex items-start relative min-w-max">
+                            {/* Línea conectora horizontal en la parte superior */}
+                            <div className="absolute top-4 left-0 right-0 h-0.5 bg-gray-300 z-0"></div>
+                            
+                            {logs.slice().reverse().map((log, idx) => {
                               const estadoTexto = (log.estado_nuevo || log.estado_anterior || 'N/A') as string;
                               const estadoTextColor = getEstadoTextClassFromSystem(estadoTexto);
                               const estadoDot = getEstadoDotBgFromSystem(estadoTexto);
+                              const isLast = idx === logs.length - 1;
+                              
                               return (
-                                <div key={log.id} className="relative flex-1 min-w-[200px] max-w-[260px] h-[260px]">
-                                  {/* Conector vertical */}
-                                  <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 w-0.5 h-12 bg-gray-500 ${isTop ? '-translate-y-full' : ''}`}></div>
-
-                                  {/* Punto central por estado */}
-                                  <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-                                    <div className={`w-4 h-4 rounded-full shadow ${estadoDot}`}></div>
-                                  </div>
-
-                                  {/* Estado en color cerca de la línea */}
-                                  <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 ${isTop ? 'mt-4' : '-mt-7'}`}>
-                                    <span className={`text-[13px] font-extrabold tracking-wide uppercase ${estadoTextColor}`}>{estadoTexto}</span>
-                                  </div>
-
-                                  {/* Bloque superior */}
-                                  <div className={`absolute inset-x-0 top-0 px-2 text-center ${isTop ? '' : 'opacity-0 select-none pointer-events-none'}`}>
-                                    <div className="font-semibold text-gray-900 text-sm truncate">{mapAccionLabel(log.accion)}</div>
-                                    <div className="mt-1 text-[11px] leading-snug text-gray-600 space-y-0.5">
-                                      <div className="truncate">Fecha: {formatDateTime(log.fecha_accion)}</div>
-                                      {log.usuario && (
-                                        <div className="truncate">Por: {`${log.usuario.primer_nombre || ''} ${log.usuario.primer_apellido || ''}`.trim() || log.usuario.username}</div>
-                                      )}
-                                      {log.observacion && (
-                                        <div className="line-clamp-3">{log.observacion}</div>
-                                      )}
+                                <div key={log.id} className="relative z-10 flex flex-col items-center mx-2 w-72 flex-shrink-0">
+                                  {/* Icono del estado */}
+                                  <div className="relative">
+                                    <div className={`w-8 h-8 rounded-full border-4 border-white shadow-lg ${estadoDot} flex items-center justify-center`}>
+                                      <div className="w-3 h-3 rounded-full bg-white"></div>
                                     </div>
                                   </div>
-
-                                  {/* Bloque inferior */}
-                                  <div className={`absolute inset-x-0 bottom-0 px-2 text-center ${isTop ? 'opacity-0 select-none pointer-events-none' : ''}`}>
-                                    <div className="font-semibold text-gray-900 text-sm truncate">{mapAccionLabel(log.accion)}</div>
-                                    <div className="mt-1 text-[11px] leading-snug text-gray-600 space-y-0.5">
-                                      <div className="truncate">Fecha: {formatDateTime(log.fecha_accion)}</div>
-                                      {log.usuario && (
-                                        <div className="truncate">Por: {`${log.usuario.primer_nombre || ''} ${log.usuario.primer_apellido || ''}`.trim() || log.usuario.username}</div>
-                                      )}
-                                      {log.observacion && (
-                                        <div className="line-clamp-3">{log.observacion}</div>
-                                      )}
+                                  
+                                  {/* Contenido de la tarjeta */}
+                                  <div className="mt-6 w-64 p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+                                    <div className="text-center">
+                                      {/* Estado */}
+                                      <div className={`text-sm font-bold uppercase tracking-wide ${estadoTextColor} mb-2`}>
+                                        {estadoTexto}
+                                      </div>
+                                      
+                                      {/* Información */}
+                                      <div className="space-y-1 text-xs text-gray-600">
+                                        <div className="flex items-center justify-center gap-1">
+                                          <Clock className="h-3 w-3" />
+                                          <span>{formatDateTime(log.fecha_accion)}</span>
+                                        </div>
+                                        
+                                        {log.usuario && (
+                                          <div className="flex items-center justify-center gap-1">
+                                            <User className="h-3 w-3" />
+                                            <span>{`${log.usuario.primer_nombre || ''} ${log.usuario.primer_apellido || ''}`.trim() || log.usuario.username}</span>
+                                          </div>
+                                        )}
+                                        
+                                        {log.observacion && (
+                                          <div className="mt-2 p-2 bg-gray-50 rounded text-left">
+                                            <div className="text-xs text-gray-500 mb-1">Observación:</div>
+                                            <div className="text-xs text-gray-700 line-clamp-3">{log.observacion}</div>
+                                          </div>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
                                 </div>

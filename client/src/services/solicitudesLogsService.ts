@@ -34,6 +34,7 @@ export const solicitudesLogsService = {
       // Preparar datos del log
       const logDataToInsert: any = {
         ...logData,
+        accion: logData.accion?.toLowerCase(), // Convertir acción a minúsculas
         fecha_accion: new Date().toISOString()
       };
       
