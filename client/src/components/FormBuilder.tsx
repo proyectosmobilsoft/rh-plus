@@ -94,7 +94,7 @@ const createTemporalField = (): FormField => ({
   id: uuidv4(),
   type: 'select',
   label: 'Temporal',
-  nombre: 'temporal',
+  nombre: 'temporalaingresar',
   placeholder: 'Seleccione una opción',
   required: false,
   order: 4,
@@ -170,6 +170,7 @@ const FormBuilder: React.FC<{
         fieldName === 'documento' || 
         fieldName === 'correo_electronico' || 
         fieldName === 'cargo' ||
+        fieldName === 'temporalaingresar' ||
         fieldName === 'temporal' ||
         fieldLabel.toLowerCase().includes('documento') ||
         fieldLabel.toLowerCase().includes('correo') ||
@@ -182,12 +183,12 @@ const FormBuilder: React.FC<{
           ...campo,
           isSystemField: true,
           // Si es campo temporal, agregar allowOptionsEdit
-          allowOptionsEdit: fieldName === 'temporal' ? true : campo.allowOptionsEdit
+          allowOptionsEdit: (fieldName === 'temporalaingresar' || fieldName === 'temporal') ? true : campo.allowOptionsEdit
         };
       }
       
       // Si ya es campo del sistema pero es temporal y no tiene allowOptionsEdit, agregarlo
-      if (campo.isSystemField && fieldName === 'temporal' && !campo.allowOptionsEdit) {
+      if (campo.isSystemField && (fieldName === 'temporalaingresar' || fieldName === 'temporal') && !campo.allowOptionsEdit) {
         console.log('🔍 Agregando allowOptionsEdit a campo temporal existente:', campo);
         return {
           ...campo,

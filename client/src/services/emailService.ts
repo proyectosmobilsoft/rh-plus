@@ -264,7 +264,7 @@ class EmailService {
           </div>
           <div style="padding:24px">
             <p>Hola <strong>${candidatoNombre || 'Candidato'}</strong>,</p>
-            <p>Te informamos que se ha creado una <strong>orden de ingreso</strong> en la empresa <strong>${empresaNombre}</strong> con ID de solicitud <strong>#${solicitudId}</strong>.</p>
+            <p>Te informamos que se ha creado una <strong>orden de ingreso</strong> en la empresa <strong>${tituloEmpresa}</strong> con ID de solicitud <strong>#${solicitudId}</strong>.</p>
             <div style="margin:16px 0;padding:14px 16px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px">
               <div style="font-weight:600;margin-bottom:8px">Credenciales de acceso</div>
               <div style="font-family:Consolas,Monaco,monospace;background:#111;color:#fff;display:inline-block;padding:6px 10px;border-radius:6px;margin-right:6px">${usuario}</div>
@@ -606,7 +606,7 @@ class EmailService {
       to: params.to,
       subject: `Orden de ingreso creada - ${tituloEmpresa}`,
       html,
-      text: `Se creó una orden de ingreso en ${params.empresaNombre} (Solicitud #${params.solicitudId}). Usuario: ${params.usuario} / Contraseña: ${params.password}${params.sistemaUrl ? ` / URL: ${params.sistemaUrl}` : ''}`,
+      text: `Se creó una orden de ingreso en ${tituloEmpresa} (Solicitud #${params.solicitudId}). Usuario: ${params.usuario} / Contraseña: ${params.password}${params.sistemaUrl ? ` / URL: ${params.sistemaUrl}` : ''}`,
       from: 'noreply@rhcompensamos.com'
     });
   }

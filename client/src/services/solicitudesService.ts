@@ -899,8 +899,17 @@ export const solicitudesService = {
           const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://localhost';
           const sistemaUrl = `${baseUrl}/login`;
           
-          // Obtener el campo temporal de la estructura_datos
-          const temporal = (solDet?.estructura_datos as any)?.temporal;
+          // Obtener el campo temporal de la estructura_datos (buscar ambos nombres)
+          const temporal = (solDet?.estructura_datos as any)?.temporalaingresar || (solDet?.estructura_datos as any)?.temporal;
+          
+          // Debug: Verificar qué datos tenemos disponibles
+          console.log('🔍 Debug - Datos de la solicitud:', {
+            estructura_datos: solDet?.estructura_datos,
+            temporalaingresar: (solDet?.estructura_datos as any)?.temporalaingresar,
+            temporal: (solDet?.estructura_datos as any)?.temporal,
+            temporal_final: temporal,
+            empresa: solDet?.empresas?.razon_social
+          });
           
           // Obtener el cargo de la estructura_datos si está disponible
           const cargoId = (solDet?.estructura_datos as any)?.cargo || solDet?.cargo || "-";
@@ -1503,8 +1512,17 @@ export const solicitudesService = {
                   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://localhost';
                   const sistemaUrl = `${baseUrl}/login`;
                   
-                  // Obtener el campo temporal de la estructura_datos
-                  const temporal = (d as any)?.temporal;
+                  // Obtener el campo temporal de la estructura_datos (buscar ambos nombres)
+                  const temporal = (d as any)?.temporalaingresar || (d as any)?.temporal;
+                  
+                  // Debug: Verificar qué datos tenemos disponibles
+                  console.log('🔍 Debug - Datos de la solicitud (createWithTemplate):', {
+                    estructura_datos: d,
+                    temporalaingresar: (d as any)?.temporalaingresar,
+                    temporal: (d as any)?.temporal,
+                    temporal_final: temporal,
+                    empresa: data.empresas?.razon_social
+                  });
                   
                   // Obtener el cargo de la estructura_datos si está disponible
                   const cargoId = (d as any)?.cargo || data.cargo || "-";
