@@ -43,6 +43,7 @@ import { Can } from '@/contexts/PermissionsContext';
 import { useCompanies } from '@/hooks/useCompanies';
 import { useAnalistas } from '@/hooks/useAnalistas';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLoading } from '@/contexts/LoadingContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SelectWithSearch } from "@/components/ui/select-with-search";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -139,6 +140,7 @@ interface DashboardStats {
   usuariosInactivos: number;
   prestadoresActivos: number;
   prestadoresInactivos: number;
+  solicitudes: any[]; // Agregar las solicitudes completas para los modales
 }
 
 interface StatCardProps {
@@ -181,6 +183,7 @@ const StatCard = ({ title, value, description, icon, trend, color = "brand-lime"
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const { startLoading, stopLoading } = useLoading();
   const [dateRange, setDateRange] = useState<DateRange>({
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date())
@@ -191,6 +194,7 @@ const Dashboard = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalData, setModalData] = useState<any[]>([]);
   const [modalTitle, setModalTitle] = useState('');
+  const [modalType, setModalType] = useState<string>('');
   const [solicitudesData, setSolicitudesData] = useState<any[]>([]);
 
   // Obtener datos de empresas y analistas
@@ -240,33 +244,80 @@ const Dashboard = () => {
   };
 
   // Función para manejar click en card
-  const handleCardClick = (estado: string, titulo: string) => {
-    let solicitudesFiltradas = [];
-    
-    switch (estado) {
-      case 'asignado':
-        solicitudesFiltradas = solicitudesData.filter(s => s.estado === 'asignado');
-        break;
-      case 'citado_examenes':
-        solicitudesFiltradas = solicitudesData.filter(s => s.estado === 'citado_examenes');
-        break;
-      case 'contratado':
-        solicitudesFiltradas = solicitudesData.filter(s => s.estado === 'contratado');
-        break;
-      case 'descartado':
-        solicitudesFiltradas = solicitudesData.filter(s => 
-          s.estado === 'descartado' || s.estado === 'cancelada' || s.estado === 'stand_by'
-        );
-        break;
+  const handleCardClick = async (estado: string, titulo: string) => {
+    try {
+      // Mostrar loading global
+      startLoading();
+      
+      // Refrescar los datos antes de mostrar el modal
+      console.log('🔄 Refrescando datos del dashboard...');
+      const { data: refreshedStats } = await refetch();
+      
+      // Usar los datos actualizados del refetch
+      const solicitudesActualizadas = refreshedStats?.solicitudes || solicitudesData;
+      
+      // Debug: Mostrar todos los estados únicos para verificar
+      const estadosUnicos = [...new Set(solicitudesActualizadas.map(s => s.estado))];
+      console.log('🔍 Estados únicos encontrados en las solicitudes:', estadosUnicos);
+      
+      let solicitudesFiltradas = [];
+      
+      switch (estado) {
+        case 'asignado':
+          solicitudesFiltradas = solicitudesActualizadas.filter(s => s.estado === 'asignado');
+          break;
+        case 'citado_examenes':
+          solicitudesFiltradas = solicitudesActualizadas.filter(s => s.estado === 'citado_examenes');
+          break;
+        case 'contratado':
+          solicitudesFiltradas = solicitudesActualizadas.filter(s => s.estado === 'contratado');
+          break;
+        case 'descartado':
+          // Filtrar por múltiples variaciones de estados de descarte
+          solicitudesFiltradas = solicitudesActualizadas.filter(s => {
+            const estadoOriginal = s.estado;
+            const estadoLower = s.estado?.toLowerCase();
+            const estadoSinGuiones = s.estado?.replace(/_/g, '').toLowerCase();
+            
+            const esDescartada = estadoLower === 'descartado' || 
+                   estadoLower === 'cancelada' || 
+                   estadoLower === 'cancelado' ||
+                   estadoLower === 'stand_by' || 
+                   estadoLower === 'standby' ||
+                   estadoLower === 'stand by' ||
+                   estadoSinGuiones === 'standby' ||
+                   estadoLower === 'desertada' ||
+                   estadoLower === 'desertado';
+            
+            // Debug: Log para cada solicitud
+            console.log('🔍 Verificando solicitud:', {
+              id: s.id,
+              estadoOriginal: estadoOriginal,
+              estadoLower: estadoLower,
+              estadoSinGuiones: estadoSinGuiones,
+              esDescartada: esDescartada
+            });
+            
+            return esDescartada;
+          });
+          break;
+      }
+      
+      console.log(`📊 Mostrando ${solicitudesFiltradas.length} solicitudes para estado: ${estado}`);
+      setModalData(solicitudesFiltradas);
+      setModalTitle(titulo);
+      setModalType(estado);
+      setModalOpen(true);
+    } catch (error) {
+      console.error('Error al refrescar datos del dashboard:', error);
+    } finally {
+      // Ocultar loading global
+      stopLoading();
     }
-    
-    setModalData(solicitudesFiltradas);
-    setModalTitle(titulo);
-    setModalOpen(true);
   };
 
   // Query principal para obtener todas las estadísticas del dashboard
-  const { data: stats, isLoading, error } = useQuery({
+  const { data: stats, isLoading, error, refetch } = useQuery({
     queryKey: ["dashboard-stats", dateRange.from, dateRange.to, empresaFiltro, analistaFiltro],
     queryFn: async (): Promise<DashboardStats> => {
       try {
@@ -460,9 +511,40 @@ const Dashboard = () => {
         ).length || 0;
 
         // Solicitudes descartadas, canceladas, stand by
-        const solicitudesDescartadas = solicitudes?.filter(s =>
-          s.estado === 'descartado' || s.estado === 'cancelada' || s.estado === 'stand_by'
-        ).length || 0;
+        const solicitudesDescartadas = solicitudes?.filter(s => {
+          const estadoOriginal = s.estado;
+          const estadoLower = s.estado?.toLowerCase();
+          const estadoSinGuiones = s.estado?.replace(/_/g, '').toLowerCase();
+          
+          const esDescartada = estadoLower === 'descartado' || 
+                 estadoLower === 'cancelada' || 
+                 estadoLower === 'cancelado' ||
+                 estadoLower === 'stand_by' || 
+                 estadoLower === 'standby' ||
+                 estadoLower === 'stand by' ||
+                 estadoSinGuiones === 'standby' ||
+                 estadoLower === 'desertada' ||
+                 estadoLower === 'desertado';
+          
+          // Debug: Log para solicitudes que coinciden
+          if (esDescartada) {
+            console.log('✅ Solicitud descartada encontrada en estadísticas:', {
+              id: s.id,
+              estadoOriginal: estadoOriginal,
+              estadoLower: estadoLower,
+              estadoSinGuiones: estadoSinGuiones
+            });
+          }
+          
+          return esDescartada;
+        }).length || 0;
+        
+        // Debug: Log de todas las solicitudes con sus estados
+        console.log('🔍 Todas las solicitudes y sus estados:', solicitudes?.map(s => ({
+          id: s.id,
+          estado: s.estado,
+          estadoLower: s.estado?.toLowerCase()
+        })));
 
         // Top empresas por cantidad de solicitudes
         const empresasPorSolicitudes = solicitudes?.reduce((acc: any, solicitud) => {
@@ -543,7 +625,8 @@ const Dashboard = () => {
           usuariosActivos,
           usuariosInactivos,
           prestadoresActivos,
-          prestadoresInactivos
+          prestadoresInactivos,
+          solicitudes: solicitudesEnriquecidas // Agregar las solicitudes completas
         };
       } catch (error) {
         console.error("Error fetching dashboard stats:", error);
@@ -697,13 +780,13 @@ const Dashboard = () => {
           />
         </div>
         <div 
-          onClick={() => handleCardClick('descartado', 'Solicitudes Desertadas, Canceladas, Stand By')}
+          onClick={() => handleCardClick('descartado', 'Solicitudes Canceladas/Desertadas')}
           className="cursor-pointer hover:shadow-lg transition-shadow duration-200"
         >
           <StatCard
-            title="Solicitudes Desertadas, Canceladas, Stand By"
+            title="Solicitudes Canceladas/Desertadas"
             value={stats?.solicitudesDescartadas || 0}
-            description="Solicitudes descartadas, canceladas y stand by"
+            description="Solicitudes canceladas, desertadas y stand by"
             icon={<XCircle className="h-5 w-5" />}
             color="orange"
             trend={{ value: calcularTendencia(stats?.solicitudesDescartadas || 0, 5), isPositive: true }}
@@ -1389,6 +1472,7 @@ const Dashboard = () => {
                       <TableHead className="px-4 py-3">Candidato</TableHead>
                       <TableHead className="px-4 py-3">Cargo</TableHead>
                       <TableHead className="px-4 py-3">Analista</TableHead>
+                      {modalType === 'descartado' && <TableHead className="px-4 py-3">Estado</TableHead>}
                       <TableHead className="px-4 py-3">Fecha</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1453,6 +1537,23 @@ const Dashboard = () => {
                               )}
                             </div>
                           </TableCell>
+                          {modalType === 'descartado' && (
+                            <TableCell className="px-4 py-3">
+                              <div className="flex flex-col">
+                                <Badge 
+                                  className={`text-xs font-medium ${
+                                    solicitud.estado === 'asignado' ? 'bg-blue-100 text-blue-800' :
+                                    solicitud.estado === 'citado_examenes' ? 'bg-yellow-100 text-yellow-800' :
+                                    solicitud.estado === 'contratado' ? 'bg-green-100 text-green-800' :
+                                    solicitud.estado === 'descartado' || solicitud.estado === 'cancelada' || solicitud.estado === 'stand_by' ? 'bg-red-100 text-red-800' :
+                                    'bg-gray-100 text-gray-800'
+                                  }`}
+                                >
+                                  {solicitud.estado?.replace('_', ' ').toUpperCase() || 'Sin estado'}
+                                </Badge>
+                              </div>
+                            </TableCell>
+                          )}
                           <TableCell className="px-4 py-3">
                             <div className="flex flex-col">
                               <span className="text-sm text-gray-500">
@@ -1476,7 +1577,7 @@ const Dashboard = () => {
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={6} className="h-24 text-center">
+                        <TableCell colSpan={modalType === 'descartado' ? 7 : 6} className="h-24 text-center">
                           <div className="flex flex-col items-center justify-center space-y-4">
                             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                               <FileText className="h-8 w-8 text-gray-400" />

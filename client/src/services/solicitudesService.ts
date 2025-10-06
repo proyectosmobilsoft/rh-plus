@@ -1438,9 +1438,9 @@ export const solicitudesService = {
             }
           }
           
-          // Asignar empresa_id desde la solicitud
-          if (solicitud.empresa_id) {
-            candidatoPayload.empresa_id = solicitud.empresa_id;
+          // Asignar empresa_id desde el parámetro de la función
+          if (empresaId) {
+            candidatoPayload.empresa_id = empresaId;
           }
           
           // Verificar si el candidato ya existe antes de intentar crearlo

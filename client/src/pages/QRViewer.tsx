@@ -37,6 +37,7 @@ interface CandidatoInfo {
   contacto_emergencia_nombre?: string;
   contacto_emergencia_telefono?: string;
   contacto_emergencia_relacion?: string;
+  usuario_id?: number;
 }
 
 export default function QRViewer() {
@@ -112,6 +113,7 @@ export default function QRViewer() {
             contacto_emergencia_nombre,
             contacto_emergencia_telefono,
             contacto_emergencia_relacion,
+            usuario_id,
             ciudades:ciudad_id(nombre, departamentos:departamento_id(nombre))
           `)
           .eq('id', qrInfo.id)
@@ -124,6 +126,13 @@ export default function QRViewer() {
         }
 
         if (candidatoData) {
+          console.log('👤 Datos del candidato obtenidos:', {
+            id: candidatoData.id,
+            usuario_id: candidatoData.usuario_id,
+            fotografia: candidatoData.fotografia,
+            nombre: `${candidatoData.primer_nombre} ${candidatoData.primer_apellido}`
+          });
+
           const candidatoInfo: CandidatoInfo = {
             id: candidatoData.id,
             primer_nombre: candidatoData.primer_nombre,
@@ -144,23 +153,77 @@ export default function QRViewer() {
             contacto_emergencia_nombre: candidatoData.contacto_emergencia_nombre,
             contacto_emergencia_telefono: candidatoData.contacto_emergencia_telefono,
             contacto_emergencia_relacion: candidatoData.contacto_emergencia_relacion,
+            usuario_id: candidatoData.usuario_id,
           };
           setCandidatoInfo(candidatoInfo);
 
           // Usar la fotografía del candidato si está disponible
-          if (candidatoData.fotografia) {
+          if (candidatoData.fotografia && candidatoData.fotografia.trim() !== '') {
             setCandidatoFoto(candidatoData.fotografia);
-          } else {
-            // Si no hay fotografía en candidatos, intentar obtenerla del usuario
+          } else if (candidatoData.usuario_id) {
+            // Si no hay fotografía en candidatos, intentar obtenerla del usuario relacionado
+            console.log('🔍 Buscando foto del usuario con ID:', candidatoData.usuario_id);
+            
             const { data: usuarioData, error: usuarioError } = await supabase
               .from('gen_usuarios')
-              .select('foto_base64')
+              .select('*')
               .eq('id', candidatoData.usuario_id)
               .single();
 
-            if (!usuarioError && usuarioData?.foto_base64) {
-              setCandidatoFoto(usuarioData.foto_base64);
+            console.log('📸 Datos del usuario obtenidos:', { usuarioData, usuarioError });
+
+            if (!usuarioError && usuarioData) {
+              // Buscar foto en diferentes campos posibles
+              const posiblesCamposFoto = [
+                'foto_base64',
+                'foto',
+                'imagen',
+                'avatar',
+                'photo',
+                'image',
+                'fotografia'
+              ];
+
+              let fotoEncontrada = null;
+              let campoEncontrado = null;
+
+              for (const campo of posiblesCamposFoto) {
+                const valor = usuarioData[campo];
+                if (valor && 
+                    valor !== null && 
+                    valor !== undefined && 
+                    valor.toString().trim() !== '') {
+                  fotoEncontrada = valor;
+                  campoEncontrado = campo;
+                  break;
+                }
+              }
+
+              if (fotoEncontrada) {
+                console.log(`✅ Foto del usuario encontrada en campo '${campoEncontrado}':`, {
+                  campo: campoEncontrado,
+                  longitud: fotoEncontrada.toString().length,
+                  preview: fotoEncontrada.toString().substring(0, 50) + '...'
+                });
+                setCandidatoFoto(fotoEncontrada);
+              } else {
+                console.log('❌ No se encontró foto del usuario en ningún campo:', {
+                  camposDisponibles: Object.keys(usuarioData),
+                  valoresFoto: posiblesCamposFoto.map(campo => ({
+                    campo,
+                    valor: usuarioData[campo],
+                    esNull: usuarioData[campo] === null,
+                    esUndefined: usuarioData[campo] === undefined,
+                    esStringVacio: usuarioData[campo] === '',
+                    longitud: usuarioData[campo]?.toString()?.length
+                  }))
+                });
+              }
+            } else {
+              console.log('❌ Error al obtener datos del usuario:', usuarioError);
             }
+          } else {
+            console.log('❌ No hay usuario_id asociado al candidato');
           }
         }
 
