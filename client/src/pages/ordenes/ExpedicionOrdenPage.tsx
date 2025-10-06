@@ -49,10 +49,10 @@ const ExpedicionOrdenPage = () => {
     { value: 'ASIGNADO', label: 'Asignado' },
     { value: 'pendiente documentos', label: 'Pendiente Documentos' },
     { value: 'EN_PROCESO', label: 'En Proceso' },
-    { value: 'APROBADA', label: 'Aprobada' },
-    { value: 'RECHAZADA', label: 'Rechazada' },
-    { value: 'CONTRATADO', label: 'Contratado' },
-    { value: 'VALIDACION CLIENTE', label: 'Validación Cliente' }
+    { value: 'aprobada', label: 'Aprobada' },
+    { value: 'rechazada', label: 'Rechazada' },
+    { value: 'contratado', label: 'Contratado' },
+    { value: 'validacion cliente', label: 'Validación Cliente' }
   ];
 
   // Función para verificar si estamos en el período especial (del 25 al final del mes)
@@ -303,7 +303,7 @@ const ExpedicionOrdenPage = () => {
   const handleCancel = async (id: number, observacion: string) => {
     setIsLoading(true);
     try {
-      const success = await solicitudesService.updateStatus(id, 'CANCELADA', observacion);
+      const success = await solicitudesService.updateStatus(id, 'cancelada', observacion);
       if (success) {
         toast.success('Solicitud cancelada exitosamente');
         fetchSolicitudes(); // Recargar la lista

@@ -1166,7 +1166,26 @@ export default function PerfilCandidato() {
 
       const todosLosDocumentosRequeridosSubidos = documentosRequeridosSubidos.length === documentosRequeridosIds.length;
 
-      if (todosLosDocumentosRequeridosSubidos && documentosRequeridosIds.length > 0) {
+      // Si no hay documentos requeridos, cambiar estado inmediatamente al subir cualquier documento
+      if (documentosRequeridosIds.length === 0) {
+        console.log('✅ No hay documentos requeridos para este cargo, actualizando estado...');
+        
+        // Actualizar estado de la solicitud a "documentos entregados"
+        const { error } = await supabase
+          .from('hum_solicitudes')
+          .update({ 
+            estado: 'documentos entregados',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', solicitudId);
+
+        if (error) {
+          console.error('Error actualizando estado de solicitud:', error);
+        } else {
+          console.log('✅ Estado de solicitud actualizado a "documentos entregados" (sin documentos requeridos)');
+          toast.success('¡Documento subido! Estado actualizado a "documentos entregados"');
+        }
+      } else if (todosLosDocumentosRequeridosSubidos && documentosRequeridosIds.length > 0) {
         console.log('✅ Todos los documentos requeridos están subidos, actualizando estado...');
         
         // Actualizar estado de la solicitud a "documentos entregados"

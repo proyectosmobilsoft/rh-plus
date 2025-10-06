@@ -1158,9 +1158,9 @@ export const solicitudesService = {
       const pendientes =
         data?.filter((s: any) => s.estado === "PENDIENTE").length || 0;
       const aprobadas =
-        data?.filter((s: any) => s.estado === "APROBADA").length || 0;
+        data?.filter((s: any) => s.estado === "aprobada").length || 0;
       const rechazadas =
-        data?.filter((s: any) => s.estado === "RECHAZADA").length || 0;
+        data?.filter((s: any) => s.estado === "rechazada").length || 0;
       const altaPrioridad =
         data?.filter((s: any) => s.prioridad === "alta").length || 0;
 
@@ -1993,7 +1993,7 @@ export const solicitudesService = {
   // Aprobar solicitud
   async approve(id: number, observacion?: string): Promise<boolean> {
     try {
-      const success = await this.updateStatus(id, "APROBADA", observacion);
+      const success = await this.updateStatus(id, "aprobada", observacion);
       
       if (success) {
         return success;
@@ -2009,7 +2009,7 @@ export const solicitudesService = {
   // Rechazar solicitud
   async reject(id: number, observacion?: string): Promise<boolean> {
     try {
-      const success = await this.updateStatus(id, "RECHAZADA", observacion);
+      const success = await this.updateStatus(id, "rechazada", observacion);
       
       if (success) {
         // Log adicional específico para rechazo
@@ -2039,7 +2039,7 @@ export const solicitudesService = {
   // Contratar solicitud
   async contract(id: number, observacion?: string): Promise<boolean> {
     try {
-      const success = await this.updateStatus(id, "CONTRATADO", observacion);
+      const success = await this.updateStatus(id, "contratado", observacion);
       
       if (success) {
         // Log adicional específico para contratación
@@ -2050,7 +2050,7 @@ export const solicitudesService = {
             observacion: observacion || 'Solicitud marcada como contratada',
             usuario_id: getUsuarioId(),
             estado_anterior: undefined,
-            estado_nuevo: "CONTRATADO"
+            estado_nuevo: "contratado"
           });
         } catch (logError) {
           console.warn("No se pudo crear el log de contratación:", logError);

@@ -261,7 +261,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
       const solicitud = solicitudes.find(s => s.id === cancelingSolicitudId);
       console.log('🔍 Solicitud encontrada:', solicitud?.id, 'Estado:', solicitud?.estado);
 
-      if (solicitud && solicitud.estado === 'CANCELADA') {
+      if (solicitud && solicitud.estado === 'cancelada') {
         console.log('🔍 Operación de Cancelación completada, limpiando estado...');
         setCancelingSolicitudId(null);
         stopLoading(); // Detener loading global cuando se complete la operación de Cancelación
@@ -1244,7 +1244,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                             )}
 
                             {/* Botón Documentos Devueltos - solo visible en estado DOCUMENTOS ENTREGADOS */}
-                            {solicitud.estado?.toUpperCase() === 'DOCUMENTOS ENTREGADOS' && !isDeserto(solicitud.estado) && !isCancelada(s.estado) && (
+                            {solicitud.estado?.toUpperCase() === 'DOCUMENTOS ENTREGADOS' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
                               <Can action="accion-devolver-documentos-solicitud">
                                 <DropdownMenuItem 
                                   onClick={() => handleReturnDocumentsClick(solicitud.id)} 
