@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FileText, CheckCircle, XCircle, Search, Filter, Eye, Save, X } from "lucide-react";
+import { FileText, CheckCircle, XCircle, Search, Filter, Eye, Save, X, Upload } from "lucide-react";
 import { toast } from 'sonner';
 
 import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogFooter } from "@/components/ui/dialog";
@@ -17,9 +17,11 @@ import {
   TableRow 
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Solicitud, solicitudesService } from '@/services/solicitudesService';
 import { certificadosMedicosService, CertificadoMedicoFormData } from '@/services/certificadosMedicosService';
 import { supabase } from '@/services/supabaseClient';
@@ -57,6 +59,67 @@ const CertificadosMedicosPage = () => {
     elementosProteccionPersonal: '',
     recomendacionesGenerales: ''
   });
+
+  // Estados para el documento del concepto médico
+  const [documentoConceptoMedico, setDocumentoConceptoMedico] = useState<File | null>(null);
+  const [documentoPreview, setDocumentoPreview] = useState<string | null>(null);
+  const [isUploadingDocumento, setIsUploadingDocumento] = useState(false);
+  const [acordeonAbierto, setAcordeonAbierto] = useState<string[]>(['documento-medico']);
+
+  // Función para convertir archivo a Base64 (igual que en perfil candidato)
+  const convertFileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // Función para manejar el cambio de archivo del concepto médico
+  const handleDocumentoConceptoMedicoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validar tipo de archivo (PDF, imágenes)
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Solo se permiten archivos PDF, JPG, JPEG o PNG');
+      return;
+    }
+
+    // Validar tamaño (máximo 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('El archivo debe ser menor a 10MB');
+      return;
+    }
+
+    setIsUploadingDocumento(true);
+    try {
+      // Convertir a base64
+      const base64 = await convertFileToBase64(file);
+      const base64Data = base64.split(',')[1]; // Remover el prefijo data:application/pdf;base64,
+
+      setDocumentoConceptoMedico(file);
+      setDocumentoPreview(base64Data);
+      
+      toast.success('Documento cargado exitosamente');
+    } catch (error) {
+      console.error('Error procesando archivo:', error);
+      toast.error('Error al procesar el archivo');
+    } finally {
+      setIsUploadingDocumento(false);
+    }
+  };
+
+  // Función para eliminar el documento
+  const handleRemoveDocumento = () => {
+    setDocumentoConceptoMedico(null);
+    setDocumentoPreview(null);
+    // Limpiar el input file
+    const fileInput = document.getElementById('documento-concepto-medico') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+  };
 
   // Fetch solicitudes when component mounts
   useEffect(() => {
@@ -285,14 +348,46 @@ const CertificadosMedicosPage = () => {
     }
 
     try {
-      // Aquí puedes agregar la lógica para guardar el certificado médico
-      console.log('Datos del certificado médico:', formData);
+      // Preparar datos del certificado médico incluyendo el documento
+      const certificadoData = {
+        ...formData,
+        documento_concepto_medico: documentoPreview, // Base64 del documento
+        solicitud_id: solicitudSeleccionada.id,
+        candidato_id: solicitudSeleccionada.candidato_id
+      };
+
+      console.log('Datos del certificado médico:', certificadoData);
+      
+      // Guardar en la base de datos
+      const { error } = await supabase
+        .from('certificados_medicos')
+        .upsert(certificadoData);
+
+      if (error) {
+        console.error('Error guardando certificado médico:', error);
+        toast.error('Error al guardar el certificado médico');
+        return;
+      }
+
       toast.success('Certificado médico guardado correctamente');
       
-      // Opcional: actualizar el estado de la solicitud
-      // await solicitudesService.update(solicitudSeleccionada.id!, {
-      //   estado: 'CERTIFICADO APTO' // o 'CERTIFICADO NO APTO' según el concepto
-      // });
+      // Limpiar el formulario
+      setFormData({
+        nombresApellidos: '',
+        identificacion: '',
+        cargo: '',
+        area: '',
+        eps: '',
+        arl: '',
+        restriccionMacro: '',
+        resumenRestriccion: '',
+        remision: 'no',
+        requiereMedicacion: 'no',
+        elementosProteccionPersonal: '',
+        recomendacionesGenerales: ''
+      });
+      setDocumentoConceptoMedico(null);
+      setDocumentoPreview(null);
       
     } catch (error) {
       console.error('Error al guardar el certificado médico:', error);
@@ -364,7 +459,8 @@ const CertificadosMedicosPage = () => {
         elementos_proteccion_personal: formData.elementosProteccionPersonal,
         recomendaciones_generales: formData.recomendacionesGenerales,
         observaciones: observaciones,
-        concepto_medico: conceptoMedico
+        concepto_medico: conceptoMedico,
+        documento_concepto_medico: documentoPreview // Agregar el documento adjuntado
       };
 
       // Guardar el certificado médico
@@ -480,7 +576,7 @@ const CertificadosMedicosPage = () => {
       return 'Citado Exámenes Médicos';
     }
     if (estado === 'validacion cliente') {
-      return 'Con Restricciones';
+      return 'Con Restricciones o Recomendación';
     }
     return estado;
   };
@@ -563,7 +659,7 @@ const CertificadosMedicosPage = () => {
                     <SelectItem value="pendiente">Pendiente Documentos</SelectItem>
                     <SelectItem value="documentos">Documentos Entregados</SelectItem>
                     <SelectItem value="citado">Citado Exámenes</SelectItem>
-                    <SelectItem value="restricciones">Con Restricciones</SelectItem>
+                    <SelectItem value="restricciones">Con Restricciones o Recomendación</SelectItem>
                     <SelectItem value="descartado">Descartado</SelectItem>
                   </SelectContent>
                 </Select>
@@ -760,18 +856,18 @@ const CertificadosMedicosPage = () => {
 
                   {/* Restricciones y Remisión */}
                   <div className="bg-orange-50 p-4 rounded-lg border border-orange-200 space-y-4">
-                    <h3 className="text-lg font-semibold text-orange-800">RESTRICCIONES Y REMISIÓN</h3>
+                    <h3 className="text-lg font-semibold text-orange-800">RESTRICCIONES o RECOMENDACIÓN Y REMISIÓN</h3>
                     
                     {/* Campos de restricciones en dos columnas */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Can action="campo-restriccion-macro">
-                          <Label htmlFor="restriccionMacro" className="text-sm font-medium text-gray-700">RESTRICCIÓN MACRO</Label>
+                          <Label htmlFor="restriccionMacro" className="text-sm font-medium text-gray-700">RESTRICCIÓN o RECOMENDACIÓN MACRO</Label>
                           <Textarea
                             id="restriccionMacro"
                             value={formData.restriccionMacro}
                             onChange={(e) => handleFormChange('restriccionMacro', e.target.value)}
-                            placeholder="Ingrese la restricción macro..."
+                            placeholder="Ingrese la restricción o recomendación macro..."
                             className="w-full min-h-[100px] resize-y"
                             disabled={solicitudSeleccionada?.estado === 'validacion cliente'}
                           />
@@ -780,14 +876,19 @@ const CertificadosMedicosPage = () => {
                       
                       <div className="space-y-2">
                         <Can action="campo-resumen-restriccion">
-                          <Label htmlFor="resumenRestriccion" className="text-sm font-medium text-gray-700">RESUMEN RESTRICCIÓN</Label>
+                          <Label htmlFor="resumenRestriccion" className="text-sm font-medium text-gray-700">RESUMEN RESTRICCIÓN o RECOMENDACIÓN</Label>
                           <Textarea
                             id="resumenRestriccion"
                             value={formData.resumenRestriccion}
                             onChange={(e) => handleFormChange('resumenRestriccion', e.target.value)}
-                            placeholder="Ingrese el resumen de la restricción..."
+                            placeholder="Ingrese el resumen de la restricción o recomendación..."
                             className="w-full min-h-[100px] resize-y"
-                            disabled={solicitudSeleccionada?.estado === 'validacion cliente'}
+                            disabled={false}
+                            readOnly={solicitudSeleccionada?.estado === 'validacion cliente'}
+                            style={{
+                              backgroundColor: solicitudSeleccionada?.estado === 'validacion cliente' ? 'white' : 'white',
+                              cursor: solicitudSeleccionada?.estado === 'validacion cliente' ? 'default' : 'text'
+                            }}
                           />
                         </Can>
                       </div>
@@ -865,6 +966,131 @@ const CertificadosMedicosPage = () => {
                     </div>
                   </Can>
 
+                  {/* Sección para adjuntar documento del concepto médico */}
+                  <div className="space-y-4">
+                    <div className="text-sm font-medium text-gray-700 mb-3">
+                      Documento del concepto médico:
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Card className={`border-2 transition-all duration-200 hover:shadow-md ${
+                        documentoConceptoMedico 
+                          ? 'border-green-200 bg-green-50' 
+                          : 'border-gray-200 bg-white hover:border-blue-300'
+                      }`}>
+                        <CardHeader className="pb-3 pt-4">
+                          <CardTitle className="flex items-center justify-between text-sm">
+                            <div className="flex items-center">
+                              <div className={`p-2 rounded-lg mr-3 ${
+                                documentoConceptoMedico ? 'bg-green-100' : 'bg-blue-100'
+                              }`}>
+                                <FileText className="w-4 h-4 text-blue-600" />
+                              </div>
+                              <div>
+                                <span className="font-semibold text-gray-800">
+                                  Documento del Concepto Médico
+                                </span>
+                                <Badge variant="destructive" className="text-xs px-2 py-0.5 ml-2">
+                                  Obligatorio
+                                </Badge>
+                              </div>
+                            </div>
+                            {documentoConceptoMedico && (
+                              <div className="flex items-center gap-1 text-green-600">
+                                <CheckCircle className="h-3 w-3" />
+                                <span className="text-xs font-medium">Subido</span>
+                              </div>
+                            )}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-0 pb-4">
+                          <div className="space-y-3">
+                            {/* Progress Bar for Upload */}
+                            {isUploadingDocumento && (
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between text-xs text-gray-600">
+                                  <span>Subiendo documento...</span>
+                                  <span>100%</span>
+                                </div>
+                                <Progress 
+                                  value={100} 
+                                  className="h-2 bg-gray-200"
+                                />
+                              </div>
+                            )}
+                            
+                            <div className="flex items-center gap-3">
+                              {documentoConceptoMedico ? (
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      // Función para ver documento
+                                      const base64 = `data:${documentoConceptoMedico.type};base64,${documentoPreview}`;
+                                      window.open(base64, '_blank');
+                                    }}
+                                    className="h-7 w-7 p-0 hover:bg-blue-50 rounded-full"
+                                    title="Ver documento"
+                                  >
+                                    <Eye className="h-4 w-4 text-blue-600" />
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleRemoveDocumento}
+                                    className="h-7 w-7 p-0 hover:bg-gray-50 rounded-full"
+                                    title="Eliminar documento"
+                                  >
+                                    <X className="h-4 w-4 text-gray-600" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    const fileInput = document.getElementById('documento-concepto-medico') as HTMLInputElement;
+                                    fileInput?.click();
+                                  }}
+                                  disabled={solicitudSeleccionada?.estado === 'validacion cliente' || isUploadingDocumento}
+                                  className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                                >
+                                  <Upload className="h-4 w-4 mr-1" />
+                                  Subir
+                                </Button>
+                              )}
+                            </div>
+                            
+                            {/* Input file oculto */}
+                            <input
+                              id="documento-concepto-medico"
+                              type="file"
+                              accept=".pdf,.jpg,.jpeg,.png"
+                              onChange={handleDocumentoConceptoMedicoChange}
+                              disabled={solicitudSeleccionada?.estado === 'validacion cliente' || isUploadingDocumento}
+                              className="hidden"
+                            />
+                            
+                            {/* Información del archivo */}
+                            {documentoConceptoMedico && (
+                              <div className="text-xs text-gray-500 space-y-1">
+                                <div className="flex items-center gap-1">
+                                  <span>📄 {documentoConceptoMedico.name}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <span>📏 {(documentoConceptoMedico.size / 1024 / 1024).toFixed(2)} MB</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+
                   {/* Botones de Concepto Médico - Solo mostrar si NO es validacion cliente */}
                   {solicitudSeleccionada?.estado !== 'validacion cliente' && (
                     <div className="bg-cyan-50 p-6 rounded-lg border border-cyan-200">
@@ -904,7 +1130,7 @@ const CertificadosMedicosPage = () => {
                           className="bg-yellow-100/80 hover:bg-yellow-500 hover:text-white text-yellow-800 border border-yellow-200 hover:border-yellow-500 px-4 py-2 text-sm shadow-sm transition-colors"
                         >
                           <FileText className="h-3 w-3 mr-1" />
-                          Apto con Restricciones
+                          Apto con Restricciones o Recomendación
                         </Button>
                       </div>
                     </div>
@@ -913,10 +1139,10 @@ const CertificadosMedicosPage = () => {
                   {/* Mensaje informativo para validacion cliente */}
                   {solicitudSeleccionada?.estado === 'validacion cliente' && (
                     <div className="bg-orange-50 p-6 rounded-lg border border-orange-200">
-                      <h3 className="text-lg font-semibold text-orange-800 mb-4 text-center">CERTIFICADO MÉDICO CON RESTRICCIONES</h3>
+                      <h3 className="text-lg font-semibold text-orange-800 mb-4 text-center">CERTIFICADO MÉDICO CON RESTRICCIONES o RECOMENDACIÓN</h3>
                       <div className="text-center space-y-4">
                         <p className="text-orange-700">
-                          Este certificado médico ya fue creado con restricciones. Los datos mostrados son de solo lectura.
+                          Este certificado médico ya fue creado con restricciones o recomendaciones. Los datos mostrados son de solo lectura.
                         </p>
                         <div className="flex justify-center space-x-3">
                           <Button
@@ -979,7 +1205,7 @@ const CertificadosMedicosPage = () => {
               ) : (
                 <>
                   <FileText className="h-5 w-5 text-yellow-600" />
-                  <span>Marcar como Apto con Restricciones</span>
+                  <span>Marcar como Apto con Restricciones o Recomendación</span>
                 </>
               )}
             </DialogTitle>
@@ -994,7 +1220,7 @@ const CertificadosMedicosPage = () => {
                    modalType === 'no-apto' ? 'marcar esta solicitud como No Apto' : 
                    modalType === 'aprobar' ? 'aprobar esta solicitud' : 
                    modalType === 'no-aprobar' ? 'no aprobar esta solicitud (se descartará por restricciones médicas)' : 
-                   'marcar esta solicitud como Apto con Restricciones'}
+                   'marcar esta solicitud como Apto con Restricciones o Recomendación'}
                 </span>?
               </p>
             </div>
@@ -1041,7 +1267,7 @@ const CertificadosMedicosPage = () => {
                 modalType === 'no-apto' ? 'Confirmar No Apto' : 
                 modalType === 'aprobar' ? 'Confirmar Aprobación' : 
                 modalType === 'no-aprobar' ? 'Confirmar Descarte' : 
-                'Confirmar Apto con Restricciones'
+                'Confirmar'
               )}
             </Button>
           </DialogFooter>
