@@ -78,7 +78,8 @@ import {
   Phone,
   Mail,
   ChevronsUpDown,
-  Check
+  Check,
+  Clock
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { prestadoresService, Prestador } from '@/services/prestadoresService';
@@ -134,11 +135,93 @@ const PrestadoresPage = () => {
     sucursal_id: undefined,
     activo: true,
   });
+
+  // Estados para horarios dinámicos
+  const [horarios, setHorarios] = useState<Array<{
+    id: string;
+    dia: string;
+    hora_inicio: string;
+    hora_fin: string;
+  }>>([]);
+  const [nuevoHorario, setNuevoHorario] = useState({
+    dia: '',
+    hora_inicio: '',
+    hora_fin: ''
+  });
   const [editingId, setEditingId] = useState<number | null>(null);
 
   // Estados para los popovers de selects
   const [openEspecialidad, setOpenEspecialidad] = useState(false);
   const [openSucursal, setOpenSucursal] = useState(false);
+
+  // Opciones de días para el select
+  const diasSemana = [
+    { value: 'lunes', label: 'Lunes' },
+    { value: 'martes', label: 'Martes' },
+    { value: 'miercoles', label: 'Miércoles' },
+    { value: 'jueves', label: 'Jueves' },
+    { value: 'viernes', label: 'Viernes' },
+    { value: 'sabado', label: 'Sábado' },
+    { value: 'domingo', label: 'Domingo' }
+  ];
+
+  // Función para convertir hora 24h a 12h
+  const convertirA12Horas = (hora24: string) => {
+    const [hora, minutos] = hora24.split(':');
+    const horaNum = parseInt(hora);
+    const ampm = horaNum >= 12 ? 'PM' : 'AM';
+    const hora12 = horaNum === 0 ? 12 : horaNum > 12 ? horaNum - 12 : horaNum;
+    return `${hora12}:${minutos} ${ampm}`;
+  };
+
+  // Funciones para manejar horarios
+  const agregarHorario = () => {
+    if (nuevoHorario.dia && nuevoHorario.hora_inicio && nuevoHorario.hora_fin) {
+      // Verificar que no exista ya un horario para ese día
+      const diaExistente = horarios.find(h => h.dia === nuevoHorario.dia);
+      if (diaExistente) {
+        return;
+      }
+
+      const nuevoId = Date.now().toString();
+      setHorarios(prev => [...prev, {
+        id: nuevoId,
+        dia: nuevoHorario.dia,
+        hora_inicio: nuevoHorario.hora_inicio,
+        hora_fin: nuevoHorario.hora_fin
+      }]);
+      
+      setNuevoHorario({ dia: '', hora_inicio: '', hora_fin: '' });
+    }
+  };
+
+  const eliminarHorario = (id: string) => {
+    setHorarios(prev => prev.filter(h => h.id !== id));
+  };
+
+  const limpiarHorarios = () => {
+    setHorarios([]);
+    setNuevoHorario({ dia: '', hora_inicio: '', hora_fin: '' });
+  };
+
+  // Función para limpiar el formulario
+  const limpiarFormulario = () => {
+    setFormData({
+      identificacion: '',
+      razon_social: '',
+      especialidad_id: undefined,
+      telefono: '',
+      correo: '',
+      direccion_laboratorio: '',
+      nombre_laboratorio: '',
+      contacto_laboratorio: '',
+      sucursal_id: undefined,
+      activo: true,
+    });
+    setHorarios([]);
+    setNuevoHorario({ dia: '', hora_inicio: '', hora_fin: '' });
+    setEditingId(null);
+  };
 
   // Query para prestadores
   const { data: prestadores = [], isLoading, refetch } = useQuery({
@@ -295,6 +378,12 @@ const PrestadoresPage = () => {
       contacto_laboratorio: formData.contacto_laboratorio,
       sucursal_id: formData.sucursal_id,
       activo: true,
+      // Incluir horarios en los datos a enviar
+      horarios: horarios.map(h => ({
+        dia_semana: h.dia,
+        hora_inicio: h.hora_inicio,
+        hora_fin: h.hora_fin
+      }))
     };
 
     if (editingId) {
@@ -304,21 +393,46 @@ const PrestadoresPage = () => {
     }
   };
 
-  const handleEdit = (prestador: Prestador) => {
-    setFormData({
-      identificacion: prestador.identificacion,
-      razon_social: prestador.razon_social,
-      especialidad_id: prestador.especialidad_id,
-      telefono: prestador.telefono,
-      correo: prestador.correo,
-      direccion_laboratorio: prestador.direccion_laboratorio,
-      nombre_laboratorio: prestador.nombre_laboratorio,
-      contacto_laboratorio: prestador.contacto_laboratorio,
-      sucursal_id: prestador.sucursal_id,
-      activo: prestador.activo,
-    });
-    setEditingId(prestador.id!);
-    setActiveTab("registro");
+  const handleEdit = async (prestador: Prestador) => {
+    try {
+      // Obtener el prestador con sus horarios
+      const prestadorCompleto = await prestadoresService.getByIdWithHorarios(prestador.id!);
+      
+      setFormData({
+        identificacion: prestador.identificacion,
+        razon_social: prestador.razon_social,
+        especialidad_id: prestador.especialidad_id,
+        telefono: prestador.telefono,
+        correo: prestador.correo,
+        direccion_laboratorio: prestador.direccion_laboratorio,
+        nombre_laboratorio: prestador.nombre_laboratorio,
+        contacto_laboratorio: prestador.contacto_laboratorio,
+        sucursal_id: prestador.sucursal_id,
+        activo: prestador.activo,
+      });
+      
+      // Cargar horarios existentes
+      if (prestadorCompleto?.horarios) {
+        setHorarios(prestadorCompleto.horarios.map((h, index) => ({
+          id: `existing-${index}`,
+          dia: h.dia_semana,
+          hora_inicio: h.hora_inicio,
+          hora_fin: h.hora_fin
+        })));
+      } else {
+        setHorarios([]);
+      }
+      
+      setEditingId(prestador.id!);
+      setActiveTab("registro");
+    } catch (error) {
+      console.error('Error al cargar prestador:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo cargar la información del prestador.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDelete = async (prestador: Prestador) => {
@@ -948,14 +1062,152 @@ const PrestadoresPage = () => {
                   </div>
                 </div>
 
+                {/* Sección 4: Horarios de Atención */}
+                <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-2 pb-2 border-b">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                    <h3 className="text-lg font-semibold text-gray-800">Horarios de Atención</h3>
+                  </div>
+                  
+                  {/* Formulario compacto para agregar horario */}
+                  <div className="flex items-end gap-3 p-3 bg-white rounded-lg border">
+                    <div className="flex-1">
+                      <Label className="text-sm text-gray-600">Día</Label>
+                      <Select
+                        value={nuevoHorario.dia}
+                        onValueChange={(value) => setNuevoHorario(prev => ({ ...prev, dia: value }))}
+                      >
+                        <SelectTrigger className="h-9 mt-1">
+                          <SelectValue placeholder="Seleccionar día..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {diasSemana.map((dia) => (
+                            <SelectItem key={dia.value} value={dia.value}>
+                              {dia.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="flex-1">
+                      <Label className="text-sm text-gray-600">Inicio</Label>
+                      <Input
+                        type="time"
+                        value={nuevoHorario.hora_inicio}
+                        onChange={(e) => setNuevoHorario(prev => ({ ...prev, hora_inicio: e.target.value }))}
+                        className="h-9 mt-1"
+                      />
+                    </div>
+                    
+                    <div className="flex-1">
+                      <Label className="text-sm text-gray-600">Fin</Label>
+                      <Input
+                        type="time"
+                        value={nuevoHorario.hora_fin}
+                        onChange={(e) => setNuevoHorario(prev => ({ ...prev, hora_fin: e.target.value }))}
+                        className="h-9 mt-1"
+                      />
+                    </div>
+                    
+                    <Button
+                      type="button"
+                      onClick={agregarHorario}
+                      className="h-9 px-4"
+                    >
+                      <Plus className="w-4 h-4 mr-1" />
+                      Agregar
+                    </Button>
+                  </div>
+
+                  {/* Tabla de horarios */}
+                  {horarios.length > 0 ? (
+                    <div className="bg-white rounded-lg border overflow-hidden">
+                      <div className="flex items-center justify-between p-4 border-b bg-gray-50">
+                        <h4 className="text-sm font-medium text-gray-700">Horarios Configurados</h4>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={limpiarHorarios}
+                          className="text-xs h-7"
+                        >
+                          <Trash2 className="w-3 h-3 mr-1" />
+                          Limpiar Todos
+                        </Button>
+                      </div>
+                      
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="h-8">
+                            <TableHead className="w-[100px] py-2 text-xs font-medium">Día</TableHead>
+                            <TableHead className="w-[100px] py-2 text-xs font-medium">Inicio</TableHead>
+                            <TableHead className="w-[100px] py-2 text-xs font-medium">Fin</TableHead>
+                            <TableHead className="w-[80px] py-2 text-xs font-medium">Duración</TableHead>
+                            <TableHead className="w-[60px] py-2 text-xs font-medium text-center">Acciones</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {horarios.map((horario) => {
+                            // Calcular duración
+                            const inicio = new Date(`2000-01-01T${horario.hora_inicio}`);
+                            const fin = new Date(`2000-01-01T${horario.hora_fin}`);
+                            const duracionMs = fin.getTime() - inicio.getTime();
+                            const horas = Math.floor(duracionMs / (1000 * 60 * 60));
+                            const minutos = Math.floor((duracionMs % (1000 * 60 * 60)) / (1000 * 60));
+                            const duracion = `${horas}h ${minutos}m`;
+
+                            return (
+                              <TableRow key={horario.id} className="h-8">
+                                <TableCell className="py-1 text-sm font-medium">
+                                  {diasSemana.find(d => d.value === horario.dia)?.label}
+                                </TableCell>
+                                <TableCell className="py-1 text-sm font-mono">
+                                  {convertirA12Horas(horario.hora_inicio)}
+                                </TableCell>
+                                <TableCell className="py-1 text-sm font-mono">
+                                  {convertirA12Horas(horario.hora_fin)}
+                                </TableCell>
+                                <TableCell className="py-1 text-xs text-gray-600">
+                                  {duracion}
+                                </TableCell>
+                                <TableCell className="py-1 text-center">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => eliminarHorario(horario.id)}
+                                    className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500 bg-white rounded-lg border">
+                      <Clock className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                      <p className="text-sm">No hay horarios configurados</p>
+                      <p className="text-xs text-gray-400">Agrega horarios usando el formulario de arriba</p>
+                    </div>
+                  )}
+                </div>
+
                                  {/* Botones de acción */}
                  <div className="flex justify-end space-x-2 pt-4 border-t">
                    <TooltipProvider>
                      <Tooltip>
                        <TooltipTrigger asChild>
-                         <Button type="button" variant="outline" onClick={() => setActiveTab("prestadores")}>
-                           Cancelar
-                         </Button>
+                        <Button type="button" variant="outline" onClick={() => {
+                          limpiarFormulario();
+                          setActiveTab("prestadores");
+                        }}>
+                          Cancelar
+                        </Button>
                        </TooltipTrigger>
                        <TooltipContent>
                          <p>Cancelar y volver al listado</p>

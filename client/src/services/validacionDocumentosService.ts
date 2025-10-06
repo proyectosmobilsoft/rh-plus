@@ -9,6 +9,11 @@ export interface PrestadorInfo {
   contacto_laboratorio?: string;
   ciudad_nombre?: string;
   departamento_nombre?: string;
+  horarios?: Array<{
+    dia_semana: string;
+    hora_inicio: string;
+    hora_fin: string;
+  }>;
 }
 
 export interface CandidatoInfo {
@@ -19,6 +24,37 @@ export interface CandidatoInfo {
   ciudad_nombre?: string;
   departamento_nombre?: string;
 }
+
+// Función para convertir hora de 24h a 12h
+const convertirA12Horas = (hora24: string): string => {
+  const [hora, minutos] = hora24.split(':');
+  const horaNum = parseInt(hora, 10);
+  const minutosStr = minutos || '00';
+  
+  if (horaNum === 0) {
+    return `12:${minutosStr} AM`;
+  } else if (horaNum < 12) {
+    return `${horaNum}:${minutosStr} AM`;
+  } else if (horaNum === 12) {
+    return `12:${minutosStr} PM`;
+  } else {
+    return `${horaNum - 12}:${minutosStr} PM`;
+  }
+};
+
+// Función para formatear nombre del día
+const formatearDiaSemana = (dia: string): string => {
+  const diasMap: Record<string, string> = {
+    'lunes': 'Lunes',
+    'martes': 'Martes',
+    'miercoles': 'Miércoles',
+    'jueves': 'Jueves',
+    'viernes': 'Viernes',
+    'sabado': 'Sábado',
+    'domingo': 'Domingo'
+  };
+  return diasMap[dia.toLowerCase()] || dia;
+};
 
 export const validacionDocumentosService = {
   // Obtener información del candidato de una solicitud
@@ -107,15 +143,34 @@ export const validacionDocumentosService = {
       return [];
     }
 
-    return (data || []).map(prestador => ({
-      id: prestador.id,
-      nombre: prestador.nombre_laboratorio || prestador.sucursales?.nombre || 'Sin nombre',
-      direccion_laboratorio: prestador.direccion_laboratorio,
-      telefono: prestador.telefono,
-      contacto_laboratorio: prestador.contacto_laboratorio,
-      ciudad_nombre: prestador.sucursales?.ciudades?.nombre,
-      departamento_nombre: prestador.sucursales?.ciudades?.departamentos?.nombre,
-    }));
+    // Obtener horarios para cada prestador
+    const prestadoresConHorarios = await Promise.all(
+      (data || []).map(async (prestador) => {
+        // Obtener horarios del prestador
+        const { data: horarios, error: horariosError } = await supabase
+          .from('prestadores_horarios')
+          .select('dia_semana, hora_inicio, hora_fin')
+          .eq('prestador_id', prestador.id)
+          .order('dia_semana');
+
+        if (horariosError) {
+          console.warn(`Error obteniendo horarios para prestador ${prestador.id}:`, horariosError);
+        }
+
+        return {
+          id: prestador.id,
+          nombre: prestador.nombre_laboratorio || prestador.sucursales?.nombre || 'Sin nombre',
+          direccion_laboratorio: prestador.direccion_laboratorio,
+          telefono: prestador.telefono,
+          contacto_laboratorio: prestador.contacto_laboratorio,
+          ciudad_nombre: prestador.sucursales?.ciudades?.nombre,
+          departamento_nombre: prestador.sucursales?.ciudades?.departamentos?.nombre,
+          horarios: horarios || [],
+        };
+      })
+    );
+
+    return prestadoresConHorarios;
   },
 
   // Obtener ciudades que tienen prestadores registrados
@@ -215,15 +270,35 @@ export const validacionDocumentosService = {
     const ciudadInfo = ciudadSeleccionada || `${candidato.ciudad_nombre}, ${candidato.departamento_nombre}`;
     
     // Generar HTML del email
-    const prestadoresHtml = prestadores.map(prestador => `
-      <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #f9f9f9;">
-        <h3 style="color: #2563eb; margin: 0 0 10px 0; font-size: 18px;">${prestador.nombre}</h3>
-        ${prestador.direccion_laboratorio ? `<p style="margin: 5px 0; color: #374151;"><strong>Dirección:</strong> ${prestador.direccion_laboratorio}</p>` : ''}
-        ${prestador.telefono ? `<p style="margin: 5px 0; color: #374151;"><strong>Teléfono:</strong> ${prestador.telefono}</p>` : ''}
-        ${prestador.contacto_laboratorio ? `<p style="margin: 5px 0; color: #374151;"><strong>Contacto:</strong> ${prestador.contacto_laboratorio}</p>` : ''}
-        ${prestador.ciudad_nombre ? `<p style="margin: 5px 0; color: #6b7280; font-size: 14px;"><strong>📍 Ubicación:</strong> ${prestador.ciudad_nombre}${prestador.departamento_nombre ? `, ${prestador.departamento_nombre}` : ''}</p>` : ''}
-      </div>
-    `).join('');
+    const prestadoresHtml = prestadores.map(prestador => {
+      // Generar HTML de horarios si existen
+      const horariosHtml = prestador.horarios && prestador.horarios.length > 0 
+        ? `
+          <div style="margin-top: 15px;">
+            <h4 style="color: #374151; margin: 0 0 8px 0; font-size: 14px; font-weight: 600;">🕒 Horarios de Atención:</h4>
+            <div style="background-color: #f3f4f6; padding: 10px; border-radius: 6px;">
+              ${prestador.horarios.map(horario => `
+                <div style="display: flex; justify-content: space-between; margin: 3px 0; font-size: 13px;">
+                  <span style="color: #6b7280; font-weight: 500;">${formatearDiaSemana(horario.dia_semana)}:</span>
+                  <span style="color: #374151;">${convertirA12Horas(horario.hora_inicio)} - ${convertirA12Horas(horario.hora_fin)}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `
+        : '';
+
+      return `
+        <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #f9f9f9;">
+          <h3 style="color: #2563eb; margin: 0 0 10px 0; font-size: 18px;">${prestador.nombre}</h3>
+          ${prestador.direccion_laboratorio ? `<p style="margin: 5px 0; color: #374151;"><strong>Dirección:</strong> ${prestador.direccion_laboratorio}</p>` : ''}
+          ${prestador.telefono ? `<p style="margin: 5px 0; color: #374151;"><strong>Teléfono:</strong> ${prestador.telefono}</p>` : ''}
+          ${prestador.contacto_laboratorio ? `<p style="margin: 5px 0; color: #374151;"><strong>Contacto:</strong> ${prestador.contacto_laboratorio}</p>` : ''}
+          ${prestador.ciudad_nombre ? `<p style="margin: 5px 0; color: #6b7280; font-size: 14px;"><strong>📍 Ubicación:</strong> ${prestador.ciudad_nombre}${prestador.departamento_nombre ? `, ${prestador.departamento_nombre}` : ''}</p>` : ''}
+          ${horariosHtml}
+        </div>
+      `;
+    }).join('');
 
     const emailHtml = `
       <!DOCTYPE html>
