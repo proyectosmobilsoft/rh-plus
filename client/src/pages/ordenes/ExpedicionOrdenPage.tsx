@@ -50,7 +50,9 @@ const ExpedicionOrdenPage = () => {
     { value: 'pendiente documentos', label: 'Pendiente Documentos' },
     { value: 'EN_PROCESO', label: 'En Proceso' },
     { value: 'APROBADA', label: 'Aprobada' },
-    { value: 'RECHAZADA', label: 'Rechazada' }
+    { value: 'RECHAZADA', label: 'Rechazada' },
+    { value: 'CONTRATADO', label: 'Contratado' },
+    { value: 'VALIDACION CLIENTE', label: 'Validación Cliente' }
   ];
 
   // Función para verificar si estamos en el período especial (del 25 al final del mes)
@@ -311,6 +313,24 @@ const ExpedicionOrdenPage = () => {
     } catch (error) {
       console.error('Error al cancelar la solicitud:', error);
       toast.error('Error al cancelar la solicitud');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleContract = async (id: number, observacion: string) => {
+    setIsLoading(true);
+    try {
+      const success = await solicitudesService.contract(id, observacion);
+      if (success) {
+        toast.success('Solicitud marcada como contratada exitosamente');
+        fetchSolicitudes(); // Recargar la lista
+      } else {
+        toast.error('Error al marcar como contratada');
+      }
+    } catch (error) {
+      console.error('Error al marcar como contratada:', error);
+      toast.error('Error al marcar como contratada');
     } finally {
       setIsLoading(false);
     }
@@ -728,6 +748,7 @@ const ExpedicionOrdenPage = () => {
                   onReactivate={handleReactivate}
                   onDeserto={handleDeserto}
                   onCancel={handleCancel}
+                  onContract={handleContract}
                   onAssign={handleAssign}
                   onValidateDocuments={handleValidateDocuments}
                   onReturnDocuments={handleReturnDocuments}

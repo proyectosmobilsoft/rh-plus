@@ -2036,6 +2036,36 @@ export const solicitudesService = {
     }
   },
 
+  // Contratar solicitud
+  async contract(id: number, observacion?: string): Promise<boolean> {
+    try {
+      const success = await this.updateStatus(id, "CONTRATADO", observacion);
+      
+      if (success) {
+        // Log adicional específico para contratación
+        try {
+          await solicitudesLogsService.crearLog({
+            solicitud_id: id,
+            accion: ACCIONES_SISTEMA.CONTRATAR_SOLICITUD,
+            observacion: observacion || 'Solicitud marcada como contratada',
+            usuario_id: getUsuarioId(),
+            estado_anterior: undefined,
+            estado_nuevo: "CONTRATADO"
+          });
+        } catch (logError) {
+          console.warn("No se pudo crear el log de contratación:", logError);
+        }
+        
+        return success;
+      } else {
+        return false;
+      }
+    } catch (error) {
+      console.error("Error contracting solicitud:", error);
+      return false;
+    }
+  },
+
   // Asignar analista manualmente
   async assignAnalyst(
     id: number,

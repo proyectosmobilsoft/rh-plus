@@ -73,7 +73,21 @@ export type Permission =
   | "editar_informacion_personal"
   
   // Galería de formularios
-  | "ver_galeria_formularios";
+  | "ver_galeria_formularios"
+  
+  // Acciones de solicitudes
+  | "accion-editar-solicitud"
+  | "accion-visualizar-solicitud"
+  | "accion-asignar-solicitud"
+  | "accion-aprobar-solicitud"
+  | "accion-contactar-solicitud"
+  | "accion-reactivar-solicitud"
+  | "accion-standby-solicitud"
+  | "accion-deserto-solicitud"
+  | "accion-cancelar-solicitud"
+  | "accion-validar-documentos-solicitud"
+  | "accion-devolver-documentos-solicitud"
+  | "accion-contratar-solicitud";
 
 // Configuración de permisos por rol base
 export const rolePermissions: Record<UserRole, Permission[]> = {
@@ -143,7 +157,21 @@ export const rolePermissions: Record<UserRole, Permission[]> = {
     "ver_documentos_candidatos",
 
     // Nueva Plantilla (Galería)
-    "ver_galeria_formularios"
+    "ver_galeria_formularios",
+    
+    // Acciones de solicitudes
+    "accion-editar-solicitud",
+    "accion-visualizar-solicitud",
+    "accion-asignar-solicitud",
+    "accion-aprobar-solicitud",
+    "accion-contactar-solicitud",
+    "accion-reactivar-solicitud",
+    "accion-standby-solicitud",
+    "accion-deserto-solicitud",
+    "accion-cancelar-solicitud",
+    "accion-validar-documentos-solicitud",
+    "accion-devolver-documentos-solicitud",
+    "accion-contratar-solicitud"
   ],
   
   analista: [
@@ -173,7 +201,20 @@ export const rolePermissions: Record<UserRole, Permission[]> = {
     "ver_empresas_afiliadas",
     
     // Reportes - solo visualización
-    "ver_reportes"
+    "ver_reportes",
+    
+    // Acciones de solicitudes para analistas
+    "accion-visualizar-solicitud",
+    "accion-asignar-solicitud",
+    "accion-aprobar-solicitud",
+    "accion-contactar-solicitud",
+    "accion-reactivar-solicitud",
+    "accion-standby-solicitud",
+    "accion-deserto-solicitud",
+    "accion-cancelar-solicitud",
+    "accion-validar-documentos-solicitud",
+    "accion-devolver-documentos-solicitud",
+    "accion-contratar-solicitud"
   ],
   
   cliente: [

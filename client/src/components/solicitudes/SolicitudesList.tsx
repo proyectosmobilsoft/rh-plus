@@ -26,6 +26,7 @@ interface SolicitudesListProps {
   onReactivate: (id: number) => void;
   onDeserto: (id: number, observacion: string) => void;
   onCancel: (id: number, observacion: string) => void;
+  onContract: (id: number, observacion: string) => void;
   onAssign: (id: number, analistaId: number) => void;
   onValidateDocuments: (id: number, observacion: string) => void;
   onReturnDocuments: (id: number, observacion: string) => void;
@@ -42,6 +43,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   onReactivate,
   onDeserto,
   onCancel,
+  onContract,
   onAssign,
   onValidateDocuments,
   onReturnDocuments,
@@ -59,6 +61,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     addAction('deserto', 'Marcar Deserto');
     addAction('visualizar', 'Visualizar Solicitud');
     addAction('cancelar', 'Cancelar Solicitud');
+    addAction('contratar', 'Contratar Candidato');
   }, [addAction]);
   const [confirmApproveOpen, setConfirmApproveOpen] = useState(false);
   const [confirmContactOpen, setConfirmContactOpen] = useState(false);
@@ -89,6 +92,9 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   const [confirmReturnDocumentsOpen, setConfirmReturnDocumentsOpen] = useState(false);
   const [returningDocumentsSolicitudId, setReturningDocumentsSolicitudId] = useState<number | null>(null);
   const [returnDocumentsObservacion, setReturnDocumentsObservacion] = useState('');
+  const [confirmContractOpen, setConfirmContractOpen] = useState(false);
+  const [contractingSolicitudId, setContractingSolicitudId] = useState<number | null>(null);
+  const [contractObservacion, setContractObservacion] = useState('');
   
   // Estado para el modal de documentos
   const [modalDocumentos, setModalDocumentos] = useState<{isOpen: boolean, solicitud: Solicitud | null, documentos: any[]}>({
@@ -345,6 +351,10 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
         return <Badge className="bg-emerald-300 hover:bg-emerald-400 text-emerald-900 border-emerald-500 flex items-center justify-center text-center">Firma Contrato</Badge>;
       case 'documentos devueltos':
         return <Badge className="bg-red-300 hover:bg-red-400 text-red-900 border-red-500 flex items-center justify-center text-center">Documentos Devueltos</Badge>;
+      case 'contratado':
+        return <Badge className="bg-green-400 hover:bg-green-500 text-green-900 border-green-600 flex items-center justify-center text-center">Contratado</Badge>;
+      case 'validacion cliente':
+        return <Badge className="bg-yellow-400 hover:bg-yellow-500 text-yellow-900 border-yellow-600 flex items-center justify-center text-center">Validación Cliente</Badge>;
       default:
         return <Badge variant="outline" className="flex items-center justify-center text-center">{formatEstado(estado || 'Sin estado')}</Badge>;
     }
@@ -388,6 +398,10 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
         return 'bg-emerald-100';
       case 'documentos devueltos':
         return 'bg-red-100';
+      case 'contratado':
+        return 'bg-green-300';
+      case 'validacion cliente':
+        return 'bg-yellow-200';
       default:
         return '';
     }
@@ -406,7 +420,8 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     const puedeCancelar = s.estado === 'asignado' && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-cancelar-solicitud');
     const puedeValidarDocumentos = s.estado?.toLowerCase() === 'documentos entregados' && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-validar-documentos-solicitud');
     const puedeDevolverDocumentos = s.estado?.toLowerCase() === 'documentos entregados' && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-devolver-documentos-solicitud');
-    return puedeEditar || puedeVisualizar || puedeAsignar || puedeAprobar || puedeContactar || puedeReactivar || puedeStandBy || puedeDeserto || puedeCancelar || puedeValidarDocumentos || puedeDevolverDocumentos;
+    const puedeContratar = s.estado?.toLowerCase() === 'firma contrato' && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-contratar-solicitud');
+    return puedeEditar || puedeVisualizar || puedeAsignar || puedeAprobar || puedeContactar || puedeReactivar || puedeStandBy || puedeDeserto || puedeCancelar || puedeValidarDocumentos || puedeDevolverDocumentos || puedeContratar;
   };
 
   const formatDate = (dateString: string | undefined) => {
@@ -831,6 +846,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
       case 'EDITAR_SOLICITUD': return 'Edición de solicitud';
       case 'APROBAR_SOLICITUD': return 'Aprobación';
       case 'RECHAZAR_SOLICITUD': return 'Rechazo';
+      case 'CONTRATAR_SOLICITUD': return 'Contratación';
       case 'ELIMINAR_SOLICITUD': return 'Eliminación';
       default: return accion;
     }
@@ -846,6 +862,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
       case 'REACTIVAR': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
       case 'APROBAR_SOLICITUD': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
       case 'RECHAZAR_SOLICITUD': return 'bg-rose-50 text-rose-700 border-rose-200';
+      case 'CONTRATAR_SOLICITUD': return 'bg-green-50 text-green-700 border-green-200';
       default: return 'bg-slate-50 text-slate-700 border-slate-200';
     }
   };
@@ -1044,6 +1061,31 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     }
   };
 
+  const handleContractClick = (id: number | undefined) => {
+    if (id) {
+      setSelectedSolicitudId(id);
+      setContractingSolicitudId(id);
+      setContractObservacion('');
+      setConfirmContractOpen(true);
+    }
+  };
+
+  const handleContractConfirm = () => {
+    if (selectedSolicitudId && contractObservacion.trim()) {
+      console.log('🔍 handleContractConfirm llamado para solicitud ID:', selectedSolicitudId);
+      console.log('🔍 Llamando a startLoading()...');
+      startLoading(); // Activar loading global
+      
+      // Llamar a la función de contratar con observación
+      onContract(selectedSolicitudId, contractObservacion.trim());
+      
+      setConfirmContractOpen(false);
+      setSelectedSolicitudId(null);
+      setContractingSolicitudId(null);
+      setContractObservacion('');
+    }
+  };
+
   if (solicitudes.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
@@ -1202,7 +1244,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                             )}
 
                             {/* Botón Documentos Devueltos - solo visible en estado DOCUMENTOS ENTREGADOS */}
-                            {solicitud.estado?.toUpperCase() === 'DOCUMENTOS ENTREGADOS' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                            {solicitud.estado?.toUpperCase() === 'DOCUMENTOS ENTREGADOS' && !isDeserto(solicitud.estado) && !isCancelada(s.estado) && (
                               <Can action="accion-devolver-documentos-solicitud">
                                 <DropdownMenuItem 
                                   onClick={() => handleReturnDocumentsClick(solicitud.id)} 
@@ -1210,6 +1252,19 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                                 >
                                   <XCircle className="h-4 w-4 mr-2 text-red-600" />
                                   Documentos Devueltos
+                                </DropdownMenuItem>
+                              </Can>
+                            )}
+
+                            {/* Botón Contratar - solo visible en estado FIRMA CONTRATO */}
+                            {solicitud.estado?.toLowerCase() === 'firma contrato' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                              <Can action="accion-contratar-solicitud">
+                                <DropdownMenuItem 
+                                  onClick={() => handleContractClick(solicitud.id)} 
+                                  className="cursor-pointer"
+                                >
+                                  <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
+                                  Contratar
                                 </DropdownMenuItem>
                               </Can>
                             )}
@@ -1844,6 +1899,54 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
               disabled={!returnDocumentsObservacion.trim()}
             >
               Devolver Documentos
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirmación de Contratación */}
+      <AlertDialog open={confirmContractOpen} onOpenChange={setConfirmContractOpen}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Contratar candidato?</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas marcar esta solicitud como contratada?
+              <br />
+              <span className="text-sm text-muted-foreground">
+                Esta acción cambiará el estado de la solicitud a "Contratado" y finalizará el proceso de selección.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="py-4">
+            <label htmlFor="contractObservacion" className="block text-sm font-medium text-gray-700 mb-2">
+              Observación (requerida)
+            </label>
+            <Textarea
+              id="contractObservacion"
+              value={contractObservacion}
+              onChange={(e) => setContractObservacion(e.target.value)}
+              placeholder="Ingrese observaciones sobre la contratación..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              rows={4}
+              required
+            />
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setConfirmContractOpen(false);
+              setContractingSolicitudId(null);
+              setContractObservacion('');
+            }}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleContractConfirm}
+              className="bg-green-600 hover:bg-green-700"
+              disabled={!contractObservacion.trim()}
+            >
+              Contratar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
