@@ -134,6 +134,9 @@ interface DashboardStats {
   solicitudesContratadas: number;
   solicitudesDescartadas: number;
   promedioTiempoProcesamiento: number;
+  promedioEnContactar: number;
+  promedioContratadas: number;
+  promedioEntregaDocumentos: number;
   topEmpresas: Array<{ nombre: string; cantidad: number }>;
   solicitudesPorEstado: Array<{ estado: string; cantidad: number }>;
   solicitudesPorMes: Array<{ mes: string; cantidad: number }>;
@@ -474,6 +477,47 @@ const Dashboard = () => {
 
         if (ciudadesError) throw ciudadesError;
 
+        // Obtener logs de solicitudes para calcular promedios
+        let logsQuery = supabase
+          .from('hum_solicitudes_logs')
+          .select(`
+            id,
+            solicitud_id,
+            estado_anterior,
+            estado_nuevo,
+            fecha_accion,
+            solicitud:hum_solicitudes!solicitud_id(
+              id,
+              empresa_id,
+              analista_id,
+              created_at
+            )
+          `)
+          .order('fecha_accion', { ascending: true });
+
+        // Aplicar filtros a los logs basados en los filtros de solicitudes
+        if (empresaFiltro && empresaFiltro !== 'todas') {
+          logsQuery = logsQuery.eq('solicitud.empresa_id', empresaFiltro);
+        }
+        
+        if (analistaFiltro && analistaFiltro !== 'todos') {
+          logsQuery = logsQuery.eq('solicitud.analista_id', analistaFiltro);
+        }
+        
+        if (dateRange.from && dateRange.to) {
+          const fechaInicio = dateRange.from.toISOString().split('T')[0];
+          const fechaFin = dateRange.to.toISOString().split('T')[0];
+          logsQuery = logsQuery
+            .gte('solicitud.created_at', fechaInicio)
+            .lte('solicitud.created_at', fechaFin + 'T23:59:59.999Z');
+        }
+
+        const { data: logs, error: logsError } = await logsQuery;
+
+        if (logsError) {
+          console.error('Error obteniendo logs:', logsError);
+        }
+
         // Calcular estadísticas
         const totalEmpresas = empresas?.length || 0;
         const totalCandidatos = candidatos?.length || 0;
@@ -607,7 +651,72 @@ const Dashboard = () => {
         const prestadoresInactivos = prestadores?.filter(p => !p.activo).length || 0;
 
         // Calcular promedio de tiempo de procesamiento (simulado por ahora)
-        const promedioTiempoProcesamiento = Math.floor(Math.random() * 15) + 5; // 5-20 días
+        // Calcular promedios reales basados en logs
+        const calcularPromedioEnContactar = () => {
+          if (!logs || logs.length === 0) return 0;
+          
+          const transicionesContactar = logs.filter(log => 
+            log.estado_anterior?.toLowerCase() === 'asignado' && 
+            log.estado_nuevo?.toLowerCase() === 'pendiente documentos'
+          );
+          
+          if (transicionesContactar.length === 0) return 0;
+          
+          const tiempos = transicionesContactar.map(log => {
+            const fechaAsignado = new Date(log.fecha_accion);
+            const fechaCreacion = new Date((log.solicitud as any)?.created_at);
+            const diferenciaMs = fechaAsignado.getTime() - fechaCreacion.getTime();
+            return Math.ceil(diferenciaMs / (1000 * 60 * 60 * 24)); // Convertir a días
+          }).filter(tiempo => tiempo > 0);
+          
+          return tiempos.length > 0 ? Math.round(tiempos.reduce((a, b) => a + b, 0) / tiempos.length) : 0;
+        };
+
+        const calcularPromedioContratadas = () => {
+          if (!solicitudes || solicitudes.length === 0) return 0;
+          
+          const solicitudesContratadas = solicitudes.filter(s => 
+            s.estado?.toLowerCase() === 'contratado' && s.updated_at
+          );
+          
+          if (solicitudesContratadas.length === 0) return 0;
+          
+          const tiempos = solicitudesContratadas.map(solicitud => {
+            const fechaCreacion = new Date(solicitud.created_at);
+            const fechaContratado = new Date(solicitud.updated_at);
+            const diferenciaMs = fechaContratado.getTime() - fechaCreacion.getTime();
+            return Math.ceil(diferenciaMs / (1000 * 60 * 60 * 24)); // Convertir a días
+          }).filter(tiempo => tiempo > 0);
+          
+          return tiempos.length > 0 ? Math.round(tiempos.reduce((a, b) => a + b, 0) / tiempos.length) : 0;
+        };
+
+        const calcularPromedioEntregaDocumentos = () => {
+          if (!logs || logs.length === 0) return 0;
+          
+          const transicionesEntrega = logs.filter(log => 
+            log.estado_anterior?.toLowerCase() === 'pendiente documentos' && 
+            log.estado_nuevo?.toLowerCase() === 'contratado'
+          );
+          
+          if (transicionesEntrega.length === 0) return 0;
+          
+          const tiempos = transicionesEntrega.map(log => {
+            const fechaEntrega = new Date(log.fecha_accion);
+            const fechaCreacion = new Date((log.solicitud as any)?.created_at);
+            const diferenciaMs = fechaEntrega.getTime() - fechaCreacion.getTime();
+            return Math.ceil(diferenciaMs / (1000 * 60 * 60 * 24)); // Convertir a días
+          }).filter(tiempo => tiempo > 0);
+          
+          return tiempos.length > 0 ? Math.round(tiempos.reduce((a, b) => a + b, 0) / tiempos.length) : 0;
+        };
+
+        const promedioEnContactar = calcularPromedioEnContactar();
+        const promedioContratadas = calcularPromedioContratadas();
+        const promedioEntregaDocumentos = calcularPromedioEntregaDocumentos();
+        
+        // Mantener el promedioTiempoProcesamiento para compatibilidad (usar promedio de contratadas)
+        const promedioTiempoProcesamiento = promedioContratadas;
 
         return {
           totalEmpresas,
@@ -620,7 +729,10 @@ const Dashboard = () => {
           examenesMedicos,
           solicitudesContratadas,
           solicitudesDescartadas,
-          promedioTiempoProcesamiento,
+          promedioTiempoProcesamiento: promedioTiempoProcesamiento,
+          promedioEnContactar,
+          promedioContratadas,
+          promedioEntregaDocumentos,
           topEmpresas,
           solicitudesPorEstado: solicitudesPorEstadoArray,
           solicitudesPorMes,
@@ -883,9 +995,9 @@ const Dashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold text-green-600 mb-2">
-                  {stats?.promedioTiempoProcesamiento || 0} días
+                  {stats?.promedioContratadas || 0} días
                 </div>
-                <Progress value={Math.min((stats?.promedioTiempoProcesamiento || 0) / 30 * 100, 100)} className="h-2" />
+                <Progress value={Math.min((stats?.promedioContratadas || 0) / 30 * 100, 100)} className="h-2" />
                 <p className="text-sm text-gray-600 mt-2">
                   Meta: 5 días • Máximo: 30 días
                 </p>
@@ -901,11 +1013,11 @@ const Dashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold text-blue-600 mb-2">
-                  {stats?.promedioTiempoProcesamiento || 0} días
+                  {stats?.promedioEnContactar || 0} días
                 </div>
-                <Progress value={Math.min((stats?.promedioTiempoProcesamiento || 0) / 30 * 100, 100)} className="h-2" />
+                <Progress value={Math.min((stats?.promedioEnContactar || 0) / 30 * 100, 100)} className="h-2" />
                 <p className="text-sm text-gray-600 mt-2">
-                  Meta: 15 días • Máximo: 30 días
+                  Meta: 5 días • Máximo: 30 días
                 </p>
               </CardContent>
             </Card>
@@ -919,11 +1031,11 @@ const Dashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold text-orange-600 mb-2">
-                  {stats?.promedioTiempoProcesamiento || 0} días
+                  {stats?.promedioEntregaDocumentos || 0} días
                 </div>
-                <Progress value={Math.min((stats?.promedioTiempoProcesamiento || 0) / 30 * 100, 100)} className="h-2" />
+                <Progress value={Math.min((stats?.promedioEntregaDocumentos || 0) / 30 * 100, 100)} className="h-2" />
                 <p className="text-sm text-gray-600 mt-2">
-                  Meta: 15 días • Máximo: 30 días
+                  Meta: 5 días • Máximo: 30 días
                 </p>
               </CardContent>
             </Card>
