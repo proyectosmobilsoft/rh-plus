@@ -440,7 +440,7 @@ const CertificadosMedicosPage = () => {
       let conceptoMedico: 'apto' | 'no-apto' | 'apto-con-restricciones' = 'apto';
       
       if (modalType === 'apto') {
-        nuevoEstado = 'firma de contrato';
+        nuevoEstado = 'firma contrato';
         conceptoMedico = 'apto';
       } else if (modalType === 'no-apto') {
         nuevoEstado = 'descartado';
