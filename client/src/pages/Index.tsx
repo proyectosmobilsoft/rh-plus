@@ -137,6 +137,9 @@ interface DashboardStats {
   promedioEnContactar: number;
   promedioContratadas: number;
   promedioEntregaDocumentos: number;
+  promedioEnContactarHoras: number;
+  promedioContratadasHoras: number;
+  promedioEntregaDocumentosHoras: number;
   topEmpresas: Array<{ nombre: string; cantidad: number }>;
   solicitudesPorEstado: Array<{ estado: string; cantidad: number }>;
   solicitudesPorMes: Array<{ mes: string; cantidad: number }>;
@@ -653,67 +656,90 @@ const Dashboard = () => {
         // Calcular promedio de tiempo de procesamiento (simulado por ahora)
         // Calcular promedios reales basados en logs
         const calcularPromedioEnContactar = () => {
-          if (!logs || logs.length === 0) return 0;
+          if (!logs || logs.length === 0) return { dias: 0, horas: 0 };
           
           const transicionesContactar = logs.filter(log => 
             log.estado_anterior?.toLowerCase() === 'asignado' && 
             log.estado_nuevo?.toLowerCase() === 'pendiente documentos'
           );
           
-          if (transicionesContactar.length === 0) return 0;
+          if (transicionesContactar.length === 0) return { dias: 0, horas: 0 };
           
-          const tiempos = transicionesContactar.map(log => {
+          const tiemposMs = transicionesContactar.map(log => {
             const fechaAsignado = new Date(log.fecha_accion);
             const fechaCreacion = new Date((log.solicitud as any)?.created_at);
-            const diferenciaMs = fechaAsignado.getTime() - fechaCreacion.getTime();
-            return Math.ceil(diferenciaMs / (1000 * 60 * 60 * 24)); // Convertir a días
+            return fechaAsignado.getTime() - fechaCreacion.getTime();
           }).filter(tiempo => tiempo > 0);
           
-          return tiempos.length > 0 ? Math.round(tiempos.reduce((a, b) => a + b, 0) / tiempos.length) : 0;
+          if (tiemposMs.length === 0) return { dias: 0, horas: 0 };
+          
+          const promedioMs = tiemposMs.reduce((a, b) => a + b, 0) / tiemposMs.length;
+          const dias = Math.round(promedioMs / (1000 * 60 * 60 * 24));
+          const horas = Math.round(promedioMs / (1000 * 60 * 60));
+          
+          return { dias, horas };
         };
 
         const calcularPromedioContratadas = () => {
-          if (!solicitudes || solicitudes.length === 0) return 0;
+          if (!solicitudes || solicitudes.length === 0) return { dias: 0, horas: 0 };
           
           const solicitudesContratadas = solicitudes.filter(s => 
             s.estado?.toLowerCase() === 'contratado' && s.updated_at
           );
           
-          if (solicitudesContratadas.length === 0) return 0;
+          if (solicitudesContratadas.length === 0) return { dias: 0, horas: 0 };
           
-          const tiempos = solicitudesContratadas.map(solicitud => {
+          const tiemposMs = solicitudesContratadas.map(solicitud => {
             const fechaCreacion = new Date(solicitud.created_at);
             const fechaContratado = new Date(solicitud.updated_at);
-            const diferenciaMs = fechaContratado.getTime() - fechaCreacion.getTime();
-            return Math.ceil(diferenciaMs / (1000 * 60 * 60 * 24)); // Convertir a días
+            return fechaContratado.getTime() - fechaCreacion.getTime();
           }).filter(tiempo => tiempo > 0);
           
-          return tiempos.length > 0 ? Math.round(tiempos.reduce((a, b) => a + b, 0) / tiempos.length) : 0;
+          if (tiemposMs.length === 0) return { dias: 0, horas: 0 };
+          
+          const promedioMs = tiemposMs.reduce((a, b) => a + b, 0) / tiemposMs.length;
+          const dias = Math.round(promedioMs / (1000 * 60 * 60 * 24));
+          const horas = Math.round(promedioMs / (1000 * 60 * 60));
+          
+          return { dias, horas };
         };
 
         const calcularPromedioEntregaDocumentos = () => {
-          if (!logs || logs.length === 0) return 0;
+          if (!logs || logs.length === 0) return { dias: 0, horas: 0 };
           
           const transicionesEntrega = logs.filter(log => 
             log.estado_anterior?.toLowerCase() === 'pendiente documentos' && 
             log.estado_nuevo?.toLowerCase() === 'contratado'
           );
           
-          if (transicionesEntrega.length === 0) return 0;
+          if (transicionesEntrega.length === 0) return { dias: 0, horas: 0 };
           
-          const tiempos = transicionesEntrega.map(log => {
+          const tiemposMs = transicionesEntrega.map(log => {
             const fechaEntrega = new Date(log.fecha_accion);
             const fechaCreacion = new Date((log.solicitud as any)?.created_at);
-            const diferenciaMs = fechaEntrega.getTime() - fechaCreacion.getTime();
-            return Math.ceil(diferenciaMs / (1000 * 60 * 60 * 24)); // Convertir a días
+            return fechaEntrega.getTime() - fechaCreacion.getTime();
           }).filter(tiempo => tiempo > 0);
           
-          return tiempos.length > 0 ? Math.round(tiempos.reduce((a, b) => a + b, 0) / tiempos.length) : 0;
+          if (tiemposMs.length === 0) return { dias: 0, horas: 0 };
+          
+          const promedioMs = tiemposMs.reduce((a, b) => a + b, 0) / tiemposMs.length;
+          const dias = Math.round(promedioMs / (1000 * 60 * 60 * 24));
+          const horas = Math.round(promedioMs / (1000 * 60 * 60));
+          
+          return { dias, horas };
         };
 
-        const promedioEnContactar = calcularPromedioEnContactar();
-        const promedioContratadas = calcularPromedioContratadas();
-        const promedioEntregaDocumentos = calcularPromedioEntregaDocumentos();
+        const resultadoEnContactar = calcularPromedioEnContactar();
+        const resultadoContratadas = calcularPromedioContratadas();
+        const resultadoEntregaDocumentos = calcularPromedioEntregaDocumentos();
+        
+        // Extraer días y horas
+        const promedioEnContactar = resultadoEnContactar.dias;
+        const promedioEnContactarHoras = resultadoEnContactar.horas;
+        const promedioContratadas = resultadoContratadas.dias;
+        const promedioContratadasHoras = resultadoContratadas.horas;
+        const promedioEntregaDocumentos = resultadoEntregaDocumentos.dias;
+        const promedioEntregaDocumentosHoras = resultadoEntregaDocumentos.horas;
         
         // Mantener el promedioTiempoProcesamiento para compatibilidad (usar promedio de contratadas)
         const promedioTiempoProcesamiento = promedioContratadas;
@@ -733,6 +759,9 @@ const Dashboard = () => {
           promedioEnContactar,
           promedioContratadas,
           promedioEntregaDocumentos,
+          promedioEnContactarHoras,
+          promedioContratadasHoras,
+          promedioEntregaDocumentosHoras,
           topEmpresas,
           solicitudesPorEstado: solicitudesPorEstadoArray,
           solicitudesPorMes,
@@ -994,9 +1023,12 @@ const Dashboard = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-green-600 mb-2">
+                <div className="text-3xl font-bold text-green-600 mb-1">
                   {stats?.promedioContratadas || 0} días
                 </div>
+                <p className="text-sm text-green-500 mb-2">
+                  ({stats?.promedioContratadasHoras || 0} horas)
+                </p>
                 <Progress value={Math.min((stats?.promedioContratadas || 0) / 30 * 100, 100)} className="h-2" />
                 <p className="text-sm text-gray-600 mt-2">
                   Meta: 5 días • Máximo: 30 días
@@ -1012,9 +1044,12 @@ const Dashboard = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-blue-600 mb-2">
+                <div className="text-3xl font-bold text-blue-600 mb-1">
                   {stats?.promedioEnContactar || 0} días
                 </div>
+                <p className="text-sm text-blue-500 mb-2">
+                  ({stats?.promedioEnContactarHoras || 0} horas)
+                </p>
                 <Progress value={Math.min((stats?.promedioEnContactar || 0) / 30 * 100, 100)} className="h-2" />
                 <p className="text-sm text-gray-600 mt-2">
                   Meta: 5 días • Máximo: 30 días
@@ -1030,9 +1065,12 @@ const Dashboard = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-orange-600 mb-2">
+                <div className="text-3xl font-bold text-orange-600 mb-1">
                   {stats?.promedioEntregaDocumentos || 0} días
                 </div>
+                <p className="text-sm text-orange-500 mb-2">
+                  ({stats?.promedioEntregaDocumentosHoras || 0} horas)
+                </p>
                 <Progress value={Math.min((stats?.promedioEntregaDocumentos || 0) / 30 * 100, 100)} className="h-2" />
                 <p className="text-sm text-gray-600 mt-2">
                   Meta: 5 días • Máximo: 30 días
