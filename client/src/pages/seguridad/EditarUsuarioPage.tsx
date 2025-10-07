@@ -13,6 +13,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { usuariosService, UsuarioData } from "@/services/usuariosService";
 import { rolesService } from "@/services/rolesService";
 import { debugService } from "@/services/debugService";
+import { toast } from "sonner";
 import { useLocation, useParams } from "wouter";
 import PasswordStrengthIndicator from "@/components/PasswordStrengthIndicator";
 import { Checkbox } from "@/components/ui/checkbox";

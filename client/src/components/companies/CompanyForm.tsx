@@ -16,7 +16,7 @@ import { plantillasService } from '@/services/plantillasService';
 import { empresaService } from '@/services/empresaService';
 import { regimenTributarioService } from '@/services/regimenTributarioService';
 import { actividadesEconomicasService } from '@/services/actividadesEconomicasService';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import FormRenderer from '@/components/FormRenderer';
 import { Company } from '@/types/company';
 import { CreateEmpresaDTO, createEmpresaSchema } from '@/types/empresa';

@@ -9,6 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { ArrowLeft, UserPlus } from "lucide-react";
 
 import { createCandidatoFromPerfilSchema, type CreateCandidatoFromPerfil } from "@shared/schema";
+import { toast } from "sonner";
 
 const CrearCandidatoPage = () => {
   

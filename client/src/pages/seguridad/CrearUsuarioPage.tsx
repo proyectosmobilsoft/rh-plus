@@ -13,6 +13,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
 import PasswordStrengthIndicator from "@/components/PasswordStrengthIndicator";
 import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from "sonner";
 import { MultiSelect, type Option } from "@/components/ui/multi-select";
 
 // Schema de validación para el formulario
