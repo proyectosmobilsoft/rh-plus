@@ -292,14 +292,14 @@ export default function LoginUnificado() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-brand-lime/10 to-brand-turquoise/10 flex items-center justify-center p-4">
-      <div className="w-full max-w-md animate-slide-in">
+      <div className="w-full max-w-sm animate-slide-in">
         {/* Header */}
         <div className="text-center mb-4">
           <div className="flex flex-col items-center space-y-0">
             <img 
               src={logo} 
               alt="CoreHuman Logo" 
-              className="h-32 w-auto object-contain"
+              className="h-20 w-auto object-contain"
             />
             <div className="flex flex-col -mt-2">
               <h1 className="text-2xl font-bold text-gray-900">
