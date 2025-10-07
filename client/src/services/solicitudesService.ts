@@ -2070,29 +2070,68 @@ export const solicitudesService = {
   // Contratar solicitud
   async contract(id: number, observacion?: string): Promise<boolean> {
     try {
-      const success = await this.updateStatus(id, "contratado", observacion);
+      console.log("📝 Iniciando proceso de contratación para solicitud:", id);
       
-      if (success) {
-        // Log adicional específico para contratación
-        try {
-          await solicitudesLogsService.crearLog({
-            solicitud_id: id,
-            accion: ACCIONES_SISTEMA.CONTRATAR_SOLICITUD,
-            observacion: observacion || 'Solicitud marcada como contratada',
-            usuario_id: getUsuarioId(),
-            estado_anterior: undefined,
-            estado_nuevo: "contratado"
-          });
-        } catch (logError) {
-          console.warn("No se pudo crear el log de contratación:", logError);
-        }
-        
-        return success;
-      } else {
+      // Obtener el estado anterior antes de actualizar
+      const { data: solicitudAnterior, error: fetchError } = await supabase
+        .from("hum_solicitudes")
+        .select("estado")
+        .eq("id", id)
+        .single();
+
+      if (fetchError) {
+        console.error("Error obteniendo estado anterior:", fetchError);
         return false;
       }
+
+      const estadoAnterior = solicitudAnterior?.estado || "desconocido";
+      console.log("📝 Estado anterior de la solicitud:", estadoAnterior);
+      
+      // Actualizar estado directamente sin crear log de cambio de estado
+      const updateData: any = { 
+        estado: "contratado",
+        updated_at: new Date().toISOString(),
+      };
+
+      // Si se proporciona una observación, agregarla a la columna observaciones
+      if (observacion) {
+        updateData.observaciones = observacion;
+      }
+
+      const { error: updateError } = await supabase
+        .from("hum_solicitudes")
+        .update(updateData)
+        .eq("id", id);
+
+      if (updateError) {
+        console.error("Error actualizando solicitud:", updateError);
+        return false;
+      }
+
+      console.log("📝 Estado actualizado exitosamente, creando log específico de contratación...");
+      
+      // Crear solo el log específico de contratación con estado anterior
+      try {
+        await solicitudesLogsService.crearLog({
+          solicitud_id: id,
+          usuario_id: getUsuarioId(),
+          accion: ACCIONES_SISTEMA.CONTRATAR_SOLICITUD,
+          estado_anterior: estadoAnterior,
+          estado_nuevo: "contratado",
+          observacion: observacion || 'Solicitud marcada como contratada',
+        });
+        console.log("✅ Log de contratación creado exitosamente");
+      } catch (logError) {
+        console.warn(
+          "⚠️ No se pudo crear el log de contratación:",
+          logError
+        );
+        return false;
+      }
+
+      return true;
     } catch (error) {
-      console.error("Error contracting solicitud:", error);
+      console.error("❌ Error contracting solicitud:", error);
       return false;
     }
   },
