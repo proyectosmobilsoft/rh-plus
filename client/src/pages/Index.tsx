@@ -681,18 +681,44 @@ const Dashboard = () => {
         const calcularPromedioEnContactar = () => {
           if (!logs || logs.length === 0) return { dias: 0, horas: 0, tiempo: '00:00:00' };
           
-          const transicionesContactar = logs.filter(log => 
-            log.estado_anterior?.toLowerCase() === 'asignado' && 
-            log.estado_nuevo?.toLowerCase() === 'pendiente documentos'
-          );
+          // Agrupar logs por solicitud_id
+          const logsPorSolicitud = logs.reduce((acc: any, log) => {
+            if (!acc[log.solicitud_id]) {
+              acc[log.solicitud_id] = [];
+            }
+            acc[log.solicitud_id].push(log);
+            return acc;
+          }, {});
           
-          if (transicionesContactar.length === 0) return { dias: 0, horas: 0, tiempo: '00:00:00' };
+          const tiemposMs: number[] = [];
           
-          const tiemposMs = transicionesContactar.map(log => {
-            const fechaAsignado = new Date(log.fecha_accion);
-            const fechaCreacion = new Date((log.solicitud as any)?.created_at);
-            return fechaAsignado.getTime() - fechaCreacion.getTime();
-          }).filter(tiempo => tiempo > 0);
+          // Para cada solicitud, buscar el tiempo entre "asignado" y "pendiente documentos"
+          Object.keys(logsPorSolicitud).forEach(solicitudId => {
+            const logsOrdenados = logsPorSolicitud[solicitudId].sort((a: any, b: any) => 
+              new Date(a.fecha_accion).getTime() - new Date(b.fecha_accion).getTime()
+            );
+            
+            // Buscar cuando cambió a "asignado"
+            const logAsignado = logsOrdenados.find((log: any) => 
+              log.estado_nuevo?.toLowerCase() === 'asignado'
+            );
+            
+            // Buscar cuando cambió de "asignado" a "pendiente documentos"
+            const logPendienteDoc = logsOrdenados.find((log: any) => 
+              log.estado_anterior?.toLowerCase() === 'asignado' && 
+              log.estado_nuevo?.toLowerCase() === 'pendiente documentos'
+            );
+            
+            if (logAsignado && logPendienteDoc) {
+              const fechaAsignado = new Date(logAsignado.fecha_accion);
+              const fechaPendienteDoc = new Date(logPendienteDoc.fecha_accion);
+              const diferencia = fechaPendienteDoc.getTime() - fechaAsignado.getTime();
+              
+              if (diferencia > 0) {
+                tiemposMs.push(diferencia);
+              }
+            }
+          });
           
           if (tiemposMs.length === 0) return { dias: 0, horas: 0, tiempo: '00:00:00' };
           
@@ -724,18 +750,44 @@ const Dashboard = () => {
         const calcularPromedioEntregaDocumentos = () => {
           if (!logs || logs.length === 0) return { dias: 0, horas: 0, tiempo: '00:00:00' };
           
-          const transicionesEntrega = logs.filter(log => 
-            log.estado_anterior?.toLowerCase() === 'pendiente documentos' && 
-            log.estado_nuevo?.toLowerCase() === 'contratado'
-          );
+          // Agrupar logs por solicitud_id
+          const logsPorSolicitud = logs.reduce((acc: any, log) => {
+            if (!acc[log.solicitud_id]) {
+              acc[log.solicitud_id] = [];
+            }
+            acc[log.solicitud_id].push(log);
+            return acc;
+          }, {});
           
-          if (transicionesEntrega.length === 0) return { dias: 0, horas: 0, tiempo: '00:00:00' };
+          const tiemposMs: number[] = [];
           
-          const tiemposMs = transicionesEntrega.map(log => {
-            const fechaEntrega = new Date(log.fecha_accion);
-            const fechaCreacion = new Date((log.solicitud as any)?.created_at);
-            return fechaEntrega.getTime() - fechaCreacion.getTime();
-          }).filter(tiempo => tiempo > 0);
+          // Para cada solicitud, buscar el tiempo entre "pendiente documentos" y "contratado"
+          Object.keys(logsPorSolicitud).forEach(solicitudId => {
+            const logsOrdenados = logsPorSolicitud[solicitudId].sort((a: any, b: any) => 
+              new Date(a.fecha_accion).getTime() - new Date(b.fecha_accion).getTime()
+            );
+            
+            // Buscar cuando cambió a "pendiente documentos"
+            const logPendienteDoc = logsOrdenados.find((log: any) => 
+              log.estado_nuevo?.toLowerCase() === 'pendiente documentos'
+            );
+            
+            // Buscar cuando cambió de "pendiente documentos" a "contratado"
+            const logContratado = logsOrdenados.find((log: any) => 
+              log.estado_anterior?.toLowerCase() === 'pendiente documentos' && 
+              log.estado_nuevo?.toLowerCase() === 'contratado'
+            );
+            
+            if (logPendienteDoc && logContratado) {
+              const fechaPendienteDoc = new Date(logPendienteDoc.fecha_accion);
+              const fechaContratado = new Date(logContratado.fecha_accion);
+              const diferencia = fechaContratado.getTime() - fechaPendienteDoc.getTime();
+              
+              if (diferencia > 0) {
+                tiemposMs.push(diferencia);
+              }
+            }
+          });
           
           if (tiemposMs.length === 0) return { dias: 0, horas: 0, tiempo: '00:00:00' };
           
