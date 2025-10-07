@@ -1955,6 +1955,23 @@ export const solicitudesService = {
   // Contactar solicitud
   async contact(id: number, observacion?: string): Promise<boolean> {
     try {
+      console.log("📞 Iniciando proceso de contacto para solicitud:", id);
+      
+      // Obtener el estado anterior antes de actualizar
+      const { data: solicitudAnterior, error: fetchError } = await supabase
+        .from("hum_solicitudes")
+        .select("estado")
+        .eq("id", id)
+        .single();
+
+      if (fetchError) {
+        console.error("Error obteniendo estado anterior:", fetchError);
+        return false;
+      }
+
+      const estadoAnterior = solicitudAnterior?.estado || "desconocido";
+      console.log("📞 Estado anterior de la solicitud:", estadoAnterior);
+      
       const success = await this.updateStatus(
         id,
         "pendiente documentos",
@@ -1962,18 +1979,22 @@ export const solicitudesService = {
       );
       
       if (success) {
-        // Log adicional específico para contacto
+        console.log("📞 Estado actualizado exitosamente, creando log específico de contacto...");
+        
+        // Log adicional específico para contacto con estado anterior
         try {
           await solicitudesLogsService.crearLog({
             solicitud_id: id,
             usuario_id: getUsuarioId(),
             accion: ACCIONES_SISTEMA.CONTACTAR,
+            estado_anterior: estadoAnterior,
             estado_nuevo: "pendiente documentos",
             observacion: observacion || "Solicitud contactada",
           });
+          console.log("✅ Log de contacto creado exitosamente");
         } catch (logError) {
           console.warn(
-            "No se pudo crear el log adicional de contacto:",
+            "⚠️ No se pudo crear el log adicional de contacto:",
             logError
           );
         }
@@ -1981,7 +2002,7 @@ export const solicitudesService = {
 
       return success;
     } catch (error) {
-      console.error("Error contacting solicitud:", error);
+      console.error("❌ Error contacting solicitud:", error);
       return false;
     }
   },

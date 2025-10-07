@@ -58,6 +58,8 @@ import {
   Clock,
   AlertTriangle,
   CheckCircle,
+  CheckCircle2,
+  Phone,
   XCircle,
   Activity,
   MapPin,
@@ -342,6 +344,7 @@ const Dashboard = () => {
             id, 
             estado, 
             created_at, 
+            updated_at,
             empresa_id, 
             analista_id,
             candidato_id,
@@ -871,15 +874,33 @@ const Dashboard = () => {
 
           {/* Métricas de Rendimiento */}
           <div className="grid gap-6 lg:grid-cols-3">
-            <Card className="border-l-4 border-l-yellow-500">
+            <Card className="border-l-4 border-l-green-500">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="h-5 w-5 text-yellow-500" />
-                  Tiempo Promedio
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  Promedio Contratadas
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-yellow-600 mb-2">
+                <div className="text-3xl font-bold text-green-600 mb-2">
+                  {stats?.promedioTiempoProcesamiento || 0} días
+                </div>
+                <Progress value={Math.min((stats?.promedioTiempoProcesamiento || 0) / 30 * 100, 100)} className="h-2" />
+                <p className="text-sm text-gray-600 mt-2">
+                  Meta: 5 días • Máximo: 30 días
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-l-4 border-l-blue-500">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Phone className="h-4 w-4 text-blue-500" />
+                  Promedio en Contactar
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-blue-600 mb-2">
                   {stats?.promedioTiempoProcesamiento || 0} días
                 </div>
                 <Progress value={Math.min((stats?.promedioTiempoProcesamiento || 0) / 30 * 100, 100)} className="h-2" />
@@ -889,36 +910,20 @@ const Dashboard = () => {
               </CardContent>
             </Card>
 
-            <Card className="border-l-4 border-l-red-500">
+            <Card className="border-l-4 border-l-orange-500">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-red-500" />
-                  Solicitudes Pendientes
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <FileText className="h-4 w-4 text-orange-500" />
+                  Promedio Entrega Documentos
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-red-600 mb-2">
-                  {stats?.solicitudesPendientes || 0}
+                <div className="text-3xl font-bold text-orange-600 mb-2">
+                  {stats?.promedioTiempoProcesamiento || 0} días
                 </div>
-                <p className="text-sm text-gray-600">
-                  Requieren atención inmediata
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="border-l-4 border-l-green-500">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-green-500" />
-                  Solicitudes Aprobadas
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-green-600 mb-2">
-                  {stats?.solicitudesContratadas || 0}
-                </div>
-                <p className="text-sm text-gray-600">
-                  Procesadas exitosamente
+                <Progress value={Math.min((stats?.promedioTiempoProcesamiento || 0) / 30 * 100, 100)} className="h-2" />
+                <p className="text-sm text-gray-600 mt-2">
+                  Meta: 15 días • Máximo: 30 días
                 </p>
               </CardContent>
             </Card>
@@ -1556,21 +1561,66 @@ const Dashboard = () => {
                           )}
                           <TableCell className="px-4 py-3">
                             <div className="flex flex-col">
-                              <span className="text-sm text-gray-500">
-                                {solicitud.created_at ? 
-                                  new Date(solicitud.created_at).toLocaleDateString('es-ES') 
-                                  : '-'
-                                }
-                              </span>
-                              <span className="text-xs text-gray-400">
-                                {solicitud.created_at ? 
-                                  new Date(solicitud.created_at).toLocaleTimeString('es-ES', { 
-                                    hour: '2-digit', 
-                                    minute: '2-digit' 
-                                  }) 
-                                  : ''
-                                }
-                              </span>
+                              <div className="flex items-start gap-4">
+                                <div className="flex flex-col">
+                                  <span className="text-xs text-gray-600 font-semibold">Solicitud:</span>
+                                  <span className="text-sm text-gray-500">
+                                    {solicitud.created_at ? 
+                                      new Date(solicitud.created_at).toLocaleDateString('es-ES') 
+                                      : '-'
+                                    }
+                                  </span>
+                                  <span className="text-xs text-gray-400">
+                                    {solicitud.created_at ? 
+                                      new Date(solicitud.created_at).toLocaleTimeString('es-ES', { 
+                                        hour: '2-digit', 
+                                        minute: '2-digit' 
+                                      }) 
+                                      : ''
+                                    }
+                                  </span>
+                                </div>
+                                {solicitud.estado?.toLowerCase() === 'contratado' && (
+                                  <div className="flex flex-col">
+                                    <span className="text-xs text-green-600 font-semibold">Contratado:</span>
+                                    <span className="text-sm text-green-700">
+                                      {solicitud.updated_at ? 
+                                        new Date(solicitud.updated_at).toLocaleDateString('es-ES')
+                                        : 'Sin fecha'
+                                      }
+                                    </span>
+                                    <span className="text-xs text-green-500">
+                                      {solicitud.updated_at ? 
+                                        new Date(solicitud.updated_at).toLocaleTimeString('es-ES', { 
+                                          hour: '2-digit', 
+                                          minute: '2-digit' 
+                                        })
+                                        : ''
+                                      }
+                                    </span>
+                                  </div>
+                                )}
+                                {solicitud.estado?.toLowerCase() === 'citado examenes' && (
+                                  <div className="flex flex-col">
+                                    <span className="text-xs text-blue-600 font-semibold">Fecha citación:</span>
+                                    <span className="text-sm text-blue-700">
+                                      {solicitud.updated_at ? 
+                                        new Date(solicitud.updated_at).toLocaleDateString('es-ES')
+                                        : 'Sin fecha'
+                                      }
+                                    </span>
+                                    <span className="text-xs text-blue-500">
+                                      {solicitud.updated_at ? 
+                                        new Date(solicitud.updated_at).toLocaleTimeString('es-ES', { 
+                                          hour: '2-digit', 
+                                          minute: '2-digit' 
+                                        })
+                                        : ''
+                                      }
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </TableCell>
                         </TableRow>
