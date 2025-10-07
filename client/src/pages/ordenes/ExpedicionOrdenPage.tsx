@@ -390,6 +390,36 @@ const ExpedicionOrdenPage = () => {
     }
   };
 
+  const handleCiteExams = async (id: number, observacion: string) => {
+    setIsLoading(true);
+    try {
+      // Obtener información del candidato para mostrar en el modal si es necesario
+      const candidato = await validacionDocumentosService.getCandidatoInfo(id);
+      const candidatoNombre = candidato ? `${candidato.nombres} ${candidato.apellidos}` : 'el candidato';
+
+      // Intentar citar a exámenes y enviar email
+      const resultado = await validacionDocumentosService.citarAExamenesYEnviarEmail(id, observacion);
+
+      if (resultado.success) {
+        await fetchSolicitudes();
+        toast.success(resultado.message);
+      } else {
+        // Si no hay prestadores en la ciudad del candidato, mostrar modal de selección
+        setSolicitudParaValidar({
+          id,
+          observacion,
+          candidatoNombre
+        });
+        setShowSeleccionarCiudadModal(true);
+      }
+    } catch (error) {
+      console.error('Error citando a exámenes:', error);
+      toast.error('Error al citar a exámenes. Por favor intente nuevamente.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleReturnDocuments = async (id: number, observacion: string) => {
     setIsLoading(true);
     try {
@@ -752,6 +782,7 @@ const ExpedicionOrdenPage = () => {
                   onAssign={handleAssign}
                   onValidateDocuments={handleValidateDocuments}
                   onReturnDocuments={handleReturnDocuments}
+                  onCiteExams={handleCiteExams}
                   isLoading={isLoading}
                 />
               )}

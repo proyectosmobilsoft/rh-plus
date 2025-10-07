@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Edit, Pause, CheckCircle, Phone, Play, XCircle, Eye, X, Ban, User, Building2, FileText, Clock, Code, DollarSign, MoreHorizontal, FolderOpen } from 'lucide-react';
+import { Edit, Pause, CheckCircle, Phone, Play, XCircle, Eye, X, Ban, User, Building2, FileText, Clock, Code, DollarSign, MoreHorizontal, FolderOpen, Stethoscope } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -30,6 +30,7 @@ interface SolicitudesListProps {
   onAssign: (id: number, analistaId: number) => void;
   onValidateDocuments: (id: number, observacion: string) => void;
   onReturnDocuments: (id: number, observacion: string) => void;
+  onCiteExams: (id: number, observacion: string) => void;
   isLoading?: boolean;
 }
 
@@ -47,6 +48,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   onAssign,
   onValidateDocuments,
   onReturnDocuments,
+  onCiteExams,
   isLoading = false
 }) => {
   const { startLoading, stopLoading } = useLoading();
@@ -91,6 +93,9 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   const [validateDocumentsObservacion, setValidateDocumentsObservacion] = useState('');
   const [confirmReturnDocumentsOpen, setConfirmReturnDocumentsOpen] = useState(false);
   const [returningDocumentsSolicitudId, setReturningDocumentsSolicitudId] = useState<number | null>(null);
+  const [confirmCiteExamsOpen, setConfirmCiteExamsOpen] = useState(false);
+  const [citingExamsSolicitudId, setCitingExamsSolicitudId] = useState<number | null>(null);
+  const [citeExamsObservacion, setCiteExamsObservacion] = useState('');
   const [returnDocumentsObservacion, setReturnDocumentsObservacion] = useState('');
   const [confirmContractOpen, setConfirmContractOpen] = useState(false);
   const [contractingSolicitudId, setContractingSolicitudId] = useState<number | null>(null);
@@ -1061,6 +1066,31 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     }
   };
 
+  const handleCiteExamsClick = (id: number | undefined) => {
+    if (id) {
+      setSelectedSolicitudId(id);
+      setCitingExamsSolicitudId(id);
+      setCiteExamsObservacion('');
+      setConfirmCiteExamsOpen(true);
+    }
+  };
+
+  const handleCiteExamsConfirm = () => {
+    if (selectedSolicitudId && citeExamsObservacion.trim()) {
+      console.log('🔍 handleCiteExamsConfirm llamado para solicitud ID:', selectedSolicitudId);
+      console.log('🔍 Llamando a startLoading()...');
+      startLoading(); // Activar loading global
+      
+      // Llamar a la función de citar a exámenes con observación
+      onCiteExams(selectedSolicitudId, citeExamsObservacion.trim());
+      
+      setConfirmCiteExamsOpen(false);
+      setSelectedSolicitudId(null);
+      setCitingExamsSolicitudId(null);
+      setCiteExamsObservacion('');
+    }
+  };
+
   const handleContractClick = (id: number | undefined) => {
     if (id) {
       setSelectedSolicitudId(id);
@@ -1252,6 +1282,19 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                                 >
                                   <XCircle className="h-4 w-4 mr-2 text-red-600" />
                                   Documentos Devueltos
+                                </DropdownMenuItem>
+                              </Can>
+                            )}
+
+                            {/* Botón Citar a Exámenes - visible en estados ASIGNADO o PENDIENTE DOCUMENTOS */}
+                            {(solicitud.estado?.toLowerCase() === 'asignado' || solicitud.estado?.toLowerCase() === 'pendiente documentos') && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                              <Can action="accion-citar-examenes-solicitud">
+                                <DropdownMenuItem 
+                                  onClick={() => handleCiteExamsClick(solicitud.id)} 
+                                  className="cursor-pointer"
+                                >
+                                  <Stethoscope className="h-4 w-4 mr-2 text-purple-600" />
+                                  Citar a Exámenes
                                 </DropdownMenuItem>
                               </Can>
                             )}
@@ -1851,6 +1894,54 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
               disabled={!validateDocumentsObservacion.trim()}
             >
               Validar Documentos
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirmación de Citar a Exámenes */}
+      <AlertDialog open={confirmCiteExamsOpen} onOpenChange={setConfirmCiteExamsOpen}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Citar a exámenes médicos?</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas citar a exámenes médicos a este candidato?
+              <br />
+              <span className="text-sm text-muted-foreground">
+                Esta acción cambiará el estado de la solicitud a "Citado Exámenes" y se enviará un correo al candidato con la información de los prestadores médicos.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="py-4">
+            <label htmlFor="citeExamsObservacion" className="block text-sm font-medium text-gray-700 mb-2">
+              Observación (requerida)
+            </label>
+            <Textarea
+              id="citeExamsObservacion"
+              value={citeExamsObservacion}
+              onChange={(e) => setCiteExamsObservacion(e.target.value)}
+              placeholder="Ingrese observaciones sobre la citación a exámenes..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              rows={4}
+              required
+            />
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setConfirmCiteExamsOpen(false);
+              setCitingExamsSolicitudId(null);
+              setCiteExamsObservacion('');
+            }}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCiteExamsConfirm}
+              className="bg-purple-600 hover:bg-purple-700"
+              disabled={!citeExamsObservacion.trim()}
+            >
+              Citar a Exámenes
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

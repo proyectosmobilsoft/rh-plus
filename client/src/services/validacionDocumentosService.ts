@@ -408,13 +408,27 @@ export const validacionDocumentosService = {
         };
       }
 
-      // 4. Enviar email con información de prestadores
+      // 4. Obtener el estado anterior antes de actualizar
+      const { data: solicitudAnterior, error: fetchError } = await supabase
+        .from('hum_solicitudes')
+        .select('estado')
+        .eq('id', solicitudId)
+        .single();
+
+      if (fetchError) {
+        throw new Error('Error obteniendo estado anterior de la solicitud');
+      }
+
+      const estadoAnterior = solicitudAnterior?.estado || 'desconocido';
+      console.log('🔍 Estado anterior de la solicitud (validar docs):', estadoAnterior);
+
+      // 5. Enviar email con información de prestadores
       const esCiudadAlternativa = ciudadId !== undefined && candidato.ciudad_nombre && 
         prestadores.length > 0 && prestadores[0].ciudad_nombre !== candidato.ciudad_nombre;
       
       await this.enviarEmailPrestadores(candidato, prestadores, undefined, esCiudadAlternativa);
 
-      // 5. Solo después del envío exitoso del email, actualizar estado de la solicitud
+      // 6. Solo después del envío exitoso del email, actualizar estado de la solicitud
       const { error: updateError } = await supabase
         .from('hum_solicitudes')
         .update({ 
@@ -427,7 +441,7 @@ export const validacionDocumentosService = {
         throw new Error('Error actualizando el estado de la solicitud');
       }
 
-      // 6. Registrar log
+      // 7. Registrar log con estado anterior
       const { data: { user } } = await supabase.auth.getUser();
       const { error: logError } = await supabase
         .from('hum_solicitudes_logs')
@@ -436,6 +450,7 @@ export const validacionDocumentosService = {
           accion: 'validar_documentos',
           observacion: observacion,
           usuario_id: user?.id || null, // Usar null si no hay usuario autenticado
+          estado_anterior: estadoAnterior,
           estado_nuevo: 'citado examenes'
         });
 
@@ -450,6 +465,107 @@ export const validacionDocumentosService = {
 
     } catch (error) {
       console.error('Error en validacionDocumentosYEnviarEmail:', error);
+      throw error;
+    }
+  },
+
+  // Citar a exámenes (misma lógica que validar documentos)
+  async citarAExamenesYEnviarEmail(
+    solicitudId: number, 
+    observacion: string, 
+    ciudadId?: number
+  ): Promise<{success: boolean, message: string}> {
+    try {
+      // 1. Obtener información del candidato
+      const candidato = await this.getCandidatoInfo(solicitudId);
+      if (!candidato) {
+        throw new Error('No se pudo obtener la información del candidato');
+      }
+
+      // 2. Determinar la ciudad a usar
+      let ciudadIdParaBuscar = ciudadId;
+      if (!ciudadIdParaBuscar && candidato.ciudad_nombre) {
+        // Buscar el ID de la ciudad del candidato
+        const { data: ciudadData } = await supabase
+          .from('ciudades')
+          .select('id')
+          .eq('nombre', candidato.ciudad_nombre)
+          .single();
+        
+        ciudadIdParaBuscar = ciudadData?.id;
+      }
+
+      if (!ciudadIdParaBuscar) {
+        throw new Error('No se pudo determinar la ciudad del candidato');
+      }
+
+      // 3. Buscar prestadores en esa ciudad
+      const prestadores = await this.getPrestadoresByCiudad(ciudadIdParaBuscar);
+
+      if (prestadores.length === 0) {
+        return {
+          success: false,
+          message: 'No hay prestadores disponibles en la ciudad del candidato. Debe seleccionar otra ciudad.'
+        };
+      }
+
+      // 4. Obtener el estado anterior antes de actualizar
+      const { data: solicitudAnterior, error: fetchError } = await supabase
+        .from('hum_solicitudes')
+        .select('estado')
+        .eq('id', solicitudId)
+        .single();
+
+      if (fetchError) {
+        throw new Error('Error obteniendo estado anterior de la solicitud');
+      }
+
+      const estadoAnterior = solicitudAnterior?.estado || 'desconocido';
+      console.log('🔍 Estado anterior de la solicitud:', estadoAnterior);
+
+      // 5. Enviar email con información de prestadores
+      const esCiudadAlternativa = ciudadId !== undefined && candidato.ciudad_nombre && 
+        prestadores.length > 0 && prestadores[0].ciudad_nombre !== candidato.ciudad_nombre;
+      
+      await this.enviarEmailPrestadores(candidato, prestadores, undefined, esCiudadAlternativa);
+
+      // 6. Solo después del envío exitoso del email, actualizar estado de la solicitud
+      const { error: updateError } = await supabase
+        .from('hum_solicitudes')
+        .update({ 
+          estado: 'citado examenes',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', solicitudId);
+
+      if (updateError) {
+        throw new Error('Error actualizando el estado de la solicitud');
+      }
+
+      // 7. Registrar log con estado anterior
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error: logError } = await supabase
+        .from('hum_solicitudes_logs')
+        .insert({
+          solicitud_id: solicitudId,
+          accion: 'citar_examenes',
+          observacion: observacion,
+          usuario_id: user?.id || null,
+          estado_anterior: estadoAnterior,
+          estado_nuevo: 'citado examenes'
+        });
+
+      if (logError) {
+        console.warn('Error registrando log:', logError);
+      }
+
+      return {
+        success: true,
+        message: `Candidato citado a exámenes exitosamente. Se envió un email a ${candidato.email} con información de ${prestadores.length} prestadores médicos.`
+      };
+
+    } catch (error) {
+      console.error('Error en citarAExamenesYEnviarEmail:', error);
       throw error;
     }
   }
