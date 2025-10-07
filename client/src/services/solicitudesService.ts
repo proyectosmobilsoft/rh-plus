@@ -1960,7 +1960,7 @@ export const solicitudesService = {
       // Obtener el estado anterior antes de actualizar
       const { data: solicitudAnterior, error: fetchError } = await supabase
         .from("hum_solicitudes")
-        .select("estado")
+        .select("estado, observaciones")
         .eq("id", id)
         .single();
 
@@ -1972,35 +1972,49 @@ export const solicitudesService = {
       const estadoAnterior = solicitudAnterior?.estado || "desconocido";
       console.log("📞 Estado anterior de la solicitud:", estadoAnterior);
       
-      const success = await this.updateStatus(
-        id,
-        "pendiente documentos",
-        observacion
-      );
-      
-      if (success) {
-        console.log("📞 Estado actualizado exitosamente, creando log específico de contacto...");
-        
-        // Log adicional específico para contacto con estado anterior
-        try {
-          await solicitudesLogsService.crearLog({
-            solicitud_id: id,
-            usuario_id: getUsuarioId(),
-            accion: ACCIONES_SISTEMA.CONTACTAR,
-            estado_anterior: estadoAnterior,
-            estado_nuevo: "pendiente documentos",
-            observacion: observacion || "Solicitud contactada",
-          });
-          console.log("✅ Log de contacto creado exitosamente");
-        } catch (logError) {
-          console.warn(
-            "⚠️ No se pudo crear el log adicional de contacto:",
-            logError
-          );
-        }
+      // Actualizar estado directamente sin crear log de cambio de estado
+      const updateData: any = { 
+        estado: "pendiente documentos",
+        updated_at: new Date().toISOString(),
+      };
+
+      // Si se proporciona una observación, agregarla a la columna observaciones
+      if (observacion) {
+        updateData.observaciones = observacion;
       }
 
-      return success;
+      const { error: updateError } = await supabase
+        .from("hum_solicitudes")
+        .update(updateData)
+        .eq("id", id);
+
+      if (updateError) {
+        console.error("Error actualizando solicitud:", updateError);
+        return false;
+      }
+
+      console.log("📞 Estado actualizado exitosamente, creando log específico de contacto...");
+      
+      // Crear solo el log específico de contacto
+      try {
+        await solicitudesLogsService.crearLog({
+          solicitud_id: id,
+          usuario_id: getUsuarioId(),
+          accion: ACCIONES_SISTEMA.CONTACTAR,
+          estado_anterior: estadoAnterior,
+          estado_nuevo: "pendiente documentos",
+          observacion: observacion || "Solicitud contactada",
+        });
+        console.log("✅ Log de contacto creado exitosamente");
+      } catch (logError) {
+        console.warn(
+          "⚠️ No se pudo crear el log de contacto:",
+          logError
+        );
+        return false;
+      }
+
+      return true;
     } catch (error) {
       console.error("❌ Error contacting solicitud:", error);
       return false;
