@@ -12,6 +12,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import logo from '/src/assets/logo.png';
 
 // Componente para el header
 const Header = ({ sidebarOpen, toggleSidebar }: { sidebarOpen: boolean; toggleSidebar: () => void }) => {
@@ -151,7 +152,7 @@ const Header = ({ sidebarOpen, toggleSidebar }: { sidebarOpen: boolean; toggleSi
       <div className="flex items-center space-x-4">
         <div className="flex items-center space-x-3">
            <img 
-             src="/src/assets/logo.png" 
+             src={logo} 
              alt="CoreHuman Logo" 
              className="h-16 w-auto object-contain"
            />
