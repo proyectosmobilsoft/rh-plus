@@ -143,6 +143,8 @@ interface DashboardStats {
   promedioEnContactarTiempo: string;
   promedioContratadasTiempo: string;
   promedioEntregaDocumentosTiempo: string;
+  cantidadSolicitudesContactadas: number;
+  cantidadDocumentosEntregados: number;
   topEmpresas: Array<{ nombre: string; cantidad: number }>;
   solicitudesPorEstado: Array<{ estado: string; cantidad: number }>;
   solicitudesPorMes: Array<{ mes: string; cantidad: number }>;
@@ -501,27 +503,34 @@ const Dashboard = () => {
           `)
           .order('fecha_accion', { ascending: true });
 
-        // Aplicar filtros a los logs basados en los filtros de solicitudes
-        if (empresaFiltro && empresaFiltro !== 'todas') {
-          logsQuery = logsQuery.eq('solicitud.empresa_id', empresaFiltro);
-        }
-        
-        if (analistaFiltro && analistaFiltro !== 'todos') {
-          logsQuery = logsQuery.eq('solicitud.analista_id', analistaFiltro);
-        }
-        
+        // Aplicar filtro de fecha al log (fecha_accion)
         if (dateRange.from && dateRange.to) {
           const fechaInicio = dateRange.from.toISOString().split('T')[0];
           const fechaFin = dateRange.to.toISOString().split('T')[0];
           logsQuery = logsQuery
-            .gte('solicitud.created_at', fechaInicio)
-            .lte('solicitud.created_at', fechaFin + 'T23:59:59.999Z');
+            .gte('fecha_accion', fechaInicio)
+            .lte('fecha_accion', fechaFin + 'T23:59:59.999Z');
         }
 
-        const { data: logs, error: logsError } = await logsQuery;
+        const { data: logsRaw, error: logsError } = await logsQuery;
 
         if (logsError) {
           console.error('Error obteniendo logs:', logsError);
+        }
+
+        // Filtrar logs manualmente por empresa y analista ya que el filtro directo por relación no funciona bien
+        let logs = logsRaw || [];
+        
+        if (empresaFiltro && empresaFiltro !== 'todas') {
+          logs = logs.filter((log: any) => 
+            log.solicitud?.empresa_id?.toString() === empresaFiltro.toString()
+          );
+        }
+        
+        if (analistaFiltro && analistaFiltro !== 'todos') {
+          logs = logs.filter((log: any) => 
+            log.solicitud?.analista_id?.toString() === analistaFiltro.toString()
+          );
         }
 
         // Calcular estadísticas
@@ -679,7 +688,15 @@ const Dashboard = () => {
         // Calcular promedio de tiempo de procesamiento (simulado por ahora)
         // Calcular promedios reales basados en logs
         const calcularPromedioEnContactar = () => {
-          if (!logs || logs.length === 0) return { dias: 0, horas: 0, tiempo: '00:00:00' };
+          if (!logs || logs.length === 0) return { dias: 0, horas: 0, tiempo: '00:00:00', cantidad: 0 };
+          
+          // Contar directamente los logs donde se contactó (cambió a pendiente documentos desde asignado)
+          const logsContacto = logs.filter((log: any) => 
+            log.estado_anterior?.toLowerCase() === 'asignado' && 
+            log.estado_nuevo?.toLowerCase() === 'pendiente documentos'
+          );
+          
+          const cantidadContactadas = logsContacto.length;
           
           // Agrupar logs por solicitud_id
           const logsPorSolicitud = logs.reduce((acc: any, log) => {
@@ -720,10 +737,10 @@ const Dashboard = () => {
             }
           });
           
-          if (tiemposMs.length === 0) return { dias: 0, horas: 0, tiempo: '00:00:00' };
+          if (tiemposMs.length === 0) return { dias: 0, horas: 0, tiempo: '00:00:00', cantidad: cantidadContactadas };
           
           const promedioMs = tiemposMs.reduce((a, b) => a + b, 0) / tiemposMs.length;
-          return formatearTiempo(promedioMs);
+          return { ...formatearTiempo(promedioMs), cantidad: cantidadContactadas };
         };
 
         const calcularPromedioContratadas = () => {
@@ -748,7 +765,15 @@ const Dashboard = () => {
         };
 
         const calcularPromedioEntregaDocumentos = () => {
-          if (!logs || logs.length === 0) return { dias: 0, horas: 0, tiempo: '00:00:00' };
+          if (!logs || logs.length === 0) return { dias: 0, horas: 0, tiempo: '00:00:00', cantidad: 0 };
+          
+          // Contar directamente los logs donde se entregaron documentos (cambió de pendiente documentos a documentos entregados)
+          const logsEntregaDocumentos = logs.filter((log: any) => 
+            log.estado_anterior?.toLowerCase() === 'pendiente documentos' && 
+            log.estado_nuevo?.toLowerCase() === 'documentos entregados'
+          );
+          
+          const cantidadDocumentosEntregados = logsEntregaDocumentos.length;
           
           // Agrupar logs por solicitud_id
           const logsPorSolicitud = logs.reduce((acc: any, log) => {
@@ -761,7 +786,7 @@ const Dashboard = () => {
           
           const tiemposMs: number[] = [];
           
-          // Para cada solicitud, buscar el tiempo entre "pendiente documentos" y "contratado"
+          // Para cada solicitud, buscar el tiempo entre "pendiente documentos" y "documentos entregados"
           Object.keys(logsPorSolicitud).forEach(solicitudId => {
             const logsOrdenados = logsPorSolicitud[solicitudId].sort((a: any, b: any) => 
               new Date(a.fecha_accion).getTime() - new Date(b.fecha_accion).getTime()
@@ -772,16 +797,16 @@ const Dashboard = () => {
               log.estado_nuevo?.toLowerCase() === 'pendiente documentos'
             );
             
-            // Buscar cuando cambió de "pendiente documentos" a "contratado"
-            const logContratado = logsOrdenados.find((log: any) => 
+            // Buscar cuando cambió de "pendiente documentos" a "documentos entregados"
+            const logDocumentosEntregados = logsOrdenados.find((log: any) => 
               log.estado_anterior?.toLowerCase() === 'pendiente documentos' && 
-              log.estado_nuevo?.toLowerCase() === 'contratado'
+              log.estado_nuevo?.toLowerCase() === 'documentos entregados'
             );
             
-            if (logPendienteDoc && logContratado) {
+            if (logPendienteDoc && logDocumentosEntregados) {
               const fechaPendienteDoc = new Date(logPendienteDoc.fecha_accion);
-              const fechaContratado = new Date(logContratado.fecha_accion);
-              const diferencia = fechaContratado.getTime() - fechaPendienteDoc.getTime();
+              const fechaDocumentosEntregados = new Date(logDocumentosEntregados.fecha_accion);
+              const diferencia = fechaDocumentosEntregados.getTime() - fechaPendienteDoc.getTime();
               
               if (diferencia > 0) {
                 tiemposMs.push(diferencia);
@@ -789,10 +814,10 @@ const Dashboard = () => {
             }
           });
           
-          if (tiemposMs.length === 0) return { dias: 0, horas: 0, tiempo: '00:00:00' };
+          if (tiemposMs.length === 0) return { dias: 0, horas: 0, tiempo: '00:00:00', cantidad: cantidadDocumentosEntregados };
           
           const promedioMs = tiemposMs.reduce((a, b) => a + b, 0) / tiemposMs.length;
-          return formatearTiempo(promedioMs);
+          return { ...formatearTiempo(promedioMs), cantidad: cantidadDocumentosEntregados };
         };
 
         const resultadoEnContactar = calcularPromedioEnContactar();
@@ -803,12 +828,14 @@ const Dashboard = () => {
         const promedioEnContactar = resultadoEnContactar.dias;
         const promedioEnContactarHoras = resultadoEnContactar.horas;
         const promedioEnContactarTiempo = resultadoEnContactar.tiempo;
+        const cantidadSolicitudesContactadas = resultadoEnContactar.cantidad;
         const promedioContratadas = resultadoContratadas.dias;
         const promedioContratadasHoras = resultadoContratadas.horas;
         const promedioContratadasTiempo = resultadoContratadas.tiempo;
         const promedioEntregaDocumentos = resultadoEntregaDocumentos.dias;
         const promedioEntregaDocumentosHoras = resultadoEntregaDocumentos.horas;
         const promedioEntregaDocumentosTiempo = resultadoEntregaDocumentos.tiempo;
+        const cantidadDocumentosEntregados = resultadoEntregaDocumentos.cantidad;
         
         // Mantener el promedioTiempoProcesamiento para compatibilidad (usar promedio de contratadas)
         const promedioTiempoProcesamiento = promedioContratadas;
@@ -834,6 +861,8 @@ const Dashboard = () => {
           promedioEnContactarTiempo,
           promedioContratadasTiempo,
           promedioEntregaDocumentosTiempo,
+          cantidadSolicitudesContactadas,
+          cantidadDocumentosEntregados,
           topEmpresas,
           solicitudesPorEstado: solicitudesPorEstadoArray,
           solicitudesPorMes,
@@ -1101,9 +1130,26 @@ const Dashboard = () => {
                 <p className="text-sm text-green-500 mb-2 font-mono">
                   {stats?.promedioContratadasTiempo || '00:00:00'} (HH:MM:SS)
                 </p>
-                <Progress value={Math.min((stats?.promedioContratadas || 0) / 30 * 100, 100)} className="h-2" />
+                {/* Barra de progreso con 3 colores: verde (0-3), amarillo (3.1-4), rojo (≥5) */}
+                <div className="relative">
+                  <Progress 
+                    value={Math.min((stats?.promedioContratadas || 0) / 5 * 100, 100)} 
+                    className={`h-2 bg-gray-200 ${
+                      (stats?.promedioContratadas || 0) <= 3 
+                        ? '[&>div]:bg-green-500' 
+                        : (stats?.promedioContratadas || 0) < 5 
+                          ? '[&>div]:bg-yellow-500' 
+                          : '[&>div]:bg-red-500'
+                    }`}
+                  />
+                </div>
                 <p className="text-sm text-gray-600 mt-2">
-                  Meta: 5 días • Máximo: 30 días
+                  Meta: 5 días Habiles {(stats?.promedioContratadas || 0) >= 5 && 
+                    <span className="text-red-600 font-semibold ml-2">⚠️ Meta alcanzada/superada</span>
+                  }
+                  {(stats?.promedioContratadas || 0) > 3 && (stats?.promedioContratadas || 0) < 5 && 
+                    <span className="text-yellow-600 font-semibold ml-2">⚠️ Cerca del límite</span>
+                  }
                 </p>
               </CardContent>
             </Card>
@@ -1122,9 +1168,28 @@ const Dashboard = () => {
                 <p className="text-sm text-blue-500 mb-2 font-mono">
                   {stats?.promedioEnContactarTiempo || '00:00:00'} (HH:MM:SS)
                 </p>
-                <Progress value={Math.min((stats?.promedioEnContactar || 0) / 30 * 100, 100)} className="h-2" />
-                <p className="text-sm text-gray-600 mt-2">
-                  Meta: 5 días • Máximo: 30 días
+                {/* Barra de progreso con 3 colores basado en meta de 1 día */}
+                <Progress 
+                  value={Math.min((stats?.promedioEnContactar || 0) / 1 * 100, 100)} 
+                  className={`h-2 bg-gray-200 ${
+                    (stats?.promedioEnContactar || 0) <= 0.5 
+                      ? '[&>div]:bg-green-500' 
+                      : (stats?.promedioEnContactar || 0) < 1 
+                        ? '[&>div]:bg-yellow-500' 
+                        : '[&>div]:bg-red-500'
+                  }`}
+                />
+                
+                <p className="text-xs text-gray-600 mt-1">
+                  Meta: 1 día {(stats?.promedioEnContactar || 0) >= 1 && 
+                    <span className="text-red-600 font-semibold ml-2">⚠️ Meta alcanzada/superada</span>
+                  }
+                  {(stats?.promedioEnContactar || 0) > 0.5 && (stats?.promedioEnContactar || 0) < 1 && 
+                    <span className="text-yellow-600 font-semibold ml-2">⚠️ Cerca del límite</span>
+                  }
+                </p>
+                <p className="text-xs text-blue-600 font-medium mt-1">
+                  📊 {stats?.cantidadSolicitudesContactadas || 0} solicitudes contactadas
                 </p>
               </CardContent>
             </Card>
@@ -1143,9 +1208,20 @@ const Dashboard = () => {
                 <p className="text-sm text-orange-500 mb-2 font-mono">
                   {stats?.promedioEntregaDocumentosTiempo || '00:00:00'} (HH:MM:SS)
                 </p>
-                <Progress value={Math.min((stats?.promedioEntregaDocumentos || 0) / 30 * 100, 100)} className="h-2" />
-                <p className="text-sm text-gray-600 mt-2">
-                  Meta: 5 días • Máximo: 30 días
+                {/* Barra de progreso con 3 colores: verde (0-3), amarillo (3.1-4), rojo (≥5) */}
+                <Progress 
+                  value={Math.min((stats?.promedioEntregaDocumentos || 0) / 5 * 100, 100)} 
+                  className={`h-2 bg-gray-200 ${
+                    (stats?.promedioEntregaDocumentos || 0) <= 3 
+                      ? '[&>div]:bg-green-500' 
+                      : (stats?.promedioEntregaDocumentos || 0) < 5 
+                        ? '[&>div]:bg-yellow-500' 
+                        : '[&>div]:bg-red-500'
+                  }`}
+                />
+                
+                <p className="text-xs text-orange-600 font-medium mt-1">
+                  📊 {stats?.cantidadDocumentosEntregados || 0} Solicitudes con documentos entregados
                 </p>
               </CardContent>
             </Card>
