@@ -173,10 +173,18 @@ const CertificadosMedicosPage = () => {
       
       const idsConCertificados = new Set(certificadosExistentes?.map(c => c.solicitud_id) || []);
       
-      // Filtrar solicitudes que estén en estado 'documentos entregados', 'pendiente documentos', 'citado examenes' o 'validacion cliente'
-      // Para 'validacion cliente' siempre mostrar (incluso si ya tiene certificado)
-      // Para otros estados, solo mostrar si NO tienen certificado médico ya creado
+      // Verificar si el usuario tiene el permiso campo-resumen-restriccion
+      const tienePermisoRestriccion = hasAction('campo-resumen-restriccion');
+      console.log('🔍 Usuario tiene permiso campo-resumen-restriccion:', tienePermisoRestriccion);
+      
+      // Filtrar solicitudes según el permiso del usuario
       const solicitudesParaCertificacion = data.filter(solicitud => {
+        // Si tiene permiso de restricción, solo mostrar solicitudes en 'validacion cliente' (con restricciones)
+        if (tienePermisoRestriccion) {
+          return solicitud.estado === 'validacion cliente';
+        }
+        
+        // Si NO tiene el permiso, mostrar solicitudes normales (flujo estándar)
         const esEstadoValido = (solicitud.estado === 'documentos entregados' || 
                                solicitud.estado === 'pendiente documentos' || 
                                solicitud.estado === 'citado examenes' ||
@@ -191,6 +199,7 @@ const CertificadosMedicosPage = () => {
         }
       });
       
+      console.log(`📊 Solicitudes filtradas: ${solicitudesParaCertificacion.length} de ${data.length}`);
       setSolicitudes(solicitudesParaCertificacion);
     } catch (error) {
       console.error("Error fetching solicitudes:", error);
