@@ -267,7 +267,7 @@ const Dashboard = () => {
           solicitudesFiltradas = solicitudesActualizadas.filter(s => s.estado === 'asignado');
           break;
         case 'citado_examenes':
-          solicitudesFiltradas = solicitudesActualizadas.filter(s => s.estado === 'citado_examenes');
+          solicitudesFiltradas = solicitudesActualizadas.filter(s => s.estado?.toLowerCase() === 'citado examenes');
           break;
         case 'contratado':
           solicitudesFiltradas = solicitudesActualizadas.filter(s => s.estado === 'contratado');
@@ -502,7 +502,7 @@ const Dashboard = () => {
 
         // Exámenes médicos (estado citado examenes)
         const examenesMedicos = solicitudes?.filter(s =>
-          s.estado === 'citado_examenes'
+          s.estado?.toLowerCase() === 'citado examenes'
         ).length || 0;
 
         // Solicitudes contratadas
@@ -1543,13 +1543,13 @@ const Dashboard = () => {
                                 <Badge 
                                   className={`text-xs font-medium ${
                                     solicitud.estado === 'asignado' ? 'bg-blue-100 text-blue-800' :
-                                    solicitud.estado === 'citado_examenes' ? 'bg-yellow-100 text-yellow-800' :
+                                    solicitud.estado?.toLowerCase() === 'citado examenes' ? 'bg-yellow-100 text-yellow-800' :
                                     solicitud.estado === 'contratado' ? 'bg-green-100 text-green-800' :
                                     solicitud.estado === 'descartado' || solicitud.estado === 'cancelada' || solicitud.estado === 'stand_by' ? 'bg-red-100 text-red-800' :
                                     'bg-gray-100 text-gray-800'
                                   }`}
                                 >
-                                  {solicitud.estado?.replace('_', ' ').toUpperCase() || 'Sin estado'}
+                                  {solicitud.estado?.toUpperCase() || 'Sin estado'}
                                 </Badge>
                               </div>
                             </TableCell>
