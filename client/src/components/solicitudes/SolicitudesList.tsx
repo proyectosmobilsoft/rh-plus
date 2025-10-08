@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Edit, Pause, CheckCircle, Phone, Play, XCircle, Eye, X, Ban, User, Building2, FileText, Clock, Code, DollarSign, MoreHorizontal, FolderOpen, Stethoscope } from 'lucide-react';
+import { Edit, Pause, CheckCircle, Phone, Play, XCircle, Eye, X, Ban, User, Building2, FileText, Clock, Code, DollarSign, MoreHorizontal, FolderOpen, Stethoscope, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -107,6 +107,9 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     solicitud: null, 
     documentos: []
   });
+  
+  // Estado para el loading de documentos
+  const [loadingDocumentosSolicitudId, setLoadingDocumentosSolicitudId] = useState<number | null>(null);
   
   // Estado para el progreso de documentos requeridos
   const [documentosRequeridosData, setDocumentosRequeridosData] = useState<Record<number, {
@@ -478,7 +481,9 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   // Función para abrir el modal de documentos
   const handleViewDocuments = async (solicitud: Solicitud) => {
     try {
+      // Activar loading global y loading específico del botón
       startLoading();
+      setLoadingDocumentosSolicitudId(solicitud.id!);
       
       // Obtener documentos del candidato para esta solicitud
       const { data: documentos, error } = await supabase
@@ -509,6 +514,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
       console.error('Error abriendo documentos:', error);
     } finally {
       stopLoading();
+      setLoadingDocumentosSolicitudId(null);
     }
   };
 
@@ -1419,8 +1425,11 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                                     onClick={() => handleViewDocuments(solicitud)}
                                     className="h-6 w-6 p-0 hover:bg-blue-50 rounded-full"
                                     title="Ver documentos"
+                                    disabled={loadingDocumentosSolicitudId === solicitud.id}
                                   >
-                                    {progresoData.subidos > 0 ? (
+                                    {loadingDocumentosSolicitudId === solicitud.id ? (
+                                      <Loader2 className="h-3 w-3 text-blue-600 animate-spin" />
+                                    ) : progresoData.subidos > 0 ? (
                                       <Eye className="h-3 w-3 text-blue-600" />
                                     ) : (
                                       <FolderOpen className="h-3 w-3 text-gray-400" />
@@ -1428,7 +1437,14 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  <p>{progresoData.subidos > 0 ? 'Ver documentos entregados' : 'No hay documentos entregados'}</p>
+                                  <p>
+                                    {loadingDocumentosSolicitudId === solicitud.id 
+                                      ? 'Cargando documentos...' 
+                                      : progresoData.subidos > 0 
+                                        ? 'Ver documentos entregados' 
+                                        : 'No hay documentos entregados'
+                                    }
+                                  </p>
                                 </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
