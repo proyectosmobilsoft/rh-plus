@@ -21,6 +21,7 @@ export interface CandidatoInfo {
   nombres?: string;
   apellidos?: string;
   email?: string;
+  ciudad_id?: number;
   ciudad_nombre?: string;
   departamento_nombre?: string;
 }
@@ -69,6 +70,7 @@ export const validacionDocumentosService = {
           primer_apellido,
           segundo_apellido,
           email,
+          ciudad_id,
           ciudades:ciudad_id(nombre, departamentos:departamento_id(nombre))
         )
       `)
@@ -95,6 +97,7 @@ export const validacionDocumentosService = {
       nombres,
       apellidos,
       email: data.candidatos.email,
+      ciudad_id: data.candidatos.ciudad_id,
       ciudad_nombre: data.candidatos.ciudades?.nombre,
       departamento_nombre: data.candidatos.ciudades?.departamentos?.nombre,
     };
@@ -383,19 +386,29 @@ export const validacionDocumentosService = {
 
       // 2. Determinar la ciudad a usar
       let ciudadIdParaBuscar = ciudadId;
-      if (!ciudadIdParaBuscar && candidato.ciudad_nombre) {
-        // Buscar el ID de la ciudad del candidato
-        const { data: ciudadData } = await supabase
-          .from('ciudades')
-          .select('id')
-          .eq('nombre', candidato.ciudad_nombre)
-          .single();
-        
-        ciudadIdParaBuscar = ciudadData?.id;
+      
+      // Si no hay ciudadId proporcionado, intentar obtenerlo del candidato
+      if (!ciudadIdParaBuscar) {
+        // Primero intentar usar el ciudad_id directo del candidato
+        if (candidato.ciudad_id) {
+          ciudadIdParaBuscar = candidato.ciudad_id;
+        } else if (candidato.ciudad_nombre) {
+          // Si no tiene ciudad_id pero tiene ciudad_nombre, buscar el ID por nombre
+          const { data: ciudadData } = await supabase
+            .from('ciudades')
+            .select('id')
+            .eq('nombre', candidato.ciudad_nombre)
+            .single();
+          
+          ciudadIdParaBuscar = ciudadData?.id;
+        }
       }
 
       if (!ciudadIdParaBuscar) {
-        throw new Error('No se pudo determinar la ciudad del candidato');
+        return {
+          success: false,
+          message: 'El candidato no tiene una ciudad asignada. Por favor, actualice la información del candidato o seleccione una ciudad manualmente.'
+        };
       }
 
       // 3. Buscar prestadores en esa ciudad
@@ -484,19 +497,29 @@ export const validacionDocumentosService = {
 
       // 2. Determinar la ciudad a usar
       let ciudadIdParaBuscar = ciudadId;
-      if (!ciudadIdParaBuscar && candidato.ciudad_nombre) {
-        // Buscar el ID de la ciudad del candidato
-        const { data: ciudadData } = await supabase
-          .from('ciudades')
-          .select('id')
-          .eq('nombre', candidato.ciudad_nombre)
-          .single();
-        
-        ciudadIdParaBuscar = ciudadData?.id;
+      
+      // Si no hay ciudadId proporcionado, intentar obtenerlo del candidato
+      if (!ciudadIdParaBuscar) {
+        // Primero intentar usar el ciudad_id directo del candidato
+        if (candidato.ciudad_id) {
+          ciudadIdParaBuscar = candidato.ciudad_id;
+        } else if (candidato.ciudad_nombre) {
+          // Si no tiene ciudad_id pero tiene ciudad_nombre, buscar el ID por nombre
+          const { data: ciudadData } = await supabase
+            .from('ciudades')
+            .select('id')
+            .eq('nombre', candidato.ciudad_nombre)
+            .single();
+          
+          ciudadIdParaBuscar = ciudadData?.id;
+        }
       }
 
       if (!ciudadIdParaBuscar) {
-        throw new Error('No se pudo determinar la ciudad del candidato');
+        return {
+          success: false,
+          message: 'El candidato no tiene una ciudad asignada. Por favor, actualice la información del candidato o seleccione una ciudad manualmente.'
+        };
       }
 
       // 3. Buscar prestadores en esa ciudad

@@ -405,6 +405,7 @@ const ExpedicionOrdenPage = () => {
         toast.success(resultado.message);
       } else {
         // Si no hay prestadores en la ciudad del candidato, mostrar modal de selección
+        toast.warning(resultado.message);
         setSolicitudParaValidar({
           id,
           observacion,
