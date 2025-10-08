@@ -426,7 +426,9 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     const puedeValidarDocumentos = s.estado?.toLowerCase() === 'documentos entregados' && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-validar-documentos-solicitud');
     const puedeDevolverDocumentos = s.estado?.toLowerCase() === 'documentos entregados' && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-devolver-documentos-solicitud');
     const puedeContratar = s.estado?.toLowerCase() === 'firma contrato' && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-contratar-solicitud');
-    return puedeEditar || puedeVisualizar || puedeAsignar || puedeAprobar || puedeContactar || puedeReactivar || puedeStandBy || puedeDeserto || puedeCancelar || puedeValidarDocumentos || puedeDevolverDocumentos || puedeContratar;
+    const puedeVisualizarContratado = s.estado?.toLowerCase() === 'contratado' && hasAction('accion-visualizar-solicitud');
+    const puedeVisualizarFirmaContrato = s.estado?.toLowerCase() === 'firma contrato' && hasAction('accion-visualizar-solicitud');
+    return puedeEditar || puedeVisualizar || puedeAsignar || puedeAprobar || puedeContactar || puedeReactivar || puedeStandBy || puedeDeserto || puedeCancelar || puedeValidarDocumentos || puedeDevolverDocumentos || puedeContratar || puedeVisualizarContratado || puedeVisualizarFirmaContrato;
   };
 
   const formatDate = (dateString: string | undefined) => {
