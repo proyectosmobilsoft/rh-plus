@@ -482,7 +482,6 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   const handleViewDocuments = async (solicitud: Solicitud) => {
     try {
       // Activar loading global y loading específico del botón
-      startLoading();
       setLoadingDocumentosSolicitudId(solicitud.id!);
       
       // Obtener documentos del candidato para esta solicitud
@@ -513,7 +512,6 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     } catch (error) {
       console.error('Error abriendo documentos:', error);
     } finally {
-      stopLoading();
       setLoadingDocumentosSolicitudId(null);
     }
   };
