@@ -95,11 +95,11 @@ export function validateNumeroDocumento(numeroDocumento: string): {
   // Limpiar el número de documento
   const numeroLimpio = numeroDocumento.replace(/[^0-9]/g, '');
   
-  if (numeroLimpio.length < 6) {
+  if (numeroLimpio.length < 10) {
     return { 
       numero: numeroLimpio, 
       isValid: false, 
-      error: 'El número de documento debe tener al menos 6 dígitos' 
+      error: 'El número de documento debe tener al menos 10 dígitos' 
     };
   }
   

@@ -739,15 +739,33 @@ export const solicitudesService = {
                   "No se pudo obtener candidato existente por documento:",
                   lookupErr
                 );
+                toast.warning("No se pudo asociar el candidato existente. Verifique los datos.");
               }
             } else {
-              console.warn("No se pudo crear candidato desde solicitud:", e);
+              console.error("❌ Error al crear candidato desde solicitud:", e);
+              // Mostrar alerta visible al usuario
+              const errorMessage = e?.message || "Error desconocido";
+              if (errorMessage.includes("10 dígitos") || errorMessage.includes("longitud")) {
+                toast.error("Error al crear candidato", {
+                  description: "El número de documento debe tener al menos 10 dígitos. Por favor, verifique los datos ingresados.",
+                  duration: 8000,
+                });
+              } else {
+                toast.error("Error al crear candidato", {
+                  description: `No se pudo crear el candidato automáticamente. La solicitud se creará sin candidato asociado. Error: ${errorMessage}`,
+                  duration: 8000,
+                });
+              }
             }
           }
         } else {
           console.warn(
-            "No se creó candidato: faltan documento y/o email en estructura_datos"
+            "⚠️ No se creó candidato: faltan documento y/o email en estructura_datos"
           );
+          toast.warning("Datos incompletos", {
+            description: "No se pudo crear el candidato automáticamente porque faltan el documento o email. La solicitud se creará sin candidato asociado.",
+            duration: 6000,
+          });
         }
       }
 

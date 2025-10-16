@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useTiposCandidatos } from '@/hooks/useTiposCandidatos';
 import { useDatabaseData } from '@/hooks/useDatabaseData';
 import { CustomDatePicker } from '@/components/ui/date-picker';
+import { toast } from 'sonner';
 
 interface FormRendererProps {
   estructura: any;
@@ -102,6 +103,50 @@ const FormRenderer: React.FC<FormRendererProps> = ({
   };
 
   const handleSave = () => {
+    // Validar campos antes de guardar
+    const validationErrors: string[] = [];
+    
+    // Obtener los campos de la estructura
+    const campos = estructura?.secciones?.flatMap((seccion: any) => seccion.campos || []) || [];
+    
+    // Validar cada campo
+    campos.forEach((campo: any) => {
+      const fieldName = campo.nombre;
+      const value = formData[fieldName];
+      
+      // Validar campos requeridos
+      if (campo.required && (!value || String(value).trim() === '')) {
+        validationErrors.push(`El campo "${campo.label}" es requerido`);
+      }
+      
+      // Validar minLength para campos tipo number o text (especialmente documento)
+      if (campo.minLength && value) {
+        const valueLength = String(value).length;
+        if (valueLength < campo.minLength) {
+          validationErrors.push(`El campo "${campo.label}" debe tener al menos ${campo.minLength} dígitos`);
+        }
+      }
+      
+      // Validar campos de tipo email
+      if (campo.tipo === 'email' && value) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(value)) {
+          validationErrors.push(`El campo "${campo.label}" debe ser un email válido`);
+        }
+      }
+    });
+    
+    // Si hay errores, mostrarlos y no guardar
+    if (validationErrors.length > 0) {
+      toast.error('Errores de validación', {
+        description: validationErrors.map((error, index) => (
+          <div key={index}>• {error}</div>
+        )) as any,
+        duration: 6000,
+      });
+      return;
+    }
+    
     if (onSave) {
       onSave(formData);
     }

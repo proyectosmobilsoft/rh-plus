@@ -481,6 +481,32 @@ const FormBuilder: React.FC<{
     if (type === 'checkbox') {
       newValue = (e.target as HTMLInputElement).checked;
     }
+    
+    // Si se está cambiando el tipo de campo a 'number' y es un campo de documento, agregar minLength automáticamente
+    if (name === 'type' && newValue === 'number') {
+      const fieldName = currentField.nombre?.toLowerCase() || currentField.label?.toLowerCase() || '';
+      if (fieldName.includes('documento') || fieldName.includes('cedula') || fieldName.includes('document')) {
+        setCurrentField(prev => ({
+          ...prev,
+          [name]: newValue,
+          minLength: 10
+        }));
+        return;
+      }
+    }
+    
+    // Si se está cambiando el nombre o label del campo y ya es tipo number, agregar minLength si es documento
+    if ((name === 'nombre' || name === 'label') && currentField.type === 'number') {
+      const newValueLower = String(newValue).toLowerCase();
+      if (newValueLower.includes('documento') || newValueLower.includes('cedula') || newValueLower.includes('document')) {
+        setCurrentField(prev => ({
+          ...prev,
+          [name]: newValue,
+          minLength: 10
+        }));
+        return;
+      }
+    }
 
     // Validación especial para el campo dimension
     if (name === 'dimension') {
@@ -2119,6 +2145,41 @@ const FormBuilder: React.FC<{
                                   />
                                   <p className="text-xs text-gray-500 mt-1">
                                     Ejemplo: 3 = la fecha más próxima será dentro de 3 días
+                                  </p>
+                                </div>
+                              </div>
+                            ) : currentField.type === 'number' ? (
+                              <div className="space-y-3">
+                                <div>
+                                  <label className="block text-xs text-gray-600 mb-1">Placeholder</label>
+                                  <input 
+                                    className={`w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm ${currentField.isSystemField ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                    name="placeholder" 
+                                    placeholder="Ingrese un número" 
+                                    value={currentField.placeholder} 
+                                    onChange={handleFieldChange} 
+                                    autoComplete="off"
+                                    disabled={currentField.isSystemField}
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs text-gray-600 mb-1">
+                                    Longitud mínima (dígitos)
+                                    <span className="text-gray-400 ml-1">(opcional)</span>
+                                  </label>
+                                  <input 
+                                    className={`w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm`}
+                                    name="minLength" 
+                                    type="number"
+                                    min="1"
+                                    max="20"
+                                    placeholder="10" 
+                                    value={(currentField as any).minLength || ''} 
+                                    onChange={handleFieldChange} 
+                                    autoComplete="off"
+                                  />
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    Ejemplo: 10 = el número debe tener al menos 10 dígitos
                                   </p>
                                 </div>
                               </div>
