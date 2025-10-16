@@ -381,7 +381,18 @@ export const validacionDocumentosService = {
       // 1. Obtener información del candidato
       const candidato = await this.getCandidatoInfo(solicitudId);
       if (!candidato) {
-        throw new Error('No se pudo obtener la información del candidato');
+        return {
+          success: false,
+          message: 'Esta solicitud no tiene un candidato asociado. Por favor, asocie un candidato a la solicitud antes de continuar.'
+        };
+      }
+
+      // Validar que el candidato tenga email
+      if (!candidato.email) {
+        return {
+          success: false,
+          message: 'El candidato no tiene un correo electrónico registrado. Por favor, actualice la información del candidato.'
+        };
       }
 
       // 2. Determinar la ciudad a usar
@@ -492,7 +503,18 @@ export const validacionDocumentosService = {
       // 1. Obtener información del candidato
       const candidato = await this.getCandidatoInfo(solicitudId);
       if (!candidato) {
-        throw new Error('No se pudo obtener la información del candidato');
+        return {
+          success: false,
+          message: 'Esta solicitud no tiene un candidato asociado. Por favor, asocie un candidato a la solicitud antes de continuar.'
+        };
+      }
+
+      // Validar que el candidato tenga email
+      if (!candidato.email) {
+        return {
+          success: false,
+          message: 'El candidato no tiene un correo electrónico registrado. Por favor, actualice la información del candidato.'
+        };
       }
 
       // 2. Determinar la ciudad a usar

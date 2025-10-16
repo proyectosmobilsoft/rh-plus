@@ -374,13 +374,19 @@ const ExpedicionOrdenPage = () => {
         await fetchSolicitudes();
         toast.success(resultado.message);
       } else {
-        // Si no hay prestadores en la ciudad del candidato, mostrar modal de selección
-        setSolicitudParaValidar({
-          id,
-          observacion,
-          candidatoNombre
-        });
-        setShowSeleccionarCiudadModal(true);
+        // Mostrar mensaje de error
+        toast.warning(resultado.message);
+        
+        // Solo mostrar modal de selección de ciudad si el problema es de prestadores
+        // (no si falta candidato o email)
+        if (candidato && candidato.email && resultado.message.includes('prestadores')) {
+          setSolicitudParaValidar({
+            id,
+            observacion,
+            candidatoNombre
+          });
+          setShowSeleccionarCiudadModal(true);
+        }
       }
     } catch (error) {
       console.error('Error validando documentos:', error);
@@ -404,14 +410,19 @@ const ExpedicionOrdenPage = () => {
         await fetchSolicitudes();
         toast.success(resultado.message);
       } else {
-        // Si no hay prestadores en la ciudad del candidato, mostrar modal de selección
+        // Mostrar mensaje de error
         toast.warning(resultado.message);
-        setSolicitudParaValidar({
-          id,
-          observacion,
-          candidatoNombre
-        });
-        setShowSeleccionarCiudadModal(true);
+        
+        // Solo mostrar modal de selección de ciudad si el problema es de prestadores
+        // (no si falta candidato o email)
+        if (candidato && candidato.email && resultado.message.includes('prestadores')) {
+          setSolicitudParaValidar({
+            id,
+            observacion,
+            candidatoNombre
+          });
+          setShowSeleccionarCiudadModal(true);
+        }
       }
     } catch (error) {
       console.error('Error citando a exámenes:', error);
