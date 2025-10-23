@@ -31,7 +31,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { User, Search, Plus, Edit, Trash2, FileText, Download, Eye, Filter, Lock, CheckCircle, FolderOpen } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { candidatosService, type DocumentoCandidato } from '@/services/candidatosService';
 import { useCompanies } from '@/hooks/useCompanies';
 import { useCityData } from '@/hooks/useCityData';
@@ -195,7 +195,7 @@ const CandidatosPage = () => {
       return candidatosService.create(data);
     },
     onSuccess: async () => {
-      await refetch();
+      await queryClient.invalidateQueries({ queryKey: ['candidatos'] });
       setDialogOpen(false);
       resetForm();
       toast.success("Candidato creado correctamente");
@@ -222,7 +222,7 @@ const CandidatosPage = () => {
       return candidatosService.delete(id);
     },
     onSuccess: async () => {
-      await refetch();
+      await queryClient.invalidateQueries({ queryKey: ['candidatos'] });
       toast.success("Candidato eliminado correctamente");
     },
     onError: (error: Error) => {
@@ -232,7 +232,7 @@ const CandidatosPage = () => {
 
   // Refresca la lista al abrir la página o cambiar de ruta
   React.useEffect(() => {
-    refetch();
+    queryClient.invalidateQueries({ queryKey: ['candidatos'] });
   }, []);
 
   // Lookup helpers para empresa y ciudad
@@ -291,14 +291,14 @@ const CandidatosPage = () => {
         if (editingId) {
           // Actualizar candidato existente en Supabase
           await candidatosService.update(editingId, candidatoPayload);
-          await refetch();
+          await queryClient.invalidateQueries({ queryKey: ['candidatos'] });
           setActiveTab("candidatos");
           resetForm();
           toast.success(`Se ha actualizado el candidato ${candidatoPayload.primer_nombre} ${candidatoPayload.primer_apellido}`);
         } else {
           // Crear nuevo candidato
           await candidatosService.create(candidatoPayload);
-          await refetch();
+          await queryClient.invalidateQueries({ queryKey: ['candidatos'] });
           resetForm();
           toast.success(`Se ha creado el candidato ${candidatoPayload.primer_nombre} ${candidatoPayload.primer_apellido} con el email ${candidatoPayload.email}`);
         }
@@ -394,7 +394,7 @@ const CandidatosPage = () => {
     setActiveTab("candidatos");
     setDialogOpen(false);
     resetForm();
-    refetch();
+    queryClient.invalidateQueries({ queryKey: ['candidatos'] });
   };
 
   const handleActivate = async (candidato: any) => {
@@ -405,7 +405,8 @@ const CandidatosPage = () => {
       const success = await candidatosService.activate(candidato.id);
       if (success) {
         toast.success("Candidato activado correctamente");
-        await refetch(); // Recargar datos
+        // Invalidar y refrescar la query de candidatos
+        await queryClient.invalidateQueries({ queryKey: ['candidatos'] });
       } else {
         toast.error("No se pudo activar el candidato");
       }
@@ -424,7 +425,8 @@ const CandidatosPage = () => {
       const success = await candidatosService.deactivate(candidato.id);
       if (success) {
         toast.success("Candidato inactivado correctamente");
-        await refetch(); // Recargar datos
+        // Invalidar y refrescar la query de candidatos
+        await queryClient.invalidateQueries({ queryKey: ['candidatos'] });
       } else {
         toast.error("No se pudo inactivar el candidato");
       }
