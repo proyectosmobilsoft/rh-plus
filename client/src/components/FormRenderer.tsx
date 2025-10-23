@@ -265,7 +265,18 @@ const FormRenderer: React.FC<FormRendererProps> = ({
           {tipo === 'date' && (
             <CustomDatePicker
               value={value ? new Date(value) : null}
-              onChange={(date) => handleFieldChange(fieldName, date ? date.toISOString().split('T')[0] : '')}
+              onChange={(date) => {
+                if (date) {
+                  // Crear fecha local sin problemas de zona horaria
+                  const year = date.getFullYear();
+                  const month = String(date.getMonth() + 1).padStart(2, '0');
+                  const day = String(date.getDate()).padStart(2, '0');
+                  const dateString = `${year}-${month}-${day}`;
+                  handleFieldChange(fieldName, dateString);
+                } else {
+                  handleFieldChange(fieldName, '');
+                }
+              }}
               placeholder={String(placeholder)}
               className="w-full max-w-md"
               disabled={readOnly}
