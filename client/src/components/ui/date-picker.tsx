@@ -250,11 +250,11 @@ export const CustomDatePicker: React.FC<DatePickerProps> = ({
       if (maxDateOnly && dateOnly > maxDateOnly) return;
     }
     
-    // Crear fecha local sin problemas de zona horaria
+    // Crear fecha local sin problemas de zona horaria usando UTC
     const year = date.getFullYear();
     const month = date.getMonth();
     const day = date.getDate();
-    const localDate = new Date(year, month, day);
+    const localDate = new Date(Date.UTC(year, month, day));
     
     onChange(localDate);
     setIsOpen(false);
