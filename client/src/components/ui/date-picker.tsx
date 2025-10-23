@@ -237,8 +237,12 @@ export const CustomDatePicker: React.FC<DatePickerProps> = ({
     if (isDateDisabled && diasMinimos) {
       if (isDateDisabled(date, diasMinimos)) return;
     } else {
-      // Lógica original para minDate y maxDate
-      const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      // Lógica original para minDate y maxDate - usar fecha local sin problemas de zona horaria
+      const year = date.getFullYear();
+      const month = date.getMonth();
+      const day = date.getDate();
+      const dateOnly = new Date(year, month, day);
+      
       const minDateOnly = minDate ? new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate()) : null;
       const maxDateOnly = maxDate ? new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate()) : null;
       
@@ -246,7 +250,13 @@ export const CustomDatePicker: React.FC<DatePickerProps> = ({
       if (maxDateOnly && dateOnly > maxDateOnly) return;
     }
     
-    onChange(date);
+    // Crear fecha local sin problemas de zona horaria
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const day = date.getDate();
+    const localDate = new Date(year, month, day);
+    
+    onChange(localDate);
     setIsOpen(false);
   };
 
