@@ -131,6 +131,125 @@ export interface Solicitud {
   };
 }
 
+// Función auxiliar para crear candidato de manera segura
+const crearCandidatoSeguro = async (datosNormalizados: Record<string, any>, solicitud: any): Promise<number | null> => {
+  const numeroDocumento = datosNormalizados.numero_documento || 
+    datosNormalizados.documento || 
+    datosNormalizados.cedula || 
+    datosNormalizados.cedula_ciudadania || 
+    datosNormalizados.cedulaciudadania ||
+    datosNormalizados.identificacion;
+  const email = datosNormalizados.email || datosNormalizados.correo_electronico || datosNormalizados.correo;
+  
+  if (!numeroDocumento || !email) {
+    throw new Error("❌ ERROR: Faltan datos obligatorios del candidato (documento y email)");
+  }
+
+  // Función para extraer nombres de manera inteligente
+  const extractNames = (data: Record<string, any>) => {
+    const nombreCompleto = data.nombre_completo || data.nombrecompleto || 
+                         data.nombres || data.nombre || data.nombres_completos ||
+                         data.nombre_y_apellidos || data.nombre_apellidos ||
+                         data.nombre_completo_candidato || data.nombre_candidato ||
+                         data.nombrecompleto || data.nombrescompletos ||
+                         data.nombreyapellidos || data.nombreapellidos;
+    
+    if (nombreCompleto && typeof nombreCompleto === 'string' && nombreCompleto.trim()) {
+      const partes = nombreCompleto.trim().split(/\s+/).filter(parte => parte.length > 0);
+      
+      if (partes.length >= 2) {
+        if (partes.length === 2) {
+          return {
+            primer_nombre: partes[0],
+            segundo_nombre: '',
+            primer_apellido: partes[1],
+            segundo_apellido: ''
+          };
+        } else if (partes.length === 3) {
+          return {
+            primer_nombre: partes[0],
+            segundo_nombre: '',
+            primer_apellido: partes[1],
+            segundo_apellido: partes[2]
+          };
+        } else if (partes.length === 4) {
+          return {
+            primer_nombre: partes[0],
+            segundo_nombre: partes[1],
+            primer_apellido: partes[2],
+            segundo_apellido: partes[3]
+          };
+        } else {
+          return {
+            primer_nombre: partes[0],
+            segundo_nombre: partes[1],
+            primer_apellido: partes[partes.length - 2],
+            segundo_apellido: partes[partes.length - 1]
+          };
+        }
+      }
+    }
+    
+    return {
+      primer_nombre: data.primer_nombre || data.nombre || data.nombres || '',
+      segundo_nombre: data.segundo_nombre || '',
+      primer_apellido: data.primer_apellido || data.apellido || data.apellidos || '',
+      segundo_apellido: data.segundo_apellido || ''
+    };
+  };
+
+  const candidatoPayload: Partial<Candidato> = {
+    numero_documento: String(numeroDocumento),
+    email: String(email),
+    telefono: datosNormalizados.telefono || datosNormalizados.celular || datosNormalizados.phone || datosNormalizados.movil ? String(datosNormalizados.telefono || datosNormalizados.celular || datosNormalizados.phone || datosNormalizados.movil) : undefined,
+  };
+
+  // Extraer nombres
+  const nombresExtraidos = extractNames(datosNormalizados);
+  Object.assign(candidatoPayload, nombresExtraidos);
+
+  // Mapear otros campos
+  const map: Record<string, string> = {
+    tipo_documento: "tipo_documento",
+    direccion: "direccion",
+    ciudad: "ciudad",
+  };
+  for (const key in map) {
+    const v = datosNormalizados[key] || datosNormalizados[normalizeCampo(key)];
+    if (v !== undefined && v !== null && v !== "") {
+      (candidatoPayload as any)[map[key]] = v;
+    }
+  }
+  
+  // Asignar empresa_id
+  if (solicitud.empresa_id) {
+    candidatoPayload.empresa_id = solicitud.empresa_id;
+  }
+
+  try {
+    const creado = await candidatosService.create(candidatoPayload);
+    if (creado?.id) {
+      console.log("✅ Candidato creado exitosamente, ID:", creado.id);
+      return creado.id;
+    } else {
+      throw new Error("No se generó ID válido para el candidato");
+    }
+  } catch (e: any) {
+    if (e?.code === "23505" || String(e?.message || "").includes("usuarios_username_key")) {
+      console.log("🔄 Usuario duplicado detectado, buscando candidato existente por documento:", numeroDocumento);
+      const existente = await candidatosService.getByDocumento(String(numeroDocumento));
+      if (existente?.id) {
+        console.log("🔗 Candidato existente encontrado, ID:", existente.id);
+        return existente.id;
+      } else {
+        throw new Error("❌ ERROR: El usuario ya existe pero no se encontró el candidato asociado. Por favor, verifique el documento o contacte al administrador.");
+      }
+    } else {
+      throw new Error(`❌ ERROR: No se pudo crear el candidato: ${e?.message || "Error desconocido"}`);
+    }
+  }
+};
+
 export const solicitudesService = {
   getAll: async (): Promise<Solicitud[]> => {
     try {

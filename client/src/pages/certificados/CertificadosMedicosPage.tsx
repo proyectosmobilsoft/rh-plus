@@ -44,6 +44,11 @@ const CertificadosMedicosPage = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [solicitudSeleccionada, setSolicitudSeleccionada] = useState<Solicitud | null>(null);
   
+  // Estados para el adjunto de aprobación
+  const [adjuntoAprobacion, setAdjuntoAprobacion] = useState<File | null>(null);
+  const [adjuntoPreview, setAdjuntoPreview] = useState<string | null>(null);
+  const [isUploadingAdjunto, setIsUploadingAdjunto] = useState(false);
+  
   // Estados del formulario de certificado médico
   const [formData, setFormData] = useState({
     nombresApellidos: '',
@@ -118,6 +123,51 @@ const CertificadosMedicosPage = () => {
     setDocumentoPreview(null);
     // Limpiar el input file
     const fileInput = document.getElementById('documento-concepto-medico') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+  };
+
+  // Función para manejar el cambio de archivo del adjunto de aprobación
+  const handleAdjuntoAprobacionChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validar tipo de archivo (PDF, imágenes)
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Solo se permiten archivos PDF, JPG, JPEG o PNG');
+      return;
+    }
+
+    // Validar tamaño (máximo 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('El archivo debe ser menor a 10MB');
+      return;
+    }
+
+    setIsUploadingAdjunto(true);
+    try {
+      // Convertir a base64
+      const base64 = await convertFileToBase64(file);
+      const base64Data = base64.split(',')[1]; // Remover el prefijo data:application/pdf;base64,
+
+      setAdjuntoAprobacion(file);
+      setAdjuntoPreview(base64Data);
+      
+      toast.success('Adjunto cargado exitosamente');
+    } catch (error) {
+      console.error('Error procesando archivo:', error);
+      toast.error('Error al procesar el archivo');
+    } finally {
+      setIsUploadingAdjunto(false);
+    }
+  };
+
+  // Función para eliminar el adjunto de aprobación
+  const handleRemoveAdjunto = () => {
+    setAdjuntoAprobacion(null);
+    setAdjuntoPreview(null);
+    // Limpiar el input file
+    const fileInput = document.getElementById('adjunto-aprobacion') as HTMLInputElement;
     if (fileInput) fileInput.value = '';
   };
 
@@ -428,6 +478,9 @@ const CertificadosMedicosPage = () => {
     setSelectedSolicitud(null);
     setModalType(null);
     setObservaciones('');
+    // Limpiar adjunto de aprobación
+    setAdjuntoAprobacion(null);
+    setAdjuntoPreview(null);
   };
 
   const handleConfirmAction = async () => {
@@ -473,7 +526,20 @@ const CertificadosMedicosPage = () => {
       };
 
       // Guardar el certificado médico
-      await certificadosMedicosService.create(certificadoData);
+      const certificadoCreado = await certificadosMedicosService.create(certificadoData);
+      
+      // Si hay adjunto de aprobación, actualizar el certificado con el adjunto
+      if (adjuntoPreview && (modalType === 'aprobar' || modalType === 'no-aprobar')) {
+        try {
+          await supabase
+            .from('certificados_medicos')
+            .update({ adjunto_aprobacion_certificado: adjuntoPreview })
+            .eq('solicitud_id', selectedSolicitud.id);
+        } catch (error) {
+          console.error('Error guardando adjunto de aprobación:', error);
+          // No fallar la operación principal por error de adjunto
+        }
+      }
 
       // Actualizar el estado de la solicitud
       await solicitudesService.update(selectedSolicitud.id!, {
@@ -1244,6 +1310,131 @@ const CertificadosMedicosPage = () => {
                 className="min-h-[100px]"
               />
             </div>
+            
+            {/* Sección para adjuntar archivo - Solo para aprobar/no aprobar */}
+            {(modalType === 'aprobar' || modalType === 'no-aprobar') && (
+              <div className="space-y-4">
+                <div className="text-sm font-medium text-gray-700">
+                  Adjuntar archivo (Opcional)
+                </div>
+                <Card className={`border-2 transition-all duration-200 hover:shadow-md ${
+                  adjuntoAprobacion 
+                    ? 'border-green-200 bg-green-50' 
+                    : 'border-gray-200 bg-white hover:border-blue-300'
+                }`}>
+                  <CardHeader className="pb-3 pt-4">
+                    <CardTitle className="flex items-center justify-between text-sm">
+                      <div className="flex items-center">
+                        <div className={`p-2 rounded-lg mr-3 ${
+                          adjuntoAprobacion ? 'bg-green-100' : 'bg-blue-100'
+                        }`}>
+                          <FileText className="w-4 h-4 text-blue-600" />
+                        </div>
+                        <div>
+                          <span className="font-semibold text-gray-800">
+                            Archivo de Aprobación
+                          </span>
+                          <Badge variant="outline" className="text-xs px-2 py-0.5 ml-2">
+                            Opcional
+                          </Badge>
+                        </div>
+                      </div>
+                      {adjuntoAprobacion && (
+                        <div className="flex items-center gap-1 text-green-600">
+                          <CheckCircle className="h-3 w-3" />
+                          <span className="text-xs font-medium">Subido</span>
+                        </div>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0 pb-4">
+                    <div className="space-y-3">
+                      {/* Progress Bar for Upload */}
+                      {isUploadingAdjunto && (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-xs text-gray-600">
+                            <span>Subiendo archivo...</span>
+                            <span>100%</span>
+                          </div>
+                          <Progress 
+                            value={100} 
+                            className="h-2 bg-gray-200"
+                          />
+                        </div>
+                      )}
+                      
+                      <div className="flex items-center gap-3">
+                        {adjuntoAprobacion ? (
+                          <div className="flex items-center gap-2">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                // Función para ver archivo
+                                const base64 = `data:${adjuntoAprobacion.type};base64,${adjuntoPreview}`;
+                                window.open(base64, '_blank');
+                              }}
+                              className="h-7 w-7 p-0 hover:bg-blue-50 rounded-full"
+                              title="Ver archivo"
+                            >
+                              <Eye className="h-4 w-4 text-blue-600" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={handleRemoveAdjunto}
+                              className="h-7 w-7 p-0 hover:bg-gray-50 rounded-full"
+                              title="Eliminar archivo"
+                            >
+                              <X className="h-4 w-4 text-gray-600" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const fileInput = document.getElementById('adjunto-aprobacion') as HTMLInputElement;
+                              fileInput?.click();
+                            }}
+                            disabled={isUploadingAdjunto}
+                            className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                          >
+                            <Upload className="h-4 w-4 mr-1" />
+                            Subir
+                          </Button>
+                        )}
+                      </div>
+                      
+                      {/* Input file oculto */}
+                      <input
+                        id="adjunto-aprobacion"
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={handleAdjuntoAprobacionChange}
+                        disabled={isUploadingAdjunto}
+                        className="hidden"
+                      />
+                      
+                      {/* Información del archivo */}
+                      {adjuntoAprobacion && (
+                        <div className="text-xs text-gray-500 space-y-1">
+                          <div className="flex items-center gap-1">
+                            <span>📄 {adjuntoAprobacion.name}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span>📏 {(adjuntoAprobacion.size / 1024 / 1024).toFixed(2)} MB</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </div>
 
           <DialogFooter>

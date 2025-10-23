@@ -434,11 +434,17 @@ const Dashboard = () => {
         let analistasMap = new Map<number, { id: number; primer_nombre: string; segundo_nombre: string; primer_apellido: string; segundo_apellido: string; email: string }>();
         if (analistaIds.length > 0) {
           try {
-            const { data: analistasData } = await supabase
+            const { data: analistasData, error: analistasError } = await supabase
               .from('gen_usuarios')
               .select('id, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, email')
               .in('id', analistaIds);
-            (analistasData || []).forEach((a: any) => analistasMap.set(a.id, a));
+            
+            if (analistasError) {
+              console.error('Error obteniendo analistas:', analistasError);
+            } else {
+              (analistasData || []).forEach((a: any) => analistasMap.set(a.id, a));
+              console.log(`✅ Analistas obtenidos: ${analistasData?.length || 0} de ${analistaIds.length} solicitados`);
+            }
           } catch (error) {
             console.error('Error obteniendo analistas:', error);
           }
@@ -1133,21 +1139,21 @@ const Dashboard = () => {
                 {/* Barra de progreso con 3 colores: verde (0-3), amarillo (3.1-4), rojo (≥5) */}
                 <div className="relative">
                   <Progress 
-                    value={Math.min((stats?.promedioContratadas || 0) / 5 * 100, 100)} 
+                    value={Math.min((stats?.promedioContratadas || 0) / 4 * 100, 100)} 
                     className={`h-2 bg-gray-200 ${
                       (stats?.promedioContratadas || 0) <= 3 
                         ? '[&>div]:bg-green-500' 
-                        : (stats?.promedioContratadas || 0) < 5 
+                        : (stats?.promedioContratadas || 0) < 4 
                           ? '[&>div]:bg-yellow-500' 
                           : '[&>div]:bg-red-500'
                     }`}
                   />
                 </div>
                 <p className="text-sm text-gray-600 mt-2">
-                  Meta: 5 días Habiles {(stats?.promedioContratadas || 0) >= 5 && 
+                  Meta: 4 días Habiles {(stats?.promedioContratadas || 0) >= 4 && 
                     <span className="text-red-600 font-semibold ml-2">⚠️ Meta alcanzada/superada</span>
                   }
-                  {(stats?.promedioContratadas || 0) > 3 && (stats?.promedioContratadas || 0) < 5 && 
+                  {(stats?.promedioContratadas || 0) > 3 && (stats?.promedioContratadas || 0) < 4 && 
                     <span className="text-yellow-600 font-semibold ml-2">⚠️ Cerca del límite</span>
                   }
                 </p>
