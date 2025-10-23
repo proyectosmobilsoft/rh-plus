@@ -47,7 +47,15 @@ export const CustomDatePicker: React.FC<DatePickerProps> = ({
   const [currentMonth, setCurrentMonth] = useState(value || new Date());
   const [showMonthDropdown, setShowMonthDropdown] = useState(false);
   const [showYearDropdown, setShowYearDropdown] = useState(false);
-  const [inputValue, setInputValue] = useState(value ? format(value, 'dd/MM/yyyy') : '');
+  const [inputValue, setInputValue] = useState(() => {
+    if (value) {
+      const year = value.getFullYear();
+      const month = String(value.getMonth() + 1).padStart(2, '0');
+      const day = String(value.getDate()).padStart(2, '0');
+      return `${day}/${month}/${year}`;
+    }
+    return '';
+  });
   const [isInputValid, setIsInputValid] = useState(true);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const yearDropdownRef = useRef<HTMLDivElement>(null);
@@ -423,7 +431,7 @@ export const CustomDatePicker: React.FC<DatePickerProps> = ({
                     isDisabled && "mobilsoft-datepicker-day-disabled"
                   )}
                 >
-                  {format(day, 'd')}
+                  {day.getDate()}
                 </button>
               );
             })}
