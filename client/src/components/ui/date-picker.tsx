@@ -75,7 +75,15 @@ export const CustomDatePicker: React.FC<DatePickerProps> = ({
 
   // Sincronizar inputValue con value
   useEffect(() => {
-    setInputValue(value ? format(value, 'dd/MM/yyyy') : '');
+    if (value) {
+      // Crear fecha local sin problemas de zona horaria
+      const year = value.getFullYear();
+      const month = String(value.getMonth() + 1).padStart(2, '0');
+      const day = String(value.getDate()).padStart(2, '0');
+      setInputValue(`${day}/${month}/${year}`);
+    } else {
+      setInputValue('');
+    }
     setIsInputValid(true);
   }, [value]);
 
@@ -204,7 +212,14 @@ export const CustomDatePicker: React.FC<DatePickerProps> = ({
     const validation = validateInputDate(inputValue);
     if (!validation.isValid || validation.isDisabled) {
       // Restaurar el valor anterior si la validación falla
-      setInputValue(value ? format(value, 'dd/MM/yyyy') : '');
+      if (value) {
+        const year = value.getFullYear();
+        const month = String(value.getMonth() + 1).padStart(2, '0');
+        const day = String(value.getDate()).padStart(2, '0');
+        setInputValue(`${day}/${month}/${year}`);
+      } else {
+        setInputValue('');
+      }
       setIsInputValid(true);
     }
   };
