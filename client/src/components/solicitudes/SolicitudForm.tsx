@@ -11,6 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Users, Building, DollarSign, FileText } from 'lucide-react';
 import { Solicitud } from '@/services/solicitudesService';
 import { validateTipoDocumento, validateNumeroDocumento, validateTextField, validateEmail } from '@/utils/validationUtils';
+import { CustomDatePicker } from '@/components/ui/date-picker';
 
 // Esquema de validación para crear solicitud
 const solicitudSchema = z.object({
@@ -339,7 +340,14 @@ const SolicitudForm: React.FC<SolicitudFormProps> = ({
                   <FormItem>
                     <FormLabel>Fecha de Ingreso</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <CustomDatePicker
+                        value={field.value ? new Date(field.value) : null}
+                        onChange={(date) => {
+                          field.onChange(date ? date.toISOString().split('T')[0] : '');
+                        }}
+                        placeholder="Seleccionar fecha de ingreso"
+                        maxDate={new Date()}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

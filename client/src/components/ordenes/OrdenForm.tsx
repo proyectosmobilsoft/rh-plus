@@ -18,6 +18,7 @@ import { templatesService } from '@/services/templatesService';
 import { EmpresaOrderTemplate, FieldConfiguration } from '@shared/schema';
 import WorkScheduleBuilder from './WorkScheduleBuilder';
 import { useQuery } from '@tanstack/react-query';
+import { CustomDatePicker } from '@/components/ui/date-picker';
 
 // Validation schema
 const ordenSchema = z.object({
@@ -453,7 +454,14 @@ const OrdenForm: React.FC<OrdenFormProps> = ({ orden, onSubmit, onCancel }) => {
                     <FormItem>
                       <FormLabel>Fecha de Ingreso {isFieldRequired('fechaIngreso') && '*'}</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} />
+                        <CustomDatePicker
+                          value={field.value ? new Date(field.value) : null}
+                          onChange={(date) => {
+                            field.onChange(date ? date.toISOString().split('T')[0] : '');
+                          }}
+                          placeholder="Seleccionar fecha de ingreso"
+                          maxDate={new Date()}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
