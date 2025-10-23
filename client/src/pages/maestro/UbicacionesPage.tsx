@@ -674,6 +674,18 @@ export default function UbicacionesPage() {
     setSelectedCiudadSucursal(null);
     setCiudadIdSucursal(null);
     setActiveSubTab("formulario");
+    
+    // Generar código automáticamente para nuevas sucursales
+    if (activeTab === 'sucursales') {
+      try {
+        const siguienteNumero = sucursales.length + 1;
+        const codigoGenerado = `S${siguienteNumero.toString().padStart(3, '0')}`;
+        console.log('✅ Generando código desde botón Adicionar:', { siguienteNumero, codigoGenerado });
+        setCodigoSucursal(codigoGenerado);
+      } catch (error) {
+        console.warn('Error generando código desde botón Adicionar:', error);
+      }
+    }
   };
 
   const handleSaved = () => {
@@ -2242,7 +2254,7 @@ export default function UbicacionesPage() {
           <Can action="vista-paises">
             <TabsTrigger
               value="paises"
-              className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+              className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300 flex items-center justify-center w-full h-full py-2 px-3"
             >
               <Globe className="w-4 h-4 mr-2" />
               Países
@@ -2251,7 +2263,7 @@ export default function UbicacionesPage() {
           <Can action="vista-departamentos">
             <TabsTrigger
               value="departamentos"
-              className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+              className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300 flex items-center justify-center w-full h-full py-2 px-3"
             >
               <MapPin className="w-4 h-4 mr-2" />
               Departamentos
@@ -2260,7 +2272,7 @@ export default function UbicacionesPage() {
           <Can action="vista-regionales">
             <TabsTrigger
               value="regionales"
-              className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+              className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300 flex items-center justify-center w-full h-full py-2 px-3"
             >
               <Users className="w-4 h-4 mr-2" />
               Regionales
@@ -2269,7 +2281,7 @@ export default function UbicacionesPage() {
           <Can action="vista-ciudades">
             <TabsTrigger
               value="ciudades"
-              className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+              className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300 flex items-center justify-center w-full h-full py-2 px-3"
             >
               <Building2 className="w-4 h-4 mr-2" />
               Ciudades
@@ -2278,7 +2290,7 @@ export default function UbicacionesPage() {
           <Can action="vista-sucursales">
             <TabsTrigger
               value="sucursales"
-              className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+              className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300 flex items-center justify-center w-full h-full py-2 px-3"
             >
               <Building2 className="w-4 h-4 mr-2" />
               Sucursales
@@ -2305,13 +2317,13 @@ export default function UbicacionesPage() {
             <TabsList className="grid w-full grid-cols-2 bg-cyan-100/60 p-1 rounded-lg">
               <TabsTrigger
                 value="listado"
-                className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+                className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300 flex items-center justify-center w-full h-full py-2 px-3"
               >
                 Listado de {activeTab === 'paises' ? 'Países' : activeTab === 'departamentos' ? 'Departamentos' : activeTab === 'regionales' ? 'Regionales' : activeTab === 'ciudades' ? 'Ciudades' : 'Sucursales'}
               </TabsTrigger>
               <TabsTrigger
                 value="formulario"
-                className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+                className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300 flex items-center justify-center w-full h-full py-2 px-3"
               >
                 {editingItem ? 'Editar' : 'Nuevo'} {activeTab === 'paises' ? 'País' : activeTab === 'departamentos' ? 'Departamento' : activeTab === 'regionales' ? 'Regional' : activeTab === 'ciudades' ? 'Ciudad' : 'Sucursal'}
               </TabsTrigger>
