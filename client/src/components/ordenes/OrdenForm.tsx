@@ -457,7 +457,16 @@ const OrdenForm: React.FC<OrdenFormProps> = ({ orden, onSubmit, onCancel }) => {
                         <CustomDatePicker
                           value={field.value ? new Date(field.value) : null}
                           onChange={(date) => {
-                            field.onChange(date ? date.toISOString().split('T')[0] : '');
+                            if (date) {
+                              // Crear fecha local sin problemas de zona horaria
+                              const year = date.getFullYear();
+                              const month = String(date.getMonth() + 1).padStart(2, '0');
+                              const day = String(date.getDate()).padStart(2, '0');
+                              const dateString = `${year}-${month}-${day}`;
+                              field.onChange(dateString);
+                            } else {
+                              field.onChange('');
+                            }
                           }}
                           placeholder="Seleccionar fecha de ingreso"
                           maxDate={new Date()}
