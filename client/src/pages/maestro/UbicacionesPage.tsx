@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  Edit3, 
-  Trash2, 
+import {
+  Plus,
+  Search,
+  Filter,
+  Edit3,
+  Trash2,
   Download,
   Globe,
   MapPin,
@@ -27,21 +27,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -310,15 +310,15 @@ export default function UbicacionesPage() {
   // useEffect para generar código autoincrementable para nuevas sucursales
   useEffect(() => {
     console.log('🔄 useEffect código sucursal:', { activeTab, editingItem: !!editingItem, sucursalesLength: sucursales.length });
-    
+
     if (activeTab === 'sucursales' && !editingItem && sucursales.length >= 0) {
       try {
         // Generar código autoincrementable basado en el número de sucursales existentes
         const siguienteNumero = sucursales.length + 1;
         const codigoGenerado = `S${siguienteNumero.toString().padStart(3, '0')}`;
-        
+
         console.log('✅ Generando código:', { siguienteNumero, codigoGenerado });
-        
+
         // Actualizar el estado del código
         setCodigoSucursal(codigoGenerado);
       } catch (error) {
@@ -348,33 +348,33 @@ export default function UbicacionesPage() {
   const filteredDepartamentos = departamentos.filter(dept => {
     const matchesSearch = dept.nombre.toLowerCase().includes(searchDepartamentos.toLowerCase()) ||
       (dept.codigo_dane && dept.codigo_dane?.toLowerCase().includes(searchDepartamentos.toLowerCase()));
-    
-    const matchesPais = filterPaisDepartamento === 'todos' ? true : 
+
+    const matchesPais = filterPaisDepartamento === 'todos' ? true :
       dept.pais_id === parseInt(filterPaisDepartamento);
-    
+
     // Solo mostrar departamentos de países activos
     const pais = paises.find(p => p.id === dept.pais_id);
     const paisActivo = pais?.estado === true;
-    
+
     return matchesSearch && matchesPais && paisActivo;
   });
 
   const filteredCiudades = ciudades.filter(ciudad => {
     const matchesSearch = ciudad.nombre.toLowerCase().includes(searchCiudades.toLowerCase()) ||
       (ciudad.codigo_dane && ciudad.codigo_dane?.toLowerCase().includes(searchCiudades.toLowerCase()));
-    
+
     const departamento = departamentos.find(d => d.id === ciudad.departamento_id);
-    const matchesDepartamento = filterDepartamentoCiudad === 'todos' ? true : 
+    const matchesDepartamento = filterDepartamentoCiudad === 'todos' ? true :
       ciudad.departamento_id === parseInt(filterDepartamentoCiudad);
-    
-    const matchesPais = filterPaisDepartamento === 'todos' ? true : 
+
+    const matchesPais = filterPaisDepartamento === 'todos' ? true :
       departamento?.pais_id === parseInt(filterPaisDepartamento);
-    
+
     // Solo mostrar ciudades de departamentos activos y países activos
     const pais = paises.find(p => p.id === departamento?.pais_id);
     const departamentoActivo = departamento?.estado === true;
     const paisActivo = pais?.estado === true;
-    
+
     return matchesSearch && matchesDepartamento && matchesPais && departamentoActivo && paisActivo;
   });
 
@@ -390,11 +390,11 @@ export default function UbicacionesPage() {
     const q = searchSucursales.toLowerCase();
     return (
       ((s.nombre || '').toLowerCase().includes(q) ||
-      (s.codigo || '').toLowerCase().includes(q) ||
-      (s.direccion || '').toLowerCase().includes(q) ||
-      (s.telefono || '').toLowerCase().includes(q) ||
-      (s.email || '').toLowerCase().includes(q) ||
-      (s.ciudades?.nombre || '').toLowerCase().includes(q)) &&
+        (s.codigo || '').toLowerCase().includes(q) ||
+        (s.direccion || '').toLowerCase().includes(q) ||
+        (s.telefono || '').toLowerCase().includes(q) ||
+        (s.email || '').toLowerCase().includes(q) ||
+        (s.ciudades?.nombre || '').toLowerCase().includes(q)) &&
       (statusSucursales === 'all' ? true : statusSucursales === 'active' ? s.activo === true : s.activo === false)
     );
   });
@@ -417,13 +417,13 @@ export default function UbicacionesPage() {
       }
     } catch (error) {
       console.error('Error al editar:', error);
-              toast.error("Error al cargar los datos para editar");
+      toast.error("Error al cargar los datos para editar");
     } finally {
       stopLoading();
     }
   };
 
-    const handleDelete = async (item: any, type: 'pais' | 'departamento' | 'ciudad' | 'regional' | 'sucursal') => {
+  const handleDelete = async (item: any, type: 'pais' | 'departamento' | 'ciudad' | 'regional' | 'sucursal') => {
     if (!item.id) {
       console.error('❌ handleDelete: No se encontró ID del item:', item);
       return;
@@ -432,7 +432,7 @@ export default function UbicacionesPage() {
     try {
       startLoading();
       let success = false;
-      
+
       switch (type) {
         case 'pais':
           await ubicacionesService.deletePais(item.id);
@@ -462,7 +462,7 @@ export default function UbicacionesPage() {
       if (success) {
         const message = `${type === 'pais' ? 'País' : type === 'departamento' ? 'Departamento' : type === 'ciudad' ? 'Ciudad' : type === 'regional' ? 'Regional' : 'Sucursal'} eliminado correctamente`;
         toast.success(message);
-        
+
         // Invalidar queries para refrescar datos
         queryClient.invalidateQueries({ queryKey: ['paises'] });
         queryClient.invalidateQueries({ queryKey: ['departamentos'] });
@@ -536,7 +536,7 @@ export default function UbicacionesPage() {
     try {
       startLoading();
       let success = false;
-      
+
       switch (type) {
         case 'pais':
           console.log('🔄 Activando país con ID:', item.id);
@@ -577,7 +577,7 @@ export default function UbicacionesPage() {
         const message = `${type === 'pais' ? 'País' : type === 'departamento' ? 'Departamento' : type === 'ciudad' ? 'Ciudad' : type === 'regional' ? 'Regional' : 'Sucursal'} activado correctamente`;
         console.log('🎉 Éxito:', message);
         toast.success(message);
-        
+
         // Invalidar queries para refrescar datos
         console.log('🔄 Invalidando queries...');
         queryClient.invalidateQueries({ queryKey: ['paises'] });
@@ -607,7 +607,7 @@ export default function UbicacionesPage() {
     try {
       startLoading();
       let success = false;
-      
+
       switch (type) {
         case 'pais':
           console.log('🔄 Desactivando país con ID:', item.id);
@@ -648,7 +648,7 @@ export default function UbicacionesPage() {
         const message = `${type === 'pais' ? 'País' : type === 'departamento' ? 'Departamento' : type === 'ciudad' ? 'Ciudad' : type === 'regional' ? 'Regional' : 'Sucursal'} inactivado correctamente`;
         console.log('🎉 Éxito:', message);
         toast.success(message);
-        
+
         // Invalidar queries para refrescar datos
         console.log('🔄 Invalidando queries...');
         queryClient.invalidateQueries({ queryKey: ['paises'] });
@@ -674,7 +674,7 @@ export default function UbicacionesPage() {
     setSelectedCiudadSucursal(null);
     setCiudadIdSucursal(null);
     setActiveSubTab("formulario");
-    
+
     // Generar código automáticamente para nuevas sucursales
     if (activeTab === 'sucursales') {
       try {
@@ -770,486 +770,486 @@ export default function UbicacionesPage() {
 
   const renderTableRow = (item: any, index: number) => {
     switch (activeTab) {
-             case 'paises':
-         return (
-           <TableRow key={item.id} className="hover:bg-gray-50">
-             <TableCell className="px-2 py-1">
-               <div className="flex flex-row gap-1 items-center">
-                 <Can action="accion-editar-pais">
-                   <TooltipProvider>
-                     <Tooltip>
-                       <TooltipTrigger asChild>
-                         <Button
-                           variant="ghost"
-                           size="icon"
-                           onClick={() => handleEdit(item, 'pais')}
-                           aria-label="Editar país"
-                           className="h-8 w-8"
-                         >
-                           <Edit3 className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
-                         </Button>
-                       </TooltipTrigger>
-                       <TooltipContent>
-                         <p>Editar</p>
-                       </TooltipContent>
-                     </Tooltip>
-                   </TooltipProvider>
-                 </Can>
-                 
-                 {item.estado ? (
-                   <Can action="accion-inactivar-pais">
-                     <TooltipProvider>
-                       <Tooltip>
-                         <TooltipTrigger asChild>
-                           <AlertDialog>
-                             <AlertDialogTrigger asChild>
-                               <Button
-                                 variant="ghost"
-                                 size="icon"
-                                 aria-label="Inactivar país"
-                                 className="h-8 w-8"
-                               >
-                                 <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
-                               </Button>
-                             </AlertDialogTrigger>
-                             <AlertDialogContent>
-                               <AlertDialogHeader>
-                                 <AlertDialogTitle>¿Inactivar país?</AlertDialogTitle>
-                                 <AlertDialogDescription>
+      case 'paises':
+        return (
+          <TableRow key={item.id} className="hover:bg-gray-50">
+            <TableCell className="px-2 py-1">
+              <div className="flex flex-row gap-1 items-center">
+                <Can action="accion-editar-pais">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(item, 'pais')}
+                          aria-label="Editar país"
+                          className="h-8 w-8"
+                        >
+                          <Edit3 className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Editar</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </Can>
+
+                {item.estado ? (
+                  <Can action="accion-inactivar-pais">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                aria-label="Inactivar país"
+                                className="h-8 w-8"
+                              >
+                                <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Inactivar país?</AlertDialogTitle>
+                                <AlertDialogDescription>
                                   Esta acción inactivará el país "{item.nombre}" y no podrá ser usado hasta que se reactive. ¿Estás seguro?
-                                 </AlertDialogDescription>
-                               </AlertDialogHeader>
-                               <AlertDialogFooter>
-                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                 <AlertDialogAction onClick={() => handleDeactivate(item, 'pais')}>
-                                   Sí, inactivar
-                                 </AlertDialogAction>
-                               </AlertDialogFooter>
-                             </AlertDialogContent>
-                           </AlertDialog>
-                         </TooltipTrigger>
-                         <TooltipContent>
-                           <p>Inactivar</p>
-                         </TooltipContent>
-                       </Tooltip>
-                     </TooltipProvider>
-                   </Can>
-                 ) : (
-                   <Can action="accion-activar-pais">
-                     <TooltipProvider>
-                       <Tooltip>
-                         <TooltipTrigger asChild>
-                           <AlertDialog>
-                             <AlertDialogTrigger asChild>
-                               <Button
-                                 variant="ghost"
-                                 size="icon"
-                                 aria-label="Activar país"
-                                 className="h-8 w-8"
-                               >
-                                 <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
-                               </Button>
-                             </AlertDialogTrigger>
-                             <AlertDialogContent>
-                               <AlertDialogHeader>
-                                 <AlertDialogTitle>¿Activar país?</AlertDialogTitle>
-                                 <AlertDialogDescription>
-                                   ¿Estás seguro de que deseas activar el país "{item.nombre}"? 
-                                   Una vez activado, aparecerá en las listas de selección.
-                                 </AlertDialogDescription>
-                               </AlertDialogHeader>
-                               <AlertDialogFooter>
-                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                 <AlertDialogAction onClick={() => handleActivate(item, 'pais')}>
-                                   Sí, activar
-                                 </AlertDialogAction>
-                               </AlertDialogFooter>
-                             </AlertDialogContent>
-                           </AlertDialog>
-                         </TooltipTrigger>
-                         <TooltipContent>
-                           <p>Activar</p>
-                         </TooltipContent>
-                       </Tooltip>
-                     </TooltipProvider>
-                   </Can>
-                 )}
-                 
-                 {!item.estado && (
-                   <Can action="accion-eliminar-pais">
-                     <TooltipProvider>
-                       <Tooltip>
-                         <TooltipTrigger asChild>
-                           <AlertDialog>
-                             <AlertDialogTrigger asChild>
-                               <Button
-                                 variant="ghost"
-                                 size="icon"
-                                 aria-label="Eliminar país"
-                                 className="h-8 w-8"
-                               >
-                                 <Trash2 className="h-4 w-4 text-rose-600 hover:text-rose-800 transition-colors" />
-                               </Button>
-                             </AlertDialogTrigger>
-                             <AlertDialogContent>
-                               <AlertDialogHeader>
-                                 <AlertDialogTitle>¿Eliminar país?</AlertDialogTitle>
-                                 <AlertDialogDescription>
-                                   Esta acción eliminará el país "{item.nombre}" de forma permanente.
-                                   También se eliminarán sus departamentos y ciudades relacionadas.
-                                   Esta acción no se puede deshacer. ¿Estás seguro?
-                                 </AlertDialogDescription>
-                               </AlertDialogHeader>
-                               <AlertDialogFooter>
-                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                 <AlertDialogAction onClick={() => handleDelete(item, 'pais')}>
-                                   Sí, eliminar
-                                 </AlertDialogAction>
-                               </AlertDialogFooter>
-                             </AlertDialogContent>
-                           </AlertDialog>
-                         </TooltipTrigger>
-                         <TooltipContent>
-                           <p>Eliminar</p>
-                         </TooltipContent>
-                       </Tooltip>
-                     </TooltipProvider>
-                   </Can>
-                 )}
-               </div>
-             </TableCell>
-             <TableCell className="px-4 py-3 text-sm text-gray-900 font-medium">{item.nombre}</TableCell>
-             <TableCell className="px-4 py-3 text-sm text-gray-500">{item.codigo_iso ?? '-'}</TableCell>
-             <TableCell className="px-4 py-3 text-sm">
-               <Badge variant={item.estado ? "default" : "secondary"} className={item.estado ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
-                 {item.estado ? "Activo" : "Inactivo"}
-               </Badge>
-             </TableCell>
-           </TableRow>
-         );
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeactivate(item, 'pais')}>
+                                  Sí, inactivar
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Inactivar</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </Can>
+                ) : (
+                  <Can action="accion-activar-pais">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                aria-label="Activar país"
+                                className="h-8 w-8"
+                              >
+                                <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Activar país?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  ¿Estás seguro de que deseas activar el país "{item.nombre}"?
+                                  Una vez activado, aparecerá en las listas de selección.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleActivate(item, 'pais')}>
+                                  Sí, activar
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Activar</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </Can>
+                )}
 
-             case 'departamentos':
-         const pais = paises.find(p => p.id === item.pais_id);
-         return (
-           <TableRow key={item.id} className="hover:bg-gray-50">
-             <TableCell className="px-2 py-1">
-               <div className="flex flex-row gap-1 items-center">
-                 <Can action="accion-editar-departamento">
-                   <TooltipProvider>
-                     <Tooltip>
-                       <TooltipTrigger asChild>
-                         <Button
-                           variant="ghost"
-                           size="icon"
-                           onClick={() => handleEdit(item, 'departamento')}
-                           aria-label="Editar departamento"
-                           className="h-8 w-8"
-                         >
-                           <Edit3 className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
-                         </Button>
-                       </TooltipTrigger>
-                       <TooltipContent>
-                         <p>Editar</p>
-                       </TooltipContent>
-                     </Tooltip>
-                   </TooltipProvider>
-                 </Can>
-                 
-                 {item.estado ? (
-                   <Can action="accion-inactivar-departamento">
-                     <TooltipProvider>
-                       <Tooltip>
-                         <TooltipTrigger asChild>
-                           <AlertDialog>
-                             <AlertDialogTrigger asChild>
-                               <Button
-                                 variant="ghost"
-                                 size="icon"
-                                 aria-label="Inactivar departamento"
-                                 className="h-8 w-8"
-                               >
-                                 <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
-                               </Button>
-                             </AlertDialogTrigger>
-                             <AlertDialogContent>
-                               <AlertDialogHeader>
-                                 <AlertDialogTitle>¿Inactivar departamento?</AlertDialogTitle>
-                                 <AlertDialogDescription>
+                {!item.estado && (
+                  <Can action="accion-eliminar-pais">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                aria-label="Eliminar país"
+                                className="h-8 w-8"
+                              >
+                                <Trash2 className="h-4 w-4 text-rose-600 hover:text-rose-800 transition-colors" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Eliminar país?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Esta acción eliminará el país "{item.nombre}" de forma permanente.
+                                  También se eliminarán sus departamentos y ciudades relacionadas.
+                                  Esta acción no se puede deshacer. ¿Estás seguro?
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDelete(item, 'pais')}>
+                                  Sí, eliminar
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Eliminar</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </Can>
+                )}
+              </div>
+            </TableCell>
+            <TableCell className="px-4 py-3 text-sm text-gray-900 font-medium">{item.nombre}</TableCell>
+            <TableCell className="px-4 py-3 text-sm text-gray-500">{item.codigo_iso ?? '-'}</TableCell>
+            <TableCell className="px-4 py-3 text-sm">
+              <Badge variant={item.estado ? "default" : "secondary"} className={item.estado ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
+                {item.estado ? "Activo" : "Inactivo"}
+              </Badge>
+            </TableCell>
+          </TableRow>
+        );
+
+      case 'departamentos':
+        const pais = paises.find(p => p.id === item.pais_id);
+        return (
+          <TableRow key={item.id} className="hover:bg-gray-50">
+            <TableCell className="px-2 py-1">
+              <div className="flex flex-row gap-1 items-center">
+                <Can action="accion-editar-departamento">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(item, 'departamento')}
+                          aria-label="Editar departamento"
+                          className="h-8 w-8"
+                        >
+                          <Edit3 className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Editar</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </Can>
+
+                {item.estado ? (
+                  <Can action="accion-inactivar-departamento">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                aria-label="Inactivar departamento"
+                                className="h-8 w-8"
+                              >
+                                <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Inactivar departamento?</AlertDialogTitle>
+                                <AlertDialogDescription>
                                   Esta acción inactivará el departamento "{item.nombre}" y no podrá ser usado hasta que se reactive. ¿Estás seguro?
-                                 </AlertDialogDescription>
-                               </AlertDialogHeader>
-                               <AlertDialogFooter>
-                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                 <AlertDialogAction onClick={() => handleDeactivate(item, 'departamento')}>
-                                   Sí, inactivar
-                                 </AlertDialogAction>
-                               </AlertDialogFooter>
-                             </AlertDialogContent>
-                           </AlertDialog>
-                         </TooltipTrigger>
-                         <TooltipContent>
-                           <p>Inactivar</p>
-                         </TooltipContent>
-                       </Tooltip>
-                     </TooltipProvider>
-                   </Can>
-                 ) : (
-                   <Can action="accion-activar-departamento">
-                     <TooltipProvider>
-                       <Tooltip>
-                         <TooltipTrigger asChild>
-                           <AlertDialog>
-                             <AlertDialogTrigger asChild>
-                               <Button
-                                 variant="ghost"
-                                 size="icon"
-                                 aria-label="Activar departamento"
-                                 className="h-8 w-8"
-                               >
-                                 <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
-                               </Button>
-                             </AlertDialogTrigger>
-                             <AlertDialogContent>
-                               <AlertDialogHeader>
-                                 <AlertDialogTitle>¿Activar departamento?</AlertDialogTitle>
-                                 <AlertDialogDescription>
-                                   ¿Estás seguro de que deseas activar el departamento "{item.nombre}"? 
-                                   Una vez activado, aparecerá en las listas de selección.
-                                 </AlertDialogDescription>
-                               </AlertDialogHeader>
-                               <AlertDialogFooter>
-                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                 <AlertDialogAction onClick={() => handleActivate(item, 'departamento')}>
-                                   Sí, activar
-                                 </AlertDialogAction>
-                               </AlertDialogFooter>
-                             </AlertDialogContent>
-                           </AlertDialog>
-                         </TooltipTrigger>
-                         <TooltipContent>
-                           <p>Activar</p>
-                         </TooltipContent>
-                       </Tooltip>
-                     </TooltipProvider>
-                   </Can>
-                 )}
-                 
-                 {!item.estado && (
-                   <Can action="accion-eliminar-departamento">
-                     <TooltipProvider>
-                       <Tooltip>
-                         <TooltipTrigger asChild>
-                           <AlertDialog>
-                             <AlertDialogTrigger asChild>
-                               <Button
-                                 variant="ghost"
-                                 size="icon"
-                                 aria-label="Eliminar departamento"
-                                 className="h-8 w-8"
-                               >
-                                 <Trash2 className="h-4 w-4 text-rose-600 hover:text-rose-800 transition-colors" />
-                               </Button>
-                             </AlertDialogTrigger>
-                             <AlertDialogContent>
-                               <AlertDialogHeader>
-                                 <AlertDialogTitle>¿Eliminar departamento?</AlertDialogTitle>
-                                 <AlertDialogDescription>
-                                   Esta acción eliminará el departamento "{item.nombre}" de forma permanente.
-                                   También se eliminarán sus ciudades relacionadas.
-                                   Esta acción no se puede deshacer. ¿Estás seguro?
-                                 </AlertDialogDescription>
-                               </AlertDialogHeader>
-                               <AlertDialogFooter>
-                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                 <AlertDialogAction onClick={() => handleDelete(item, 'departamento')}>
-                                   Sí, eliminar
-                                 </AlertDialogAction>
-                               </AlertDialogFooter>
-                             </AlertDialogContent>
-                           </AlertDialog>
-                         </TooltipTrigger>
-                         <TooltipContent>
-                           <p>Eliminar</p>
-                         </TooltipContent>
-                       </Tooltip>
-                     </TooltipProvider>
-                   </Can>
-                 )}
-               </div>
-             </TableCell>
-             <TableCell className="px-4 py-3 text-sm text-gray-900 font-medium">{item.nombre}</TableCell>
-             <TableCell className="px-4 py-3 text-sm text-gray-500">{item.codigo_dane ?? '-'}</TableCell>
-             <TableCell className="px-4 py-3 text-sm text-gray-500">{pais?.nombre ?? '-'}</TableCell>
-             <TableCell className="px-4 py-3 text-sm">
-               <Badge variant={item.estado ? "default" : "secondary"} className={item.estado ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
-                 {item.estado ? "Activo" : "Inactivo"}
-               </Badge>
-             </TableCell>
-           </TableRow>
-         );
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeactivate(item, 'departamento')}>
+                                  Sí, inactivar
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Inactivar</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </Can>
+                ) : (
+                  <Can action="accion-activar-departamento">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                aria-label="Activar departamento"
+                                className="h-8 w-8"
+                              >
+                                <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Activar departamento?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  ¿Estás seguro de que deseas activar el departamento "{item.nombre}"?
+                                  Una vez activado, aparecerá en las listas de selección.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleActivate(item, 'departamento')}>
+                                  Sí, activar
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Activar</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </Can>
+                )}
 
-             case 'ciudades':
-         const departamento = departamentos.find(d => d.id === item.departamento_id);
-         const paisCiudad = paises.find(p => p.id === departamento?.pais_id);
-         const regAsoc = (regionales || []).find(r => regionalesDepartamentos.some(rd => rd.departamento_id === departamento?.id && rd.regional_id === r.id));
-         return (
-           <TableRow key={item.id} className="hover:bg-gray-50">
-             <TableCell className="px-2 py-1">
-               <div className="flex flex-row gap-1 items-center">
-                 <Can action="accion-editar-ciudad">
-                   <TooltipProvider>
-                     <Tooltip>
-                       <TooltipTrigger asChild>
-                         <Button
-                           variant="ghost"
-                           size="icon"
-                           onClick={() => handleEdit(item, 'ciudad')}
-                           aria-label="Editar ciudad"
-                           className="h-8 w-8"
-                         >
-                           <Edit3 className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
-                         </Button>
-                       </TooltipTrigger>
-                       <TooltipContent>
-                         <p>Editar</p>
-                       </TooltipContent>
-                     </Tooltip>
-                   </TooltipProvider>
-                 </Can>
-                 
-                 {item.estado ? (
-                   <Can action="accion-inactivar-ciudad">
-                     <TooltipProvider>
-                       <Tooltip>
-                         <TooltipTrigger asChild>
-                           <AlertDialog>
-                             <AlertDialogTrigger asChild>
-                               <Button
-                                 variant="ghost"
-                                 size="icon"
-                                 aria-label="Inactivar ciudad"
-                                 className="h-8 w-8"
-                               >
-                                 <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
-                               </Button>
-                             </AlertDialogTrigger>
-                             <AlertDialogContent>
-                               <AlertDialogHeader>
-                                 <AlertDialogTitle>¿Inactivar ciudad?</AlertDialogTitle>
-                                 <AlertDialogDescription>
+                {!item.estado && (
+                  <Can action="accion-eliminar-departamento">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                aria-label="Eliminar departamento"
+                                className="h-8 w-8"
+                              >
+                                <Trash2 className="h-4 w-4 text-rose-600 hover:text-rose-800 transition-colors" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Eliminar departamento?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Esta acción eliminará el departamento "{item.nombre}" de forma permanente.
+                                  También se eliminarán sus ciudades relacionadas.
+                                  Esta acción no se puede deshacer. ¿Estás seguro?
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDelete(item, 'departamento')}>
+                                  Sí, eliminar
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Eliminar</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </Can>
+                )}
+              </div>
+            </TableCell>
+            <TableCell className="px-4 py-3 text-sm text-gray-900 font-medium">{item.nombre}</TableCell>
+            <TableCell className="px-4 py-3 text-sm text-gray-500">{item.codigo_dane ?? '-'}</TableCell>
+            <TableCell className="px-4 py-3 text-sm text-gray-500">{pais?.nombre ?? '-'}</TableCell>
+            <TableCell className="px-4 py-3 text-sm">
+              <Badge variant={item.estado ? "default" : "secondary"} className={item.estado ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
+                {item.estado ? "Activo" : "Inactivo"}
+              </Badge>
+            </TableCell>
+          </TableRow>
+        );
+
+      case 'ciudades':
+        const departamento = departamentos.find(d => d.id === item.departamento_id);
+        const paisCiudad = paises.find(p => p.id === departamento?.pais_id);
+        const regAsoc = (regionales || []).find(r => regionalesDepartamentos.some(rd => rd.departamento_id === departamento?.id && rd.regional_id === r.id));
+        return (
+          <TableRow key={item.id} className="hover:bg-gray-50">
+            <TableCell className="px-2 py-1">
+              <div className="flex flex-row gap-1 items-center">
+                <Can action="accion-editar-ciudad">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(item, 'ciudad')}
+                          aria-label="Editar ciudad"
+                          className="h-8 w-8"
+                        >
+                          <Edit3 className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Editar</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </Can>
+
+                {item.estado ? (
+                  <Can action="accion-inactivar-ciudad">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                aria-label="Inactivar ciudad"
+                                className="h-8 w-8"
+                              >
+                                <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Inactivar ciudad?</AlertDialogTitle>
+                                <AlertDialogDescription>
                                   Esta acción inactivará la ciudad "{item.nombre}" y no podrá ser usada hasta que se reactive. ¿Estás seguro?
-                                 </AlertDialogDescription>
-                               </AlertDialogHeader>
-                               <AlertDialogFooter>
-                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                 <AlertDialogAction onClick={() => handleDeactivate(item, 'ciudad')}>
-                                   Sí, inactivar
-                                 </AlertDialogAction>
-                               </AlertDialogFooter>
-                             </AlertDialogContent>
-                           </AlertDialog>
-                         </TooltipTrigger>
-                         <TooltipContent>
-                           <p>Inactivar</p>
-                         </TooltipContent>
-                       </Tooltip>
-                     </TooltipProvider>
-                   </Can>
-                 ) : (
-                   <Can action="accion-activar-ciudad">
-                     <TooltipProvider>
-                       <Tooltip>
-                         <TooltipTrigger asChild>
-                           <AlertDialog>
-                             <AlertDialogTrigger asChild>
-                               <Button
-                                 variant="ghost"
-                                 size="icon"
-                                 aria-label="Activar ciudad"
-                                 className="h-8 w-8"
-                               >
-                                 <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
-                               </Button>
-                             </AlertDialogTrigger>
-                             <AlertDialogContent>
-                               <AlertDialogHeader>
-                                 <AlertDialogTitle>¿Activar ciudad?</AlertDialogTitle>
-                                 <AlertDialogDescription>
-                                   ¿Estás seguro de que deseas activar la ciudad "{item.nombre}"? 
-                                   Una vez activada, aparecerá en las listas de selección.
-                                 </AlertDialogDescription>
-                               </AlertDialogHeader>
-                               <AlertDialogFooter>
-                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                 <AlertDialogAction onClick={() => handleActivate(item, 'ciudad')}>
-                                   Sí, activar
-                                 </AlertDialogAction>
-                               </AlertDialogFooter>
-                             </AlertDialogContent>
-                           </AlertDialog>
-                         </TooltipTrigger>
-                         <TooltipContent>
-                           <p>Activar</p>
-                         </TooltipContent>
-                       </Tooltip>
-                     </TooltipProvider>
-                   </Can>
-                 )}
-                 
-                 {!item.estado && (
-                   <Can action="accion-eliminar-ciudad">
-                     <TooltipProvider>
-                       <Tooltip>
-                         <TooltipTrigger asChild>
-                           <AlertDialog>
-                             <AlertDialogTrigger asChild>
-                               <Button
-                                 variant="ghost"
-                                 size="icon"
-                                 aria-label="Eliminar ciudad"
-                                 className="h-8 w-8"
-                               >
-                                 <Trash2 className="h-4 w-4 text-rose-600 hover:text-rose-800 transition-colors" />
-                               </Button>
-                             </AlertDialogTrigger>
-                             <AlertDialogContent>
-                               <AlertDialogHeader>
-                                 <AlertDialogTitle>¿Eliminar ciudad?</AlertDialogTitle>
-                                 <AlertDialogDescription>
-                                   Esta acción eliminará la ciudad "{item.nombre}" de forma permanente. 
-                                   Esta acción no se puede deshacer. ¿Estás seguro?
-                                 </AlertDialogDescription>
-                               </AlertDialogHeader>
-                               <AlertDialogFooter>
-                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                 <AlertDialogAction onClick={() => handleDelete(item, 'ciudad')}>
-                                   Sí, eliminar
-                                 </AlertDialogAction>
-                               </AlertDialogFooter>
-                             </AlertDialogContent>
-                           </AlertDialog>
-                         </TooltipTrigger>
-                         <TooltipContent>
-                           <p>Eliminar</p>
-                         </TooltipContent>
-                       </Tooltip>
-                     </TooltipProvider>
-                   </Can>
-                 )}
-               </div>
-             </TableCell>
-             <TableCell className="px-4 py-3 text-sm text-gray-900 font-medium">{item.nombre}</TableCell>
-             <TableCell className="px-4 py-3 text-sm text-gray-500">{item.codigo_dane ?? '-'}</TableCell>
-             <TableCell className="px-4 py-3 text-sm text-gray-500">{departamento?.nombre ?? '-'}</TableCell>
-             <TableCell className="px-4 py-3 text-sm text-gray-500">{paisCiudad?.nombre ?? '-'}</TableCell>
-             <TableCell className="px-4 py-3 text-sm text-gray-500">{regAsoc?.nombre ?? '-'}</TableCell>
-             <TableCell className="px-4 py-3 text-sm">
-               <Badge variant={item.estado ? "default" : "secondary"} className={item.estado ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
-                 {item.estado ? "Activo" : "Inactivo"}
-               </Badge>
-             </TableCell>
-           </TableRow>
-         );
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeactivate(item, 'ciudad')}>
+                                  Sí, inactivar
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Inactivar</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </Can>
+                ) : (
+                  <Can action="accion-activar-ciudad">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                aria-label="Activar ciudad"
+                                className="h-8 w-8"
+                              >
+                                <CheckCircle className="h-4 w-4 text-brand-lime hover:text-brand-lime/80 transition-colors" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Activar ciudad?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  ¿Estás seguro de que deseas activar la ciudad "{item.nombre}"?
+                                  Una vez activada, aparecerá en las listas de selección.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleActivate(item, 'ciudad')}>
+                                  Sí, activar
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Activar</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </Can>
+                )}
+
+                {!item.estado && (
+                  <Can action="accion-eliminar-ciudad">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                aria-label="Eliminar ciudad"
+                                className="h-8 w-8"
+                              >
+                                <Trash2 className="h-4 w-4 text-rose-600 hover:text-rose-800 transition-colors" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Eliminar ciudad?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Esta acción eliminará la ciudad "{item.nombre}" de forma permanente.
+                                  Esta acción no se puede deshacer. ¿Estás seguro?
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDelete(item, 'ciudad')}>
+                                  Sí, eliminar
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Eliminar</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </Can>
+                )}
+              </div>
+            </TableCell>
+            <TableCell className="px-4 py-3 text-sm text-gray-900 font-medium">{item.nombre}</TableCell>
+            <TableCell className="px-4 py-3 text-sm text-gray-500">{item.codigo_dane ?? '-'}</TableCell>
+            <TableCell className="px-4 py-3 text-sm text-gray-500">{departamento?.nombre ?? '-'}</TableCell>
+            <TableCell className="px-4 py-3 text-sm text-gray-500">{paisCiudad?.nombre ?? '-'}</TableCell>
+            <TableCell className="px-4 py-3 text-sm text-gray-500">{regAsoc?.nombre ?? '-'}</TableCell>
+            <TableCell className="px-4 py-3 text-sm">
+              <Badge variant={item.estado ? "default" : "secondary"} className={item.estado ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
+                {item.estado ? "Activo" : "Inactivo"}
+              </Badge>
+            </TableCell>
+          </TableRow>
+        );
 
       case 'regionales':
         const asociados = regionalesDepartamentos.filter(rd => rd.regional_id === item.id).map(rd => rd.departamento_id);
@@ -1544,56 +1544,56 @@ export default function UbicacionesPage() {
 
   const renderFilters = () => {
     switch (activeTab) {
-             case 'paises':
-         return (
-           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-             <div className="relative">
-               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-               <Input
-                 placeholder="Buscar por nombre o código ISO..."
-                 value={searchPaises}
-                 onChange={(e) => setSearchPaises(e.target.value)}
-                 className="pl-10 h-9 text-sm"
-               />
-             </div>
-             <Popover open={openStatusPaises} onOpenChange={setOpenStatusPaises}>
-               <PopoverTrigger asChild>
-                 <Button type="button" variant="outline" role="combobox" className="h-9 justify-between text-sm">
-                   {statusPaises === 'active' ? 'Solo activos' : statusPaises === 'inactive' ? 'Solo inactivos' : 'Todos'}
-                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                 </Button>
-               </PopoverTrigger>
-               <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                 <Command>
-                   <CommandInput placeholder="Buscar estado..." className="h-8 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none" />
-                   <CommandList>
-                     <CommandEmpty>Sin opciones</CommandEmpty>
-                     <CommandGroup>
-                       {[
-                         { key: 'active', label: 'Solo activos' },
-                         { key: 'inactive', label: 'Solo inactivos' },
-                         { key: 'all', label: 'Todos' },
-                       ].map(opt => (
-                         <CommandItem value={opt.key} key={opt.key} onSelect={() => { setStatusPaises(opt.key); setOpenStatusPaises(false); }} className="cursor-pointer">
-                           <Check className={cn('mr-2 h-4 w-4', statusPaises === opt.key ? 'opacity-100' : 'opacity-0')} />
-                           {opt.label}
-                         </CommandItem>
-                       ))}
-                     </CommandGroup>
-                   </CommandList>
-                 </Command>
-               </PopoverContent>
-             </Popover>
-             <Button
-               variant="outline"
-               onClick={() => { setSearchPaises(""); setStatusPaises('active'); }}
-               className="flex items-center gap-2 h-9 text-sm"
-             >
-               <Filter className="w-4 h-4" />
-               Limpiar filtros
-             </Button>
-           </div>
-         );
+      case 'paises':
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                placeholder="Buscar por nombre o código ISO..."
+                value={searchPaises}
+                onChange={(e) => setSearchPaises(e.target.value)}
+                className="pl-10 h-9 text-sm"
+              />
+            </div>
+            <Popover open={openStatusPaises} onOpenChange={setOpenStatusPaises}>
+              <PopoverTrigger asChild>
+                <Button type="button" variant="outline" role="combobox" className="h-9 justify-between text-sm">
+                  {statusPaises === 'active' ? 'Solo activos' : statusPaises === 'inactive' ? 'Solo inactivos' : 'Todos'}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                <Command>
+                  <CommandInput placeholder="Buscar estado..." className="h-8 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none" />
+                  <CommandList>
+                    <CommandEmpty>Sin opciones</CommandEmpty>
+                    <CommandGroup>
+                      {[
+                        { key: 'active', label: 'Solo activos' },
+                        { key: 'inactive', label: 'Solo inactivos' },
+                        { key: 'all', label: 'Todos' },
+                      ].map(opt => (
+                        <CommandItem value={opt.key} key={opt.key} onSelect={() => { setStatusPaises(opt.key); setOpenStatusPaises(false); }} className="cursor-pointer">
+                          <Check className={cn('mr-2 h-4 w-4', statusPaises === opt.key ? 'opacity-100' : 'opacity-0')} />
+                          {opt.label}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+            <Button
+              variant="outline"
+              onClick={() => { setSearchPaises(""); setStatusPaises('active'); }}
+              className="flex items-center gap-2 h-9 text-sm"
+            >
+              <Filter className="w-4 h-4" />
+              Limpiar filtros
+            </Button>
+          </div>
+        );
 
       case 'departamentos':
         return (
@@ -1678,125 +1678,125 @@ export default function UbicacionesPage() {
           </div>
         );
 
-             case 'ciudades':
-         return (
-           <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-             <div className="relative">
-               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-               <Input
-                 placeholder="Buscar por nombre o código DANE..."
-                 value={searchCiudades}
-                 onChange={(e) => setSearchCiudades(e.target.value)}
-                 className="pl-10 h-9 text-sm"
-               />
-             </div>
-             <Popover open={openPaisCiudades} onOpenChange={setOpenPaisCiudades}>
-               <PopoverTrigger asChild>
-                 <Button type="button" variant="outline" role="combobox" className="h-9 justify-between text-sm">
-                   {filterPaisDepartamento === 'todos' ? 'Todos los países' : (paises.find(p => p.id === parseInt(filterPaisDepartamento))?.nombre || 'País')}
-                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                 </Button>
-               </PopoverTrigger>
-               <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                 <Command>
-                   <CommandInput placeholder="Buscar país..." className="h-8 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none" />
-                   <CommandList>
-                     <CommandEmpty>Sin opciones</CommandEmpty>
-                     <CommandGroup>
-                       <CommandItem value="todos" onSelect={() => { setFilterPaisDepartamento('todos'); setOpenPaisCiudades(false); }} className="cursor-pointer">
-                         <Check className={cn('mr-2 h-4 w-4', filterPaisDepartamento === 'todos' ? 'opacity-100' : 'opacity-0')} />
-                         Todos los países
-                       </CommandItem>
-                       {paises.filter(p => p.estado).map(pais => (
-                         <CommandItem value={pais.id.toString()} key={pais.id} onSelect={() => { setFilterPaisDepartamento(pais.id.toString()); setOpenPaisCiudades(false); }} className="cursor-pointer">
-                           <Check className={cn('mr-2 h-4 w-4', filterPaisDepartamento === pais.id.toString() ? 'opacity-100' : 'opacity-0')} />
-                           {pais.nombre}
-                         </CommandItem>
-                       ))}
-                     </CommandGroup>
-                   </CommandList>
-                 </Command>
-               </PopoverContent>
-             </Popover>
-             <Popover open={openDeptCiudades} onOpenChange={setOpenDeptCiudades}>
-               <PopoverTrigger asChild>
-                 <Button type="button" variant="outline" role="combobox" className="h-9 justify-between text-sm">
-                   {filterDepartamentoCiudad === 'todos' ? 'Departamento' : (departamentos.find(d => d.id === parseInt(filterDepartamentoCiudad))?.nombre || 'Departamento')}
-                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                 </Button>
-               </PopoverTrigger>
-               <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                 <Command>
-                   <CommandInput placeholder="Buscar departamento..." className="h-8 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none" />
-                   <CommandList>
-                     <CommandEmpty>Sin opciones</CommandEmpty>
-                     <CommandGroup>
-                       <CommandItem value="todos" onSelect={() => { setFilterDepartamentoCiudad('todos'); setOpenDeptCiudades(false); }} className="cursor-pointer">
-                         <Check className={cn('mr-2 h-4 w-4', filterDepartamentoCiudad === 'todos' ? 'opacity-100' : 'opacity-0')} />
-                         Departamentos
-                       </CommandItem>
-                       {departamentos
-                         .filter(dept => {
-                           if (!dept.estado) return false;
-                           if (filterPaisDepartamento !== 'todos') {
-                             return dept.pais_id === parseInt(filterPaisDepartamento);
-                           }
-                           return true;
-                         })
-                         .map(dept => (
-                           <CommandItem value={dept.id.toString()} key={dept.id} onSelect={() => { setFilterDepartamentoCiudad(dept.id.toString()); setOpenDeptCiudades(false); }} className="cursor-pointer">
-                             <Check className={cn('mr-2 h-4 w-4', filterDepartamentoCiudad === dept.id.toString() ? 'opacity-100' : 'opacity-0')} />
-                             {dept.nombre}
-                           </CommandItem>
-                         ))}
-                     </CommandGroup>
-                   </CommandList>
-                 </Command>
-               </PopoverContent>
-             </Popover>
-             <Popover open={openStatusCiudades} onOpenChange={setOpenStatusCiudades}>
-               <PopoverTrigger asChild>
-                 <Button type="button" variant="outline" role="combobox" className="h-9 justify-between text-sm">
-                   {statusCiudades === 'active' ? 'Solo activos' : statusCiudades === 'inactive' ? 'Solo inactivos' : 'Todos'}
-                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                 </Button>
-               </PopoverTrigger>
-               <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                 <Command>
-                   <CommandInput placeholder="Buscar estado..." className="h-8 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none" />
-                   <CommandList>
-                     <CommandEmpty>Sin opciones</CommandEmpty>
-                     <CommandGroup>
-                       {[
-                         { key: 'active', label: 'Solo activos' },
-                         { key: 'inactive', label: 'Solo inactivos' },
-                         { key: 'all', label: 'Todos' },
-                       ].map(opt => (
-                         <CommandItem value={opt.key} key={opt.key} onSelect={() => { setStatusCiudades(opt.key); setOpenStatusCiudades(false); }} className="cursor-pointer">
-                           <Check className={cn('mr-2 h-4 w-4', statusCiudades === opt.key ? 'opacity-100' : 'opacity-0')} />
-                           {opt.label}
-                         </CommandItem>
-                       ))}
-                     </CommandGroup>
-                   </CommandList>
-                 </Command>
-               </PopoverContent>
-             </Popover>
-             <Button
-               variant="outline"
-               onClick={() => {
-                 setSearchCiudades("");
-                 setFilterPaisDepartamento("todos");
-                 setFilterDepartamentoCiudad("todos");
-                 setStatusCiudades('active');
-               }}
-               className="flex items-center gap-2 h-9 text-sm"
-             >
-               <Filter className="w-4 h-4" />
-               Limpiar filtros
-             </Button>
-           </div>
-         );
+      case 'ciudades':
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                placeholder="Buscar por nombre o código DANE..."
+                value={searchCiudades}
+                onChange={(e) => setSearchCiudades(e.target.value)}
+                className="pl-10 h-9 text-sm"
+              />
+            </div>
+            <Popover open={openPaisCiudades} onOpenChange={setOpenPaisCiudades}>
+              <PopoverTrigger asChild>
+                <Button type="button" variant="outline" role="combobox" className="h-9 justify-between text-sm">
+                  {filterPaisDepartamento === 'todos' ? 'Todos los países' : (paises.find(p => p.id === parseInt(filterPaisDepartamento))?.nombre || 'País')}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                <Command>
+                  <CommandInput placeholder="Buscar país..." className="h-8 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none" />
+                  <CommandList>
+                    <CommandEmpty>Sin opciones</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem value="todos" onSelect={() => { setFilterPaisDepartamento('todos'); setOpenPaisCiudades(false); }} className="cursor-pointer">
+                        <Check className={cn('mr-2 h-4 w-4', filterPaisDepartamento === 'todos' ? 'opacity-100' : 'opacity-0')} />
+                        Todos los países
+                      </CommandItem>
+                      {paises.filter(p => p.estado).map(pais => (
+                        <CommandItem value={pais.id.toString()} key={pais.id} onSelect={() => { setFilterPaisDepartamento(pais.id.toString()); setOpenPaisCiudades(false); }} className="cursor-pointer">
+                          <Check className={cn('mr-2 h-4 w-4', filterPaisDepartamento === pais.id.toString() ? 'opacity-100' : 'opacity-0')} />
+                          {pais.nombre}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+            <Popover open={openDeptCiudades} onOpenChange={setOpenDeptCiudades}>
+              <PopoverTrigger asChild>
+                <Button type="button" variant="outline" role="combobox" className="h-9 justify-between text-sm">
+                  {filterDepartamentoCiudad === 'todos' ? 'Departamento' : (departamentos.find(d => d.id === parseInt(filterDepartamentoCiudad))?.nombre || 'Departamento')}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                <Command>
+                  <CommandInput placeholder="Buscar departamento..." className="h-8 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none" />
+                  <CommandList>
+                    <CommandEmpty>Sin opciones</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem value="todos" onSelect={() => { setFilterDepartamentoCiudad('todos'); setOpenDeptCiudades(false); }} className="cursor-pointer">
+                        <Check className={cn('mr-2 h-4 w-4', filterDepartamentoCiudad === 'todos' ? 'opacity-100' : 'opacity-0')} />
+                        Departamentos
+                      </CommandItem>
+                      {departamentos
+                        .filter(dept => {
+                          if (!dept.estado) return false;
+                          if (filterPaisDepartamento !== 'todos') {
+                            return dept.pais_id === parseInt(filterPaisDepartamento);
+                          }
+                          return true;
+                        })
+                        .map(dept => (
+                          <CommandItem value={dept.id.toString()} key={dept.id} onSelect={() => { setFilterDepartamentoCiudad(dept.id.toString()); setOpenDeptCiudades(false); }} className="cursor-pointer">
+                            <Check className={cn('mr-2 h-4 w-4', filterDepartamentoCiudad === dept.id.toString() ? 'opacity-100' : 'opacity-0')} />
+                            {dept.nombre}
+                          </CommandItem>
+                        ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+            <Popover open={openStatusCiudades} onOpenChange={setOpenStatusCiudades}>
+              <PopoverTrigger asChild>
+                <Button type="button" variant="outline" role="combobox" className="h-9 justify-between text-sm">
+                  {statusCiudades === 'active' ? 'Solo activos' : statusCiudades === 'inactive' ? 'Solo inactivos' : 'Todos'}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                <Command>
+                  <CommandInput placeholder="Buscar estado..." className="h-8 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none" />
+                  <CommandList>
+                    <CommandEmpty>Sin opciones</CommandEmpty>
+                    <CommandGroup>
+                      {[
+                        { key: 'active', label: 'Solo activos' },
+                        { key: 'inactive', label: 'Solo inactivos' },
+                        { key: 'all', label: 'Todos' },
+                      ].map(opt => (
+                        <CommandItem value={opt.key} key={opt.key} onSelect={() => { setStatusCiudades(opt.key); setOpenStatusCiudades(false); }} className="cursor-pointer">
+                          <Check className={cn('mr-2 h-4 w-4', statusCiudades === opt.key ? 'opacity-100' : 'opacity-0')} />
+                          {opt.label}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSearchCiudades("");
+                setFilterPaisDepartamento("todos");
+                setFilterDepartamentoCiudad("todos");
+                setStatusCiudades('active');
+              }}
+              className="flex items-center gap-2 h-9 text-sm"
+            >
+              <Filter className="w-4 h-4" />
+              Limpiar filtros
+            </Button>
+          </div>
+        );
 
       case 'regionales':
         return (
@@ -1970,35 +1970,35 @@ export default function UbicacionesPage() {
         return (
           <Can action={editingItem ? "accion-actualizar-regional" : "accion-crear-regional"}>
             <form onSubmit={onSubmitRegional} className="space-y-6">
-            <div className="grid grid-cols-3 gap-4">
-              <div className="col-span-1">
-                <label className="block text-sm font-medium mb-1">Nombre de la Regional *</label>
-                <Input id="regional-nombre" defaultValue={editingItem?.nombre || ''} placeholder="Ej: Región Andina" />
+              <div className="grid grid-cols-3 gap-4">
+                <div className="col-span-1">
+                  <label className="block text-sm font-medium mb-1">Nombre de la Regional *</label>
+                  <Input id="regional-nombre" defaultValue={editingItem?.nombre || ''} placeholder="Ej: Región Andina" />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium mb-1">Departamentos asociados</label>
+                  <MultiSelect
+                    options={deptOptions}
+                    selected={selectedDeptosRegional}
+                    onSelectionChange={setSelectedDeptosRegional}
+                    placeholder="Seleccionar departamentos..."
+                    emptyText="No hay departamentos"
+                  />
+                  {regionalError && (
+                    <div className="mt-3">
+                      <Alert variant="destructive">
+                        <AlertTitle>No se puede guardar</AlertTitle>
+                        <AlertDescription>{regionalError}</AlertDescription>
+                      </Alert>
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="col-span-2">
-                <label className="block text-sm font-medium mb-1">Departamentos asociados</label>
-                <MultiSelect
-                  options={deptOptions}
-                  selected={selectedDeptosRegional}
-                  onSelectionChange={setSelectedDeptosRegional}
-                  placeholder="Seleccionar departamentos..."
-                  emptyText="No hay departamentos"
-                />
-                {regionalError && (
-                  <div className="mt-3">
-                    <Alert variant="destructive">
-                      <AlertTitle>No se puede guardar</AlertTitle>
-                      <AlertDescription>{regionalError}</AlertDescription>
-                    </Alert>
-                  </div>
-                )}
+              <div className="flex justify-end space-x-2">
+                <Button type="button" variant="outline" onClick={handleSaved}>Cancelar</Button>
+                <Button type="submit">Guardar</Button>
               </div>
-            </div>
-            <div className="flex justify-end space-x-2">
-              <Button type="button" variant="outline" onClick={handleSaved}>Cancelar</Button>
-              <Button type="submit">Guardar</Button>
-            </div>
-          </form>
+            </form>
           </Can>
         );
       }
@@ -2021,7 +2021,7 @@ export default function UbicacionesPage() {
               email: (document.getElementById('suc-email') as HTMLInputElement)?.value || undefined,
               ciudad_id: ciudadIdSucursal,
             };
-            
+
             console.log('🏢 Guardando sucursal:', payload);
             if (editingItem?.id) {
               await ubicacionesService.updateSucursal(editingItem.id, payload);
@@ -2045,125 +2045,125 @@ export default function UbicacionesPage() {
         return (
           <Can action={editingItem ? "accion-actualizar-sucursal" : "accion-crear-sucursal"}>
             <form onSubmit={onSubmitSucursal} className="space-y-6">
-            <div className="grid grid-cols-12 gap-4">
-              <div className="col-span-2">
-                <label className="block text-sm font-medium mb-1">Código</label>
-                <Input 
-                  id="suc-codigo" 
-                  value={codigoSucursal} 
-                  className="text-sm bg-gray-50 border-gray-300 text-gray-700 font-mono cursor-not-allowed" 
-                  readOnly
-                  placeholder="Se genera automáticamente"
-                />
+              <div className="grid grid-cols-12 gap-4">
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium mb-1">Código</label>
+                  <Input
+                    id="suc-codigo"
+                    value={codigoSucursal}
+                    className="text-sm bg-gray-50 border-gray-300 text-gray-700 font-mono cursor-not-allowed"
+                    readOnly
+                    placeholder="Se genera automáticamente"
+                  />
+                </div>
+                <div className="col-span-3">
+                  <label className="block text-sm font-medium mb-1">Nombre *</label>
+                  <Input id="suc-nombre" defaultValue={editingItem?.nombre || ''} />
+                </div>
+                <div className="col-span-3">
+                  <label className="block text-sm font-medium mb-1">Departamento *</label>
+                  <Popover open={openDepartamentoSucursal} onOpenChange={setOpenDepartamentoSucursal}>
+                    <PopoverTrigger asChild>
+                      <Button type="button" variant="outline" role="combobox" className="w-full justify-between">
+                        {(() => {
+                          const selectedDepto = departamentos.find(d => d.id === selectedDepartamentoSucursal);
+                          return selectedDepto ? selectedDepto.nombre : 'Seleccionar departamento';
+                        })()}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                      <Command>
+                        <CommandInput placeholder="Buscar departamento..." className="h-9 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none" />
+                        <CommandList>
+                          <CommandEmpty>No se encontraron departamentos.</CommandEmpty>
+                          <CommandGroup>
+                            {departamentos.filter(d => d.estado).map((d) => (
+                              <CommandItem
+                                key={d.id}
+                                onSelect={() => {
+                                  setSelectedDepartamentoSucursal(d.id);
+                                  setSelectedCiudadSucursal(null);
+                                  setCiudadIdSucursal(null);
+                                  setOpenDepartamentoSucursal(false);
+                                }}
+                                className="cursor-pointer"
+                              >
+                                <Check className={cn('mr-2 h-4 w-4', selectedDepartamentoSucursal === d.id ? 'opacity-100' : 'opacity-0')} />
+                                {d.nombre}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="col-span-4">
+                  <label className="block text-sm font-medium mb-1">Ciudad *</label>
+                  <Popover open={openCiudadSucursal} onOpenChange={setOpenCiudadSucursal}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        role="combobox"
+                        className="w-full justify-between"
+                        disabled={!selectedDepartamentoSucursal}
+                      >
+                        {(() => {
+                          const ciudadId = selectedCiudadSucursal || editingItem?.ciudad_id;
+                          const sc = ciudades.find(c => c.id === ciudadId);
+                          return sc ? sc.nombre : selectedDepartamentoSucursal ? 'Seleccionar ciudad' : 'Seleccione un departamento primero';
+                        })()}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                      <Command>
+                        <CommandInput placeholder="Buscar ciudad..." className="h-9 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none" />
+                        <CommandList>
+                          <CommandEmpty>No se encontraron ciudades.</CommandEmpty>
+                          <CommandGroup>
+                            {ciudades
+                              .filter(c => c.departamento_id === selectedDepartamentoSucursal)
+                              .map((c) => (
+                                <CommandItem
+                                  key={c.id}
+                                  onSelect={() => {
+                                    setSelectedCiudadSucursal(c.id);
+                                    setCiudadIdSucursal(c.id);
+                                    setOpenCiudadSucursal(false);
+                                  }}
+                                  className="cursor-pointer"
+                                >
+                                  <Check className={cn('mr-2 h-4 w-4', (selectedCiudadSucursal || editingItem?.ciudad_id) === c.id ? 'opacity-100' : 'opacity-0')} />
+                                  {c.nombre}
+                                </CommandItem>
+                              ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="col-span-4">
+                  <label className="block text-sm font-medium mb-1">Dirección</label>
+                  <Input id="suc-direccion" defaultValue={editingItem?.direccion || ''} />
+                </div>
+                <div className="col-span-3">
+                  <label className="block text-sm font-medium mb-1">Teléfono</label>
+                  <Input id="suc-telefono" defaultValue={editingItem?.telefono || ''} />
+                </div>
+                <div className="col-span-5">
+                  <label className="block text-sm font-medium mb-1">Email</label>
+                  <Input id="suc-email" defaultValue={editingItem?.email || ''} />
+                </div>
               </div>
-              <div className="col-span-3">
-                <label className="block text-sm font-medium mb-1">Nombre *</label>
-                <Input id="suc-nombre" defaultValue={editingItem?.nombre || ''} />
+              <div className="flex justify-end space-x-2">
+                <Button type="button" variant="outline" onClick={handleSaved}>Cancelar</Button>
+                <Button type="submit">Guardar</Button>
               </div>
-              <div className="col-span-3">
-                <label className="block text-sm font-medium mb-1">Departamento *</label>
-                <Popover open={openDepartamentoSucursal} onOpenChange={setOpenDepartamentoSucursal}>
-                  <PopoverTrigger asChild>
-                    <Button type="button" variant="outline" role="combobox" className="w-full justify-between">
-                      {(() => {
-                        const selectedDepto = departamentos.find(d => d.id === selectedDepartamentoSucursal);
-                        return selectedDepto ? selectedDepto.nombre : 'Seleccionar departamento';
-                      })()}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                    <Command>
-                      <CommandInput placeholder="Buscar departamento..." className="h-9 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none" />
-                      <CommandList>
-                        <CommandEmpty>No se encontraron departamentos.</CommandEmpty>
-                        <CommandGroup>
-                          {departamentos.filter(d => d.estado).map((d) => (
-                            <CommandItem
-                              key={d.id}
-                              onSelect={() => {
-                                setSelectedDepartamentoSucursal(d.id);
-                                setSelectedCiudadSucursal(null);
-                                setCiudadIdSucursal(null);
-                                setOpenDepartamentoSucursal(false);
-                              }}
-                              className="cursor-pointer"
-                            >
-                              <Check className={cn('mr-2 h-4 w-4', selectedDepartamentoSucursal === d.id ? 'opacity-100' : 'opacity-0')} />
-                              {d.nombre}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <div className="col-span-4">
-                <label className="block text-sm font-medium mb-1">Ciudad *</label>
-                <Popover open={openCiudadSucursal} onOpenChange={setOpenCiudadSucursal}>
-                  <PopoverTrigger asChild>
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      role="combobox" 
-                      className="w-full justify-between"
-                      disabled={!selectedDepartamentoSucursal}
-                    >
-                      {(() => {
-                        const ciudadId = selectedCiudadSucursal || editingItem?.ciudad_id;
-                        const sc = ciudades.find(c => c.id === ciudadId);
-                        return sc ? sc.nombre : selectedDepartamentoSucursal ? 'Seleccionar ciudad' : 'Seleccione un departamento primero';
-                      })()}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                    <Command>
-                      <CommandInput placeholder="Buscar ciudad..." className="h-9 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none" />
-                      <CommandList>
-                        <CommandEmpty>No se encontraron ciudades.</CommandEmpty>
-                        <CommandGroup>
-                          {ciudades
-                            .filter(c => c.departamento_id === selectedDepartamentoSucursal)
-                            .map((c) => (
-                            <CommandItem
-                              key={c.id}
-                              onSelect={() => {
-                                setSelectedCiudadSucursal(c.id);
-                                setCiudadIdSucursal(c.id);
-                                setOpenCiudadSucursal(false);
-                              }}
-                              className="cursor-pointer"
-                            >
-                              <Check className={cn('mr-2 h-4 w-4', (selectedCiudadSucursal || editingItem?.ciudad_id) === c.id ? 'opacity-100' : 'opacity-0')} />
-                              {c.nombre}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <div className="col-span-4">
-                <label className="block text-sm font-medium mb-1">Dirección</label>
-                <Input id="suc-direccion" defaultValue={editingItem?.direccion || ''} />
-              </div>
-              <div className="col-span-3">
-                <label className="block text-sm font-medium mb-1">Teléfono</label>
-                <Input id="suc-telefono" defaultValue={editingItem?.telefono || ''} />
-              </div>
-              <div className="col-span-5">
-                <label className="block text-sm font-medium mb-1">Email</label>
-                <Input id="suc-email" defaultValue={editingItem?.email || ''} />
-              </div>
-            </div>
-            <div className="flex justify-end space-x-2">
-              <Button type="button" variant="outline" onClick={handleSaved}>Cancelar</Button>
-              <Button type="submit">Guardar</Button>
-            </div>
-          </form>
+            </form>
           </Can>
         );
       }
@@ -2314,158 +2314,158 @@ export default function UbicacionesPage() {
             return (
               <Can action={getPermissionForTab(activeTab)}>
                 <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-cyan-100/60 p-1 rounded-lg">
-              <TabsTrigger
-                value="listado"
-                className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300 flex items-center justify-center w-full h-full py-2 px-3"
-              >
-                Listado de {activeTab === 'paises' ? 'Países' : activeTab === 'departamentos' ? 'Departamentos' : activeTab === 'regionales' ? 'Regionales' : activeTab === 'ciudades' ? 'Ciudades' : 'Sucursales'}
-              </TabsTrigger>
-              <TabsTrigger
-                value="formulario"
-                className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300 flex items-center justify-center w-full h-full py-2 px-3"
-              >
-                {editingItem ? 'Editar' : 'Nuevo'} {activeTab === 'paises' ? 'País' : activeTab === 'departamentos' ? 'Departamento' : activeTab === 'regionales' ? 'Regional' : activeTab === 'ciudades' ? 'Ciudad' : 'Sucursal'}
-              </TabsTrigger>
-            </TabsList>
+                  <TabsList className="grid w-full grid-cols-2 bg-cyan-100/60 p-1 rounded-lg">
+                    <TabsTrigger
+                      value="listado"
+                      className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300 flex items-center justify-center w-full h-full py-2 px-3"
+                    >
+                      Listado de {activeTab === 'paises' ? 'Países' : activeTab === 'departamentos' ? 'Departamentos' : activeTab === 'regionales' ? 'Regionales' : activeTab === 'ciudades' ? 'Ciudades' : 'Sucursales'}
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="formulario"
+                      className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300 flex items-center justify-center w-full h-full py-2 px-3"
+                    >
+                      {editingItem ? 'Editar' : 'Nuevo'} {activeTab === 'paises' ? 'País' : activeTab === 'departamentos' ? 'Departamento' : activeTab === 'regionales' ? 'Regional' : activeTab === 'ciudades' ? 'Ciudad' : 'Sucursal'}
+                    </TabsTrigger>
+                  </TabsList>
 
-            <TabsContent value="listado" className="mt-6">
-              {/* Header similar al diseño de empresas */}
-              <div className="bg-white rounded-lg border">
-                <div className="flex items-center justify-between p-4 border-b">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-orange-100 rounded flex items-center justify-center">
-                      {getHeaderIcon()}
-                    </div>
-                    <span className="text-lg font-semibold text-gray-700">{getHeaderTitle()}</span>
-                  </div>
-                  <div className="flex space-x-2">
-                    <Can action="accion-crear-ubicacion">
-                      <Button
-                        onClick={handleNewItem}
-                        className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
-                        size="sm"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Adicionar Registro
-                      </Button>
-                    </Can>
-                  </div>
-                </div>
+                  <TabsContent value="listado" className="mt-6">
+                    {/* Header similar al diseño de empresas */}
+                    <div className="bg-white rounded-lg border">
+                      <div className="flex items-center justify-between p-4 border-b">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 bg-orange-100 rounded flex items-center justify-center">
+                            {getHeaderIcon()}
+                          </div>
+                          <span className="text-lg font-semibold text-gray-700">{getHeaderTitle()}</span>
+                        </div>
+                        <div className="flex space-x-2">
+                          <Can action="accion-crear-ubicacion">
+                            <Button
+                              onClick={handleNewItem}
+                              className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
+                              size="sm"
+                            >
+                              <Plus className="w-4 h-4 mr-2" />
+                              Adicionar Registro
+                            </Button>
+                          </Can>
+                        </div>
+                      </div>
 
-                {/* Filtros */}
-                <div className="p-4 border-b bg-gray-50">
-                  {renderFilters()}
-                  
-                  {/* Mensaje informativo */}
-                  <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded-md">
-                    <p className="text-sm text-blue-700">
-                      <Info className="w-4 h-4 inline mr-2" />
-                      {activeTab === 'paises' 
-                        ? 'Puedes activar o desactivar países. Los departamentos y ciudades dependen del estado del país.'
-                        : activeTab === 'departamentos'
-                        ? 'Solo se muestran departamentos de países activos.'
-                        : activeTab === 'regionales'
-                        ? 'Configura regionales y selecciona los departamentos asociados.'
-                        : activeTab === 'ciudades'
-                        ? 'Solo se muestran ciudades de departamentos y países activos.'
-                        : 'Gestiona sucursales y asigna su ciudad correspondiente.'
-                      }
-                    </p>
-                  </div>
-                </div>
+                      {/* Filtros */}
+                      <div className="p-4 border-b bg-gray-50">
+                        {renderFilters()}
 
-                {/* Tabla */}
-                <div className="overflow-x-auto rounded-lg shadow-sm">
-                  {getLoadingState() ? (
-                    <div className="flex items-center justify-center py-12">
-                      <div className="text-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 mx-auto"></div>
-                        <p className="mt-4 text-gray-600">Cargando {activeTab === 'paises' ? 'países' : activeTab === 'departamentos' ? 'departamentos' : activeTab === 'regionales' ? 'regionales' : activeTab === 'ciudades' ? 'ciudades' : 'sucursales'}...</p>
+                        {/* Mensaje informativo */}
+                        <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                          <p className="text-sm text-blue-700">
+                            <Info className="w-4 h-4 inline mr-2" />
+                            {activeTab === 'paises'
+                              ? 'Puedes activar o desactivar países. Los departamentos y ciudades dependen del estado del país.'
+                              : activeTab === 'departamentos'
+                                ? 'Solo se muestran departamentos de países activos.'
+                                : activeTab === 'regionales'
+                                  ? 'Configura regionales y selecciona los departamentos asociados.'
+                                  : activeTab === 'ciudades'
+                                    ? 'Solo se muestran ciudades de departamentos y países activos.'
+                                    : 'Gestiona sucursales y asigna su ciudad correspondiente.'
+                            }
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Tabla */}
+                      <div className="overflow-x-auto rounded-lg shadow-sm">
+                        {getLoadingState() ? (
+                          <div className="flex items-center justify-center py-12">
+                            <div className="text-center">
+                              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 mx-auto"></div>
+                              <p className="mt-4 text-gray-600">Cargando {activeTab === 'paises' ? 'países' : activeTab === 'departamentos' ? 'departamentos' : activeTab === 'regionales' ? 'regionales' : activeTab === 'ciudades' ? 'ciudades' : 'sucursales'}...</p>
+                            </div>
+                          </div>
+                        ) : getErrorState() ? (
+                          <div className="text-center py-8 text-red-500">
+                            <p className="font-medium">Error al cargar los datos</p>
+                          </div>
+                        ) : (
+                          <Table className="min-w-[800px] w-full text-xs">
+                            <TableHeader className="bg-cyan-50">
+                              <TableRow className="text-left font-semibold text-gray-700">
+                                {getTableHeaders().map((header, index) => (
+                                  <TableHead key={index} className="px-4 py-3 text-teal-600">
+                                    {header}
+                                  </TableHead>
+                                ))}
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {getFilteredData().length === 0 ? (
+                                <TableRow>
+                                  <TableCell colSpan={getTableHeaders().length} className="h-24 text-center">
+                                    <div className="text-gray-500">
+                                      <p className="font-medium mb-2">
+                                        No hay {activeTab === 'paises' ? 'países' : activeTab === 'departamentos' ? 'departamentos' : activeTab === 'regionales' ? 'regionales' : activeTab === 'ciudades' ? 'ciudades' : 'sucursales'} disponibles.
+                                      </p>
+                                      <p className="text-sm">
+                                        {activeTab === 'paises'
+                                          ? 'Todos los países están inactivos o no se encontraron coincidencias con los filtros.'
+                                          : activeTab === 'departamentos'
+                                            ? 'No hay departamentos activos o todos los países están inactivos.'
+                                            : activeTab === 'regionales'
+                                              ? 'No hay regionales activas o todos los departamentos están inactivos.'
+                                              : activeTab === 'ciudades'
+                                                ? 'No hay ciudades activas o todos los departamentos/países están inactivos.'
+                                                : 'No hay sucursales activas o todos los departamentos/países están inactivos.'
+                                        }
+                                      </p>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ) : (
+                                getFilteredData().map((item, index) => renderTableRow(item, index))
+                              )}
+                            </TableBody>
+                          </Table>
+                        )}
                       </div>
                     </div>
-                  ) : getErrorState() ? (
-                    <div className="text-center py-8 text-red-500">
-                      <p className="font-medium">Error al cargar los datos</p>
+                  </TabsContent>
+
+                  <TabsContent value="formulario" className="mt-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-xl font-semibold text-gray-800">
+                        {editingItem ? 'Editar' : 'Nuevo'} {activeTab === 'paises' ? 'País' : activeTab === 'departamentos' ? 'Departamento' : activeTab === 'regionales' ? 'Regional' : activeTab === 'ciudades' ? 'Ciudad' : 'Sucursal'}
+                      </h2>
                     </div>
-                  ) : (
-                    <Table className="min-w-[800px] w-full text-xs">
-                      <TableHeader className="bg-cyan-50">
-                        <TableRow className="text-left font-semibold text-gray-700">
-                          {getTableHeaders().map((header, index) => (
-                            <TableHead key={index} className="px-4 py-3 text-teal-600">
-                              {header}
-                            </TableHead>
-                          ))}
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {getFilteredData().length === 0 ? (
-                          <TableRow>
-                            <TableCell colSpan={getTableHeaders().length} className="h-24 text-center">
-                              <div className="text-gray-500">
-                                <p className="font-medium mb-2">
-                                  No hay {activeTab === 'paises' ? 'países' : activeTab === 'departamentos' ? 'departamentos' : activeTab === 'regionales' ? 'regionales' : activeTab === 'ciudades' ? 'ciudades' : 'sucursales'} disponibles.
-                                </p>
-                                <p className="text-sm">
-                                  {activeTab === 'paises' 
-                                    ? 'Todos los países están inactivos o no se encontraron coincidencias con los filtros.'
-                                    : activeTab === 'departamentos'
-                                    ? 'No hay departamentos activos o todos los países están inactivos.'
-                                    : activeTab === 'regionales'
-                                    ? 'No hay regionales activas o todos los departamentos están inactivos.'
-                                    : activeTab === 'ciudades'
-                                    ? 'No hay ciudades activas o todos los departamentos/países están inactivos.'
-                                    : 'No hay sucursales activas o todos los departamentos/países están inactivos.'
-                                  }
-                                </p>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ) : (
-                          getFilteredData().map((item, index) => renderTableRow(item, index))
-                        )}
-                      </TableBody>
-                    </Table>
-                  )}
-                </div>
-              </div>
-            </TabsContent>
 
-            <TabsContent value="formulario" className="mt-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-gray-800">
-                  {editingItem ? 'Editar' : 'Nuevo'} {activeTab === 'paises' ? 'País' : activeTab === 'departamentos' ? 'Departamento' : activeTab === 'regionales' ? 'Regional' : activeTab === 'ciudades' ? 'Ciudad' : 'Sucursal'}
-                </h2>
-              </div>
+                    {/* Formulario envuelto en Card */}
+                    <Card>
+                      <CardContent className="pt-6">
+                        {renderForm()}
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
 
-              {/* Formulario envuelto en Card */}
-              <Card>
-                <CardContent className="pt-6">
-                  {renderForm()}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Confirmación de eliminación forzada por referencias (FK 23503) */}
-            <AlertDialog open={forceDeleteOpen} onOpenChange={setForceDeleteOpen}>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>¿Eliminar con relaciones asociadas?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {forceDeleteType === 'pais'
-                      ? `Este país tiene departamentos, ciudades o prestadores asociados. Si continúas, se desasociarán los prestadores y se eliminarán en cascada los departamentos y ciudades relacionados.`
-                      : forceDeleteType === 'departamento'
-                      ? `Este departamento tiene ciudades o prestadores asociados. Si continúas, se desasociarán los prestadores y se eliminarán en cascada las ciudades relacionadas.`
-                      : `Esta ciudad está asociada a prestadores. Si continúas, se desasociarán los prestadores y se eliminará la ciudad.`}
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleForceDelete}>Sí, eliminar</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+                  {/* Confirmación de eliminación forzada por referencias (FK 23503) */}
+                  <AlertDialog open={forceDeleteOpen} onOpenChange={setForceDeleteOpen}>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>¿Eliminar con relaciones asociadas?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {forceDeleteType === 'pais'
+                            ? `Este país tiene departamentos, ciudades o prestadores asociados. Si continúas, se desasociarán los prestadores y se eliminarán en cascada los departamentos y ciudades relacionados.`
+                            : forceDeleteType === 'departamento'
+                              ? `Este departamento tiene ciudades o prestadores asociados. Si continúas, se desasociarán los prestadores y se eliminarán en cascada las ciudades relacionadas.`
+                              : `Esta ciudad está asociada a prestadores. Si continúas, se desasociarán los prestadores y se eliminará la ciudad.`}
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleForceDelete}>Sí, eliminar</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
 
                 </Tabs>
               </Can>
@@ -2475,5 +2475,5 @@ export default function UbicacionesPage() {
       </Tabs>
     </div>
   );
-} 
+}
 
