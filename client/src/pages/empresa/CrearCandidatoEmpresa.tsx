@@ -21,6 +21,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CustomDatePicker } from '@/components/ui/date-picker';
 
 const candidatoSchema = z.object({
   nombres: z.string().min(2, 'Nombres requeridos'),
@@ -227,10 +228,14 @@ export default function CrearCandidatoEmpresa() {
                         <FormItem>
                           <FormLabel>Fecha de Nacimiento</FormLabel>
                           <FormControl>
-                            <div className="relative">
-                              <Calendar className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                              <Input {...field} type="date" className="pl-10" />
-                            </div>
+                            <CustomDatePicker
+                              value={field.value ? new Date(field.value) : null}
+                              onChange={(date) => {
+                                field.onChange(date ? date.toISOString().split('T')[0] : '');
+                              }}
+                              placeholder="Seleccionar fecha de nacimiento"
+                              maxDate={new Date()}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>

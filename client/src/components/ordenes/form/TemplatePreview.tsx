@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useTiposCandidatos } from "@/hooks/useTiposCandidatos";
 import { useDatabaseData } from "@/hooks/useDatabaseData";
+import { CustomDatePicker } from "@/components/ui/date-picker";
 
 interface TemplatePreviewProps {
   configuracion?: Record<string, { visible: boolean; required: boolean }>;
@@ -78,10 +79,11 @@ function TemplateFormPreview({ estructuraFormulario }: { estructuraFormulario: a
             <Label htmlFor={fieldId} className="text-sm font-medium block">
               {campo.label} {isRequired && <span className="text-red-500">*</span>}
             </Label>
-            <Input
-              id={fieldId}
-              type="date"
-              disabled
+            <CustomDatePicker
+              value={null}
+              onChange={() => {}}
+              placeholder="Seleccionar fecha"
+              disabled={true}
               className="bg-gray-50 text-sm w-full"
             />
           </div>
@@ -312,10 +314,11 @@ const CAMPOS_DISPONIBLES = [
             <Label htmlFor={campo.key} className="text-sm font-medium">
               {campo.label} {isRequired && <span className="text-red-500">*</span>}
             </Label>
-            <Input
-              id={campo.key}
-              type="date"
-              disabled
+            <CustomDatePicker
+              value={null}
+              onChange={() => {}}
+              placeholder="Seleccionar fecha"
+              disabled={true}
               className="bg-gray-50 text-sm"
             />
           </div>
