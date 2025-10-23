@@ -400,7 +400,7 @@ export const DatosPersonalesForm: React.FC<DatosPersonalesFormProps> = ({ formDa
             Fecha Nacimiento
           </label>
           <CustomDatePicker
-            value={formData.fechaNacimiento ? new Date(formData.fechaNacimiento) : null}
+            value={formData.fechaNacimiento ? new Date(formData.fechaNacimiento + 'T00:00:00') : null}
             onChange={(date) => {
               if (date) {
                 // Crear fecha local sin problemas de zona horaria

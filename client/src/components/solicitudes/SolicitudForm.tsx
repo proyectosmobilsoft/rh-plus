@@ -341,7 +341,7 @@ const SolicitudForm: React.FC<SolicitudFormProps> = ({
                     <FormLabel>Fecha de Ingreso</FormLabel>
                     <FormControl>
                       <CustomDatePicker
-                        value={field.value ? new Date(field.value) : null}
+                        value={field.value ? new Date(field.value + 'T00:00:00') : null}
                         onChange={(date) => {
                           if (date) {
                             // Crear fecha local sin problemas de zona horaria

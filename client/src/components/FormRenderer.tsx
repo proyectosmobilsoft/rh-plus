@@ -264,7 +264,7 @@ const FormRenderer: React.FC<FormRendererProps> = ({
 
           {tipo === 'date' && (
             <CustomDatePicker
-              value={value ? new Date(value) : null}
+              value={value ? new Date(value + 'T00:00:00') : null}
               onChange={(date) => {
                 if (date) {
                   // Crear fecha local sin problemas de zona horaria
@@ -550,7 +550,7 @@ const FormRenderer: React.FC<FormRendererProps> = ({
 
                   {campo.tipo === 'date' && (
                     <CustomDatePicker
-                      value={formData[campo.nombre] ? new Date(formData[campo.nombre]) : null}
+                      value={formData[campo.nombre] ? new Date(formData[campo.nombre] + 'T00:00:00') : null}
                       onChange={(date) => {
                         if (date) {
                           // Crear fecha local sin problemas de zona horaria
