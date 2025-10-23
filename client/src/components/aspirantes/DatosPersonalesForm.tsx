@@ -402,8 +402,16 @@ export const DatosPersonalesForm: React.FC<DatosPersonalesFormProps> = ({ formDa
           <CustomDatePicker
             value={formData.fechaNacimiento ? new Date(formData.fechaNacimiento) : null}
             onChange={(date) => {
-              const fechaString = date ? date.toISOString().split('T')[0] : '';
-              handleInputChange({ target: { name: 'fechaNacimiento', value: fechaString } });
+              if (date) {
+                // Crear fecha local sin problemas de zona horaria
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const fechaString = `${year}-${month}-${day}`;
+                handleInputChange({ target: { name: 'fechaNacimiento', value: fechaString } });
+              } else {
+                handleInputChange({ target: { name: 'fechaNacimiento', value: '' } });
+              }
             }}
             placeholder="Seleccionar fecha de nacimiento"
             maxDate={new Date()} // No permitir fechas futuras
