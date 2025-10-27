@@ -57,6 +57,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ubicacionesService, Pais, Departamento, Ciudad } from '@/services/ubicacionesService';
+import { empresasService } from '@/services/empresasService';
 import { setupUbicaciones } from '@/services/setupUbicaciones';
 import { useLoading } from '@/contexts/LoadingContext';
 import { PaisForm } from '@/components/ubicaciones/PaisForm';
@@ -67,6 +68,7 @@ import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, Command
 import { cn } from "@/lib/utils";
 import { useRegisterView } from "@/hooks/useRegisterView";
 import { Can } from "@/contexts/PermissionsContext";
+import { obtenerEmpresaSeleccionada } from "@/utils/empresaUtils";
 
 export default function UbicacionesPage() {
   const navigate = useNavigate();
@@ -189,6 +191,7 @@ export default function UbicacionesPage() {
   const [openCiudadSucursal, setOpenCiudadSucursal] = useState(false);
   const [codigoSucursal, setCodigoSucursal] = useState<string>('');
   const [ciudadIdSucursal, setCiudadIdSucursal] = useState<number | null>(null);
+  const [selectedEmpresaSucursal, setSelectedEmpresaSucursal] = useState<number | null>(null);
 
   // Cargar datos usando React Query
   const { data: paises = [], isLoading: paisesLoading, error: paisesError } = useQuery({
@@ -235,7 +238,7 @@ export default function UbicacionesPage() {
     staleTime: 5 * 60 * 1000, // 5 minutos
   });
 
-  // useEffect para inicializar el departamento y ciudad cuando se está editando una sucursal
+  // useEffect para inicializar el departamento, ciudad y empresa cuando se está editando una sucursal
   useEffect(() => {
     if (editingItem && activeTab === 'sucursales' && ciudades.length > 0 && editingItem.ciudad_id) {
       try {
@@ -244,6 +247,10 @@ export default function UbicacionesPage() {
           setSelectedDepartamentoSucursal(ciudadSucursal.departamento_id);
           setSelectedCiudadSucursal(editingItem.ciudad_id);
           setCiudadIdSucursal(editingItem.ciudad_id);
+        }
+        // Inicializar empresa_id si existe
+        if ((editingItem as any).empresa_id) {
+          setSelectedEmpresaSucursal((editingItem as any).empresa_id);
         }
       } catch (error) {
         console.warn('Error inicializando departamento para sucursal:', error);
@@ -256,6 +263,7 @@ export default function UbicacionesPage() {
       setSelectedDepartamentoSucursal(null);
       setSelectedCiudadSucursal(null);
       setCiudadIdSucursal(null);
+      setSelectedEmpresaSucursal(null);
     }
   }, [editingItem, activeTab, ciudades]);
 
@@ -268,6 +276,21 @@ export default function UbicacionesPage() {
       return data || [];
     },
     staleTime: 5 * 60 * 1000,
+  });
+
+  // Cargar empresas para el selector de empresa en sucursales
+  const { data: empresas = [], isLoading: empresasLoading } = useQuery({
+    queryKey: ['empresas'],
+    queryFn: async () => {
+      try {
+        const data = await empresasService.getAll();
+        return data || [];
+      } catch (error) {
+        console.error('Error cargando empresas:', error);
+        return [];
+      }
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutos
   });
 
 
@@ -386,17 +409,21 @@ export default function UbicacionesPage() {
   });
 
   // Filtrar sucursales
+  const empresaUsuario = obtenerEmpresaSeleccionada();
   const filteredSucursales = (sucursales || []).filter(s => {
     const q = searchSucursales.toLowerCase();
-    return (
-      ((s.nombre || '').toLowerCase().includes(q) ||
+    const matchSearch = (
+      (s.nombre || '').toLowerCase().includes(q) ||
       (s.codigo || '').toLowerCase().includes(q) ||
       (s.direccion || '').toLowerCase().includes(q) ||
       (s.telefono || '').toLowerCase().includes(q) ||
       (s.email || '').toLowerCase().includes(q) ||
-      (s.ciudades?.nombre || '').toLowerCase().includes(q)) &&
-      (statusSucursales === 'all' ? true : statusSucursales === 'active' ? s.activo === true : s.activo === false)
+      (s.ciudades?.nombre || '').toLowerCase().includes(q)
     );
+    const matchStatus = (statusSucursales === 'all' ? true : statusSucursales === 'active' ? s.activo === true : s.activo === false);
+    // Si el usuario tiene empresa, solo mostrar sucursales de esa empresa
+    const matchEmpresa = empresaUsuario ? s.empresa_id === empresaUsuario.id : true;
+    return matchSearch && matchStatus && matchEmpresa;
   });
 
   // Obtener países únicos para filtros
@@ -762,7 +789,7 @@ export default function UbicacionesPage() {
       case 'ciudades':
         return ['Acciones', 'Nombre', 'Código DANE', 'Departamento', 'País', 'Regional', 'Estado'];
       case 'sucursales':
-        return ['Acciones', 'Código', 'Nombre', 'Dirección', 'Ciudad', 'Teléfono', 'Email', 'Estado'];
+        return ['Acciones', 'Código', 'Nombre', 'Dirección', 'Ciudad', 'Teléfono', 'Empresa', 'Estado'];
       default:
         return [];
     }
@@ -1528,7 +1555,7 @@ export default function UbicacionesPage() {
             <TableCell className="px-4 py-3 text-sm text-gray-500">{item.direccion ?? '-'}</TableCell>
             <TableCell className="px-4 py-3 text-sm text-gray-500">{item.ciudades?.nombre ?? '-'}</TableCell>
             <TableCell className="px-4 py-3 text-sm text-gray-500">{item.telefono ?? '-'}</TableCell>
-            <TableCell className="px-4 py-3 text-sm text-gray-500">{item.email ?? '-'}</TableCell>
+            <TableCell className="px-4 py-3 text-sm text-gray-500">{item.empresas?.razon_social ?? '-'}</TableCell>
             <TableCell className="px-4 py-3 text-sm">
               <Badge variant={item.activo ? "default" : "secondary"} className={item.activo ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
                 {item.activo ? 'Activo' : 'Inactivo'}
@@ -2013,6 +2040,8 @@ export default function UbicacionesPage() {
           e.preventDefault();
           try {
             startLoading();
+            // Usar la empresa del usuario si está autenticado con empresa
+            const empresaUsuario = obtenerEmpresaSeleccionada();
             const payload = {
               codigo: codigoSucursal || undefined,
               nombre: (document.getElementById('suc-nombre') as HTMLInputElement)?.value || '',
@@ -2020,6 +2049,7 @@ export default function UbicacionesPage() {
               telefono: (document.getElementById('suc-telefono') as HTMLInputElement)?.value || undefined,
               email: (document.getElementById('suc-email') as HTMLInputElement)?.value || undefined,
               ciudad_id: ciudadIdSucursal,
+              empresa_id: empresaUsuario ? empresaUsuario.id : selectedEmpresaSucursal,
             };
             
             console.log('🏢 Guardando sucursal:', payload);
@@ -2034,6 +2064,7 @@ export default function UbicacionesPage() {
             setSelectedDepartamentoSucursal(null);
             setSelectedCiudadSucursal(null);
             setCiudadIdSucursal(null);
+            setSelectedEmpresaSucursal(null);
             handleSaved();
           } catch (err) {
             console.error('Error guardando sucursal:', err);
@@ -2056,9 +2087,28 @@ export default function UbicacionesPage() {
                   placeholder="Se genera automáticamente"
                 />
               </div>
-              <div className="col-span-3">
+              <div className="col-span-4">
                 <label className="block text-sm font-medium mb-1">Nombre *</label>
                 <Input id="suc-nombre" defaultValue={editingItem?.nombre || ''} />
+              </div>
+              <div className="col-span-3">
+                <label className="block text-sm font-medium mb-1">Empresa / Cliente</label>
+                <Select 
+                  value={empresaUsuario ? empresaUsuario.id.toString() : (selectedEmpresaSucursal ? selectedEmpresaSucursal.toString() : undefined)} 
+                  onValueChange={(value) => setSelectedEmpresaSucursal(value ? parseInt(value) : null)}
+                  disabled={!!empresaUsuario}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar empresa" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {empresas.map(empresa => (
+                      <SelectItem key={empresa.id} value={empresa.id.toString()}>
+                        {empresa.razon_social}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="col-span-3">
                 <label className="block text-sm font-medium mb-1">Departamento *</label>
@@ -2099,7 +2149,9 @@ export default function UbicacionesPage() {
                   </PopoverContent>
                 </Popover>
               </div>
-              <div className="col-span-4">
+            </div>
+            <div className="grid grid-cols-12 gap-4">
+              <div className="col-span-3">
                 <label className="block text-sm font-medium mb-1">Ciudad *</label>
                 <Popover open={openCiudadSucursal} onOpenChange={setOpenCiudadSucursal}>
                   <PopoverTrigger asChild>
@@ -2146,7 +2198,7 @@ export default function UbicacionesPage() {
                   </PopoverContent>
                 </Popover>
               </div>
-              <div className="col-span-4">
+              <div className="col-span-3">
                 <label className="block text-sm font-medium mb-1">Dirección</label>
                 <Input id="suc-direccion" defaultValue={editingItem?.direccion || ''} />
               </div>
@@ -2154,9 +2206,12 @@ export default function UbicacionesPage() {
                 <label className="block text-sm font-medium mb-1">Teléfono</label>
                 <Input id="suc-telefono" defaultValue={editingItem?.telefono || ''} />
               </div>
-              <div className="col-span-5">
+              <div className="col-span-3">
                 <label className="block text-sm font-medium mb-1">Email</label>
                 <Input id="suc-email" defaultValue={editingItem?.email || ''} />
+              </div>
+              <div className="col-span-3">
+                {/* Espacio vacío para alineación */}
               </div>
             </div>
             <div className="flex justify-end space-x-2">

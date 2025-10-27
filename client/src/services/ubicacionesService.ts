@@ -55,9 +55,11 @@ export interface Sucursal {
   email?: string;
   activo: boolean;
   ciudad_id?: number | null;
+  empresa_id?: number | null;
   created_at?: string;
   updated_at?: string;
   ciudades?: { id: number; nombre: string; departamento_id: number } | null;
+  empresas?: { id: number; razon_social: string } | null;
 }
 
 export const ubicacionesService = {
@@ -309,6 +311,10 @@ export const ubicacionesService = {
           id,
           nombre,
           departamento_id
+        ),
+        empresas (
+          id,
+          razon_social
         )
       `)
       .order('nombre');
@@ -326,6 +332,7 @@ export const ubicacionesService = {
         telefono: payload.telefono,
         email: payload.email,
         ciudad_id: payload.ciudad_id ?? null,
+        empresa_id: payload.empresa_id ?? null,
       }])
       .select(`
         *,
@@ -350,6 +357,7 @@ export const ubicacionesService = {
         telefono: payload.telefono,
         email: payload.email,
         ciudad_id: payload.ciudad_id ?? null,
+        empresa_id: payload.empresa_id ?? null,
       })
       .eq('id', id)
       .select(`

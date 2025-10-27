@@ -50,15 +50,19 @@ export const analistaAsignacionService = {
 
       // Filtrar analistas: deben pertenecer a la empresa de la solicitud
       const analistasElegibles = analistas.filter(analista => {
-        // Solo considerar filas cuya empresa coincida con la empresa de la solicitud
-        if (!analista.empresa_id || analista.empresa_id !== empresaId) {
-          console.log(`❌ Analista ${analista.usuario_nombre} (ID: ${analista.usuario_id}) no coincide con empresa ${empresaId} (tiene: ${analista.empresa_id})`);
-          return false;
-        }
-
         // Verificar si el analista tiene prioridades configuradas
         const tienePrioridades = analista.nivel_prioridad_1 || analista.nivel_prioridad_2 || analista.nivel_prioridad_3;
         if (!tienePrioridades) return false;
+
+        // Verificar si la empresa de la solicitud está en los IDs del analista (array o legacy)
+        const empresaIds = analista.empresa_ids || [];
+        const empresaIdLegacy = analista.empresa_id;
+        const tieneEmpresa = empresaIds.includes(empresaId) || empresaIdLegacy === empresaId;
+        
+        if (!tieneEmpresa) {
+          console.log(`❌ Analista ${analista.usuario_nombre} (ID: ${analista.usuario_id}) no tiene empresa ${empresaId} en su lista de empresas`);
+          return false;
+        }
 
         // Verificar tipos de prioridad válidos dentro de esta asociación
         const prioridades = [
@@ -71,12 +75,16 @@ export const analistaAsignacionService = {
           if (!prioridad.valor) return false;
           switch (prioridad.valor) {
             case 'cliente':
-              // Empresa ya coincide por la fila
+              // Empresa ya coincide
               return true;
             case 'sucursal':
-              return sucursalId != null && analista.sucursal_id === sucursalId;
+              // Verificar si la sucursal de la solicitud está en los IDs del analista
+              if (!sucursalId) return false;
+              const sucursalIds = analista.sucursal_ids || [];
+              const sucursalIdLegacy = analista.sucursal_id;
+              return sucursalIds.includes(sucursalId) || sucursalIdLegacy === sucursalId;
             case 'solicitudes':
-              // Debe ser de la misma empresa igualmente
+              // Debe ser de la misma empresa
               return true;
             default:
               return false;

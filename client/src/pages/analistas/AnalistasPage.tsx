@@ -675,11 +675,25 @@ export default function AnalistasPage() {
                             ) : (
                               <span className="text-gray-400">-</span>
                             )}
-                            {analista.nivel_prioridad_1 === 'cliente' && analista.empresa_nombre && (
-                              <div className="text-xs text-gray-500">{analista.empresa_nombre}</div>
+                            {analista.nivel_prioridad_1 === 'cliente' && analista.empresa_ids && analista.empresa_ids.length > 0 && (
+                              <div className="text-xs text-gray-500 space-y-0.5">
+                                {analista.empresa_ids.map((empId) => {
+                                  const empresa = empresas.find(e => e.id === empId);
+                                  return empresa ? (
+                                    <div key={empId}>{empresa.razon_social}</div>
+                                  ) : null;
+                                })}
+                              </div>
                             )}
-                            {analista.nivel_prioridad_1 === 'sucursal' && analista.sucursal_nombre && (
-                              <div className="text-xs text-gray-500">{analista.sucursal_nombre}</div>
+                            {analista.nivel_prioridad_1 === 'sucursal' && analista.sucursal_ids && analista.sucursal_ids.length > 0 && (
+                              <div className="text-xs text-gray-500 space-y-0.5">
+                                {analista.sucursal_ids.map((sucId) => {
+                                  const sucursal = sucursales.find(s => s.id === sucId);
+                                  return sucursal ? (
+                                    <div key={sucId}>{sucursal.nombre}</div>
+                                  ) : null;
+                                })}
+                              </div>
                             )}
                           </div>
                         </TableCell>
@@ -696,11 +710,25 @@ export default function AnalistasPage() {
                             ) : (
                               <span className="text-gray-400">-</span>
                             )}
-                            {analista.nivel_prioridad_2 === 'cliente' && analista.empresa_nombre && (
-                              <div className="text-xs text-gray-500">{analista.empresa_nombre}</div>
+                            {analista.nivel_prioridad_2 === 'cliente' && analista.empresa_ids && analista.empresa_ids.length > 0 && (
+                              <div className="text-xs text-gray-500 space-y-0.5">
+                                {analista.empresa_ids.map((empId) => {
+                                  const empresa = empresas.find(e => e.id === empId);
+                                  return empresa ? (
+                                    <div key={empId}>{empresa.razon_social}</div>
+                                  ) : null;
+                                })}
+                              </div>
                             )}
-                            {analista.nivel_prioridad_2 === 'sucursal' && analista.sucursal_nombre && (
-                              <div className="text-xs text-gray-500">{analista.sucursal_nombre}</div>
+                            {analista.nivel_prioridad_2 === 'sucursal' && analista.sucursal_ids && analista.sucursal_ids.length > 0 && (
+                              <div className="text-xs text-gray-500 space-y-0.5">
+                                {analista.sucursal_ids.map((sucId) => {
+                                  const sucursal = sucursales.find(s => s.id === sucId);
+                                  return sucursal ? (
+                                    <div key={sucId}>{sucursal.nombre}</div>
+                                  ) : null;
+                                })}
+                              </div>
                             )}
                           </div>
                         </TableCell>
@@ -717,11 +745,25 @@ export default function AnalistasPage() {
                             ) : (
                               <span className="text-gray-400">-</span>
                             )}
-                            {analista.nivel_prioridad_3 === 'cliente' && analista.empresa_nombre && (
-                              <div className="text-xs text-gray-500">{analista.empresa_nombre}</div>
+                            {analista.nivel_prioridad_3 === 'cliente' && analista.empresa_ids && analista.empresa_ids.length > 0 && (
+                              <div className="text-xs text-gray-500 space-y-0.5">
+                                {analista.empresa_ids.map((empId) => {
+                                  const empresa = empresas.find(e => e.id === empId);
+                                  return empresa ? (
+                                    <div key={empId}>{empresa.razon_social}</div>
+                                  ) : null;
+                                })}
+                              </div>
                             )}
-                            {analista.nivel_prioridad_3 === 'sucursal' && analista.sucursal_nombre && (
-                              <div className="text-xs text-gray-500">{analista.sucursal_nombre}</div>
+                            {analista.nivel_prioridad_3 === 'sucursal' && analista.sucursal_ids && analista.sucursal_ids.length > 0 && (
+                              <div className="text-xs text-gray-500 space-y-0.5">
+                                {analista.sucursal_ids.map((sucId) => {
+                                  const sucursal = sucursales.find(s => s.id === sucId);
+                                  return sucursal ? (
+                                    <div key={sucId}>{sucursal.nombre}</div>
+                                  ) : null;
+                                })}
+                              </div>
                             )}
                           </div>
                         </TableCell>

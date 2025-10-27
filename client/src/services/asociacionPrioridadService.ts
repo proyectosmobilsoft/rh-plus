@@ -3,8 +3,8 @@ import { supabase } from './supabaseClient';
 export interface AsociacionPrioridad {
   id?: number;
   usuario_id: number;
-  empresa_id?: number;
-  sucursal_id?: number;
+  empresa_ids?: number[];
+  sucursal_ids?: number[];
   nivel_prioridad_1: string | null;
   nivel_prioridad_2: string | null;
   nivel_prioridad_3: string | null;
@@ -17,11 +17,13 @@ export interface AnalistaPrioridad {
   usuario_id: number;
   usuario_nombre: string;
   usuario_email: string;
-  empresa_id?: number;
+  empresa_id?: number; // Legacy field, extraído de empresa_ids[0]
+  empresa_ids?: number[];
   empresa_nombre?: string;
   empresa_nit?: string;
   empresa_direccion?: string;
-  sucursal_id?: number;
+  sucursal_id?: number; // Legacy field, extraído de sucursal_ids[0]
+  sucursal_ids?: number[];
   sucursal_nombre?: string;
   nivel_prioridad_1: string | null;
   nivel_prioridad_2: string | null;
@@ -43,26 +45,18 @@ export const asociacionPrioridadService = {
         .from('analista_prioridades')
         .select(`
           usuario_id,
-          empresa_id,
+          empresa_ids,
+          sucursal_ids,
           nivel_prioridad_1,
           nivel_prioridad_2,
           nivel_prioridad_3,
           cantidad_solicitudes,
-          empresa_nombre,
-          empresa_nit,
-          empresa_direccion,
           gen_usuarios!inner(
             username,
             email,
             primer_nombre,
             primer_apellido,
             activo
-          ),
-          empresas(
-            id,
-            razon_social,
-            nit,
-            direccion
           )
         `)
         .eq('gen_usuarios.rol_id', 4)
@@ -73,21 +67,29 @@ export const asociacionPrioridadService = {
         return [];
       }
 
-      const result: AnalistaPrioridad[] = (data || []).map((item: any) => ({
-        usuario_id: item.usuario_id,
-        usuario_nombre: `${item.gen_usuarios.primer_nombre || ''} ${item.gen_usuarios.primer_apellido || ''}`.trim() || item.gen_usuarios.username,
-        usuario_email: item.gen_usuarios.email,
-        empresa_id: item.empresa_id,
-        empresa_nombre: item.empresa_nombre || item.empresas?.razon_social || '',
-        empresa_nit: item.empresa_nit || item.empresas?.nit || '',
-        empresa_direccion: item.empresa_direccion || item.empresas?.direccion || '',
-        nivel_prioridad_1: item.nivel_prioridad_1,
-        nivel_prioridad_2: item.nivel_prioridad_2,
-        nivel_prioridad_3: item.nivel_prioridad_3,
-        cantidad_configurada: item.cantidad_solicitudes || 0,
-        cantidad_asignadas: 0,
-        cantidad_solicitudes: 0,
-      }));
+      const result: AnalistaPrioridad[] = (data || []).map((item: any) => {
+        const empresaIds = item.empresa_ids || [];
+        const sucursalIds = item.sucursal_ids || [];
+        return {
+          usuario_id: item.usuario_id,
+          usuario_nombre: `${item.gen_usuarios.primer_nombre || ''} ${item.gen_usuarios.primer_apellido || ''}`.trim() || item.gen_usuarios.username,
+          usuario_email: item.gen_usuarios.email,
+          empresa_id: empresaIds.length > 0 ? empresaIds[0] : undefined,
+          empresa_ids: empresaIds,
+          sucursal_id: sucursalIds.length > 0 ? sucursalIds[0] : undefined,
+          sucursal_ids: sucursalIds,
+          empresa_nombre: '',
+          empresa_nit: '',
+          empresa_direccion: '',
+          sucursal_nombre: '',
+          nivel_prioridad_1: item.nivel_prioridad_1,
+          nivel_prioridad_2: item.nivel_prioridad_2,
+          nivel_prioridad_3: item.nivel_prioridad_3,
+          cantidad_configurada: item.cantidad_solicitudes || 0,
+          cantidad_asignadas: 0,
+          cantidad_solicitudes: 0,
+        };
+      });
 
       return result;
     } catch (error) {
@@ -168,22 +170,12 @@ export const asociacionPrioridadService = {
         const { data: prioridades, error: prioridadesError } = await supabase
           .from('analista_prioridades')
           .select(`
-            empresa_id,
-            sucursal_id,
+            empresa_ids,
+            sucursal_ids,
             nivel_prioridad_1,
             nivel_prioridad_2,
             nivel_prioridad_3,
-            cantidad_solicitudes,
-            empresas(
-              id,
-              razon_social,
-              nit,
-              direccion
-            ),
-            gen_sucursales(
-              id,
-              nombre
-            )
+            cantidad_solicitudes
           `)
           .eq('usuario_id', analista.id);
 
@@ -202,16 +194,24 @@ export const asociacionPrioridadService = {
 
         if (prioridades && prioridades.length > 0) {
           for (const prioridad of prioridades) {
+            // Extraer los arrays de IDs (si existen)
+            const empresaIds = prioridad.empresa_ids || [];
+            const sucursalIds = prioridad.sucursal_ids || [];
+            
+            // Usar el primer ID si existe
+            const primeraEmpresaId = empresaIds.length > 0 ? empresaIds[0] : undefined;
+            const primeraSucursalId = sucursalIds.length > 0 ? sucursalIds[0] : undefined;
+            
             analistasConPrioridades.push({
               usuario_id: analista.id,
               usuario_nombre: `${analista.primer_nombre || ''} ${analista.primer_apellido || ''}`.trim() || analista.username,
               usuario_email: analista.email,
-              empresa_id: prioridad.empresa_id,
-              empresa_nombre: (prioridad.empresas as any)?.razon_social || '',
-              empresa_nit: (prioridad.empresas as any)?.nit || '',
-              empresa_direccion: (prioridad.empresas as any)?.direccion || '',
-              sucursal_id: prioridad.sucursal_id,
-              sucursal_nombre: (prioridad.gen_sucursales as any)?.nombre || '',
+              empresa_id: primeraEmpresaId,
+              empresa_nombre: '',
+              empresa_nit: '',
+              empresa_direccion: '',
+              sucursal_id: primeraSucursalId,
+              sucursal_nombre: '',
               nivel_prioridad_1: prioridad.nivel_prioridad_1,
               nivel_prioridad_2: prioridad.nivel_prioridad_2,
               nivel_prioridad_3: prioridad.nivel_prioridad_3,
@@ -219,7 +219,10 @@ export const asociacionPrioridadService = {
               cantidad_asignadas: solicitudesReales || 0,
               // Mantener compatibilidad: usar asignadas en cantidad_solicitudes para la columna general
               cantidad_solicitudes: solicitudesReales || 0,
-              roles
+              roles,
+              // Agregar los arrays completos para referencia
+              empresa_ids: empresaIds,
+              sucursal_ids: sucursalIds
             });
           }
         } else {
@@ -259,11 +262,10 @@ export const asociacionPrioridadService = {
   // Crear o actualizar asociación de prioridad
   upsert: async (asociacion: Omit<AsociacionPrioridad, 'id' | 'created_at' | 'updated_at'>): Promise<AsociacionPrioridad | null> => {
     try {
+      // Insertar el nuevo registro (las prioridades existentes ya fueron eliminadas antes de llamar a este método)
       const { data, error } = await supabase
         .from('analista_prioridades')
-        .upsert([asociacion], {
-          onConflict: 'usuario_id,empresa_id'
-        })
+        .insert(asociacion)
         .select()
         .single();
 
@@ -309,8 +311,8 @@ export const asociacionPrioridadService = {
         .select(`
           id,
           usuario_id,
-          empresa_id,
-          sucursal_id,
+          empresa_ids,
+          sucursal_ids,
           nivel_prioridad_1,
           nivel_prioridad_2,
           nivel_prioridad_3,

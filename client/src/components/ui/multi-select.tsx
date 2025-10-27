@@ -36,6 +36,9 @@ interface MultiSelectProps {
   isLoading?: boolean;
 }
 
+// Agregar exports para React Hook Form
+export { Option as MultiSelectOption };
+
 export function MultiSelect({
   options,
   selected,
