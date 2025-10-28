@@ -15,6 +15,7 @@ import FormBuilder from "@/components/FormBuilder";
 import { useMemo } from "react";
 import { v4 as uuidv4 } from 'uuid';
 import { plantillasService } from '@/services/plantillasService';
+import { toast } from "sonner";
 
 // Definir los campos disponibles para plantillas de órdenes
 const CAMPOS_DISPONIBLES = [

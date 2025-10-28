@@ -22,6 +22,7 @@ import { empresaService } from "@/services/empresaService";
 import { useLoading } from "@/contexts/LoadingContext";
 import { useRegisterView } from "@/hooks/useRegisterView";
 import { Can } from "@/contexts/PermissionsContext";
+import { toast } from "sonner";
 
 export default function RegistroEmpresas() {
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
