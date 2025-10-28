@@ -601,7 +601,9 @@ function CentroCostoForm({ editingCentroCosto, onSaved, sucursales }: CentroCost
       onSaved();
     } catch (error) {
       console.error('Error guardando centro de costo:', error);
-      toast.error('Error al guardar el centro de costo');
+      // Mostrar el mensaje específico del error si está disponible
+      const errorMessage = error instanceof Error ? error.message : 'Error al guardar el centro de costo';
+      toast.error(errorMessage);
     } finally {
       stopLoading();
       setLoading(false);
