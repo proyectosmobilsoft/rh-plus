@@ -65,7 +65,7 @@ export default function RegistroEmpresas() {
       if (empresaCompleta) {
         console.log('Empresa completa obtenida:', empresaCompleta);
         console.log('Plantillas asociadas:', empresaCompleta.plantillas);
-        setEditingCompany(empresaCompleta);
+        setEditingCompany(empresaCompleta as Company);
         setActiveTab("registro");
       } else {
         toast.error("No se pudo obtener la información completa de la empresa");

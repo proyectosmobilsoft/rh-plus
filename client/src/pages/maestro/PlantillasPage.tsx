@@ -633,24 +633,15 @@ const PlantillasPage: React.FC = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <AlertDialogAction 
-                    onClick={() => {
-                      console.log('🖱️ Botón "Sí, eliminar" clickeado');
-                      confirmDelete(templateToAction!);
-                    }} 
-                    className="bg-red-600 hover:bg-red-700"
-                  >
-                    Sí, eliminar
-                  </AlertDialogAction>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Confirmar eliminación permanente</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <AlertDialogAction 
+              onClick={() => {
+                console.log('🖱️ Botón "Sí, eliminar" clickeado');
+                confirmDelete(templateToAction!);
+              }} 
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Sí, eliminar
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -666,24 +657,15 @@ const PlantillasPage: React.FC = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <AlertDialogAction 
-                    onClick={() => {
-                      console.log('🖱️ Botón "Sí, activar" clickeado');
-                      confirmActivate(templateToAction!);
-                    }} 
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    Sí, activar
-                  </AlertDialogAction>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Confirmar activación de plantilla</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <AlertDialogAction 
+              onClick={() => {
+                console.log('🖱️ Botón "Sí, activar" clickeado');
+                confirmActivate(templateToAction!);
+              }} 
+              className="bg-green-600 hover:bg-green-700"
+            >
+              Sí, activar
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -699,24 +681,15 @@ const PlantillasPage: React.FC = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <AlertDialogAction 
-                    onClick={() => {
-                      console.log('🖱️ Botón "Sí, inactivar" clickeado');
-                      confirmDeactivate(templateToAction!); // Pass the templateToAction directly
-                    }} 
-                    className="bg-yellow-600 hover:bg-yellow-700"
-                  >
-                    Sí, inactivar
-                  </AlertDialogAction>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Confirmar inactivación de plantilla</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <AlertDialogAction 
+              onClick={() => {
+                console.log('🖱️ Botón "Sí, inactivar" clickeado');
+                confirmDeactivate(templateToAction!); // Pass the templateToAction directly
+              }} 
+              className="bg-yellow-600 hover:bg-yellow-700"
+            >
+              Sí, inactivar
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -732,24 +705,15 @@ const PlantillasPage: React.FC = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <AlertDialogAction 
-                    onClick={() => {
-                      console.log('🖱️ Botón "Sí, establecer" clickeado');
-                      confirmSetDefault(templateToAction!);
-                    }} 
-                    className="bg-purple-600 hover:bg-purple-700"
-                  >
-                    Sí, establecer
-                  </AlertDialogAction>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Confirmar establecimiento como predeterminada</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <AlertDialogAction 
+              onClick={() => {
+                console.log('🖱️ Botón "Sí, establecer" clickeado');
+                confirmSetDefault(templateToAction!);
+              }}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              Sí, establecer
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
