@@ -141,20 +141,23 @@ class CentrosCostoService {
       // Primero verificar que el registro existe
       const { data: existingData, error: checkError } = await supabase
         .from('centros_costo')
-        .select('id')
-        .eq('id', id)
-        .single();
+        .select('id, activo')
+        .eq('id', id);
+
+      console.log('🔍 Verificación de existencia - ID:', id, 'Datos encontrados:', existingData, 'Error:', checkError);
 
       if (checkError) {
         logError('verificar existencia centro de costo', checkError);
         throw new Error('El centro de costo no existe o no se puede encontrar');
       }
 
-      if (!existingData) {
+      if (!existingData || existingData.length === 0) {
         throw new Error('El centro de costo no existe');
       }
 
-      // Realizar la actualización
+      console.log('✅ Centro de costo encontrado, procediendo con actualización...');
+
+      // Realizar la actualización sin .single() para evitar el error PGRST116
       const { data, error } = await supabase
         .from('centros_costo')
         .update({
@@ -169,16 +172,19 @@ class CentrosCostoService {
             nombre,
             codigo
           )
-        `)
-        .single();
+        `);
 
       if (error) {
         logError('actualizar centro de costo', error);
         throw new Error(handleServiceError(error, 'Error al actualizar el centro de costo'));
       }
 
-      console.log('✅ Centro de costo actualizado exitosamente:', data);
-      return data;
+      if (!data || data.length === 0) {
+        throw new Error('No se pudo actualizar el centro de costo. El registro puede no existir.');
+      }
+
+      console.log('✅ Centro de costo actualizado exitosamente:', data[0]);
+      return data[0];
     } catch (error) {
       logError('update centro de costo', error);
       throw error;
