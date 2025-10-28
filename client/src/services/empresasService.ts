@@ -58,7 +58,7 @@ export const obtenerEmpresas = async (): Promise<Empresa[]> => {
     const { data, error } = await supabase
       .from('empresas')
       .select('*, logo_base64, created_at')
-      .order('created_at', { ascending: false });
+      .order('razon_social', { ascending: true });
 
     if (error) {
       console.error('Error al obtener empresas:', error);
