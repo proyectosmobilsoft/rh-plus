@@ -34,6 +34,7 @@ import { sucursalesService, Sucursal } from "@/services/sucursalesService";
 import { useLoading } from '@/contexts/LoadingContext';
 import { useRegisterView } from '@/hooks/useRegisterView';
 import { Can } from '@/contexts/PermissionsContext';
+import { getErrorMessage } from '@/utils/errorHandler';
 
 export default function CentrosCostoPage() {
   const [centrosCosto, setCentrosCosto] = useState<CentroCosto[]>([]);
@@ -601,9 +602,7 @@ function CentroCostoForm({ editingCentroCosto, onSaved, sucursales }: CentroCost
       onSaved();
     } catch (error) {
       console.error('Error guardando centro de costo:', error);
-      // Mostrar el mensaje específico del error si está disponible
-      const errorMessage = error instanceof Error ? error.message : 'Error al guardar el centro de costo';
-      toast.error(errorMessage);
+      toast.error(getErrorMessage(error));
     } finally {
       stopLoading();
       setLoading(false);

@@ -157,13 +157,25 @@ class CentrosCostoService {
 
       console.log('✅ Centro de costo encontrado, procediendo con actualización...');
 
+      // Filtrar solo los campos que realmente necesitan ser actualizados
+      const updateData: any = {
+        updated_at: new Date().toISOString()
+      };
+
+      // Solo incluir campos que tienen valores válidos
+      if (centroCostoData.codigo !== undefined) updateData.codigo = centroCostoData.codigo;
+      if (centroCostoData.nombre !== undefined) updateData.nombre = centroCostoData.nombre;
+      if (centroCostoData.sucursal_id !== undefined) updateData.sucursal_id = centroCostoData.sucursal_id;
+      if (centroCostoData.area_negocio !== undefined) updateData.area_negocio = centroCostoData.area_negocio;
+      if (centroCostoData.porcentaje_estructura !== undefined) updateData.porcentaje_estructura = centroCostoData.porcentaje_estructura;
+      if (centroCostoData.activo !== undefined) updateData.activo = centroCostoData.activo;
+
+      console.log('📝 Datos filtrados para actualización:', updateData);
+
       // Realizar la actualización sin .single() para evitar el error PGRST116
       const { data, error } = await supabase
         .from('centros_costo')
-        .update({
-          ...centroCostoData,
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', id)
         .select(`
           *,
