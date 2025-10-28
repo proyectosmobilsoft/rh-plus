@@ -23,6 +23,7 @@ import { useLoading } from "@/contexts/LoadingContext";
 import { useRegisterView } from "@/hooks/useRegisterView";
 import { Can } from "@/contexts/PermissionsContext";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/utils/errorHandler";
 
 export default function RegistroEmpresas() {
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
@@ -72,7 +73,7 @@ export default function RegistroEmpresas() {
       }
     } catch (error) {
       console.error('Error al obtener datos completos de la empresa:', error);
-      toast.error("Error al cargar los datos de la empresa");
+      toast.error(getErrorMessage(error));
     } finally {
       stopLoading();
     }
@@ -91,7 +92,7 @@ export default function RegistroEmpresas() {
         toast.error("No se pudo eliminar la empresa");
       }
     } catch (error) {
-      toast.error("Error al eliminar la empresa");
+      toast.error(getErrorMessage(error));
     } finally {
       stopLoading();
     }
@@ -110,7 +111,7 @@ export default function RegistroEmpresas() {
         toast.error("No se pudo activar la empresa");
       }
     } catch (error) {
-      toast.error("Error al activar la empresa");
+      toast.error(getErrorMessage(error));
     } finally {
       stopLoading();
     }
@@ -129,7 +130,7 @@ export default function RegistroEmpresas() {
         toast.error("No se pudo inactivar la empresa");
       }
     } catch (error) {
-      toast.error("Error al inactivar la empresa");
+      toast.error(getErrorMessage(error));
     } finally {
       stopLoading();
     }

@@ -1,5 +1,6 @@
 
 import { supabase } from './supabaseClient';
+import { handleServiceError, logError } from '@/utils/errorHandler';
 
 export interface Empresa {
   id: number;
@@ -92,14 +93,14 @@ export const empresasService = {
         .single();
 
       if (error) {
-        console.error('Error al crear empresa:', error);
-        return null;
+        logError('crear empresa', error);
+        throw new Error(handleServiceError(error, 'Error al crear la empresa'));
       }
 
       return data;
     } catch (error) {
-      console.error('Error en create empresa:', error);
-      return null;
+      logError('create empresa', error);
+      throw error;
     }
   },
   update: async (empresa: any): Promise<Empresa | null> => {
@@ -125,14 +126,14 @@ export const empresasService = {
         .single();
 
       if (error) {
-        console.error('Error al actualizar empresa:', error);
-        return null;
+        logError('actualizar empresa', error);
+        throw new Error(handleServiceError(error, 'Error al actualizar la empresa'));
       }
 
       return data;
     } catch (error) {
-      console.error('Error en update empresa:', error);
-      return null;
+      logError('update empresa', error);
+      throw error;
     }
   },
   delete: async (id: number): Promise<boolean> => {

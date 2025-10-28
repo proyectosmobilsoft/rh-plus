@@ -1,4 +1,5 @@
 import { supabase } from '@/services/supabaseClient';
+import { handleServiceError, logError } from '@/utils/errorHandler';
 
 export interface CentroCosto {
   id: number;
@@ -113,19 +114,12 @@ class CentrosCostoService {
         .single();
 
       if (error) {
-        // Manejar error de código duplicado
-        if (error.code === '23505' && error.message.includes('centros_costo_codigo_key')) {
-          throw new Error('Ya existe un centro de costo con este código. Por favor, use un código diferente.');
-        }
-        // Manejar otros errores de restricción única
-        if (error.code === '23505') {
-          throw new Error('Ya existe un registro con estos datos. Por favor, verifique la información ingresada.');
-        }
-        throw error;
+        logError('crear centro de costo', error);
+        throw new Error(handleServiceError(error, 'Error al crear el centro de costo'));
       }
       return data;
     } catch (error) {
-      console.error('Error creating centro de costo:', error);
+      logError('create centro de costo', error);
       throw error;
     }
   }
@@ -143,19 +137,12 @@ class CentrosCostoService {
         .single();
 
       if (error) {
-        // Manejar error de código duplicado
-        if (error.code === '23505' && error.message.includes('centros_costo_codigo_key')) {
-          throw new Error('Ya existe un centro de costo con este código. Por favor, use un código diferente.');
-        }
-        // Manejar otros errores de restricción única
-        if (error.code === '23505') {
-          throw new Error('Ya existe un registro con estos datos. Por favor, verifique la información ingresada.');
-        }
-        throw error;
+        logError('actualizar centro de costo', error);
+        throw new Error(handleServiceError(error, 'Error al actualizar el centro de costo'));
       }
       return data;
     } catch (error) {
-      console.error('Error updating centro de costo:', error);
+      logError('update centro de costo', error);
       throw error;
     }
   }
