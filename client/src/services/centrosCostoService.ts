@@ -175,6 +175,7 @@ class CentrosCostoService {
 
   async deactivate(id: number): Promise<boolean> {
     try {
+      console.log('🔄 Servicio: Iniciando deactivate para centro de costo ID:', id);
       const { error } = await supabase
         .from('centros_costo')
         .update({ 
@@ -183,10 +184,14 @@ class CentrosCostoService {
         })
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Servicio: Error en la consulta de deactivate:', error);
+        throw error;
+      }
+      console.log('✅ Servicio: deactivate ejecutado exitosamente');
       return true;
     } catch (error) {
-      console.error('Error deactivating centro de costo:', error);
+      console.error('❌ Servicio: Error deactivating centro de costo:', error);
       throw error;
     }
   }

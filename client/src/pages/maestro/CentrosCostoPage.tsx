@@ -77,15 +77,18 @@ export default function CentrosCostoPage() {
   const cargarDatos = async () => {
     setLoading(true);
     try {
+      console.log('🔄 Cargando datos de centros de costo...');
       const [centrosCostoData, sucursalesData] = await Promise.all([
         centrosCostoService.getAllIncludingInactive(),
         sucursalesService.getAllIncludingInactive()
       ]);
 
+      console.log('📊 Centros de costo cargados:', centrosCostoData);
+      console.log('📊 Sucursales cargadas:', sucursalesData);
       setCentrosCosto(centrosCostoData);
       setSucursales(sucursalesData);
     } catch (error) {
-      console.error('Error cargando datos:', error);
+      console.error('❌ Error cargando datos:', error);
       toast.error('Error al cargar los datos de centros de costo');
     } finally {
       setLoading(false);
@@ -164,15 +167,21 @@ export default function CentrosCostoPage() {
     if (!centro.id) return;
 
     try {
+      console.log('🔄 Iniciando inactivación del centro de costo:', centro);
       startLoading();
       const success = await centrosCostoService.deactivate(centro.id);
+      console.log('✅ Resultado de la inactivación:', success);
       if (success) {
         toast.success('Centro de costo inactivado correctamente');
+        console.log('🔄 Recargando datos después de inactivación...');
         await cargarDatos();
+        console.log('✅ Datos recargados exitosamente');
       } else {
+        console.error('❌ La función deactivate retornó false');
         toast.error('No se pudo inactivar el centro de costo');
       }
     } catch (error) {
+      console.error('❌ Error al inactivar el centro de costo:', error);
       toast.error('Error al inactivar el centro de costo');
     } finally {
       stopLoading();
