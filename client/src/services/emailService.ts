@@ -45,14 +45,6 @@ export const sendEmail = async (emailData: EmailData): Promise<{ success: boolea
     // Por ahora usamos un servicio de email gratuito como EmailJS o similar
     // En producción deberías usar SendGrid, Mailgun, o similar
     
-    // Simulación de envío para pruebas
-    console.log('📧 Simulando envío de correo:', {
-      to: emailData.to,
-      subject: emailData.subject,
-      from: emailData.from,
-      attachments: emailData.attachments ? `${emailData.attachments.length} archivos adjuntos` : 'Sin adjuntos'
-    });
-    
     
     // Simular delay de envío
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -290,12 +282,6 @@ class EmailService {
       }
       
       // Opción 4: Simulación para desarrollo
-      console.log('📧 Simulando envío de correo (sin configuración de email):', {
-        to: emailData.to,
-        subject: emailData.subject,
-        from: emailData.from
-      });
-      
       return {
         success: true,
         message: 'Email simulado (configura SendGrid para envío real)'
@@ -340,8 +326,6 @@ class EmailService {
         };
       }
 
-      console.log('✅ Email enviado exitosamente con SendGrid a:', emailData.to);
-      
       return {
         success: true,
         message: 'Email enviado correctamente con SendGrid'
