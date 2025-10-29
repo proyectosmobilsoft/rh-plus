@@ -81,7 +81,6 @@ import CrearCandidatoSimple from './pages/empresa/CrearCandidatoSimple';
 import DetalleCandidatoEmpresa from './pages/empresa/DetalleCandidatoEmpresa';
 import ForgotPasswordEmpresa from './pages/empresa/ForgotPasswordEmpresa';
 import ResetPasswordEmpresa from './pages/empresa/ResetPasswordEmpresa';
-import TestConnection from "./components/TestConnection";
 
 // Páginas de analistas
 import AnalistasPage from './pages/analistas/AnalistasPage';
@@ -125,14 +124,7 @@ function App() {
         {/* Toaster global para notificaciones */}
         <Sonner position="top-center" richColors />
         <Routes>
-          {/* Ruta de prueba para verificar providers */}
-          <Route path="/test" element={
-            <div>
-              <h1>Test Route - Providers OK</h1>
-              <p>Si puedes ver esto, los providers están funcionando correctamente.</p>
-            </div>
-          } />
-            {/* Rutas públicas */}
+          {/* Rutas públicas */}
             <Route path="/login" element={
               <PublicRoute>
                 <LoginUnificado />

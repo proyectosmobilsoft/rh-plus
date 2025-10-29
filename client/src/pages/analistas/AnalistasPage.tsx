@@ -52,7 +52,6 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { analystsService, Analyst } from '@/services/analystsService';
-import { testConnection, testAnalistas } from '@/services/testConnection';
 import { empresasService } from '@/services/empresasService';
 import { asociacionPrioridadService, AnalistaPrioridad } from '@/services/asociacionPrioridadService';
 import { supabase } from '@/services/supabaseClient';
@@ -99,14 +98,6 @@ export default function AnalistasPage() {
     queryKey: ['analistas-prioridades'],
     queryFn: async () => {
       try {
-        // Primero probar la conexión
-        console.log('🔍 Iniciando test de conexión...');
-        const connectionTest = await testConnection();
-        console.log('Resultado test conexión:', connectionTest);
-        
-        if (!connectionTest.success) {
-          throw new Error('No se pudo conectar a Supabase');
-        }
         
         // Cargar analistas con sus prioridades
         console.log('🔍 Cargando analistas con prioridades...');
