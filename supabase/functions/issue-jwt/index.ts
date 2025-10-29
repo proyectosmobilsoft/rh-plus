@@ -1,6 +1,9 @@
 // deno-lint-ignore-file no-explicit-any
+// @ts-ignore - Deno runtime types
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+// @ts-ignore - Deno import
 import { create, getNumericDate, Header, Payload } from "https://deno.land/x/djwt@v2.8/mod.ts";
+// @ts-ignore - Deno import
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
 function hexToBytes(hex: string): Uint8Array {
@@ -14,15 +17,17 @@ function hexToBytes(hex: string): Uint8Array {
 }
 
 async function getHmacKey(): Promise<CryptoKey> {
+  // @ts-ignore - Deno global
   const secret = Deno.env.get("JWT_SECRET");
   if (!secret) {
     throw new Error("JWT_SECRET is not set");
   }
   // Secret provided as hex string per instruction
   const secretBytes = /^[0-9a-fA-F]+$/.test(secret) ? hexToBytes(secret) : new TextEncoder().encode(secret);
+  // Type assertion needed: Uint8Array is compatible with BufferSource in Deno runtime
   return await crypto.subtle.importKey(
     "raw",
-    secretBytes,
+    secretBytes as unknown as BufferSource,
     { name: "HMAC", hash: { name: "SHA-256" } },
     false,
     ["sign"],
@@ -33,6 +38,7 @@ type IssueJwtBody = {
   userData: any;
 };
 
+// @ts-ignore - Deno global
 Deno.serve(async (req: Request) => {
   try {
     if (req.method !== "POST") {
@@ -46,7 +52,9 @@ Deno.serve(async (req: Request) => {
 
     // Enriquecer userData con acciones por rol usando SERVICE ROLE (evita RLS)
     try {
+      // @ts-ignore - Deno global
       const url = Deno.env.get("SUPABASE_URL");
+      // @ts-ignore - Deno global
       const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
       if (url && serviceKey && Array.isArray(userData?.roles) && userData.roles.length > 0) {
         const s = createClient(url, serviceKey, { auth: { persistSession: false } });
