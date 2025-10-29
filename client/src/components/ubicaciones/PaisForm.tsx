@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { ubicacionesService } from '@/services/ubicacionesService';
+import { handleServiceError, logError } from '@/utils/errorHandler';
 
 // Schema sin el campo estado
 const paisSchema = z.object({
@@ -43,8 +44,9 @@ export function PaisForm({ initialData, onSaved }: PaisFormProps) {
       }
       onSaved();
     } catch (error) {
-      console.error('Error al guardar país:', error);
-      toast.error('Error al guardar el país');
+      logError('PaisForm', error);
+      const errorMessage = handleServiceError(error, 'Error al guardar el país', 'el país');
+      toast.error(errorMessage);
     }
   };
 

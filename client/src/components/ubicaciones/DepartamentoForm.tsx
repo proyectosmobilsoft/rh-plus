@@ -12,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { ubicacionesService } from '@/services/ubicacionesService';
+import { handleServiceError, logError } from '@/utils/errorHandler';
 
 // Schema sin el campo estado
 const departamentoSchema = z.object({
@@ -51,8 +52,9 @@ export function DepartamentoForm({ initialData, paises, onSaved }: DepartamentoF
       }
       onSaved();
     } catch (error) {
-      console.error('Error al guardar departamento:', error);
-      toast.error('Error al guardar el departamento');
+      logError('DepartamentoForm', error);
+      const errorMessage = handleServiceError(error, 'Error al guardar el departamento', 'el departamento');
+      toast.error(errorMessage);
     }
   };
 
