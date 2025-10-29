@@ -12,8 +12,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useCompanies } from "@/hooks/useCompanies";
 import { useCityData } from "@/hooks/useCityData";
-import { handleEntityDelete } from "@/utils/businessEntityUtils";
-import { BusinessEntityRow } from "@/components/shared/BusinessEntityRow";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -64,8 +62,7 @@ export default function RegistroEmpresas() {
       const empresaCompleta = await empresaService.getById(company.id!);
       
       if (empresaCompleta) {
-        console.log('Empresa completa obtenida:', empresaCompleta);
-        console.log('Plantillas asociadas:', empresaCompleta.plantillas);
+        console.log('Empresa completa obtenida:', empresaCompleta); 
         setEditingCompany(empresaCompleta as Company);
         setActiveTab("registro");
       } else {
@@ -313,7 +310,7 @@ export default function RegistroEmpresas() {
                                     <Button
                                       variant="ghost"
                                       size="icon"
-                                      onClick={() => handleEdit(company)}
+                                      onClick={() => handleEdit(company as Company)}
                                       aria-label="Editar empresa"
                                       className="h-8 w-8"
                                     >
@@ -351,7 +348,7 @@ export default function RegistroEmpresas() {
                                           </AlertDialogHeader>
                                           <AlertDialogFooter>
                                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleDeactivate(company)}>
+                                            <AlertDialogAction onClick={() => handleDeactivate(company as Company)}>
                                               Sí, inactivar
                                             </AlertDialogAction>
                                           </AlertDialogFooter>
@@ -390,7 +387,7 @@ export default function RegistroEmpresas() {
                                             </AlertDialogHeader>
                                             <AlertDialogFooter>
                                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                              <AlertDialogAction onClick={() => handleDelete(company)}>
+                                              <AlertDialogAction onClick={() => handleDelete(company as Company)}>
                                                 Sí, eliminar
                                               </AlertDialogAction>
                                             </AlertDialogFooter>
@@ -427,7 +424,7 @@ export default function RegistroEmpresas() {
                                             </AlertDialogHeader>
                                             <AlertDialogFooter>
                                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                              <AlertDialogAction onClick={() => handleActivate(company)}>
+                                              <AlertDialogAction onClick={() => handleActivate(company as Company)}>
                                                 Sí, activar
                                               </AlertDialogAction>
                                             </AlertDialogFooter>
@@ -447,7 +444,7 @@ export default function RegistroEmpresas() {
                         <TableCell className="px-4 py-3 text-sm text-gray-900">{company.nit}</TableCell>
                         <TableCell className="px-4 py-3 text-sm text-gray-900 font-medium">{company.razonSocial}</TableCell>
                         <TableCell className="px-4 py-3 text-sm text-gray-500">{company.direccion}</TableCell>
-                        <TableCell className="px-4 py-3 text-sm text-gray-500">{cityData[company.ciudad] || company.ciudad}</TableCell>
+                        <TableCell className="px-4 py-3 text-sm text-gray-500">{cityData[company.ciudad as keyof typeof cityData]?.nombre || company.ciudad as string}</TableCell>
                         <TableCell className="px-4 py-3 text-sm text-gray-500">{company.telefono}</TableCell>
                         <TableCell className="px-4 py-3">
                           <Badge variant={company.active ? "default" : "secondary"} className={company.active ? "bg-brand-lime/10 text-brand-lime border-brand-lime/20" : "bg-gray-200 text-gray-600 border-gray-300"}>

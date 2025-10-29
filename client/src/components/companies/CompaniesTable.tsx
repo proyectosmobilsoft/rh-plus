@@ -7,9 +7,12 @@ import {
   } from "@/components/ui/table";
   import { Company } from "@/types/company";
   import { BusinessEntityRow } from "@/components/shared/BusinessEntityRow";
-  import { handleEntityDelete } from "@/utils/businessEntityUtils";
+  import { empresasService } from "@/services/empresasService";
+  import { prestadoresService } from "@/services/prestadoresService";
   import { useCompanies } from "@/hooks/useCompanies";
   import { useCityData } from "@/hooks/useCityData";
+  import { useQueryClient } from "@tanstack/react-query";
+  import { toast } from "sonner";
   
   interface CompaniesTableProps {
     onEdit?: (company: Company) => void;
@@ -19,17 +22,36 @@ import {
   export function CompaniesTable({ onEdit, entityType = 'empresa' }: CompaniesTableProps) {
     const { data: companies = [] } = useCompanies(entityType);
     const { data: cityData = {} } = useCityData();
-  
+    const queryClient = useQueryClient();
+
     const handleEdit = (company: Company) => {
       if (onEdit) {
         onEdit(company);
       }
     };
-  
+
     const handleDelete = async (company: Company) => {
-      const success = await handleEntityDelete(company, entityType);
-      if (success) {
-        // The query will automatically refetch due to React Query's cache invalidation
+      if (!company.id) return;
+
+      try {
+        let success = false;
+        
+        if (entityType === 'empresa') {
+          success = await empresasService.delete(company.id);
+        } else if (entityType === 'prestador') {
+          success = await prestadoresService.delete(company.id);
+        }
+
+        if (success) {
+          toast.success(`${entityType === 'empresa' ? 'Empresa' : 'Prestador'} eliminado correctamente`);
+          // Refrescar la lista
+          queryClient.invalidateQueries({ queryKey: ['companies', entityType] });
+        } else {
+          toast.error(`No se pudo eliminar ${entityType === 'empresa' ? 'la empresa' : 'el prestador'}`);
+        }
+      } catch (error) {
+        console.error(`Error eliminando ${entityType}:`, error);
+        toast.error(`Error al eliminar ${entityType === 'empresa' ? 'la empresa' : 'el prestador'}`);
       }
     };
   
@@ -53,7 +75,7 @@ import {
             {companies.map((company) => (
               <BusinessEntityRow
                 key={company.id}
-                entity={company}
+                entity={company as Company}
                 cityData={cityData}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
