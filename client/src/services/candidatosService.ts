@@ -13,6 +13,7 @@ export interface Candidato {
   telefono?: string;
   direccion?: string;
   ciudad?: string;
+  ciudad_id?: number; // Relación con ciudades (opcional)
   empresa_id?: number; // Relación con empresa (opcional)
   tipo_candidato_id?: number; // Relación con tipo de candidato
   activo?: boolean; // Estado del candidato
@@ -108,7 +109,7 @@ export const candidatosService = {
       const copyProps: (keyof Candidato)[] = [
         'numero_documento', 'segundo_nombre',
         'segundo_apellido', 'email', 'telefono', 'direccion',
-        'ciudad', 'empresa_id', 'tipo_candidato_id'
+        'ciudad', 'ciudad_id', 'empresa_id', 'tipo_candidato_id'
       ];
       for (const k of copyProps) {
         const v = (candidato as any)[k];

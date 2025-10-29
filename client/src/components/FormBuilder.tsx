@@ -70,6 +70,7 @@ const DATABASE_TABLES = [
   { value: 'tipos_candidatos', label: 'Tipos de Candidatos', displayField: 'nombre', valueField: 'id' },
   { value: 'gen_sucursales', label: 'Sucursales', displayField: 'nombre', valueField: 'id' },
   { value: 'centros_costo', label: 'Centros de Costo', displayField: 'nombre', valueField: 'id' },
+  { value: 'ciudades', label: 'Ciudades', displayField: 'nombre', valueField: 'id' },
 ];
 
 const createDefaultField = (): FormField => ({

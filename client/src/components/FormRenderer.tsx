@@ -67,6 +67,7 @@ const FormRenderer: React.FC<FormRendererProps> = ({
   // Hook para obtener datos dinámicos de la base de datos
   const { data: sucursales = [], isLoading: isLoadingSucursales } = useDatabaseData('gen_sucursales');
   const { data: centrosCosto = [], isLoading: isLoadingCentrosCosto } = useDatabaseData('centros_costo');
+  const { data: ciudades = [], isLoading: isLoadingCiudades } = useDatabaseData('ciudades');
 
   // Función helper para obtener datos dinámicos según configuración del campo
   const getDynamicData = (campo: any) => {
@@ -81,6 +82,8 @@ const FormRenderer: React.FC<FormRendererProps> = ({
         return { data: sucursales, isLoading: isLoadingSucursales };
       case 'centros_costo':
         return { data: centrosCosto, isLoading: isLoadingCentrosCosto };
+      case 'ciudades':
+        return { data: ciudades, isLoading: isLoadingCiudades };
       default:
         return { data: [], isLoading: false };
     }
