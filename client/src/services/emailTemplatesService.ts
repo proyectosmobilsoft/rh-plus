@@ -48,47 +48,33 @@ export const emailTemplatesService = {
 
   // Crear una nueva plantilla de email
   createEmailTemplate: async (template: Partial<EmailTemplate>): Promise<EmailTemplate> => {
-    console.log('=== CREANDO PLANTILLA EMAIL ===');
-    console.log('Datos recibidos:', template);
-    
     const { data, error } = await supabase
       .from('email_templates')
       .insert([template])
       .select()
       .single();
     
-    console.log('Respuesta de Supabase - data:', data);
-    console.log('Respuesta de Supabase - error:', error);
-    
     if (error) {
       console.error('Error en createEmailTemplate:', error);
       throw error;
     }
     
-    console.log('Plantilla creada exitosamente:', data);
     return data;
   },
 
   // Crear una nueva plantilla de Gmail
   createGmailTemplate: async (template: Partial<GmailTemplate>): Promise<GmailTemplate> => {
-    console.log('=== CREANDO PLANTILLA GMAIL ===');
-    console.log('Datos recibidos:', template);
-    
     const { data, error } = await supabase
       .from('gmail_templates')
       .insert([template])
       .select()
       .single();
     
-    console.log('Respuesta de Supabase - data:', data);
-    console.log('Respuesta de Supabase - error:', error);
-    
     if (error) {
       console.error('Error en createGmailTemplate:', error);
       throw error;
     }
     
-    console.log('Plantilla creada exitosamente:', data);
     return data;
   },
 
