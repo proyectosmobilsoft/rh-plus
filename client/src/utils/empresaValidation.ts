@@ -23,7 +23,7 @@ export function hasEmpresaAsociada(user: User | null): boolean {
       return empresa && empresa.id;
     }
   } catch (error) {
-    console.warn('Error al verificar empresa del localStorage:', error);
+    // Silenciar error de localStorage
   }
 
   return false;
@@ -41,7 +41,7 @@ export function getEmpresaSeleccionada(): number | null {
       return empresa?.id || null;
     }
   } catch (error) {
-    console.warn('Error al obtener empresa del localStorage:', error);
+    // Silenciar error de localStorage
   }
   return null;
 }
@@ -61,7 +61,7 @@ export function getEmpresaInfo(): { id: number; razon_social: string } | null {
       };
     }
   } catch (error) {
-    console.warn('Error al obtener información de empresa del localStorage:', error);
+    // Silenciar error de localStorage
   }
   return null;
 }

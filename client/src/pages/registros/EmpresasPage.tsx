@@ -56,13 +56,10 @@ export default function RegistroEmpresas() {
   const handleEdit = async (company: Company) => {
     try {
       startLoading();
-      console.log('Editando empresa con ID:', company.id);
-      
       // Obtener datos completos de la empresa incluyendo plantillas asociadas
       const empresaCompleta = await empresaService.getById(company.id!);
       
-      if (empresaCompleta) {
-        console.log('Empresa completa obtenida:', empresaCompleta); 
+      if (empresaCompleta) { 
         setEditingCompany(empresaCompleta as Company);
         setActiveTab("registro");
       } else {

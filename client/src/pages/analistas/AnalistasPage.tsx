@@ -100,9 +100,7 @@ export default function AnalistasPage() {
       try {
         
         // Cargar analistas con sus prioridades
-        console.log('🔍 Cargando analistas con prioridades...');
         const data = await asociacionPrioridadService.getAnalistasWithPriorities();
-        console.log('Analistas con prioridades cargados:', data);
         
         return data || [];
       } catch (error) {
@@ -415,9 +413,7 @@ export default function AnalistasPage() {
   };
 
   const handleNewAnalista = (analista?: any) => {
-    console.log('handleNewAnalista llamado con:', analista);
     if (analista) {
-      console.log('Configurando analista:', analista);
       setAnalistaParaConfigurar(analista);
     }
     setActiveTab("registro");

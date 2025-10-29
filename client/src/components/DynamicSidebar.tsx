@@ -123,7 +123,7 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
   try {
     authContext = useAuth();
   } catch (error) {
-    console.log("AuthProvider no disponible");
+    // AuthProvider no disponible
   }
 
   const { user, logout } = authContext || {};
@@ -495,7 +495,6 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
                       // Limpiar empresa seleccionada
                       limpiarEmpresaSeleccionada();
 
-                      console.log('Sesión cerrada desde overlay - todos los datos eliminados');
 
                       // Intentar usar logout del contexto si está disponible
                       if (logout) {

@@ -20,9 +20,6 @@ export interface Empresa {
  */
 export const guardarEmpresaSeleccionadaConConsulta = async (empresaId: number): Promise<boolean> => {
   try {
-    console.log('=== INICIO: Guardar empresa y datos de autenticación ===');
-    console.log('Consultando empresa completa con ID:', empresaId);
-    
     // Consultar información completa de la empresa
     const empresaCompleta = await obtenerEmpresaPorId(empresaId);
     
@@ -30,26 +27,27 @@ export const guardarEmpresaSeleccionadaConConsulta = async (empresaId: number): 
       console.error('No se pudo obtener información de la empresa con ID:', empresaId);
       return false;
     }
-
-    console.log('Empresa completa obtenida:', empresaCompleta);
+    
+    // Mapear de snake_case a camelCase para compatibilidad
+    const empresaMapeada: Empresa = {
+      id: empresaCompleta.id,
+      nombre: empresaCompleta.nombre,
+      razonSocial: empresaCompleta.razon_social,
+      nit: empresaCompleta.nit,
+      direccion: empresaCompleta.direccion,
+      telefono: empresaCompleta.telefono,
+      email: empresaCompleta.email,
+      representanteLegal: empresaCompleta.representante_legal,
+      cargoRepresentante: empresaCompleta.cargo_representante,
+      estado: empresaCompleta.estado,
+      createdAt: empresaCompleta.createdAt,
+      updatedAt: empresaCompleta.updatedAt,
+    };
     
     // Guardar empresa Y datos de autenticación
-    const resultado = guardarEmpresaSeleccionada(empresaCompleta);
+    const resultado = guardarEmpresaSeleccionada(empresaMapeada);
     
     if (resultado) {
-      console.log('✅ Empresa y datos de autenticación guardados exitosamente');
-      
-      // Verificar que todo se guardó correctamente
-      const userData = localStorage.getItem('userData');
-      const authToken = localStorage.getItem('authToken');
-      const empresaData = localStorage.getItem('empresaData');
-      
-      console.log('📊 Verificación final:');
-      console.log('- userData guardado:', !!userData);
-      console.log('- authToken guardado:', !!authToken);
-      console.log('- empresaData guardado:', !!empresaData);
-      
-      console.log('=== FIN: Guardar empresa y datos de autenticación ===');
       return true;
     } else {
       console.error('Error al guardar empresa y datos de autenticación');
@@ -61,51 +59,19 @@ export const guardarEmpresaSeleccionadaConConsulta = async (empresaId: number): 
   }
 };
 
-/**
- * Ejemplo de uso:
- * 
- * // En tu componente de selección de empresa:
- * import { guardarEmpresaSeleccionadaConConsulta } from '@/utils/empresaUtils';
- * 
- * const handleEmpresaClick = async (empresaId: number) => {
- *   const resultado = await guardarEmpresaSeleccionadaConConsulta(empresaId);
- *   if (resultado) {
- *     console.log('Empresa seleccionada y guardada correctamente');
- *     // Redirigir o hacer algo más
- *   }
- * };
- */
+
 
 /**
  * Función para guardar la empresa seleccionada en localStorage
  */
 export const guardarEmpresaSeleccionada = (empresa: Empresa): boolean => {
   try {
-    console.log('=== INICIO: guardarEmpresaSeleccionada ===');
-    
-    // Verificar estado ANTES de guardar
-    const beforeUserData = localStorage.getItem('userData');
-    const beforeAuthToken = localStorage.getItem('authToken');
-    const beforeEmpresaData = localStorage.getItem('empresaData');
-    
-    console.log('📊 Estado ANTES de guardar:');
-    console.log('- userData existe:', !!beforeUserData);
-    console.log('- authToken existe:', !!beforeAuthToken);
-    console.log('- empresaData existe:', !!beforeEmpresaData);
-    
-    console.log('Guardando empresa en empresaData:', empresa);
-    
     // Guardar empresaData
     localStorage.setItem('empresaData', JSON.stringify(empresa));
-    
-    // NO tocar userData ni authToken existentes - usar los datos reales del usuario autenticado
-    console.log('Empresa guardada exitosamente en empresaData');
-    console.log('Manteniendo datos de autenticación existentes sin modificar');
     
     // Disparar evento para notificar a otros componentes
     window.dispatchEvent(new CustomEvent('empresaSelected', { detail: empresa }));
     
-    console.log('=== FIN: guardarEmpresaSeleccionada ===');
     return true;
   } catch (error) {
     console.error('Error al guardar empresa en localStorage:', error);
@@ -121,10 +87,8 @@ export const obtenerEmpresaSeleccionada = (): Empresa | null => {
     const empresaDataString = localStorage.getItem('empresaData');
     if (empresaDataString) {
       const empresa = JSON.parse(empresaDataString);
-      console.log('Empresa obtenida desde empresaData:', empresa);
       return empresa;
     }
-    console.log('No se encontró empresaData en localStorage');
     return null;
   } catch (error) {
     console.error('Error al obtener empresa desde localStorage:', error);
@@ -150,9 +114,7 @@ export const hayEmpresaSeleccionada = (): boolean => {
  */
 export const limpiarEmpresaSeleccionada = (): void => {
   try {
-    console.log('Limpiando empresaData del localStorage');
     localStorage.removeItem('empresaData');
-    console.log('EmpresaData eliminada del localStorage');
   } catch (error) {
     console.error('Error al limpiar empresa del localStorage:', error);
   }
@@ -162,15 +124,17 @@ export const limpiarEmpresaSeleccionada = (): void => {
  * Función para debuggear el estado de localStorage
  */
 export const debugLocalStorage = () => {
-  console.log('=== DEBUG LOCALSTORAGE ===');
   const userData = localStorage.getItem('userData');
   const authToken = localStorage.getItem('authToken');
   const empresaData = localStorage.getItem('empresaData');
   
-  console.log('userData:', userData ? JSON.parse(userData) : null);
-  console.log('authToken:', authToken);
-  console.log('empresaData:', empresaData ? JSON.parse(empresaData) : null);
-  console.log('========================');
+  // Función de debug - no hace nada en producción
+  // Se puede eliminar si no se usa
+  return {
+    userData: userData ? JSON.parse(userData) : null,
+    authToken,
+    empresaData: empresaData ? JSON.parse(empresaData) : null
+  };
 };
 
 /**
