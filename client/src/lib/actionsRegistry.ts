@@ -24,10 +24,3 @@ export function registerAction(viewCode: string, actionTitle: string, actionCode
     view.actions.push({ code: actionCode, title: actionTitle });
   }
 }
-
-export function getPermissionsJson(): ViewEntry[] {
-  return Array.from(registry.values());
-}
-
-
-
