@@ -131,6 +131,28 @@ export interface Solicitud {
   };
 }
 
+// Función helper para obtener ciudad_id desde diferentes variaciones del campo
+const obtenerCiudadId = (datos: Record<string, any>): number | undefined => {
+  // Buscar en diferentes variaciones del nombre del campo
+  const ciudadValue = datos.ciudad_id || datos.ciudad || datos.Ciudad || 
+                     datos[normalizeCampo('ciudad_id')] || datos[normalizeCampo('ciudad')] ||
+                     datos[normalizeCampo('Ciudad')];
+  
+  // Si es un número, retornarlo directamente
+  if (typeof ciudadValue === 'number') {
+    return ciudadValue;
+  }
+  
+  // Si es un string que parece ser un número, convertirlo
+  if (typeof ciudadValue === 'string' && /^\d+$/.test(ciudadValue.trim())) {
+    const numValue = parseInt(ciudadValue.trim(), 10);
+    return isNaN(numValue) ? undefined : numValue;
+  }
+  
+  // Si no es válido, retornar undefined
+  return undefined;
+};
+
 // Función auxiliar para crear candidato de manera segura
 const crearCandidatoSeguro = async (datosNormalizados: Record<string, any>, solicitud: any): Promise<number | null> => {
   const numeroDocumento = datosNormalizados.numero_documento || 
@@ -212,13 +234,18 @@ const crearCandidatoSeguro = async (datosNormalizados: Record<string, any>, soli
   const map: Record<string, string> = {
     tipo_documento: "tipo_documento",
     direccion: "direccion",
-    ciudad: "ciudad",
   };
   for (const key in map) {
     const v = datosNormalizados[key] || datosNormalizados[normalizeCampo(key)];
     if (v !== undefined && v !== null && v !== "") {
       (candidatoPayload as any)[map[key]] = v;
     }
+  }
+  
+  // Manejar ciudad_id desde diferentes variaciones (ciudad, ciudad_id, Ciudad)
+  const ciudadId = obtenerCiudadId(datosNormalizados);
+  if (ciudadId !== undefined) {
+    candidatoPayload.ciudad_id = ciudadId;
   }
   
   // Asignar empresa_id
@@ -665,12 +692,29 @@ export const solicitudesService = {
       let analistaId = solicitud.analista_id;
       let estadoFinal = solicitud.estado;
       
+      // Extraer sucursal_id de estructura_datos si existe
+      let sucursalId: number | undefined;
+      if (solicitud.estructura_datos && typeof solicitud.estructura_datos === 'object') {
+        const estructura = solicitud.estructura_datos as Record<string, any>;
+        const sucursalValue = estructura.sucursal || estructura.sucursal_id || estructura.Sucursal;
+        if (sucursalValue !== undefined && sucursalValue !== null && sucursalValue !== '') {
+          const sucursalNum = typeof sucursalValue === 'number' ? sucursalValue : Number(sucursalValue);
+          if (!isNaN(sucursalNum) && sucursalNum > 0) {
+            sucursalId = sucursalNum;
+            console.log("🏢 Sucursal ID extraída de estructura_datos:", sucursalId);
+          }
+        }
+      }
+      
       // Si no hay analista asignado, intentar asignación automática
       if (!analistaId && solicitud.empresa_id) {
         console.log("🔄 Asignando analista automáticamente...");
         console.log("🔍 Empresa ID de la solicitud:", solicitud.empresa_id);
+        if (sucursalId) {
+          console.log("🏢 Sucursal ID de la solicitud:", sucursalId);
+        }
         
-        const analistaAsignado = await analistaAsignacionService.asignarAnalistaAutomatico(solicitud.empresa_id);
+        const analistaAsignado = await analistaAsignacionService.asignarAnalistaAutomatico(solicitud.empresa_id, sucursalId);
         
         if (analistaAsignado) {
           analistaId = analistaAsignado.analista_id;
@@ -681,6 +725,9 @@ export const solicitudesService = {
           console.log("⚠️ No se pudo asignar analista automáticamente - Estado: pendiente asignacion");
           console.log("🔍 Posibles causas:");
           console.log("  - No hay analistas configurados para la empresa", solicitud.empresa_id);
+          if (sucursalId) {
+            console.log("  - No hay analistas configurados para la sucursal", sucursalId);
+          }
           console.log("  - Los analistas no tienen prioridades configuradas");
           console.log("  - Los analistas han alcanzado su límite de solicitudes");
         }
@@ -810,13 +857,18 @@ export const solicitudesService = {
           const map: Record<string, keyof Candidato> = {
             tipo_documento: "tipo_documento",
             direccion: "direccion",
-            ciudad: "ciudad",
           };
           for (const key in map) {
             const v = (d as any)[key] || (d as any)[normalizeCampo(key)];
             if (v !== undefined && v !== null && v !== "") {
               (candidatoPayload as any)[map[key]] = v;
             }
+          }
+          
+          // Manejar ciudad_id desde diferentes variaciones (ciudad, ciudad_id, Ciudad)
+          const ciudadId = obtenerCiudadId(d);
+          if (ciudadId !== undefined) {
+            candidatoPayload.ciudad_id = ciudadId;
           }
           
           // Asignar empresa_id desde la solicitud
@@ -1331,12 +1383,28 @@ export const solicitudesService = {
       let analistaId: number | undefined;
       let estadoFinal = "pendiente asignacion"; // Estado por defecto
       
+      // Extraer sucursal_id de estructura_datos si existe
+      let sucursalId: number | undefined;
+      if (estructuraDatos && typeof estructuraDatos === 'object') {
+        const sucursalValue = estructuraDatos.sucursal || estructuraDatos.sucursal_id || estructuraDatos.Sucursal;
+        if (sucursalValue !== undefined && sucursalValue !== null && sucursalValue !== '') {
+          const sucursalNum = typeof sucursalValue === 'number' ? sucursalValue : Number(sucursalValue);
+          if (!isNaN(sucursalNum) && sucursalNum > 0) {
+            sucursalId = sucursalNum;
+            console.log("🏢 Sucursal ID extraída de estructura_datos:", sucursalId);
+          }
+        }
+      }
+      
       // Intentar asignación automática
       if (empresaId) {
         console.log("🔄 Asignando analista automáticamente...");
         console.log("🔍 Empresa ID de la solicitud:", empresaId);
+        if (sucursalId) {
+          console.log("🏢 Sucursal ID de la solicitud:", sucursalId);
+        }
         
-        const analistaAsignado = await analistaAsignacionService.asignarAnalistaAutomatico(empresaId);
+        const analistaAsignado = await analistaAsignacionService.asignarAnalistaAutomatico(empresaId, sucursalId);
         
         if (analistaAsignado) {
           analistaId = analistaAsignado.analista_id;
@@ -1347,6 +1415,9 @@ export const solicitudesService = {
           console.log("⚠️ No se pudo asignar analista automáticamente - Estado: pendiente asignacion");
           console.log("🔍 Posibles causas:");
           console.log("  - No hay analistas configurados para la empresa", empresaId);
+          if (sucursalId) {
+            console.log("  - No hay analistas configurados para la sucursal", sucursalId);
+          }
           console.log("  - Los analistas no tienen prioridades configuradas");
           console.log("  - Los analistas han alcanzado su límite de solicitudes");
         }
@@ -1573,13 +1644,18 @@ export const solicitudesService = {
           const map: Record<string, keyof Candidato> = {
             tipo_documento: "tipo_documento",
             direccion: "direccion",
-            ciudad: "ciudad",
           };
           for (const key in map) {
             const v = (d as any)[key] || (d as any)[normalizeCampo(key)];
             if (v !== undefined && v !== null && v !== "") {
               (candidatoPayload as any)[map[key]] = v;
             }
+          }
+          
+          // Manejar ciudad_id desde diferentes variaciones (ciudad, ciudad_id, Ciudad)
+          const ciudadId = obtenerCiudadId(d);
+          if (ciudadId !== undefined) {
+            candidatoPayload.ciudad_id = ciudadId;
           }
           
           // Asignar empresa_id desde el parámetro de la función
