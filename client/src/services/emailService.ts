@@ -53,28 +53,6 @@ export const sendEmail = async (emailData: EmailData): Promise<{ success: boolea
       attachments: emailData.attachments ? `${emailData.attachments.length} archivos adjuntos` : 'Sin adjuntos'
     });
     
-    // Aquí puedes integrar con un servicio real de email
-    // Ejemplo con SendGrid:
-    /*
-    const sgMail = require('@sendgrid/mail');
-    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-    
-    const msg = {
-      to: emailData.to,
-      from: emailData.from,
-      subject: emailData.subject,
-      html: emailData.html,
-      text: emailData.text,
-      attachments: emailData.attachments?.map(att => ({
-        content: att.content,
-        filename: att.filename,
-        type: att.contentType,
-        disposition: 'attachment'
-      }))
-    };
-    
-    await sgMail.send(msg);
-    */
     
     // Simular delay de envío
     await new Promise(resolve => setTimeout(resolve, 1000));
