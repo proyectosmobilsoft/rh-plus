@@ -80,9 +80,18 @@ export const ubicacionesService = {
   },
 
   createPais: async (pais: Partial<Pais>): Promise<Pais | null> => {
+    // Filtrar solo los campos necesarios para la inserción (excluir id, relaciones y campos automáticos)
+    const { id, created_at, updated_at, estado, ...paisData } = pais;
+    
+    // Construir el payload con solo los campos permitidos
+    const payload = {
+      nombre: paisData.nombre,
+      codigo_iso: paisData.codigo_iso || null,
+    };
+
     const { data, error } = await supabase
       .from('paises')
-      .insert([pais])
+      .insert([payload])
       .select()
       .single();
     if (error) throw error;
@@ -179,9 +188,19 @@ export const ubicacionesService = {
   },
 
   createDepartamento: async (departamento: Partial<Departamento>): Promise<Departamento | null> => {
+    // Filtrar solo los campos necesarios para la inserción (excluir id, relaciones y campos automáticos)
+    const { id, created_at, updated_at, paises, estado, ...departamentoData } = departamento;
+    
+    // Construir el payload con solo los campos permitidos
+    const payload = {
+      nombre: departamentoData.nombre,
+      codigo_dane: departamentoData.codigo_dane || null,
+      pais_id: departamentoData.pais_id,
+    };
+
     const { data, error } = await supabase
       .from('departamentos')
-      .insert([departamento])
+      .insert([payload])
       .select(`
         *,
         paises (
@@ -476,17 +495,55 @@ export const ubicacionesService = {
   },
 
   createCiudad: async (ciudad: Partial<Ciudad>): Promise<Ciudad | null> => {
+    // Filtrar solo los campos necesarios para la inserción (excluir id, relaciones y campos automáticos)
+    const { id, created_at, updated_at, departamentos, estado, ...ciudadData } = ciudad;
+    
+    // Construir el payload con solo los campos permitidos - NUNCA incluir id
+    let payload: any = {
+      nombre: ciudadData.nombre,
+      codigo_dane: ciudadData.codigo_dane || null,
+      departamento_id: ciudadData.departamento_id,
+    };
+
     // Asegurar pais_id a partir del departamento si no viene
-    let payload: any = { ...ciudad };
-    if (!payload.pais_id && payload.departamento_id) {
+    if (!ciudadData.pais_id && ciudadData.departamento_id) {
       const { data: dept, error: deptError } = await supabase
         .from('departamentos')
         .select('pais_id')
-        .eq('id', payload.departamento_id)
+        .eq('id', ciudadData.departamento_id)
         .single();
       if (deptError) throw deptError;
       payload.pais_id = dept?.pais_id;
+    } else if (ciudadData.pais_id) {
+      payload.pais_id = ciudadData.pais_id;
     }
+
+    // Verificar que NO se esté enviando el campo id
+    if (payload.id !== undefined) {
+      delete payload.id;
+      console.warn('⚠️ Se detectó campo id en el payload y fue eliminado');
+    }
+
+    // Verificar si ya existe una ciudad con estos datos exactos en la base de datos
+    const { data: ciudadExistente, error: checkError } = await supabase
+      .from('ciudades')
+      .select('id, nombre, codigo_dane, departamento_id, pais_id')
+      .eq('nombre', payload.nombre)
+      .eq('departamento_id', payload.departamento_id);
+    
+    if (checkError) {
+      console.error('❌ Error al verificar ciudad existente:', checkError);
+    } else if (ciudadExistente && ciudadExistente.length > 0) {
+      console.warn('⚠️ Ya existe una ciudad con estos datos:', ciudadExistente);
+      throw new Error(`Ya existe una ciudad con el nombre "${payload.nombre}" en el departamento seleccionado.`);
+    }
+
+    console.log('📤 Payload que se enviará a ciudades:', JSON.stringify(payload, null, 2));
+    console.log('✅ Verificación: payload.id =', payload.id, '(debe ser undefined)');
+    console.log('✅ Verificación: No existe ciudad duplicada con estos datos');
+
+    // Nota: La corrección de secuencia debe hacerse en la base de datos directamente
+    // Si persiste el error, ejecutar: SELECT setval('ciudades_id_seq', (SELECT MAX(id) FROM ciudades), true);
 
     const { data, error } = await supabase
       .from('ciudades')
@@ -505,7 +562,20 @@ export const ubicacionesService = {
         )
       `)
       .single();
-    if (error) throw error;
+    
+    if (error) {
+      console.error('❌ Error al crear ciudad:', error);
+      console.error('📤 Payload que causó el error:', JSON.stringify(payload, null, 2));
+      
+      // Si es error de secuencia, proporcionar ayuda específica
+      if (error.code === '23505' && error.message?.includes('ciudades_pkey')) {
+        const errorMsg = 'Error: La secuencia de la base de datos está desincronizada. ' +
+          'Contacte al administrador para ejecutar: SELECT setval(\'ciudades_id_seq\', (SELECT MAX(id) FROM ciudades));';
+        throw new Error(errorMsg);
+      }
+      
+      throw error;
+    }
     return data;
   },
 

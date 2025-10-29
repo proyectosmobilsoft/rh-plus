@@ -42,15 +42,23 @@ const ExpedicionOrdenPage = () => {
   
   const { hasAction } = usePermissions();
 
-  // Estados disponibles para el filtro
+  // Estados disponibles para el filtro - deben coincidir exactamente con los estados en la base de datos
   const estadosDisponibles = [
-    { value: 'PENDIENTE', label: 'Pendiente' },
-    { value: 'PENDIENTE ASIGNACION', label: 'Pendiente Asignación' },
-    { value: 'ASIGNADO', label: 'Asignado' },
+    { value: 'pendiente', label: 'Pendiente' },
+    { value: 'pendiente asignacion', label: 'Pendiente Asignación' },
+    { value: 'asignado', label: 'Asignado' },
     { value: 'pendiente documentos', label: 'Pendiente Documentos' },
-    { value: 'EN_PROCESO', label: 'En Proceso' },
+    { value: 'en_proceso', label: 'En Proceso' },
+    { value: 'stand by', label: 'Stand By' },
     { value: 'aprobada', label: 'Aprobada' },
     { value: 'rechazada', label: 'Rechazada' },
+    { value: 'deserto', label: 'Deserto' },
+    { value: 'cancelada', label: 'Cancelada' },
+    { value: 'descartado', label: 'Descartado' },
+    { value: 'documentos entregados', label: 'Documentos Entregados' },
+    { value: 'citado examenes', label: 'Citado Exámenes' },
+    { value: 'firma contrato', label: 'Firma Contrato' },
+    { value: 'documentos devueltos', label: 'Documentos Devueltos' },
     { value: 'contratado', label: 'Contratado' },
     { value: 'validacion cliente', label: 'Validación Cliente' }
   ];

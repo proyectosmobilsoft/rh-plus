@@ -69,6 +69,7 @@ import { cn } from "@/lib/utils";
 import { useRegisterView } from "@/hooks/useRegisterView";
 import { Can } from "@/contexts/PermissionsContext";
 import { obtenerEmpresaSeleccionada } from "@/utils/empresaUtils";
+import { handleServiceError, logError } from "@/utils/errorHandler";
 
 export default function UbicacionesPage() {
   const navigate = useNavigate();
@@ -1983,12 +1984,14 @@ export default function UbicacionesPage() {
             setSelectedDeptosRegional([]);
             handleSaved();
           } catch (err: any) {
-            if (err?.code === '23505') {
-              toast.error('Uno o más departamentos ya están asociados a otra regional.');
-              setRegionalError('Uno o más departamentos ya están asociados a otra regional.');
+            logError('UbicacionesPage - Regional', err);
+            const errorMessage = handleServiceError(err, 'Error al guardar la regional', 'la regional');
+            toast.error(errorMessage);
+            // Si es un error de departamento duplicado, también actualizar el estado de error
+            if (err?.code === '23505' || errorMessage.includes('departamento')) {
+              setRegionalError(errorMessage);
             } else {
-              console.error('Error guardando regional:', err);
-              toast.error('Error al guardar la regional');
+              setRegionalError(null);
             }
           } finally {
             stopLoading();
@@ -2067,8 +2070,9 @@ export default function UbicacionesPage() {
             setSelectedEmpresaSucursal(null);
             handleSaved();
           } catch (err) {
-            console.error('Error guardando sucursal:', err);
-            toast.error('Error al guardar la sucursal');
+            logError('UbicacionesPage - Sucursal', err);
+            const errorMessage = handleServiceError(err, 'Error al guardar la sucursal', 'la sucursal');
+            toast.error(errorMessage);
           } finally {
             stopLoading();
           }

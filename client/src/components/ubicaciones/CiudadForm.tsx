@@ -12,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { ubicacionesService } from '@/services/ubicacionesService';
+import { handleServiceError, logError } from '@/utils/errorHandler';
 
 // Schema sin el campo estado
 const ciudadSchema = z.object({
@@ -52,8 +53,9 @@ export function CiudadForm({ initialData, departamentos, paises, onSaved }: Ciud
       }
       onSaved();
     } catch (error) {
-      console.error('Error al guardar ciudad:', error);
-      toast.error('Error al guardar la ciudad');
+      logError('CiudadForm', error);
+      const errorMessage = handleServiceError(error, 'Error al guardar la ciudad', 'la ciudad');
+      toast.error(errorMessage);
     }
   };
 
