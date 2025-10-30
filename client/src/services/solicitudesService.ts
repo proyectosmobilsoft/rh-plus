@@ -376,30 +376,36 @@ export const solicitudesService = {
       // Enriquecer: analista y tipo de candidato (desde estructura_datos.cargo)
       const solicitudesBase = data || [];
 
-      // 1) Obtener analistas
-      const solicitudesConAnalistas = await Promise.all(
-        solicitudesBase.map(async (solicitud) => {
-          let analista = undefined;
-          if (solicitud.analista_id) {
-            try {
-              const { data: analistaData } = await supabase
-                  .from("gen_usuarios")
-                  .select("id, primer_nombre, primer_apellido, username, email")
-                  .eq("id", solicitud.analista_id)
-                .single();
-              if (analistaData) {
-                analista = {
-                  id: analistaData.id,
-                  nombre:
-                    `${analistaData.primer_nombre || ""} ${analistaData.primer_apellido || ""}`.trim() || analistaData.username,
-                  email: analistaData.email,
-                };
-              }
-            } catch {}
-          }
-          return { ...solicitud, analista };
-        })
-      );
+      // 1) Obtener analistas en bloque (evitar N+1)
+      const analistaIds = Array.from(
+        new Set(
+          (solicitudesBase || [])
+            .map((s: any) => s.analista_id)
+            .filter((v: any) => v != null)
+        )
+      ) as number[];
+
+      const analistaMap = new Map<number, { id: number; nombre: string; email?: string }>();
+      if (analistaIds.length > 0) {
+        try {
+          const { data: analistasBatch } = await supabase
+            .from('gen_usuarios')
+            .select('id, primer_nombre, primer_apellido, username, email')
+            .in('id', analistaIds);
+          (analistasBatch || []).forEach((a: any) => {
+            analistaMap.set(a.id, {
+              id: a.id,
+              nombre: `${a.primer_nombre || ''} ${a.primer_apellido || ''}`.trim() || a.username,
+              email: a.email,
+            });
+          });
+        } catch {}
+      }
+
+      const solicitudesConAnalistas = (solicitudesBase || []).map((s: any) => {
+        const analista = s.analista_id ? analistaMap.get(s.analista_id) : undefined;
+        return { ...s, analista };
+      });
 
       // 2) Obtener IDs únicos de cargo desde estructura_datos
       const cargoIds = Array.from(
@@ -534,29 +540,36 @@ export const solicitudesService = {
       // Enriquecer: analista y tipo de candidato
       const solicitudesBase = data || [];
 
-      const solicitudesConAnalistas = await Promise.all(
-        solicitudesBase.map(async (solicitud) => {
-          let analista = undefined;
-          if (solicitud.analista_id) {
-            try {
-              const { data: analistaData } = await supabase
-                  .from("gen_usuarios")
-                  .select("id, primer_nombre, primer_apellido, username, email")
-                  .eq("id", solicitud.analista_id)
-                .single();
-              if (analistaData) {
-                analista = {
-                  id: analistaData.id,
-                  nombre:
-                    `${analistaData.primer_nombre || ""} ${analistaData.primer_apellido || ""}`.trim() || analistaData.username,
-                  email: analistaData.email,
-                };
-              }
-            } catch {}
-          }
-          return { ...solicitud, analista };
-        })
-      );
+      // Obtener analistas en bloque (evitar N+1) para este listado por estado
+      const analistaIds = Array.from(
+        new Set(
+          (solicitudesBase || [])
+            .map((s: any) => s.analista_id)
+            .filter((v: any) => v != null)
+        )
+      ) as number[];
+
+      const analistaMap = new Map<number, { id: number; nombre: string; email?: string }>();
+      if (analistaIds.length > 0) {
+        try {
+          const { data: analistasBatch } = await supabase
+            .from('gen_usuarios')
+            .select('id, primer_nombre, primer_apellido, username, email')
+            .in('id', analistaIds);
+          (analistasBatch || []).forEach((a: any) => {
+            analistaMap.set(a.id, {
+              id: a.id,
+              nombre: `${a.primer_nombre || ''} ${a.primer_apellido || ''}`.trim() || a.username,
+              email: a.email,
+            });
+          });
+        } catch {}
+      }
+
+      const solicitudesConAnalistas = (solicitudesBase || []).map((s: any) => {
+        const analista = s.analista_id ? analistaMap.get(s.analista_id) : undefined;
+        return { ...s, analista };
+      });
 
       const cargoIds = Array.from(
         new Set(
@@ -1343,7 +1356,7 @@ export const solicitudesService = {
 
       const total = data?.length || 0;
       const pendientes =
-        data?.filter((s: any) => s.estado === "PENDIENTE").length || 0;
+        data?.filter((s: any) => (s.estado || '').toLowerCase() === 'pendiente').length || 0;
       const aprobadas =
         data?.filter((s: any) => s.estado === "aprobada").length || 0;
       const rechazadas =

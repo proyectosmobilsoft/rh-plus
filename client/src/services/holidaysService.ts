@@ -81,8 +81,10 @@ function calculateMovableHolidays(year: number): Holiday[] {
   // Ascensión del Señor (40 días después de Pascua)
   const ascension = new Date(easter);
   ascension.setDate(easter.getDate() + 40);
+  // En Colombia se traslada al siguiente lunes (Ley Emiliani)
+  const ascensionObserved = applyEmiliani(ascension);
   holidays.push({
-    date: ascension.toISOString().split('T')[0],
+    date: formatLocalDate(ascensionObserved),
     name: 'Ascensión del Señor',
     type: 'movible'
   });
@@ -90,8 +92,10 @@ function calculateMovableHolidays(year: number): Holiday[] {
   // Corpus Christi (60 días después de Pascua)
   const corpusChristi = new Date(easter);
   corpusChristi.setDate(easter.getDate() + 60);
+  // Trasladado al lunes siguiente
+  const corpusObserved = applyEmiliani(corpusChristi);
   holidays.push({
-    date: corpusChristi.toISOString().split('T')[0],
+    date: formatLocalDate(corpusObserved),
     name: 'Corpus Christi',
     type: 'movible'
   });
@@ -99,8 +103,10 @@ function calculateMovableHolidays(year: number): Holiday[] {
   // Sagrado Corazón de Jesús (68 días después de Pascua)
   const sacredHeart = new Date(easter);
   sacredHeart.setDate(easter.getDate() + 68);
+  // Trasladado al lunes siguiente
+  const sacredObserved = applyEmiliani(sacredHeart);
   holidays.push({
-    date: sacredHeart.toISOString().split('T')[0],
+    date: formatLocalDate(sacredObserved),
     name: 'Sagrado Corazón de Jesús',
     type: 'movible'
   });
@@ -137,12 +143,29 @@ export function getHolidaysForYear(year: number): Holiday[] {
     
     const date = new Date(year, month, day);
     holidays.push({
-      date: date.toISOString().split('T')[0],
+      date: formatLocalDate(date),
       name: holiday.name,
       type: holiday.type
     });
   });
   
+  // Días festivos trasladables (Ley Emiliani)
+  // Se trasladan al siguiente lunes si no caen lunes
+  const emilianiFixed: Array<{ name: string; month: number; day: number }> = [
+    { name: 'Reyes Magos', month: 0, day: 6 },
+    { name: 'San José', month: 2, day: 19 },
+    { name: 'San Pedro y San Pablo', month: 5, day: 29 },
+    { name: 'Asunción de la Virgen', month: 7, day: 15 },
+    { name: 'Día de la Raza', month: 9, day: 12 },
+    { name: 'Todos los Santos', month: 10, day: 1 },
+    { name: 'Independencia de Cartagena', month: 10, day: 11 }
+  ];
+  emilianiFixed.forEach(h => {
+    const base = new Date(year, h.month, h.day);
+    const observed = applyEmiliani(base);
+    holidays.push({ date: formatLocalDate(observed), name: h.name, type: 'puente' });
+  });
+
   // Días festivos móviles
   const movableHolidays = calculateMovableHolidays(year);
   holidays.push(...movableHolidays);
@@ -156,8 +179,7 @@ export function getHolidaysForYear(year: number): Holiday[] {
 export function isHoliday(date: Date): boolean {
   const year = date.getFullYear();
   const holidays = getHolidaysForYear(year);
-  const dateString = date.toISOString().split('T')[0];
-  
+  const dateString = formatLocalDate(date);
   return holidays.some(holiday => holiday.date === dateString);
 }
 
@@ -182,8 +204,7 @@ export function isNonBusinessDay(date: Date): boolean {
 export function getHolidayName(date: Date): string | null {
   const year = date.getFullYear();
   const holidays = getHolidaysForYear(year);
-  const dateString = date.toISOString().split('T')[0];
-  
+  const dateString = formatLocalDate(date);
   const holiday = holidays.find(h => h.date === dateString);
   return holiday ? holiday.name : null;
 }
@@ -240,5 +261,24 @@ export function getPreviousBusinessDay(date: Date): Date {
   }
   
   return prevDay;
+}
+
+// ===== Utilidades internas =====
+function formatLocalDate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+// Traslada una fecha al siguiente lunes si no cae lunes (Ley Emiliani)
+function applyEmiliani(date: Date): Date {
+  const result = new Date(date);
+  const day = result.getDay(); // 0=Domingo, 1=Lunes, ... 6=Sábado
+  if (day === 1) return result; // Ya es lunes
+  // Calcular días hasta el próximo lunes
+  const daysToMonday = (8 - day) % 7 || 7; // si day=0 -> 1, si day=2..6 -> 6..2
+  result.setDate(result.getDate() + daysToMonday);
+  return result;
 }
 

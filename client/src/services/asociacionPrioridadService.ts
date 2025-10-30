@@ -153,9 +153,56 @@ export const asociacionPrioridadService = {
         return tieneRolPrincipal || tieneRolesAdicionales;
       }) || [];
 
-      const analistasConPrioridades: AnalistaPrioridad[] = [];
+      // ===== OPTIMIZACIÓN: consultar prioridades y conteos en bloque para evitar N+1 =====
+      const analistaIds: number[] = analistas.map((u: any) => u.id);
 
-      for (const analista of analistas || []) {
+      // Prioridades en bloque
+      const { data: prioridadesAll, error: prioridadesAllError } = await supabase
+        .from('analista_prioridades')
+        .select(`
+          usuario_id,
+          empresa_ids,
+          sucursal_ids,
+          nivel_prioridad_1,
+          nivel_prioridad_2,
+          nivel_prioridad_3,
+          cantidad_solicitudes
+        `)
+        .in('usuario_id', analistaIds);
+      if (prioridadesAllError) {
+        console.error('Error al obtener prioridades en bloque:', prioridadesAllError);
+      }
+      const usuarioIdToPrioridad = new Map<number, any>();
+      (prioridadesAll || []).forEach((p: any) => {
+        const prev = usuarioIdToPrioridad.get(p.usuario_id);
+        if (!prev) {
+          usuarioIdToPrioridad.set(p.usuario_id, { ...p });
+        } else {
+          prev.empresa_ids = Array.from(new Set([...(prev.empresa_ids || []), ...(p.empresa_ids || [])]));
+          prev.sucursal_ids = Array.from(new Set([...(prev.sucursal_ids || []), ...(p.sucursal_ids || [])]));
+          prev.cantidad_solicitudes = Math.max(prev.cantidad_solicitudes || 0, p.cantidad_solicitudes || 0);
+          prev.nivel_prioridad_1 = prev.nivel_prioridad_1 || p.nivel_prioridad_1;
+          prev.nivel_prioridad_2 = prev.nivel_prioridad_2 || p.nivel_prioridad_2;
+          prev.nivel_prioridad_3 = prev.nivel_prioridad_3 || p.nivel_prioridad_3;
+        }
+      });
+
+      // Conteo de solicitudes en bloque (una sola consulta)
+      const { data: solicitudesRows, error: solicitudesRowsError } = await supabase
+        .from('hum_solicitudes')
+        .select('analista_id')
+        .in('analista_id', analistaIds)
+        .not('estado', 'in', '(contratado,cancelado,descartado,stand_by,deserto)');
+      if (solicitudesRowsError) {
+        console.error('Error al obtener solicitudes para conteo:', solicitudesRowsError);
+      }
+      const countByAnalistaId = new Map<number, number>();
+      (solicitudesRows || []).forEach((row: any) => {
+        const id = row.analista_id;
+        countByAnalistaId.set(id, (countByAnalistaId.get(id) || 0) + 1);
+      });
+
+      const analistasConPrioridades: AnalistaPrioridad[] = (analistas || []).map((analista: any) => {
         const roles: Array<{ id: number; nombre: string }> = [];
         if (analista.rol_id && rolIds.includes(analista.rol_id)) {
           roles.push({ id: analista.rol_id, nombre: 'Analista' });
@@ -167,85 +214,34 @@ export const asociacionPrioridadService = {
           roles.push(...rolesAdicionales);
         }
 
-        const { data: prioridades, error: prioridadesError } = await supabase
-          .from('analista_prioridades')
-          .select(`
-            empresa_ids,
-            sucursal_ids,
-            nivel_prioridad_1,
-            nivel_prioridad_2,
-            nivel_prioridad_3,
-            cantidad_solicitudes
-          `)
-          .eq('usuario_id', analista.id);
+        const p = usuarioIdToPrioridad.get(analista.id) || {};
+        const empresaIds = p.empresa_ids || [];
+        const sucursalIds = p.sucursal_ids || [];
+        const primeraEmpresaId = empresaIds.length > 0 ? empresaIds[0] : undefined;
+        const primeraSucursalId = sucursalIds.length > 0 ? sucursalIds[0] : undefined;
+        const asignadas = countByAnalistaId.get(analista.id) || 0;
 
-        if (prioridadesError) {
-          console.error('Error al obtener prioridades del analista:', prioridadesError);
-          continue;
-        }
-
-        console.log(`🔍 Prioridades para ${analista.username} (ID: ${analista.id}):`, prioridades);
-
-        const { count: solicitudesReales } = await supabase
-          .from('hum_solicitudes')
-          .select('*', { count: 'exact', head: true })
-          .eq('analista_id', analista.id)
-          .not('estado', 'in', '(CONTRATADO,CANCELADA,DESCARTADO,STAND_BY,DESERTO)');
-
-        if (prioridades && prioridades.length > 0) {
-          for (const prioridad of prioridades) {
-            // Extraer los arrays de IDs (si existen)
-            const empresaIds = prioridad.empresa_ids || [];
-            const sucursalIds = prioridad.sucursal_ids || [];
-            
-            // Usar el primer ID si existe
-            const primeraEmpresaId = empresaIds.length > 0 ? empresaIds[0] : undefined;
-            const primeraSucursalId = sucursalIds.length > 0 ? sucursalIds[0] : undefined;
-            
-            analistasConPrioridades.push({
-              usuario_id: analista.id,
-              usuario_nombre: `${analista.primer_nombre || ''} ${analista.primer_apellido || ''}`.trim() || analista.username,
-              usuario_email: analista.email,
-              empresa_id: primeraEmpresaId,
-              empresa_nombre: '',
-              empresa_nit: '',
-              empresa_direccion: '',
-              sucursal_id: primeraSucursalId,
-              sucursal_nombre: '',
-              nivel_prioridad_1: prioridad.nivel_prioridad_1,
-              nivel_prioridad_2: prioridad.nivel_prioridad_2,
-              nivel_prioridad_3: prioridad.nivel_prioridad_3,
-              cantidad_configurada: prioridad.cantidad_solicitudes || 0,
-              cantidad_asignadas: solicitudesReales || 0,
-              // Mantener compatibilidad: usar asignadas en cantidad_solicitudes para la columna general
-              cantidad_solicitudes: solicitudesReales || 0,
-              roles,
-              // Agregar los arrays completos para referencia
-              empresa_ids: empresaIds,
-              sucursal_ids: sucursalIds
-            });
-          }
-        } else {
-          analistasConPrioridades.push({
-            usuario_id: analista.id,
-            usuario_nombre: `${analista.primer_nombre || ''} ${analista.primer_apellido || ''}`.trim() || analista.username,
-            usuario_email: analista.email,
-            empresa_id: undefined,
-            empresa_nombre: '',
-            empresa_nit: '',
-            empresa_direccion: '',
-            sucursal_id: undefined,
-            sucursal_nombre: '',
-            nivel_prioridad_1: null,
-            nivel_prioridad_2: null,
-            nivel_prioridad_3: null,
-            cantidad_configurada: 0,
-            cantidad_asignadas: solicitudesReales || 0,
-            cantidad_solicitudes: solicitudesReales || 0,
-            roles
-          });
-        }
-      }
+        return {
+          usuario_id: analista.id,
+          usuario_nombre: `${analista.primer_nombre || ''} ${analista.primer_apellido || ''}`.trim() || analista.username,
+          usuario_email: analista.email,
+          empresa_id: primeraEmpresaId,
+          empresa_ids: empresaIds,
+          empresa_nombre: '',
+          empresa_nit: '',
+          empresa_direccion: '',
+          sucursal_id: primeraSucursalId,
+          sucursal_ids: sucursalIds,
+          sucursal_nombre: '',
+          nivel_prioridad_1: p.nivel_prioridad_1 || null,
+          nivel_prioridad_2: p.nivel_prioridad_2 || null,
+          nivel_prioridad_3: p.nivel_prioridad_3 || null,
+          cantidad_configurada: p.cantidad_solicitudes || 0,
+          cantidad_asignadas: asignadas,
+          cantidad_solicitudes: asignadas,
+          roles,
+        } as AnalistaPrioridad;
+      });
 
       const analistasOrdenados = analistasConPrioridades.sort((a, b) => {
         const solicitudesA = a.cantidad_asignadas || 0;

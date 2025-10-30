@@ -77,60 +77,81 @@ export default function DashboardReportes() {
     analista.username === user.username
   ));
 
-  // Query real a Supabase para órdenes de servicio
-  const { data: ordenes = [], isLoading: loadingOrdenes } = useQuery({
-    queryKey: ['ordenes_servicio'],
+  // KPIs desde Supabase (consultas agregadas, sin traer filas completas)
+  const { data: kpiData, isLoading: loadingOrdenes } = useQuery({
+    queryKey: ['ordenes_servicio_kpis', fechaInicio, fechaFin, empresaFiltro, analistaFiltro],
     queryFn: async () => {
-      const { data, error } = await supabase.from('ordenes_servicio').select('*');
-      if (error) throw error;
-      return data || [];
+      const applyCommonFilters = (q: any) => {
+        if (empresaFiltro && empresaFiltro !== 'todas') {
+          q = q.eq('empresa_id', Number(empresaFiltro));
+        }
+        if (analistaFiltro && analistaFiltro !== 'todos') {
+          q = q.eq('analista_id', Number(analistaFiltro));
+        }
+        if (fechaInicio) {
+          q = q.gte('created_at', `${fechaInicio}T00:00:00`);
+        }
+        if (fechaFin) {
+          q = q.lte('created_at', `${fechaFin}T23:59:59`);
+        }
+        return q;
+      };
+
+      // Total
+      let totalQuery = supabase.from('ordenes_servicio').select('*', { count: 'exact', head: true });
+      totalQuery = applyCommonFilters(totalQuery);
+      const { count: totalCount, error: totalErr } = await totalQuery;
+      if (totalErr) throw totalErr;
+
+      // Hoy
+      const hoyStr = new Date().toISOString().slice(0, 10);
+      let hoyQuery = supabase.from('ordenes_servicio').select('*', { count: 'exact', head: true })
+        .gte('created_at', `${hoyStr}T00:00:00`).lte('created_at', `${hoyStr}T23:59:59`);
+      hoyQuery = applyCommonFilters(hoyQuery);
+      const { count: hoyCount, error: hoyErr } = await hoyQuery;
+      if (hoyErr) throw hoyErr;
+
+      // En Proceso
+      let enProcesoQuery = supabase.from('ordenes_servicio').select('*', { count: 'exact', head: true })
+        .in('estado', ['asignada', 'en_proceso', 'documentos_completos', 'examenes_medicos']);
+      enProcesoQuery = applyCommonFilters(enProcesoQuery);
+      const { count: enProcesoCount, error: enProcesoErr } = await enProcesoQuery;
+      if (enProcesoErr) throw enProcesoErr;
+
+      // Alertas
+      let alertasQuery = supabase.from('ordenes_servicio').select('*', { count: 'exact', head: true })
+        .in('estado', ['rechazada', 'pendiente']);
+      alertasQuery = applyCommonFilters(alertasQuery);
+      const { count: alertasCount, error: alertasErr } = await alertasQuery;
+      if (alertasErr) throw alertasErr;
+
+      // Por estado (group by)
+      let porEstadoQuery = supabase
+        .from('ordenes_servicio')
+        .select('estado, count:count()', { head: false })
+        .group('estado');
+      porEstadoQuery = applyCommonFilters(porEstadoQuery);
+      const { data: porEstadoRows, error: porEstadoErr } = await porEstadoQuery as any;
+      if (porEstadoErr) throw porEstadoErr;
+      const porEstado = (porEstadoRows || []).map((r: any) => ({ estado: r.estado, cantidad: Number(r.count) || 0 }));
+
+      return {
+        total: totalCount || 0,
+        hoy: hoyCount || 0,
+        enProceso: enProcesoCount || 0,
+        alertas: alertasCount || 0,
+        porEstado,
+      };
     }
   });
 
-  // Aplicar filtros a las órdenes
-  const ordenesFiltradas = ordenes.filter((orden: any) => {
-    // Filtro por fechas
-    if (fechaInicio && orden.created_at) {
-      const fechaOrden = new Date(orden.created_at).toISOString().slice(0, 10);
-      if (fechaOrden < fechaInicio) return false;
-    }
-    if (fechaFin && orden.created_at) {
-      const fechaOrden = new Date(orden.created_at).toISOString().slice(0, 10);
-      if (fechaOrden > fechaFin) return false;
-    }
-
-    // Filtro por empresa
-    if (empresaFiltro && empresaFiltro !== 'todas' && orden.empresa_id) {
-      if (orden.empresa_id.toString() !== empresaFiltro) return false;
-    }
-
-    // Filtro por analista
-    if (analistaFiltro && analistaFiltro !== 'todos' && orden.analista_id) {
-      if (orden.analista_id.toString() !== analistaFiltro) return false;
-    }
-
-    return true;
-  });
-
-  // KPIs calculados en frontend con datos filtrados
-  const ordenesTotales = ordenesFiltradas.length;
-  const hoy = new Date().toISOString().slice(0, 10);
-  const ordenesHoy = ordenesFiltradas.filter((o: any) => o.created_at && o.created_at.slice(0, 10) === hoy).length;
-  const ordenesEnProceso = ordenesFiltradas.filter((o: any) => 
-    o.estado === 'asignada' || o.estado === 'en_proceso' || o.estado === 'documentos_completos' || o.estado === 'examenes_medicos'
-  ).length;
-  const alertasActivas = ordenesFiltradas.filter((o: any) => 
-    o.estado === 'rechazada' || o.estado === 'pendiente'
-  ).length;
-  
-  // Calcular lead time promedio (simulado por ahora)
-  const leadTimePromedio = Math.floor(Math.random() * 15) + 5; // 5-20 días
-  const ordenesPorEstado: { estado: string, cantidad: number }[] = Object.entries(
-    ordenesFiltradas.reduce((acc: any, o: any) => {
-      acc[o.estado] = (acc[o.estado] || 0) + 1;
-      return acc;
-    }, {})
-  ).map(([estado, cantidad]) => ({ estado, cantidad: cantidad as number }));
+  const ordenesTotales = kpiData?.total || 0;
+  const ordenesHoy = kpiData?.hoy || 0;
+  const ordenesEnProceso = kpiData?.enProceso || 0;
+  const alertasActivas = kpiData?.alertas || 0;
+  const ordenesPorEstado: { estado: string, cantidad: number }[] = kpiData?.porEstado || [];
+  // Lead time sigue simulado
+  const leadTimePromedio = Math.floor(Math.random() * 15) + 5;
 
   const { data: leadTimeData, isLoading: loadingLeadTime } = useQuery<LeadTimeAnalista[]>({
     queryKey: ["/api/reportes/leadtime-analistas"],

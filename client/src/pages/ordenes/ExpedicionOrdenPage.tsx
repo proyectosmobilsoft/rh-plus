@@ -16,9 +16,13 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Plantilla } from '@/services/plantillasService';
 import { empresasService, Empresa } from '@/services/empresasService';
+import { isNonBusinessDay } from '@/services/holidaysService';
 import { Can, usePermissions } from '@/contexts/PermissionsContext';
 import { validacionDocumentosService } from '@/services/validacionDocumentosService';
 import SeleccionarCiudadModal from '@/components/solicitudes/SeleccionarCiudadModal';
+import { ubicacionesService } from '@/services/ubicacionesService';
+import { centrosCostoService } from '@/services/centrosCostoService';
+import { supabase } from '@/services/supabaseClient';
 
 const ExpedicionOrdenPage = () => {
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
@@ -70,16 +74,14 @@ const ExpedicionOrdenPage = () => {
     return dayOfMonth >= 25;
   };
 
-  // Función para obtener el primer día hábil del mes siguiente
+  // Función para obtener el primer día hábil del mes siguiente (excluye fines de semana y festivos)
   const getFirstBusinessDayOfNextMonth = () => {
     const today = new Date();
     const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-    
-    // Buscar el primer día hábil (lunes a viernes)
-    while (nextMonth.getDay() === 0 || nextMonth.getDay() === 6) {
+    // Avanzar hasta el primer día que no sea no hábil (ni fin de semana ni festivo)
+    while (isNonBusinessDay(nextMonth)) {
       nextMonth.setDate(nextMonth.getDate() + 1);
     }
-    
     return nextMonth;
   };
 
@@ -280,7 +282,7 @@ const ExpedicionOrdenPage = () => {
   const handleDeserto = async (id: number, observacion: string) => {
     setIsLoading(true);
     try {
-      const success = await solicitudesService.updateStatus(id, 'DESERTO', observacion);
+      const success = await solicitudesService.updateStatus(id, 'deserto', observacion);
       if (success) {
         toast.success('Solicitud marcada como deserto exitosamente');
         fetchSolicitudes(); // Recargar la lista
@@ -459,45 +461,236 @@ const ExpedicionOrdenPage = () => {
     // Aquí puedes manejar la selección de plantilla si es necesario
   };
 
-  const handleExportToExcel = () => {
+  const handleExportToExcel = async () => {
     try {
-      // Preparar los datos para exportar - exactamente como se muestran en el listado
-      const datosParaExportar = solicitudesFiltradas.map((solicitud) => {
-        // Función helper para obtener valor de display
-        const getDisplayValue = (value: string | undefined, defaultValue: string = 'No especificado') => {
-          return value && value.trim() !== '' ? value : defaultValue;
-        };
-
-        // Función para formatear fecha
-        const formatDate = (dateString: string | undefined) => {
-          if (!dateString) return 'No especificada';
-          try {
-            const date = new Date(dateString);
-            return date.toLocaleDateString('es-ES', {
-              day: '2-digit',
-              month: '2-digit',
-              year: 'numeric'
-            });
-          } catch (error) {
-            return 'Fecha inválida';
+      // Función para formatear títulos de columnas: separar palabras en mayúsculas
+      const formatColumnTitle = (title: string): string => {
+        // Si ya tiene espacios, mantenerlo pero en mayúsculas
+        if (title.includes(' ')) {
+          return title.toUpperCase();
+        }
+        
+        // Primero reemplazar guiones bajos y guiones con espacios
+        let formatted = title.replace(/[_-]/g, ' ');
+        
+        // Palabras del sistema que conocemos
+        const palabrasSistema = [
+          'AREA', 'DE', 'NEGOCIO', 'COSTO', 'CENTRO', 'SUCURSAL', 'CIUDAD', 
+          'CARGO', 'DOCUMENTO', 'FECHA', 'FECHA', 'ESTADO', 'EMPRESA',
+          'ANALISTA', 'ASIGNADO', 'MODIFICACION', 'SOLICITUD', 'EMAIL'
+        ];
+        const palabrasComunes = ['DE', 'LA', 'EL', 'DEL', 'LOS', 'LAS', 'A', 'EN', 'PARA', 'CON', 'POR', 'SIN'];
+        
+        const todasLasPalabras = [...palabrasSistema, ...palabrasComunes].sort((a, b) => b.length - a.length);
+        
+        // Si todo está en mayúsculas sin espacios (ej: "AREADENEGOCIO")
+        if (formatted.toUpperCase() === formatted && !formatted.includes(' ')) {
+          // Intentar encontrar palabras conocidas en el título
+          formatted = formatted.toUpperCase();
+          
+          for (const palabra of todasLasPalabras) {
+            // Buscar la palabra en el título y agregar espacio después si existe
+            const regex = new RegExp(`(${palabra})(?=[A-Z])`, 'g');
+            if (regex.test(formatted)) {
+              formatted = formatted.replace(regex, `$1 `);
+            }
           }
-        };
-
-        // Función para formatear hora
-        const formatDateTime = (dateString: string | undefined) => {
-          if (!dateString) return 'No especificada';
-          try {
-            const date = new Date(dateString);
-            return date.toLocaleTimeString('es-ES', {
-              hour: '2-digit',
-              minute: '2-digit'
-            });
-          } catch (error) {
-            return 'Hora inválida';
+          
+          // Si aún no tiene espacios separados, hacer separación por transición de mayúsculas
+          if (!formatted.includes(' ')) {
+            // Separar cuando hay una letra minúscula seguida de mayúscula
+            formatted = formatted.replace(/([a-z])([A-Z])/g, '$1 $2');
+            // Separar cuando hay una letra mayúscula seguida de otra mayúscula y luego minúscula
+            formatted = formatted.replace(/([A-Z])([A-Z][a-z])/g, '$1 $2');
           }
-        };
+        } else {
+          // Si tiene mezcla de mayúsculas y minúsculas, separar por transiciones
+          formatted = formatted.replace(/([a-z])([A-Z])/g, '$1 $2');
+          formatted = formatted.replace(/([A-Z])([A-Z][a-z])/g, '$1 $2');
+        }
+        
+        return formatted.toUpperCase().trim().replace(/\s+/g, ' '); // Normalizar espacios múltiples
+      };
 
-        // Obtener número de documento (igual que en el listado)
+      // Función helper para obtener valor de display
+      const getDisplayValue = (value: any, defaultValue: string = 'No especificado') => {
+        if (value === null || value === undefined) return defaultValue;
+        if (typeof value === 'boolean') return value ? 'Sí' : 'No';
+        const strValue = String(value);
+        return strValue.trim() !== '' ? strValue : defaultValue;
+      };
+
+      // Función para obtener nombre de cargo por ID
+      const obtenerNombreCargo = async (cargoId: any): Promise<string> => {
+        if (!cargoId) return '';
+        if (typeof cargoId === 'string' && isNaN(Number(cargoId))) return cargoId;
+        const id = Number(cargoId);
+        if (isNaN(id)) return '';
+        try {
+          const { data } = await supabase
+            .from('tipos_candidatos')
+            .select('nombre')
+            .eq('id', id)
+            .single();
+          return data?.nombre || '';
+        } catch {
+          return '';
+        }
+      };
+
+      // Función para obtener nombre de ciudad por ID
+      const obtenerNombreCiudad = async (ciudadId: any): Promise<string> => {
+        if (!ciudadId) return '';
+        const id = Number(ciudadId);
+        if (isNaN(id)) return '';
+        try {
+          const { data } = await supabase
+            .from('ciudades')
+            .select('nombre')
+            .eq('id', id)
+            .single();
+          return data?.nombre || '';
+        } catch {
+          return '';
+        }
+      };
+
+      // Función para obtener nombre de sucursal por ID
+      const obtenerNombreSucursal = async (sucursalId: any): Promise<string> => {
+        if (!sucursalId) return '';
+        const id = Number(sucursalId);
+        if (isNaN(id)) return '';
+        try {
+          const { data } = await supabase
+            .from('gen_sucursales')
+            .select('nombre')
+            .eq('id', id)
+            .single();
+          return data?.nombre || '';
+        } catch {
+          return '';
+        }
+      };
+
+      // Función para obtener nombre de centro de costo por ID
+      const obtenerNombreCentroCosto = async (centroCostoId: any): Promise<string> => {
+        if (!centroCostoId) return '';
+        const id = Number(centroCostoId);
+        if (isNaN(id)) return '';
+        try {
+          const { data } = await supabase
+            .from('centros_costo')
+            .select('nombre')
+            .eq('id', id)
+            .single();
+          return data?.nombre || '';
+        } catch {
+          return '';
+        }
+      };
+
+      // Función para formatear fecha
+      const formatDate = (dateString: string | undefined) => {
+        if (!dateString) return 'No especificada';
+        try {
+          const date = new Date(dateString);
+          return date.toLocaleDateString('es-ES', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+          });
+        } catch (error) {
+          return 'Fecha inválida';
+        }
+      };
+
+      // Función para formatear hora
+      const formatDateTime = (dateString: string | undefined) => {
+        if (!dateString) return 'No especificada';
+        try {
+          const date = new Date(dateString);
+          return date.toLocaleTimeString('es-ES', {
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+        } catch (error) {
+          return 'Hora inválida';
+        }
+      };
+
+      // Recolectar todos los campos únicos de todas las solicitudes para las columnas
+      // Usamos un Map con información completa del campo para mantener el orden y tipo
+      const camposEstructuraMap = new Map<string, { label: string; tipo: string; order: number; seccion: string }>();
+      
+      // Primero, recolectar campos de las secciones (formulario estructurado)
+      solicitudesFiltradas.forEach((solicitud) => {
+        if (solicitud.estructura_datos && solicitud.estructura_datos.secciones) {
+          solicitud.estructura_datos.secciones.forEach((seccion: any) => {
+            const seccionTitulo = seccion.titulo || 'Sin título';
+            if (seccion.campos && Array.isArray(seccion.campos)) {
+              seccion.campos.forEach((campo: any, index: number) => {
+                if (campo.nombre) {
+                  const nombreCampo = campo.nombre;
+                  const label = campo.label || campo.nombre || `Campo ${index}`;
+                  const tipo = campo.tipo || 'text';
+                  const order = campo.order !== undefined ? campo.order : index * 1000 + (campo.order || 0);
+                  
+                  // Si el campo ya existe, mantener el que tenga menor order (prioridad)
+                  if (!camposEstructuraMap.has(nombreCampo) || 
+                      camposEstructuraMap.get(nombreCampo)!.order > order) {
+                    camposEstructuraMap.set(nombreCampo, {
+                      label,
+                      tipo,
+                      order,
+                      seccion: seccionTitulo
+                    });
+                  }
+                }
+              });
+            }
+          });
+        }
+      });
+
+      // También recolectar cualquier campo adicional que esté directamente en estructura_datos
+      // pero que no esté en las secciones (para compatibilidad con estructuras antiguas)
+      solicitudesFiltradas.forEach((solicitud) => {
+        if (solicitud.estructura_datos) {
+          Object.keys(solicitud.estructura_datos).forEach((key) => {
+            // Ignorar propiedades especiales como 'secciones'
+            if (key !== 'secciones' && !camposEstructuraMap.has(key)) {
+              // Solo agregar si parece ser un campo de datos (no es un objeto complejo)
+              const valor = solicitud.estructura_datos[key];
+              if (valor !== null && 
+                  valor !== undefined && 
+                  (typeof valor === 'string' || typeof valor === 'number' || typeof valor === 'boolean')) {
+                camposEstructuraMap.set(key, {
+                  label: key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' '),
+                  tipo: typeof valor === 'boolean' ? 'checkbox' : typeof valor === 'number' ? 'number' : 'text',
+                  order: 999999, // Al final
+                  seccion: 'Campos adicionales'
+                });
+              }
+            }
+          });
+        }
+      });
+
+      console.log('📊 Campos encontrados para exportación:', Array.from(camposEstructuraMap.entries()).map(([key, info]) => ({ key, ...info })));
+
+      // Ordenar los campos por order y convertir a array para mantener el orden
+      const camposOrdenados = Array.from(camposEstructuraMap.entries())
+        .sort((a, b) => {
+          // Primero por order, luego por nombre del campo
+          if (a[1].order !== b[1].order) {
+            return a[1].order - b[1].order;
+          }
+          return a[0].localeCompare(b[0]);
+        });
+
+      // Preparar los datos para exportar - incluyendo todos los campos de estructura_datos
+      const datosParaExportar = await Promise.all(solicitudesFiltradas.map(async (solicitud) => {
+        // Campos básicos de la solicitud
         const numeroDocumento =
           solicitud.estructura_datos?.numero_documento ||
           solicitud.estructura_datos?.documento ||
@@ -505,28 +698,25 @@ const ExpedicionOrdenPage = () => {
           solicitud.estructura_datos?.identificacion ||
           getDisplayValue(solicitud.candidatos?.numero_documento, 'Sin número');
 
-        // Obtener email (igual que en el listado)
         const email =
           solicitud.estructura_datos?.email ||
           solicitud.estructura_datos?.correo_electronico ||
           solicitud.estructura_datos?.correo ||
           'Sin Email';
 
-        // Obtener empresa (igual que en el listado)
         const empresaNombre = getDisplayValue(solicitud.empresas?.razon_social, 'Sin empresa');
         const empresaCiudad = getDisplayValue(solicitud.empresas?.ciudad, 'Sin ciudad');
 
-        // Obtener analista (igual que en el listado)
         const analistaNombre = solicitud.analista?.nombre || 'Sin asignar';
         const analistaEmail = solicitud.analista?.email || 'Sin email';
 
-        // Obtener estado formateado (igual que en el listado)
         const formatEstado = (estado: string) => {
           return estado.charAt(0).toUpperCase() + estado.slice(1).toLowerCase();
         };
         const estadoFormateado = formatEstado(solicitud.estado || 'Sin estado');
 
-        return {
+        // Objeto base con campos del sistema
+        const fila: Record<string, any> = {
           'CONSECUTIVO': `#${solicitud.id}`,
           'DOCUMENTO': numeroDocumento,
           'EMAIL': email,
@@ -535,43 +725,331 @@ const ExpedicionOrdenPage = () => {
           'ANALISTA ASIGNADO': analistaNombre,
           'EMAIL ANALISTA': analistaEmail,
           'ESTADO': estadoFormateado,
+          'FECHA SOLICITUD': formatDate(solicitud.fecha_solicitud),
           'FECHA MODIFICACIÓN': formatDate(solicitud.updated_at),
           'HORA MODIFICACIÓN': formatDateTime(solicitud.updated_at)
         };
-      });
+
+        // Agregar todos los campos de estructura_datos en el orden correcto
+        for (const [nombreCampo, infoCampo] of camposOrdenados) {
+          // Obtener el valor - puede estar directamente en estructura_datos o anidado
+          let valor = solicitud.estructura_datos?.[nombreCampo];
+          
+          // Si no se encuentra directamente, buscar con variaciones del nombre
+          if (valor === null || valor === undefined || valor === '') {
+            // Intentar variaciones comunes del nombre del campo
+            const variaciones = [
+              nombreCampo.toLowerCase(),
+              nombreCampo.toUpperCase(),
+              nombreCampo,
+              nombreCampo.replace(/_/g, ''),
+              nombreCampo.replace(/-/g, '_'),
+            ];
+            
+            for (const variacion of variaciones) {
+              if (solicitud.estructura_datos?.[variacion] !== undefined) {
+                valor = solicitud.estructura_datos[variacion];
+                break;
+              }
+            }
+          }
+          
+          // Formatear el valor según el tipo de campo
+          if (valor !== null && valor !== undefined && valor !== '') {
+            switch (infoCampo.tipo) {
+              case 'checkbox':
+                valor = valor === true || valor === 'true' || valor === '1' || valor === 1 ? 'Sí' : 'No';
+                break;
+              case 'date':
+                if (valor && typeof valor === 'string') {
+                  valor = formatDate(valor);
+                } else if (valor && typeof valor === 'object' && 'toISOString' in valor) {
+                  // Si es un objeto Date
+                  valor = formatDate((valor as Date).toISOString());
+                }
+                break;
+              case 'select':
+              case 'text':
+              case 'number':
+              case 'email':
+              case 'textarea':
+              default:
+                // Mantener el valor tal cual, pero convertirlo a string
+                if (Array.isArray(valor)) {
+                  valor = valor.join(', ');
+                } else if (typeof valor === 'object') {
+                  valor = JSON.stringify(valor);
+                } else {
+                  valor = String(valor);
+                }
+                break;
+            }
+          }
+          
+          // Formatear el nombre de columna separando palabras
+          const nombreColumna = formatColumnTitle(infoCampo.label);
+          
+          // Si el campo es uno de los que necesita conversión de ID a nombre
+          const nombreCampoLower = nombreCampo.toLowerCase().replace(/[_-]/g, '');
+          const labelLower = infoCampo.label.toLowerCase().replace(/[_\s]/g, '');
+          
+          // Detectar cargo por nombre de campo o label
+          if (nombreCampoLower.includes('cargo') || labelLower.includes('cargo')) {
+            if (valor && !isNaN(Number(valor))) {
+              const nombreCargo = await obtenerNombreCargo(valor);
+              fila[nombreColumna] = nombreCargo || getDisplayValue(valor, '');
+            } else {
+              fila[nombreColumna] = getDisplayValue(valor, '');
+            }
+          } 
+          // Detectar ciudad por nombre de campo o label (excluyendo ciudad_id de candidato)
+          else if ((nombreCampoLower.includes('ciudad') || labelLower.includes('ciudad')) && 
+                   !nombreCampoLower.includes('ciudad_id') && !labelLower.includes('candidato')) {
+            if (valor && !isNaN(Number(valor))) {
+              const nombreCiudad = await obtenerNombreCiudad(valor);
+              fila[nombreColumna] = nombreCiudad || getDisplayValue(valor, '');
+            } else {
+              fila[nombreColumna] = getDisplayValue(valor, '');
+            }
+          } 
+          // Detectar sucursal por nombre de campo o label
+          else if (nombreCampoLower.includes('sucursal') || labelLower.includes('sucursal')) {
+            if (valor && !isNaN(Number(valor))) {
+              const nombreSucursal = await obtenerNombreSucursal(valor);
+              fila[nombreColumna] = nombreSucursal || getDisplayValue(valor, '');
+            } else {
+              fila[nombreColumna] = getDisplayValue(valor, '');
+            }
+          } 
+          // Detectar centro de costo por nombre de campo o label (varias variaciones)
+          else if (nombreCampoLower.includes('centrocosto') || nombreCampoLower.includes('centrodecosto') ||
+                   labelLower.includes('centrocosto') || labelLower.includes('centrodecosto') ||
+                   labelLower.includes('centrode costo') || labelLower.includes('centro de costo')) {
+            if (valor && !isNaN(Number(valor))) {
+              const nombreCentroCosto = await obtenerNombreCentroCosto(valor);
+              fila[nombreColumna] = nombreCentroCosto || getDisplayValue(valor, '');
+            } else {
+              fila[nombreColumna] = getDisplayValue(valor, '');
+            }
+          } 
+          else {
+            fila[nombreColumna] = getDisplayValue(valor, '');
+          }
+        }
+
+        // Debug: Log para la primera solicitud
+        if (solicitudesFiltradas.indexOf(solicitud) === 0) {
+          console.log('🔍 Primera solicitud estructura_datos:', JSON.stringify(solicitud.estructura_datos, null, 2));
+          console.log('🔍 Campos a exportar:', Object.keys(fila));
+        }
+
+        return fila;
+      }));
 
       // Crear el libro de trabajo
       const wb = XLSX.utils.book_new();
 
-      // Crear la hoja de trabajo
-      const ws = XLSX.utils.json_to_sheet(datosParaExportar);
+      // Primero, obtener el orden de las columnas que queremos
+      const columnHeadersOrdenados: string[] = [];
+      if (datosParaExportar.length > 0) {
+        const primeraFila = datosParaExportar[0];
+        const camposSistema = [
+          'CONSECUTIVO',
+          'DOCUMENTO',
+          'EMAIL',
+          'EMPRESA',
+          'CIUDAD EMPRESA',
+          'ANALISTA ASIGNADO',
+          'EMAIL ANALISTA',
+          'ESTADO',
+          'FECHA SOLICITUD',
+          'FECHA MODIFICACIÓN',
+          'HORA MODIFICACIÓN'
+        ];
+        
+        // Agregar campos del sistema en orden
+        camposSistema.forEach(campo => {
+          if (primeraFila.hasOwnProperty(campo)) {
+            columnHeadersOrdenados.push(campo);
+          }
+        });
+        
+        // Agregar campos de estructura_datos en orden
+        camposOrdenados.forEach(([nombreCampo, infoCampo]) => {
+          const nombreColumna = formatColumnTitle(infoCampo.label);
+          if (primeraFila.hasOwnProperty(nombreColumna) && !columnHeadersOrdenados.includes(nombreColumna)) {
+            columnHeadersOrdenados.push(nombreColumna);
+          }
+        });
+        
+        // Agregar cualquier campo adicional que no esté en las listas anteriores
+        Object.keys(primeraFila).forEach(campo => {
+          if (!columnHeadersOrdenados.includes(campo)) {
+            columnHeadersOrdenados.push(campo);
+          }
+        });
+      }
 
-      // Configurar el ancho de las columnas
-      const colWidths = [
-        { wch: 12 },  // CONSECUTIVO
-        { wch: 15 },  // DOCUMENTO
-        { wch: 25 },  // EMAIL
-        { wch: 30 },  // EMPRESA
-        { wch: 20 },  // CIUDAD EMPRESA
-        { wch: 20 },  // ANALISTA ASIGNADO
-        { wch: 25 },  // EMAIL ANALISTA
-        { wch: 18 },  // ESTADO
-        { wch: 15 },  // FECHA MODIFICACIÓN
-        { wch: 15 }   // HORA MODIFICACIÓN
-      ];
+      // Reorganizar los datos para que estén en el orden correcto
+      const datosOrdenados = datosParaExportar.map(fila => {
+        const filaOrdenada: Record<string, any> = {};
+        columnHeadersOrdenados.forEach(columna => {
+          filaOrdenada[columna] = fila[columna];
+        });
+        return filaOrdenada;
+      });
+
+      // Crear la hoja de trabajo con los datos ordenados
+      const ws = XLSX.utils.json_to_sheet(datosOrdenados);
+
+      // Obtener número de columnas dinámicamente
+      const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+      const numCols = range.e.c + 1;
+
+      // Calcular el ancho óptimo de cada columna basado en el contenido
+      const calcularAnchoColumna = (header: string, index: number): number => {
+        // Anchos mínimos y máximos
+        const MIN_WIDTH = 10;
+        const MAX_WIDTH = 50;
+        
+        // Calcular ancho del header
+        const headerWidth = header.length;
+        
+        // Calcular ancho máximo del contenido en esa columna
+        let maxContentWidth = headerWidth;
+        datosOrdenados.forEach((fila) => {
+          const valor = fila[header];
+          if (valor !== null && valor !== undefined) {
+            const valorStr = String(valor);
+            // Contar caracteres, pero considerar que algunos caracteres (como ñ, acentos) pueden tomar más espacio
+            const valorLength = valorStr.length;
+            // Si es muy largo, limitar el cálculo para no hacer columnas gigantes
+            const maxVal = Math.min(valorLength, 100);
+            if (maxVal > maxContentWidth) {
+              maxContentWidth = maxVal;
+            }
+          }
+        });
+        
+        // Calcular ancho óptimo: header + padding + margen
+        // Usamos el máximo entre header y contenido, más un padding
+        const width = Math.max(headerWidth, maxContentWidth) + 3; // +3 para padding
+        
+        // Aplicar límites
+        const finalWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, width));
+        
+        return finalWidth;
+      };
+
+      // Configurar el ancho de las columnas basado en el contenido real
+      const colWidths: { wch: number }[] = [];
+      
+      // Anchos preferidos para campos comunes (pueden ser sobrescritos si el contenido es mayor)
+      const anchosPreferidos: Record<string, number> = {
+        'CONSECUTIVO': 12,
+        'DOCUMENTO': 18,
+        'EMAIL': 30,
+        'EMPRESA': 35,
+        'CIUDAD EMPRESA': 20,
+        'ANALISTA ASIGNADO': 25,
+        'EMAIL ANALISTA': 30,
+        'ESTADO': 18,
+        'FECHA SOLICITUD': 18,
+        'FECHA MODIFICACIÓN': 20,
+        'HORA MODIFICACIÓN': 18
+      };
+
+      // Configurar ancho para cada columna usando el orden correcto
+      columnHeadersOrdenados.forEach((header, index) => {
+        // Si tiene un ancho preferido, usarlo como mínimo
+        const anchoPreferido = anchosPreferidos[header];
+        const anchoCalculado = calcularAnchoColumna(header, index);
+        
+        // Usar el mayor entre el preferido y el calculado
+        const anchoFinal = anchoPreferido 
+          ? Math.max(anchoPreferido, anchoCalculado)
+          : anchoCalculado;
+        
+        colWidths.push({ wch: anchoFinal });
+      });
+
+      // Asegurar que tenemos anchos para todas las columnas
+      while (colWidths.length < numCols) {
+        colWidths.push({ wch: 15 });
+      }
+
       ws['!cols'] = colWidths;
 
-      // Aplicar formato a los headers (mayúsculas, negrita, fondo pálido)
-      const headerRange = XLSX.utils.decode_range(ws['!ref'] || 'A1:J1');
-      for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
-        const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
-        if (!ws[cellAddress]) continue;
+      // Función para detectar si una columna contiene principalmente números
+      const esColumnaNumerica = (header: string, index: number): boolean => {
+        // Validar primero si es teléfono o celular (NO debe ser numérica)
+        const headerLower = header.toLowerCase().replace(/\s+/g, '');
+        if (headerLower.includes('telefono') || 
+            headerLower.includes('teléfono') || 
+            headerLower.includes('celular') ||
+            headerLower.includes('phone')) {
+          return false;
+        }
+        
+        // Nombres de columnas que típicamente contienen números
+        // NOTA: TELEFONO y CELULAR están explícitamente excluidos arriba
+        const columnasNumericasPorNombre = [
+          'CONSECUTIVO', 'DOCUMENTO', 'ID',
+          'SALARIO', 'SALARIO_BASICO', 'SALARIO_MENSUAL', 'AUXILIO_TRANSPORTE',
+          'PORCENTAJE', 'CANTIDAD', 'TOTAL', 'PRECIO', 'COSTO'
+        ];
+        
+        const headerUpper = header.toUpperCase();
+        // Verificar si el nombre del header sugiere que es numérico
+        if (columnasNumericasPorNombre.some(nombre => headerUpper.includes(nombre))) {
+          return true;
+        }
+        
+        // Verificar el contenido: si la mayoría de valores no vacíos son números, es numérica
+        let valoresNumericos = 0;
+        let valoresTotales = 0;
+        
+        datosOrdenados.forEach((fila) => {
+          const valor = fila[header];
+          if (valor !== null && valor !== undefined && valor !== '') {
+            valoresTotales++;
+            const valorStr = String(valor).trim();
+            // Verificar si es un número (entero o decimal)
+            if (/^-?\d+(\.\d+)?$/.test(valorStr) || /^-?\d+,\d+$/.test(valorStr)) {
+              valoresNumericos++;
+            }
+          }
+        });
+        
+        // Si al menos el 80% de los valores son números, consideramos la columna numérica
+        return valoresTotales > 0 && (valoresNumericos / valoresTotales) >= 0.8;
+      };
 
-        // Aplicar formato al header
+      // Aplicar formato a los headers (mayúsculas, negrita, fondo gris pálido)
+      for (let col = 0; col < numCols; col++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
+        // Asegurar que la celda existe - si no, crearla
+        if (!ws[cellAddress]) {
+          ws[cellAddress] = { v: columnHeadersOrdenados[col] || '', t: 's' };
+        }
+        
+        const headerName = columnHeadersOrdenados[col] || '';
+
+        // Aplicar formato al header con fondo gris pálido
+        // Usando exactamente el mismo patrón que AnalistasPage (con 'size' no 'sz')
         ws[cellAddress].s = {
-          font: { bold: true },
-          fill: { fgColor: { rgb: "F0F0F0" } }, // Fondo gris pálido
-          alignment: { horizontal: "center", vertical: "center" },
+          font: { 
+            bold: true,
+            size: 11,
+            color: { rgb: "000000" }
+          },
+          fill: { 
+            fgColor: { rgb: "D3D3D3" } // Gris claro (lightgray)
+          },
+          alignment: { 
+            horizontal: "center", 
+            vertical: "center"
+          },
           border: {
             top: { style: "thin", color: { rgb: "000000" } },
             bottom: { style: "thin", color: { rgb: "000000" } },
@@ -582,22 +1060,88 @@ const ExpedicionOrdenPage = () => {
       }
 
       // Aplicar formato a las filas de datos
-      const dataRange = XLSX.utils.decode_range(ws['!ref'] || 'A1:J1');
-      for (let row = 1; row <= dataRange.e.r; row++) {
-        for (let col = dataRange.s.c; col <= dataRange.e.c; col++) {
+      for (let row = 1; row <= range.e.r; row++) {
+        for (let col = 0; col < numCols; col++) {
           const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
           if (!ws[cellAddress]) continue;
 
-          // Aplicar formato a las celdas de datos
-          ws[cellAddress].s = {
-            alignment: { vertical: "center" },
-            border: {
-              top: { style: "thin", color: { rgb: "CCCCCC" } },
-              bottom: { style: "thin", color: { rgb: "CCCCCC" } },
-              left: { style: "thin", color: { rgb: "CCCCCC" } },
-              right: { style: "thin", color: { rgb: "CCCCCC" } }
+          const headerName = columnHeadersOrdenados[col] || '';
+          let cellValue = ws[cellAddress].v;
+          
+          // Validar si es una columna de teléfono o celular (no debe recibir formato numérico)
+          const headerNameLower = headerName.toLowerCase().replace(/\s+/g, '');
+          const esTelefonoOCelular = headerNameLower.includes('telefono') || 
+                                     headerNameLower.includes('teléfono') || 
+                                     headerNameLower.includes('celular') ||
+                                     headerNameLower.includes('phone');
+          
+          // Determinar si esta columna es numérica (excluyendo teléfonos y celulares)
+          const esNumerica = !esTelefonoOCelular && esColumnaNumerica(headerName, col);
+          
+          // Si es una columna numérica (que no sea teléfono/celular) y el valor es un número, convertirlo y formatearlo
+          if (esNumerica && cellValue !== null && cellValue !== undefined && cellValue !== '') {
+            const numValue = typeof cellValue === 'number' ? cellValue : 
+                            parseFloat(String(cellValue).replace(/,/g, '').replace('.', '.'));
+            
+            if (!isNaN(numValue)) {
+              // Establecer el valor numérico
+              ws[cellAddress].v = numValue;
+              ws[cellAddress].t = 'n'; // Tipo numérico
+              
+              // Aplicar formato numérico con separadores de miles
+              // La propiedad z contiene el formato de número de Excel
+              if (numValue % 1 === 0) {
+                // Es un entero - formato sin decimales con separadores de miles
+                ws[cellAddress].z = '#,##0';
+              } else {
+                // Tiene decimales - formato con 2 decimales y separadores de miles
+                ws[cellAddress].z = '#,##0.00';
+              }
+              
+              // Formato de estilo para números (alineación a la derecha)
+              // La celda ya existe y tiene v, t y z asignados arriba
+              ws[cellAddress].s = {
+                alignment: { 
+                  vertical: "center",
+                  horizontal: "right" // Números alineados a la derecha
+                },
+                border: {
+                  top: { style: "thin", color: { rgb: "CCCCCC" } },
+                  bottom: { style: "thin", color: { rgb: "CCCCCC" } },
+                  left: { style: "thin", color: { rgb: "CCCCCC" } },
+                  right: { style: "thin", color: { rgb: "CCCCCC" } }
+                }
+              };
+            } else {
+              // No es número válido, aplicar estilo normal de texto
+              ws[cellAddress].s = {
+                alignment: { 
+                  vertical: "center",
+                  horizontal: "left"
+                },
+                border: {
+                  top: { style: "thin", color: { rgb: "CCCCCC" } },
+                  bottom: { style: "thin", color: { rgb: "CCCCCC" } },
+                  left: { style: "thin", color: { rgb: "CCCCCC" } },
+                  right: { style: "thin", color: { rgb: "CCCCCC" } }
+                }
+              };
             }
-          };
+          } else {
+            // Formato base para celdas de texto
+            ws[cellAddress].s = {
+              alignment: { 
+                vertical: "center",
+                horizontal: "left"
+              },
+              border: {
+                top: { style: "thin", color: { rgb: "CCCCCC" } },
+                bottom: { style: "thin", color: { rgb: "CCCCCC" } },
+                left: { style: "thin", color: { rgb: "CCCCCC" } },
+                right: { style: "thin", color: { rgb: "CCCCCC" } }
+              }
+            };
+          }
         }
       }
 
@@ -611,6 +1155,8 @@ const ExpedicionOrdenPage = () => {
       const nombreArchivo = `Solicitudes_${fechaFormateada}_${horaFormateada}.xlsx`;
 
       // Descargar el archivo
+      // Nota: XLSX Community Edition puede tener limitaciones con estilos avanzados
+      // Los estilos básicos (fill, font, alignment, border) deberían funcionar
       XLSX.writeFile(wb, nombreArchivo);
 
       toast.success(`Archivo Excel exportado exitosamente: ${nombreArchivo}`);
