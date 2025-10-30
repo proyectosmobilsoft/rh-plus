@@ -1,5 +1,6 @@
 /* Importar estilos de react-datepicker al inicio */
-@import 'react-datepicker/dist/react-datepicker.css';
+/* Comentado: ya se tienen estilos personalizados para react-datepicker más abajo */
+/* @import 'react-datepicker/dist/react-datepicker.css'; */
 
 @tailwind base;
 @tailwind components;
@@ -20,37 +21,27 @@
     /* Aplicación de la paleta personalizada */
     --background: 0 0% 100%;
     --foreground: 0 0% 9%;
-
     --card: 0 0% 100%;
     --card-foreground: 0 0% 9%;
-
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 9%;
-
     --primary: var(--brand-lime);
     /* Verde lima como color principal */
     --primary-foreground: 0 0% 100%;
-
     --secondary: var(--brand-turquoise);
     /* Azul turquesa como secundario */
     --secondary-foreground: 0 0% 100%;
-
     --muted: 0 0% 96%;
     --muted-foreground: var(--brand-gray);
-
     --accent: var(--brand-turquoise);
     /* Azul turquesa para acentos */
     --accent-foreground: 0 0% 100%;
-
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-
     --border: var(--brand-gray);
     --input: var(--brand-gray);
     --ring: var(--brand-lime);
-
     --radius: 0.5rem;
-
     /* Sidebar con la nueva paleta */
     --sidebar-background: 0 0% 15%;
     --sidebar-foreground: 0 0% 98%;
