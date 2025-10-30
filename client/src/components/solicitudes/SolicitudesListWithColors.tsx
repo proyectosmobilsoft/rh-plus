@@ -45,10 +45,10 @@ export const SolicitudesListWithColorsExample = () => {
       <div className="space-y-2">
         <h4 className="font-medium">Badges de Estado:</h4>
         <div className="flex space-x-2">
-          {getStatusBadge('PENDIENTE')}
-          {getStatusBadge('ASIGNADO')}
-          {getStatusBadge('APROBADA')}
-          {getStatusBadge('RECHAZADA')}
+          {getStatusBadge('pendiente')}
+          {getStatusBadge('asignado')}
+          {getStatusBadge('aprobada')}
+          {getStatusBadge('rechazada')}
         </div>
       </div>
 
@@ -56,10 +56,10 @@ export const SolicitudesListWithColorsExample = () => {
       <div className="space-y-2">
         <h4 className="font-medium">Colores de Fondo:</h4>
         <div className="grid grid-cols-2 gap-2">
-          <div className={`p-3 rounded ${getRowBackgroundColor('PENDIENTE')}`}>
+          <div className={`p-3 rounded ${getRowBackgroundColor('pendiente')}`}>
             Fila Pendiente
           </div>
-          <div className={`p-3 rounded ${getRowBackgroundColor('APROBADA')}`}>
+          <div className={`p-3 rounded ${getRowBackgroundColor('aprobada')}`}>
             Fila Aprobada
           </div>
         </div>

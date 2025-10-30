@@ -1343,7 +1343,7 @@ export const solicitudesService = {
 
       const total = data?.length || 0;
       const pendientes =
-        data?.filter((s: any) => s.estado === "PENDIENTE").length || 0;
+        data?.filter((s: any) => (s.estado || '').toLowerCase() === 'pendiente').length || 0;
       const aprobadas =
         data?.filter((s: any) => s.estado === "aprobada").length || 0;
       const rechazadas =

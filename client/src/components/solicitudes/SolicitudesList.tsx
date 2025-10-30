@@ -226,7 +226,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
           if (prev.has(solicitud.id!)) {
             newMap.set(solicitud.id!, prev.get(solicitud.id!)!);
           } else {
-            newMap.set(solicitud.id!, 'PENDIENTE');
+            newMap.set(solicitud.id!, 'pendiente');
           }
         }
       });
@@ -464,7 +464,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   // Función para verificar si la solicitud está en STAND BY
   const isStandBy = (estado: string) => estado?.toLowerCase() === 'stand by';
 
-  // Función para verificar si la solicitud está en estado DESERTO
+  // Función para verificar si la solicitud está en estado deserto
   const isDeserto = (estado: string) => estado?.toLowerCase() === 'deserto';
 
   // Función para verificar si la solicitud está en estado CANCELADA
