@@ -43,9 +43,9 @@ export interface AuthService {
 
 // Configuración de email (puedes cambiar estos valores)
 const EMAIL_CONFIG = {
-  gmail: 'proyectosmobilsoft@gmail.com', // Cambia por tu Gmail
-  password: 'Axul2025$', // Cambia por tu contraseña
-  appPassword: 'sewi slmy fcls hvaa' // Opcional: contraseña de aplicación si tienes 2FA
+  gmail: import.meta.env.VITE_GMAIL_USER,
+  password: import.meta.env.VITE_GMAIL_PASS,
+  appPassword: import.meta.env.VITE_GMAIL_APP_PASSWORD
 };
 
 // Configurar el servicio de email
