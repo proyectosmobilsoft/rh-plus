@@ -199,9 +199,9 @@ export default function UbicacionesPage() {
     queryKey: ['paises'],
     queryFn: async () => {
       try {
-        console.log('🔄 Ejecutando query de países...');
+        
         const data = await ubicacionesService.getPaises();
-        console.log('📊 Países obtenidos:', data?.length || 0, 'registros');
+        
         return data || [];
       } catch (error) {
         console.error('Error cargando países:', error);
@@ -254,7 +254,7 @@ export default function UbicacionesPage() {
           setSelectedEmpresaSucursal((editingItem as any).empresa_id);
         }
       } catch (error) {
-        console.warn('Error inicializando departamento para sucursal:', error);
+        
         setSelectedDepartamentoSucursal(null);
         setSelectedCiudadSucursal(null);
         setCiudadIdSucursal(null);
@@ -318,10 +318,10 @@ export default function UbicacionesPage() {
   useEffect(() => {
     const initializeTables = async () => {
       try {
-        console.log('🔧 Configurando tablas de ubicaciones...');
+        
         const setupResult = await setupUbicaciones();
         if (!setupResult.success) {
-          console.warn('⚠️ Advertencia: No se pudo configurar las tablas completamente');
+          
         }
       } catch (error) {
         console.error('Error configurando tablas:', error);
@@ -333,7 +333,7 @@ export default function UbicacionesPage() {
 
   // useEffect para generar código autoincrementable para nuevas sucursales
   useEffect(() => {
-    console.log('🔄 useEffect código sucursal:', { activeTab, editingItem: !!editingItem, sucursalesLength: sucursales.length });
+    
     
     if (activeTab === 'sucursales' && !editingItem && sucursales.length >= 0) {
       try {
@@ -341,20 +341,20 @@ export default function UbicacionesPage() {
         const siguienteNumero = sucursales.length + 1;
         const codigoGenerado = `S${siguienteNumero.toString().padStart(3, '0')}`;
         
-        console.log('✅ Generando código:', { siguienteNumero, codigoGenerado });
+        
         
         // Actualizar el estado del código
         setCodigoSucursal(codigoGenerado);
       } catch (error) {
-        console.warn('Error generando código autoincrementable:', error);
+        
       }
     } else if (editingItem && editingItem.codigo) {
       // Si estamos editando, usar el código existente
-      console.log('📝 Editando sucursal, código existente:', editingItem.codigo);
+      
       setCodigoSucursal(editingItem.codigo);
     } else {
       // Limpiar el código si no estamos en sucursales
-      console.log('🧹 Limpiando código');
+      
       setCodigoSucursal('');
     }
   }, [activeTab, editingItem, sucursales]);
@@ -559,7 +559,7 @@ export default function UbicacionesPage() {
       return;
     }
 
-    console.log(`🔍 handleActivate llamado para ${type} con ID:`, item.id, 'Item completo:', item);
+    
 
     try {
       startLoading();
@@ -567,34 +567,34 @@ export default function UbicacionesPage() {
       
       switch (type) {
         case 'pais':
-          console.log('🔄 Activando país con ID:', item.id);
+          
           await ubicacionesService.activatePais(item.id);
           success = true;
-          console.log('✅ País activado exitosamente');
+          
           break;
         case 'departamento':
-          console.log('🔄 Activando departamento con ID:', item.id);
+          
           await ubicacionesService.activateDepartamento(item.id);
           success = true;
-          console.log('✅ Departamento activado exitosamente');
+          
           break;
         case 'ciudad':
-          console.log('🔄 Activando ciudad con ID:', item.id);
+          
           await ubicacionesService.activateCiudad(item.id);
           success = true;
-          console.log('✅ Ciudad activada exitosamente');
+          
           break;
         case 'regional':
-          console.log('🔄 Activando regional con ID:', item.id);
+          
           await ubicacionesService.activateRegional(item.id);
           success = true;
-          console.log('✅ Regional activado exitosamente');
+          
           break;
         case 'sucursal':
-          console.log('🔄 Activando sucursal con ID:', item.id);
+          
           await ubicacionesService.activateSucursal(item.id);
           success = true;
-          console.log('✅ Sucursal activada exitosamente');
+          
           break;
         default:
           console.error('❌ Tipo no reconocido:', type);
@@ -603,24 +603,24 @@ export default function UbicacionesPage() {
 
       if (success) {
         const message = `${type === 'pais' ? 'País' : type === 'departamento' ? 'Departamento' : type === 'ciudad' ? 'Ciudad' : type === 'regional' ? 'Regional' : 'Sucursal'} activado correctamente`;
-        console.log('🎉 Éxito:', message);
+        
         toast.success(message);
         
         // Invalidar queries para refrescar datos
-        console.log('🔄 Invalidando queries...');
+        
         queryClient.invalidateQueries({ queryKey: ['paises'] });
         queryClient.invalidateQueries({ queryKey: ['departamentos'] });
         queryClient.invalidateQueries({ queryKey: ['ciudades'] });
         queryClient.invalidateQueries({ queryKey: ['regionales'] });
         queryClient.invalidateQueries({ queryKey: ['sucursales'] });
-        console.log('✅ Queries invalidados');
+        
       }
     } catch (error) {
       console.error(`❌ Error al activar ${type}:`, error);
       toast.error(`Error al activar ${type === 'pais' ? 'el país' : type === 'departamento' ? 'el departamento' : type === 'ciudad' ? 'la ciudad' : type === 'regional' ? 'la regional' : 'la sucursal'}`);
     } finally {
       stopLoading();
-      console.log('🔄 Loading detenido');
+      
     }
   };
 
@@ -630,7 +630,7 @@ export default function UbicacionesPage() {
       return;
     }
 
-    console.log(`🔍 handleDeactivate llamado para ${type} con ID:`, item.id, 'Item completo:', item);
+    
 
     try {
       startLoading();
@@ -638,34 +638,34 @@ export default function UbicacionesPage() {
       
       switch (type) {
         case 'pais':
-          console.log('🔄 Desactivando país con ID:', item.id);
+          
           await ubicacionesService.deactivatePais(item.id);
           success = true;
-          console.log('✅ País desactivado exitosamente');
+          
           break;
         case 'departamento':
-          console.log('🔄 Desactivando departamento con ID:', item.id);
+          
           await ubicacionesService.deactivateDepartamento(item.id);
           success = true;
-          console.log('✅ Departamento desactivado exitosamente');
+          
           break;
         case 'ciudad':
-          console.log('🔄 Desactivando ciudad con ID:', item.id);
+          
           await ubicacionesService.deactivateCiudad(item.id);
           success = true;
-          console.log('✅ Ciudad desactivada exitosamente');
+          
           break;
         case 'regional':
-          console.log('🔄 Desactivando regional con ID:', item.id);
+          
           await ubicacionesService.deactivateRegional(item.id);
           success = true;
-          console.log('✅ Regional desactivado exitosamente');
+          
           break;
         case 'sucursal':
-          console.log('🔄 Desactivando sucursal con ID:', item.id);
+          
           await ubicacionesService.deactivateSucursal(item.id);
           success = true;
-          console.log('✅ Sucursal desactivada exitosamente');
+          
           break;
         default:
           console.error('❌ Tipo no reconocido:', type);
@@ -674,24 +674,24 @@ export default function UbicacionesPage() {
 
       if (success) {
         const message = `${type === 'pais' ? 'País' : type === 'departamento' ? 'Departamento' : type === 'ciudad' ? 'Ciudad' : type === 'regional' ? 'Regional' : 'Sucursal'} inactivado correctamente`;
-        console.log('🎉 Éxito:', message);
+        
         toast.success(message);
         
         // Invalidar queries para refrescar datos
-        console.log('🔄 Invalidando queries...');
+        
         queryClient.invalidateQueries({ queryKey: ['paises'] });
         queryClient.invalidateQueries({ queryKey: ['departamentos'] });
         queryClient.invalidateQueries({ queryKey: ['ciudades'] });
         queryClient.invalidateQueries({ queryKey: ['regionales'] });
         queryClient.invalidateQueries({ queryKey: ['sucursales'] });
-        console.log('✅ Queries invalidados');
+        
       }
     } catch (error) {
       console.error(`❌ Error al inactivar ${type}:`, error);
       toast.error(`Error al inactivar ${type === 'pais' ? 'el país' : type === 'departamento' ? 'el departamento' : type === 'ciudad' ? 'la ciudad' : type === 'regional' ? 'la regional' : 'la sucursal'}`);
     } finally {
       stopLoading();
-      console.log('🔄 Loading detenido');
+      
     }
   };
 
@@ -708,10 +708,10 @@ export default function UbicacionesPage() {
       try {
         const siguienteNumero = sucursales.length + 1;
         const codigoGenerado = `S${siguienteNumero.toString().padStart(3, '0')}`;
-        console.log('✅ Generando código desde botón Adicionar:', { siguienteNumero, codigoGenerado });
+        
         setCodigoSucursal(codigoGenerado);
       } catch (error) {
-        console.warn('Error generando código desde botón Adicionar:', error);
+        
       }
     }
   };
@@ -2055,7 +2055,7 @@ export default function UbicacionesPage() {
               empresa_id: empresaUsuario ? empresaUsuario.id : selectedEmpresaSucursal,
             };
             
-            console.log('🏢 Guardando sucursal:', payload);
+            
             if (editingItem?.id) {
               await ubicacionesService.updateSucursal(editingItem.id, payload);
             } else {
