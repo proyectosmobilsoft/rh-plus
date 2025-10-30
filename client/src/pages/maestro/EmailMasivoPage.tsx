@@ -177,7 +177,7 @@ export default function EmailMasivoPage() {
     try {
       const { data, error } = await supabase
         .from('email_templates')
-        .select('*')
+        .select('id, nombre, asunto, contenido_html, variables, activo, created_at, updated_at')
         .eq('activo', true)
         .order('nombre');
 
@@ -193,7 +193,7 @@ export default function EmailMasivoPage() {
     try {
       const { data, error } = await supabase
         .from('gmail_templates')
-        .select('*')
+        .select('id, nombre, asunto, contenido_html, variables, tipo_destinatario, activo, created_at, updated_at')
         .eq('activo', true)
         .order('nombre');
 
@@ -209,7 +209,7 @@ export default function EmailMasivoPage() {
     try {
       const { data, error } = await supabase
         .from('email_campaigns')
-        .select('*')
+        .select('id, nombre, template_id, asunto_personalizado, contenido_personalizado, estado, destinatarios_count, enviados_count, created_by, created_at, updated_at')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -224,7 +224,7 @@ export default function EmailMasivoPage() {
     try {
       const { data, error } = await supabase
         .from('gmail_campaigns')
-        .select('*')
+        .select('id, nombre, template_id, asunto_personalizado, contenido_personalizado, tipo_destinatario, estado, destinatarios_count, enviados_count, created_at, updated_at')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -891,9 +891,12 @@ export default function EmailMasivoPage() {
 
       // Obtener destinatarios de la campaña
       const tableName = type === 'gmail' ? 'gmail_campaign_recipients' : 'email_campaign_recipients';
+      const selectFields = type === 'gmail' 
+        ? 'id, email, nombre, empresa, tipo, estado, enviado_at, error_message, created_at'
+        : 'id, email, nombre, variables, estado, error_message, sent_at, created_at';
       const { data: recipients, error } = await supabase
         .from(tableName)
-        .select('*')
+        .select(selectFields)
         .eq('campaign_id', campaign.id);
 
       if (error) {
