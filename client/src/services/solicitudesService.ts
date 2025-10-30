@@ -289,12 +289,10 @@ export const solicitudesService = {
         if (empresaData) {
           const empresa = JSON.parse(empresaData);
           empresaId = empresa.id;
-          console.log("🏢 Filtrando solicitudes por empresa:", empresa.razon_social, "ID:", empresaId);
         } else {
-          console.log("🏢 No hay empresa seleccionada, mostrando todas las solicitudes");
         }
       } catch (error) {
-        console.warn("Error al obtener empresa del localStorage:", error);
+        
       }
 
       // Obtener el analista autenticado del localStorage
@@ -307,12 +305,9 @@ export const solicitudesService = {
           const isAnalyst = user.acciones && user.acciones.includes('rol_analista');
           if (isAnalyst) {
           analistaId = user.id;
-            console.log("👤 Usuario es analista, filtrando solicitudes por analista:", user.username, "ID:", analistaId);
           } else {
-            console.log("👤 Usuario no es analista (rol:", user.role, "), no filtrando por analista_id");
           }
         } else {
-          console.log("👤 No hay usuario autenticado, mostrando todas las solicitudes");
         }
       } catch (error) {
         console.warn("Error al obtener usuario del localStorage:", error);
@@ -352,24 +347,19 @@ export const solicitudesService = {
       if (empresaId) {
         // SIEMPRE filtrar por empresa si existe
         query = query.eq('empresa_id', empresaId);
-        console.log("🏢 Filtrando por empresa:", empresaId);
-        
         if (analistaId) {
           // Si además hay usuario autenticado, filtrar también por analista
           query = query.eq('analista_id', analistaId);
-          console.log("👤 Filtrando adicionalmente por analista:", analistaId);
         } else {
-          console.log("🏢 Mostrando todas las solicitudes de la empresa");
         }
       } else {
         // Solo si NO hay empresa: modo admin (mostrar todas las solicitudes)
-        console.log("🔓 Modo admin: no hay empresa, mostrando todas las solicitudes");
       }
 
       const { data, error } = await query.order("created_at", { ascending: false });
 
       if (error) {
-        console.error("Error fetching solicitudes:", error);
+       
         throw error;
       }
 
@@ -429,8 +419,7 @@ export const solicitudesService = {
       });
 
       return enriquecidas;
-    } catch (error) {
-      console.error("Error in solicitudesService.getAll:", error);
+    } catch (error) {      
       throw error;
     }
   },
@@ -510,24 +499,20 @@ export const solicitudesService = {
       if (empresaId) {
         // SIEMPRE filtrar por empresa si existe
         query = query.eq('empresa_id', empresaId);
-        console.log("🏢 Filtrando por empresa:", empresaId, "del estado:", estado);
         
         if (analistaId) {
           // Si además hay usuario autenticado, filtrar también por analista
           query = query.eq('analista_id', analistaId);
-          console.log("👤 Filtrando adicionalmente por analista:", analistaId, "del estado:", estado);
         } else {
-          console.log("🏢 Mostrando todas las solicitudes de la empresa del estado:", estado);
         }
       } else {
         // Solo si NO hay empresa: modo admin (mostrar todas las solicitudes del estado)
-        console.log("🔓 Modo admin: no hay empresa, mostrando todas las solicitudes del estado:", estado);
       }
 
       const { data, error } = await query.order("created_at", { ascending: false });
 
       if (error) {
-        console.error("Error fetching solicitudes by status:", error);
+        console .error("Error fetching solicitudes by status:", error);
         throw error;
       }
 
@@ -684,9 +669,6 @@ export const solicitudesService = {
     solicitud: Omit<Solicitud, "id" | "created_at" | "updated_at">
   ): Promise<Solicitud> => {
     try {
-      console.log(
-        "🔍 Creando solicitud con asignación automática de analista..."
-      );
       
       // Asignar analista automáticamente si no viene uno pre-asignado
       let analistaId = solicitud.analista_id;
@@ -701,40 +683,23 @@ export const solicitudesService = {
           const sucursalNum = typeof sucursalValue === 'number' ? sucursalValue : Number(sucursalValue);
           if (!isNaN(sucursalNum) && sucursalNum > 0) {
             sucursalId = sucursalNum;
-            console.log("🏢 Sucursal ID extraída de estructura_datos:", sucursalId);
           }
         }
       }
       
       // Si no hay analista asignado, intentar asignación automática
       if (!analistaId && solicitud.empresa_id) {
-        console.log("🔄 Asignando analista automáticamente...");
-        console.log("🔍 Empresa ID de la solicitud:", solicitud.empresa_id);
-        if (sucursalId) {
-          console.log("🏢 Sucursal ID de la solicitud:", sucursalId);
-        }
         
         const analistaAsignado = await analistaAsignacionService.asignarAnalistaAutomatico(solicitud.empresa_id, sucursalId);
         
         if (analistaAsignado) {
           analistaId = analistaAsignado.analista_id;
           estadoFinal = "asignado";
-          console.log("✅ Analista asignado automáticamente:", analistaAsignado.analista_nombre);
         } else {
           estadoFinal = "pendiente asignacion";
-          console.log("⚠️ No se pudo asignar analista automáticamente - Estado: pendiente asignacion");
-          console.log("🔍 Posibles causas:");
-          console.log("  - No hay analistas configurados para la empresa", solicitud.empresa_id);
-          if (sucursalId) {
-            console.log("  - No hay analistas configurados para la sucursal", sucursalId);
-          }
-          console.log("  - Los analistas no tienen prioridades configuradas");
-          console.log("  - Los analistas han alcanzado su límite de solicitudes");
         }
       } else if (!analistaId) {
         estadoFinal = "pendiente asignacion";
-        console.log("🔄 Solicitud creada sin analista - Estado: pendiente asignacion");
-        console.log("🔍 Causa: La solicitud no tiene empresa_id:", solicitud.empresa_id);
       }
 
       // Si viene estructura_datos, intentar crear candidato con documento y email (obligatorios)
@@ -1141,7 +1106,6 @@ export const solicitudesService = {
         const diaNoHabilInfo = getNonBusinessDayInfo(fechaCreacion);
         
         if (diaNoHabilInfo.isNonBusinessDay) {
-          console.log("📅 Solicitud creada en día no hábil:", diaNoHabilInfo);
           
           // Obtener información de la empresa para el email
           const empresaInfo = await supabase
@@ -1176,26 +1140,19 @@ export const solicitudesService = {
                 sistemaUrl: sistemaUrl
               });
 
-              console.log("✅ Email de notificación de día no hábil enviado a la empresa");
+              
             } else {
-              console.warn("⚠️ No se encontró email de contacto para la empresa");
+              
             }
           } else {
-            console.warn("⚠️ No se pudo obtener información de la empresa");
+            
           }
         }
       } catch (holidayErr) {
-        console.warn("⚠️ Error al verificar día no hábil o enviar notificación:", holidayErr);
+        
       }
 
-      console.log(
-        "✅ Solicitud creada exitosamente con analista:",
-        solicitudTransformada.analista?.nombre || "Sin asignar"
-      );
-      console.log(
-        "📊 Estado final de la solicitud:",
-        solicitudTransformada.estado
-      );
+      
       return solicitudTransformada;
     } catch (error) {
       console.error("Error in solicitudesService.create:", error);
@@ -2568,24 +2525,6 @@ export const solicitudesService = {
     } catch (error) {
       console.error("Error in returnDocuments:", error);
       return false;
-    }
-  },
-
-  // Función para probar asignación automática desde consola
-  async testAsignacionAutomatica(empresaId: number): Promise<void> {
-    console.log("🧪 === PRUEBA DE ASIGNACIÓN AUTOMÁTICA ===");
-    console.log("🧪 Empresa ID:", empresaId);
-    
-    try {
-      const resultado = await analistaAsignacionService.asignarAnalistaAutomatico(empresaId);
-      
-      if (resultado) {
-        console.log("✅ Asignación exitosa:", resultado);
-      } else {
-        console.log("❌ Asignación falló - revisa los logs anteriores");
-      }
-    } catch (error) {
-      console.error("❌ Error en prueba:", error);
     }
   },
 }; 
