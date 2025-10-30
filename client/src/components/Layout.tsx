@@ -27,14 +27,12 @@ const Header = ({ sidebarOpen, toggleSidebar }: { sidebarOpen: boolean; toggleSi
     logout = authContext.logout;
     user = authContext.user;
   } catch (error) {
-    console.log("AuthProvider no disponible");
+    console.error('Error al obtener el contexto de autenticación:', error);
   }
-
   // Obtener información de la empresa y usuario desde localStorage
   useEffect(() => {
     try {
-      console.log('=== INICIO: Cargar datos en Header ===');
-      
+  
       // Verificar estado actual de localStorage
       const currentUserData = localStorage.getItem('userData');
       const currentAuthToken = localStorage.getItem('authToken');

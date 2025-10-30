@@ -2169,13 +2169,6 @@ const FormBuilder: React.FC<{
                                   value={currentField.dataSource || 'static'}
                                   disabled={(() => {
                                     const isDisabled = currentField.isSystemField && !currentField.allowOptionsEdit;
-                                    if (currentField.nombre === 'temporal') {
-                                      console.log('🔍 Campo temporal - Selector de fuente:', {
-                                        isSystemField: currentField.isSystemField,
-                                        allowOptionsEdit: currentField.allowOptionsEdit,
-                                        isDisabled: isDisabled
-                                      });
-                                    }
                                     return isDisabled;
                                   })()}
                                 >
@@ -2199,13 +2192,6 @@ const FormBuilder: React.FC<{
                                 autoComplete="off"
                                 disabled={(() => {
                                   const isDisabled = currentField.isSystemField && !currentField.allowOptionsEdit;
-                                  if (currentField.nombre === 'temporal') {
-                                    console.log('🔍 Campo temporal - Campo de opciones:', {
-                                      isSystemField: currentField.isSystemField,
-                                      allowOptionsEdit: currentField.allowOptionsEdit,
-                                      isDisabled: isDisabled
-                                    });
-                                  }
                                   return isDisabled;
                                 })()}
                               />
@@ -2441,7 +2427,6 @@ const FormBuilder: React.FC<{
                     </button>
                   </div>
                      
-                  
                   {sections.filter(s => s.activo !== false).length === 0 ? (
                     <div className="text-center py-8">
                       <div className="text-4xl mb-4">📋</div>
@@ -2476,7 +2461,7 @@ const FormBuilder: React.FC<{
                               Esta sección no tiene campos configurados
                             </div>
                           ) : (
-                                                                <div className="relative">
+                                  <div className="relative">
                                    {/* Grid de fondo sin números, solo líneas visuales */}
                                    <div className="absolute inset-0 grid grid-cols-12 gap-4 pointer-events-none z-0">
                                      {Array.from({ length: 12 }, (_, colIndex) => (
