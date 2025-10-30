@@ -16,7 +16,7 @@ export function useCompanies(entityType: 'empresa' | 'prestador') {
       // Intentar obtener empresas directamente de Supabase primero
       const { data: directData, error: directError } = await supabase
         .from('empresas')
-        .select('*')
+        .select('id, razon_social, nit, tipo_documento, regimen_tributario_id, direccion, ciudad, telefono, email, representante_legal, numero_empleados, tipo_empresa, activo, created_at, updated_at, documento_contrato, documento_camara_comercio, documento_rut, actividad_economica_id')
         .order('razon_social');
       
       if (directError) {

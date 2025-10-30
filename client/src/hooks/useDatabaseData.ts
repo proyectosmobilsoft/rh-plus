@@ -7,6 +7,16 @@ interface DatabaseDataHook {
   error: string | null;
 }
 
+// Mapeo de tablas a sus columnas específicas según el esquema
+const tableSelectMap: Record<string, string> = {
+  'departamentos': 'id, nombre, codigo_dane, pais_id, created_at, updated_at, estado',
+  'ciudades': 'id, nombre, codigo_dane, created_at, updated_at, departamento_id, pais_id, estado',
+  'empresas': 'id, razon_social, nit, tipo_documento, regimen_tributario_id, direccion, ciudad, telefono, email, representante_legal, numero_empleados, tipo_empresa, activo, created_at, updated_at',
+  'gen_modulos': 'id, nombre, descripcion, created_at, activo',
+  'gen_sucursales': 'id, nombre, direccion, telefono, email, activo, created_at, updated_at, codigo, ciudad_id, empresa_id',
+  'centros_costo': 'id, codigo, nombre, activo, created_at, updated_at, sucursal_id, area_negocio, porcentaje_estructura',
+};
+
 export const useDatabaseData = (tableName: string): DatabaseDataHook => {
   const [data, setData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -25,9 +35,12 @@ export const useDatabaseData = (tableName: string): DatabaseDataHook => {
         // Determinar el campo de ordenamiento según la tabla
         const orderField = tableName === 'empresas' ? 'razon_social' : 'nombre';
         
+        // Usar select específico si existe en el mapeo, sino usar *
+        const selectFields = tableSelectMap[tableName] || '*';
+        
         const { data: tableData, error: tableError } = await supabase
           .from(tableName)
-          .select('*')
+          .select(selectFields)
           .order(orderField);
 
         if (tableError) {

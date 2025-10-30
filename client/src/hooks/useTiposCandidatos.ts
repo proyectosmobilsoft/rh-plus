@@ -16,7 +16,7 @@ export const useTiposCandidatos = () => {
     queryFn: async (): Promise<TipoCandidato[]> => {
       const { data, error } = await supabase
         .from('tipos_candidatos')
-        .select('*')
+        .select('id, nombre, descripcion, activo, created_at, updated_at')
         .order('nombre');
 
       if (error) {
@@ -34,7 +34,7 @@ export const useTiposCandidatosActivos = () => {
     queryFn: async (): Promise<TipoCandidato[]> => {
       const { data, error } = await supabase
         .from('tipos_candidatos')
-        .select('*')
+        .select('id, nombre, descripcion, activo, created_at, updated_at')
         .eq('activo', true)
         .order('nombre');
 
@@ -55,7 +55,7 @@ export const useTipoCandidato = (id: number) => {
 
       const { data, error } = await supabase
         .from('tipos_candidatos')
-        .select('*')
+        .select('id, nombre, descripcion, activo, created_at, updated_at')
         .eq('id', id)
         .eq('activo', true)
         .single();

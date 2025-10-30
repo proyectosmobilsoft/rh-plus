@@ -10,7 +10,7 @@ export const tiposCandidatosService = {
   async getAll(): Promise<TipoCandidato[]> {
     const { data, error } = await supabase
       .from('tipos_candidatos')
-      .select('*')
+      .select('id, nombre, descripcion, activo, created_at, updated_at')
       .order('nombre');
 
     if (error) {
@@ -25,7 +25,7 @@ export const tiposCandidatosService = {
   async getActive(): Promise<TipoCandidato[]> {
     const { data, error } = await supabase
       .from('tipos_candidatos')
-      .select('*')
+      .select('id, nombre, descripcion, activo, created_at, updated_at')
       .eq('activo', true)
       .order('nombre');
 
@@ -41,7 +41,7 @@ export const tiposCandidatosService = {
   async getById(id: number): Promise<TipoCandidato | null> {
     const { data, error } = await supabase
       .from('tipos_candidatos')
-      .select('*')
+      .select('id, nombre, descripcion, activo, created_at, updated_at')
       .eq('id', id)
       .single();
 

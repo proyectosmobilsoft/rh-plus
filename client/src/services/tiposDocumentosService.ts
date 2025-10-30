@@ -10,7 +10,7 @@ export const tiposDocumentosService = {
   async getAll(): Promise<TipoDocumento[]> {
     const { data, error } = await supabase
       .from('tipos_documentos')
-      .select('*')
+      .select('id, nombre, descripcion, activo, created_at, updated_at, lleva_fecha_vigencia, fecha_vigencia')
       .order('nombre');
 
     if (error) {
@@ -25,7 +25,7 @@ export const tiposDocumentosService = {
   async getActive(): Promise<TipoDocumento[]> {
     const { data, error } = await supabase
       .from('tipos_documentos')
-      .select('*')
+      .select('id, nombre, descripcion, activo, created_at, updated_at, lleva_fecha_vigencia, fecha_vigencia')
       .eq('activo', true)
       .order('nombre');
 
@@ -43,7 +43,7 @@ export const tiposDocumentosService = {
   async getById(id: number): Promise<TipoDocumento | null> {
     const { data, error } = await supabase
       .from('tipos_documentos')
-      .select('*')
+      .select('id, nombre, descripcion, activo, created_at, updated_at, lleva_fecha_vigencia, fecha_vigencia')
       .eq('id', id)
       .single();
 
