@@ -44,7 +44,7 @@ class EmailCampaignService {
     try {
       const { data, error } = await supabase
         .from('email_templates')
-        .select('*')
+        .select('id, nombre, asunto, contenido_html, variables, activo, created_at, updated_at')
         .eq('activo', true)
         .order('nombre');
 
@@ -61,7 +61,7 @@ class EmailCampaignService {
     try {
       const { data, error } = await supabase
         .from('email_templates')
-        .select('*')
+        .select('id, nombre, asunto, contenido_html, variables, activo, created_at, updated_at')
         .eq('id', id)
         .single();
 
@@ -113,7 +113,7 @@ class EmailCampaignService {
     try {
       const { data, error } = await supabase
         .from('email_campaigns')
-        .select('*')
+        .select('id, nombre, template_id, asunto_personalizado, contenido_personalizado, estado, destinatarios_count, enviados_count, created_by, created_at, updated_at')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -197,7 +197,7 @@ class EmailCampaignService {
     try {
       const { data, error } = await supabase
         .from('email_campaign_recipients')
-        .select('*')
+        .select('id, campaign_id, email, nombre, variables, estado, error_message, sent_at, created_at')
         .eq('campaign_id', campaignId)
         .order('created_at');
 
@@ -215,7 +215,7 @@ class EmailCampaignService {
       // Obtener información de la campaña
       const { data: campaign, error: campaignError } = await supabase
         .from('email_campaigns')
-        .select('*')
+        .select('id, nombre, template_id, asunto_personalizado, contenido_personalizado, estado, destinatarios_count, enviados_count, created_by, created_at, updated_at')
         .eq('id', campaignId)
         .single();
 

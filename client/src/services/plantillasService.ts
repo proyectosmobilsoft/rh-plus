@@ -166,7 +166,7 @@ export const getAllPlantillasActivas = async (): Promise<Plantilla[]> => {
     
     const { data: plantillas, error } = await supabase
       .from('plantillas_solicitudes')
-      .select('*')
+      .select('id, nombre, descripcion, es_default, estructura_formulario, activa, created_at, updated_at, id_empresa')
       .eq('activa', true)
       .order('nombre');
 
@@ -308,7 +308,7 @@ export const getPlantillaById = async (id: number): Promise<Plantilla | null> =>
     startLoading();
     const { data, error } = await supabase
       .from('plantillas_solicitudes')
-      .select('*')
+      .select('id, nombre, descripcion, es_default, estructura_formulario, activa, created_at, updated_at, id_empresa')
       .eq('id', id)
       .single();
     

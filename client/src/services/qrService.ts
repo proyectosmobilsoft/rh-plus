@@ -63,7 +63,7 @@ export const qrService = {
     try {
       const { data, error } = await supabase
         .from('qr_configuracion')
-        .select('*')
+        .select('id, periodo_renovacion, tamanio_qr, formato_imagen, calidad_imagen, color_fondo, color_qr, margen, created_at, updated_at')
         .limit(1)
         .single();
       
@@ -157,7 +157,7 @@ export const qrService = {
     try {
       const { data, error } = await supabase
         .from('qr_codes')
-        .select('*')
+        .select('id, candidato_id, qr_data, qr_image_url, qr_size, fecha_generacion, fecha_vencimiento, activo, created_at, updated_at')
         .eq('candidato_id', candidatoId)
         .eq('activo', true)
         .order('created_at', { ascending: false })
@@ -270,7 +270,7 @@ export const qrService = {
     try {
       const { data, error } = await supabase
         .from('qr_codes')
-        .select('*')
+        .select('id, candidato_id, qr_data, qr_image_url, qr_size, fecha_generacion, fecha_vencimiento, activo, created_at, updated_at')
         .lt('fecha_vencimiento', new Date().toISOString())
         .eq('activo', true);
 

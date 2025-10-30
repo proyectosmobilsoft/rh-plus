@@ -89,7 +89,7 @@ export default function ConfiguracionesGlobalesPage() {
     try {
       const { data, error } = await supabase
         .from('departamentos')
-        .select('*')
+        .select('id, nombre, codigo_dane, pais_id, created_at, updated_at, estado')
         .eq('pais_id', 1)
         .order('nombre');
 
@@ -108,7 +108,7 @@ export default function ConfiguracionesGlobalesPage() {
     try {
       const { data, error } = await supabase
         .from('ciudades')
-        .select('*')
+        .select('id, nombre, codigo_dane, created_at, updated_at, departamento_id, pais_id, estado')
         .eq('departamento_id', departamentoId)
         .order('nombre');
 
@@ -130,7 +130,7 @@ export default function ConfiguracionesGlobalesPage() {
 
       const { data, error: dbError } = await supabase
         .from('config_empresa')
-        .select('*')
+        .select('id, razon_social, nit, direccion, telefono, email, representante_legal, cargo_representante, ciudad, departamento, estado, created_at, updated_at')
         .eq('estado', 'activo')
         .single();
 

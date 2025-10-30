@@ -67,7 +67,7 @@ export const ubicacionesService = {
   getPaises: async (): Promise<Pais[]> => {
     const { data, error } = await supabase
       .from('paises')
-      .select('*')
+      .select('id, nombre, codigo_iso, created_at, updated_at, estado')
       .order('nombre');
     if (error) {
       console.error('❌ Error en getPaises:', error);
@@ -409,7 +409,7 @@ export const ubicacionesService = {
   getRegionales: async (): Promise<Regional[]> => {
     const { data, error } = await supabase
       .from('regionales')
-      .select('*')
+      .select('id, codigo, nombre, activo, created_at, updated_at')
       .order('nombre');
     if (error) throw error;
     return (data || []) as unknown as Regional[];
@@ -427,7 +427,7 @@ export const ubicacionesService = {
     const { data, error } = await supabase
       .from('regionales')
       .insert([{ nombre: payload.nombre, codigo: payload.codigo }])
-      .select('*')
+      .select('id, codigo, nombre, activo, created_at, updated_at')
       .single();
     if (error) throw error;
     return data as unknown as Regional;
@@ -438,7 +438,7 @@ export const ubicacionesService = {
       .from('regionales')
       .update({ nombre: payload.nombre, codigo: payload.codigo })
       .eq('id', id)
-      .select('*')
+      .select('id, codigo, nombre, activo, created_at, updated_at')
       .single();
     if (error) throw error;
     return data as unknown as Regional;
