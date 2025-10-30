@@ -240,22 +240,21 @@ export default function EmailMasivoPage() {
   const cargarDestinatarios = async () => {
     try {
       setLoadingDestinatarios(true);
-      console.log('🔄 Cargando destinatarios desde la base de datos...');
+      
       
       let destinatariosCargados: any[] = [];
 
       // Cargar candidatos si es necesario
       if (selectedDestinatarios === 'candidatos' || selectedDestinatarios === 'ambos') {
-        console.log('📋 Cargando candidatos...');
         const { data: candidatosData, error: candidatosError } = await supabase
           .from('candidatos')
-          .select('*')
+          .select('id, email, primer_nombre, primer_apellido, empresa_id, created_at, updated_at')
           .order('primer_nombre');
 
         if (candidatosError) {
           console.error('❌ Error cargando candidatos:', candidatosError);
         } else {
-          console.log('✅ Candidatos cargados:', candidatosData?.length || 0);
+          
           
           const candidatosTransformados = candidatosData?.map((candidato: any) => ({
             id: candidato.id,
@@ -274,16 +273,15 @@ export default function EmailMasivoPage() {
 
       // Cargar empleadores si es necesario
       if (selectedDestinatarios === 'empleadores' || selectedDestinatarios === 'ambos') {
-        console.log('🏢 Cargando empleadores...');
         const { data: empresasData, error: empresasError } = await supabase
           .from('empresas')
-          .select('*')
+          .select('id, email, razon_social, nombre, created_at, updated_at')
           .order('razon_social');
 
         if (empresasError) {
           console.error('❌ Error cargando empleadores:', empresasError);
         } else {
-          console.log('✅ Empleadores cargados:', empresasData?.length || 0);
+          
           
           const empleadoresTransformados = empresasData?.map((empresa: any) => ({
             id: empresa.id,
@@ -300,7 +298,6 @@ export default function EmailMasivoPage() {
         }
       }
 
-      console.log('🎯 Total de destinatarios cargados:', destinatariosCargados.length);
       setRecipients(destinatariosCargados);
       
     } catch (error) {
