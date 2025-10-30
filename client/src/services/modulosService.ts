@@ -52,7 +52,7 @@ export const modulosService = {
   async getModulos(): Promise<Modulo[]> {
     const { data, error } = await supabase
       .from('gen_modulos')
-      .select('*')
+      .select('id, nombre, descripcion, created_at, activo')
       .order('nombre');
     
     if (error) throw error;
@@ -62,7 +62,7 @@ export const modulosService = {
   async getModulo(id: number): Promise<Modulo> {
     const { data, error } = await supabase
       .from('gen_modulos')
-      .select('*')
+      .select('id, nombre, descripcion, created_at, activo')
       .eq('id', id)
       .single();
     
@@ -153,7 +153,7 @@ export const modulosService = {
   async getPermisosByModulo(moduloId: number): Promise<ModuloPermiso[]> {
     const { data, error } = await supabase
       .from('gen_modulo_permisos')
-      .select('*')
+      .select('id, nombre, descripcion, created_at, updated_at, modulo_id, code, activo')
       .eq('modulo_id', moduloId)
       .order('nombre');
     

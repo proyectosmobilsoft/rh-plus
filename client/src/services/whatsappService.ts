@@ -124,7 +124,7 @@ class WhatsAppService {
     try {
       const { data, error } = await supabase
         .from('whatsapp_templates')
-        .select('*')
+        .select('id, name, message, variables, activo, created_at, updated_at')
         .eq('activo', true);
 
       if (error) throw error;

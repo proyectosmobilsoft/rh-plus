@@ -364,7 +364,7 @@ export const authService: AuthService = {
     try {
       const { data, error } = await supabase
         .from('codigos_verificacion')
-        .select('*')
+        .select('id, email, codigo, tipo, usado, fecha_expiracion, fecha_creacion')
         .eq('email', email)
         .eq('codigo', codigo)
         .eq('tipo', 'recuperacion')

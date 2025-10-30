@@ -138,7 +138,7 @@ export const getEmpresaById = async (id: number): Promise<Empresa | null> => {
     
     const { data: plantillasAsociadas, error: plantillasError } = await supabase
       .from('empresas_plantillas')
-      .select('*')
+      .select('empresa_id, plantilla_id, activo, created_at, updated_at')
       .eq('empresa_id', id);
 
     console.log('Consulta plantillas - data:', plantillasAsociadas);

@@ -22,7 +22,7 @@ class PrestadoresHorariosService {
   async getByPrestadorId(prestadorId: number): Promise<PrestadorHorario[]> {
     const { data, error } = await supabase
       .from('prestadores_horarios')
-      .select('*')
+      .select('id, prestador_id, dia_semana, hora_inicio, hora_fin, created_at, updated_at')
       .eq('prestador_id', prestadorId)
       .order('dia_semana', { ascending: true });
 

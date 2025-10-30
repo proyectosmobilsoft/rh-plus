@@ -196,6 +196,7 @@ export const rolesService = {
 
   // Consultar acciones por permiso para un rol
   async getAccionesByRol(rol_id: number) {
+    // Nota: gen_roles_acciones es una tabla de relación, consultar estructura específica si es necesario
     const { data, error } = await supabase.from('gen_roles_acciones').select('*').eq('rol_id', rol_id);
     if (error) throw error;
     return data;

@@ -35,7 +35,7 @@ export const getRegimenesTributarios = async (): Promise<RegimenTributario[]> =>
     startLoading();
     const { data, error } = await supabase
       .from('regimen_tributario')
-      .select('*')
+      .select('id, codigo, nombre, descripcion, activo, created_at, updated_at')
       .eq('activo', true)
       .order('nombre');
 
@@ -60,7 +60,7 @@ export const getRegimenTributarioById = async (id: number): Promise<RegimenTribu
   try {
     const { data, error } = await supabase
       .from('regimen_tributario')
-      .select('*')
+      .select('id, codigo, nombre, descripcion, activo, created_at, updated_at')
       .eq('id', id)
       .single();
 
@@ -83,7 +83,7 @@ export const getRegimenTributarioByCodigo = async (codigo: string): Promise<Regi
   try {
     const { data, error } = await supabase
       .from('regimen_tributario')
-      .select('*')
+      .select('id, codigo, nombre, descripcion, activo, created_at, updated_at')
       .eq('codigo', codigo)
       .single();
 

@@ -16,7 +16,7 @@ export const plantillasMensajesService = {
   getAll: async (): Promise<PlantillaMensaje[]> => {
     const { data, error } = await supabase
       .from('plantillas_mensajes')
-      .select('*')
+      .select('id, nombre, tipo, asunto, mensaje, variables_disponibles, activo, created_at, updated_at')
       .eq('activo', true)
       .order('tipo', { ascending: true })
       .order('nombre', { ascending: true });
@@ -28,7 +28,7 @@ export const plantillasMensajesService = {
   getByTipo: async (tipo: 'whatsapp' | 'email'): Promise<PlantillaMensaje[]> => {
     const { data, error } = await supabase
       .from('plantillas_mensajes')
-      .select('*')
+      .select('id, nombre, tipo, asunto, mensaje, variables_disponibles, activo, created_at, updated_at')
       .eq('tipo', tipo)
       .eq('activo', true)
       .order('nombre', { ascending: true });
@@ -40,7 +40,7 @@ export const plantillasMensajesService = {
   getById: async (id: number): Promise<PlantillaMensaje | null> => {
     const { data, error } = await supabase
       .from('plantillas_mensajes')
-      .select('*')
+      .select('id, nombre, tipo, asunto, mensaje, variables_disponibles, activo, created_at, updated_at')
       .eq('id', id)
       .single();
     

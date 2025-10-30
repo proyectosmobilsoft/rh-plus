@@ -10,13 +10,13 @@ export interface Especialidad {
 
 export const especialidadesService = {
   getAll: async (): Promise<Especialidad[]> => {
-    const { data, error } = await supabase.from('especialidades').select('*').order('nombre');
+    const { data, error } = await supabase.from('especialidades').select('id, nombre, descripcion, created_at, updated_at').order('nombre');
     if (error) throw error;
     return data || [];
   },
   
   getById: async (id: number): Promise<Especialidad | null> => {
-    const { data, error } = await supabase.from('especialidades').select('*').eq('id', id).single();
+    const { data, error } = await supabase.from('especialidades').select('id, nombre, descripcion, created_at, updated_at').eq('id', id).single();
     if (error) throw error;
     return data;
   },

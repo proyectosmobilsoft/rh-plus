@@ -11,7 +11,7 @@ export const tiposCandidatosDocumentosService = {
   async getByTipoCandidato(tipoCandidatoId: number): Promise<TipoCandidatoDocumento[]> {
     const { data, error } = await supabase
       .from('tipos_candidatos_documentos')
-      .select('*')
+      .select('id, tipo_candidato_id, tipo_documento_id, obligatorio, orden, created_at, updated_at, requerido')
       .eq('tipo_candidato_id', tipoCandidatoId)
       .order('orden');
 
@@ -132,7 +132,7 @@ export const tiposCandidatosDocumentosService = {
   async getById(id: number): Promise<TipoCandidatoDocumento | null> {
     const { data, error } = await supabase
       .from('tipos_candidatos_documentos')
-      .select('*')
+      .select('id, tipo_candidato_id, tipo_documento_id, obligatorio, orden, created_at, updated_at, requerido')
       .eq('id', id)
       .single();
 
