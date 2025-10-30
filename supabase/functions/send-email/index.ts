@@ -16,11 +16,25 @@ Deno.serve(async (req: Request) => {
   try {
     const { to, subject, html, text, gmail, password, appPassword } = await req.json();
 
-    if (!to || !subject || !html || !gmail || !password) {
+    // Preferir secretos de entorno en producción (no enviar credenciales desde el cliente)
+    const ENV_GMAIL = Deno.env.get("GMAIL_USER");
+    const ENV_APP_PASSWORD = Deno.env.get("GMAIL_APP_PASSWORD");
+
+    const senderEmail = ENV_GMAIL || gmail;
+    const senderPassword = ENV_APP_PASSWORD || appPassword || password;
+
+    if (!to || !subject || !html || !senderEmail || !senderPassword) {
+      const missing: string[] = [];
+      if (!to) missing.push("to");
+      if (!subject) missing.push("subject");
+      if (!html) missing.push("html");
+      if (!senderEmail) missing.push("senderEmail (GMAIL_USER o gmail)");
+      if (!senderPassword) missing.push("senderPassword (GMAIL_APP_PASSWORD o appPassword/password)");
       return new Response(
         JSON.stringify({
           success: false,
-          error: "Campos requeridos faltantes"
+          error: "Campos requeridos faltantes",
+          missing
         }),
         {
           status: 400,
@@ -38,15 +52,15 @@ Deno.serve(async (req: Request) => {
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
-        user: gmail,
-        pass: appPassword || password,
+        user: senderEmail,
+        pass: senderPassword,
       },
       secure: true,
       port: 465,
     });
 
     const mailOptions = {
-      from: `"RH Compensamos" <${gmail}>`,
+      from: `"RH Compensamos" <${senderEmail}>`,
       to: to,
       subject: subject,
       html: html,
