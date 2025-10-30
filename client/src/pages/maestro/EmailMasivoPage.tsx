@@ -906,12 +906,14 @@ export default function EmailMasivoPage() {
       }
 
       // Preparar información de destinatarios
-      const destinatariosInfo = recipients?.map(r => ({
+      const destinatariosInfo = recipients?.map((r: any) => ({
         email: r.email,
         nombre: r.nombre,
-        empresa: r.empresa,
-        estado_envio: r.estado_envio || 'enviado',
-        fecha_envio: r.fecha_envio ? new Date(r.fecha_envio).toLocaleDateString('es-ES') : 'N/A'
+        empresa: type === 'gmail' ? r.empresa : null,
+        estado_envio: r.estado || 'enviado',
+        fecha_envio: (type === 'gmail' ? r.enviado_at : r.sent_at) 
+          ? new Date(type === 'gmail' ? r.enviado_at : r.sent_at).toLocaleDateString('es-ES') 
+          : 'N/A'
       })) || [];
 
       // Guardar información para el modal

@@ -29,7 +29,7 @@ class ActividadesEconomicasService {
     try {
       const { data, error } = await supabase
         .from('gen_actividades_economicas')
-        .select('*')
+        .select('id, codigo, nombre, descripcion, activo, created_at, updated_at')
         .order('codigo');
 
       if (error) {
@@ -48,7 +48,7 @@ class ActividadesEconomicasService {
     try {
       const { data, error } = await supabase
         .from('gen_actividades_economicas')
-        .select('*')
+        .select('id, codigo, nombre, descripcion, activo, created_at, updated_at')
         .eq('id', id)
         .single();
 
@@ -195,7 +195,7 @@ class ActividadesEconomicasService {
     try {
       const { data, error } = await supabase
         .from('gen_actividades_economicas')
-        .select('*')
+        .select('id, codigo, nombre, descripcion, activo, created_at, updated_at')
         .or(`codigo.ilike.%${searchTerm}%,nombre.ilike.%${searchTerm}%,descripcion.ilike.%${searchTerm}%`)
         .order('codigo');
 

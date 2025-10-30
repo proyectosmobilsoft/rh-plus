@@ -26,7 +26,7 @@ export const coloresService = {
     try {
       const { data, error } = await supabase
         .from('gen_colores')
-        .select('*')
+        .select('id, categoria, elemento, color_hex, color_tailwind, descripcion, activo, created_at, updated_at, created_by, empresa_id')
         .eq('activo', true)
         .order('categoria', { ascending: true })
         .order('elemento', { ascending: true });
@@ -48,7 +48,7 @@ export const coloresService = {
     try {
       const { data, error } = await supabase
         .from('gen_colores')
-        .select('*')
+        .select('id, categoria, elemento, color_hex, color_tailwind, descripcion, activo, created_at, updated_at, created_by, empresa_id')
         .eq('categoria', categoria)
         .eq('activo', true)
         .order('elemento', { ascending: true });
@@ -70,7 +70,7 @@ export const coloresService = {
     try {
       const { data, error } = await supabase
         .from('gen_colores')
-        .select('*')
+        .select('id, categoria, elemento, color_hex, color_tailwind, descripcion, activo, created_at, updated_at, created_by, empresa_id')
         .eq('categoria', categoria)
         .eq('elemento', elemento)
         .eq('activo', true)
@@ -205,7 +205,7 @@ export const coloresService = {
     try {
       const { data, error } = await supabase
         .from('gen_colores')
-        .select('*')
+        .select('id, categoria, elemento, color_hex, color_tailwind, descripcion, activo, created_at, updated_at, created_by, empresa_id')
         .eq('activo', false)
         .order('categoria', { ascending: true })
         .order('elemento', { ascending: true });

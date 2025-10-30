@@ -43,7 +43,7 @@ export const candidatosDocumentosService = {
   getByCandidato: async (candidatoId: number): Promise<CandidatoDocumento[]> => {
     const { data, error } = await supabase
       .from('candidatos_documentos')
-      .select('*')
+      .select('id, candidato_id, tipo_documento_id, nombre_archivo, url_archivo, fecha_vigencia, observaciones, fecha_carga, created_at, updated_at, empresa_id, solicitud_id, tipo_cargo_id')
       .eq('candidato_id', candidatoId)
       .order('fecha_carga', { ascending: false });
     
@@ -75,7 +75,7 @@ export const candidatosDocumentosService = {
   getById: async (id: number): Promise<CandidatoDocumento | null> => {
     const { data, error } = await supabase
       .from('candidatos_documentos')
-      .select('*')
+      .select('id, candidato_id, tipo_documento_id, nombre_archivo, url_archivo, fecha_vigencia, observaciones, fecha_carga, created_at, updated_at, empresa_id, solicitud_id, tipo_cargo_id')
       .eq('id', id)
       .single();
     

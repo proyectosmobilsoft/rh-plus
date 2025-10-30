@@ -53,7 +53,7 @@ export const candidatosService = {
   getByDocumento: async (numeroDocumento: string): Promise<Candidato | null> => {
     const { data, error } = await supabase
       .from('candidatos')
-      .select('*')
+      .select('id, tipo_documento, numero_documento, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, email, telefono, direccion, ciudad_id, fecha_nacimiento, genero, estado_civil, empresa_id, created_at, updated_at, activo, usuario_id, arl, cargo_aspirado, eps, grupo_sanguineo, nivel_educativo, contacto_emergencia_nombre, contacto_emergencia_telefono, contacto_emergencia_relacion, hoja_de_vida, fotografia, ciudad, edad, sexo, completado, estado, departamento, talla_camisa, talla_pantalon, talla_zapato')
       .eq('numero_documento', numeroDocumento)
       .single();
     if (error && error.code !== 'PGRST116') throw error;
@@ -64,7 +64,7 @@ export const candidatosService = {
   getDocumentos: async (candidatoId: number): Promise<DocumentoCandidato[]> => {
     const { data, error } = await supabase
       .from('documentos_candidato')
-      .select('*')
+      .select('id, candidato_id, tipo, nombre_archivo, url_archivo, created_at, updated_at')
       .eq('candidato_id', candidatoId)
       .order('created_at', { ascending: false });
     if (error) throw error;

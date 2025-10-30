@@ -57,7 +57,7 @@ export const certificadosMedicosService = {
     try {
       const { data, error } = await supabase
         .from('certificados_medicos')
-        .select('*')
+        .select('id, solicitud_id, candidato_id, restriccion_macro, resumen_restriccion, remision, requiere_medicacion, elementos_proteccion_personal, recomendaciones_generales, observaciones, concepto_medico, created_at, created_by, updated_at, documento_concepto_medico, adjunto_aprobacion_certificado')
         .eq('solicitud_id', solicitudId)
         .single();
 
