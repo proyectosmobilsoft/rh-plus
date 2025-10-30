@@ -48,97 +48,69 @@ export const analistaAsignacionService = {
         console.log(`  ${index + 1}. ${analista.usuario_nombre} (ID: ${analista.usuario_id}) - Empresa: ${analista.empresa_id} - Prioridades: ${analista.nivel_prioridad_1 || 'N/A'}, ${analista.nivel_prioridad_2 || 'N/A'}, ${analista.nivel_prioridad_3 || 'N/A'}`);
       });
 
-      // Función auxiliar para verificar si una prioridad específica aplica a esta solicitud
-      const verificarPrioridad = (
-        analista: AnalistaPrioridad,
-        nivel: number,
-        tipoPrioridad: string | null
-      ): boolean => {
-        if (!tipoPrioridad) return false;
+      // Verificar que el analista cumple TODAS las prioridades configuradas, con énfasis en que
+      // nivel_prioridad_1 debe coincidir exactamente ('cliente' con empresa, 'sucursal' con empresa+sucursal).
+      const cumpleTodasLasPrioridades = (analista: AnalistaPrioridad): boolean => {
+        const empresaIds = analista.empresa_ids || [];
+        const sucursalIds = analista.sucursal_ids || [];
+        const empresaIdLegacy = analista.empresa_id;
+        const sucursalIdLegacy = analista.sucursal_id;
 
-        switch (tipoPrioridad) {
-          case 'cliente':
-            // Verificar si la empresa de la solicitud está en los IDs del analista
-            const empresaIds = analista.empresa_ids || [];
-            const empresaIdLegacy = analista.empresa_id;
-            const tieneEmpresa = empresaIds.includes(empresaId) || empresaIdLegacy === empresaId;
-            if (!tieneEmpresa) {
-              console.log(`  ❌ Analista ${analista.usuario_nombre} - Prioridad ${nivel}: 'cliente' - Empresa ${empresaId} NO coincide`);
-              return false;
-            }
+        const coincideEmpresa = empresaIds.includes(empresaId) || empresaIdLegacy === empresaId;
+        const coincideSucursal = sucursalId
+          ? (sucursalIds.includes(sucursalId) || sucursalIdLegacy === sucursalId)
+          : false;
 
-            // Si el analista tiene sucursales configuradas, y la solicitud trae sucursal, validar también sucursal
-            if (sucursalId) {
-              const sucursalIdsCfg = analista.sucursal_ids || [];
-              const sucursalIdLegacyCfg = analista.sucursal_id;
-              const restringePorSucursal = (sucursalIdsCfg && sucursalIdsCfg.length > 0) || !!sucursalIdLegacyCfg;
-              if (restringePorSucursal) {
-                const coincideSucursal = sucursalIdsCfg.includes(sucursalId) || sucursalIdLegacyCfg === sucursalId;
-                if (!coincideSucursal) {
-                  console.log(`  ❌ Analista ${analista.usuario_nombre} - Prioridad ${nivel}: 'cliente' - Empresa coincide pero Sucursal ${sucursalId} NO está en su configuración`);
-                  return false;
-                }
-              }
-            }
-            console.log(`  ✅ Analista ${analista.usuario_nombre} - Prioridad ${nivel}: 'cliente' - Empresa ${empresaId}${sucursalId ? ' y Sucursal ' + sucursalId : ''} aplican`);
-            return true;
-
-          case 'sucursal':
-            // Verificar empresa Y sucursal
-            const empresaIdsSuc = analista.empresa_ids || [];
-            const empresaIdLegacySuc = analista.empresa_id;
-            const tieneEmpresaSuc = empresaIdsSuc.includes(empresaId) || empresaIdLegacySuc === empresaId;
-            
-            if (!tieneEmpresaSuc) {
-              console.log(`  ❌ Analista ${analista.usuario_nombre} - Prioridad ${nivel}: 'sucursal' - Empresa ${empresaId} NO coincide`);
-              return false;
-            }
-            
-            if (!sucursalId) {
-              console.log(`  ❌ Analista ${analista.usuario_nombre} - Prioridad ${nivel}: 'sucursal' - La solicitud no tiene sucursal_id`);
-              return false;
-            }
-            
-            const sucursalIds = analista.sucursal_ids || [];
-            const sucursalIdLegacy = analista.sucursal_id;
-            const tieneSucursal = sucursalIds.includes(sucursalId) || sucursalIdLegacy === sucursalId;
-            
-            if (tieneSucursal) {
-              console.log(`  ✅ Analista ${analista.usuario_nombre} - Prioridad ${nivel}: 'sucursal' - Empresa ${empresaId} y Sucursal ${sucursalId} coinciden`);
-            } else {
-              console.log(`  ❌ Analista ${analista.usuario_nombre} - Prioridad ${nivel}: 'sucursal' - Empresa ${empresaId} coincide pero Sucursal ${sucursalId} NO coincide con ${JSON.stringify(sucursalIds)} o ${sucursalIdLegacy}`);
-            }
-            return tieneSucursal;
-
-          case 'solicitudes':
-            // Verificar si la empresa de la solicitud está en los IDs del analista
-            const empresaIdsSol = analista.empresa_ids || [];
-            const empresaIdLegacySol = analista.empresa_id;
-            const tieneEmpresaSol = empresaIdsSol.includes(empresaId) || empresaIdLegacySol === empresaId;
-            if (!tieneEmpresaSol) {
-              console.log(`  ❌ Analista ${analista.usuario_nombre} - Prioridad ${nivel}: 'solicitudes' - Empresa ${empresaId} NO coincide`);
-              return false;
-            }
-            // Si el analista tiene sucursales configuradas, y la solicitud trae sucursal, validar también sucursal
-            if (sucursalId) {
-              const sucursalIdsCfg = analista.sucursal_ids || [];
-              const sucursalIdLegacyCfg = analista.sucursal_id;
-              const restringePorSucursal = (sucursalIdsCfg && sucursalIdsCfg.length > 0) || !!sucursalIdLegacyCfg;
-              if (restringePorSucursal) {
-                const coincideSucursal = sucursalIdsCfg.includes(sucursalId) || sucursalIdLegacyCfg === sucursalId;
-                if (!coincideSucursal) {
-                  console.log(`  ❌ Analista ${analista.usuario_nombre} - Prioridad ${nivel}: 'solicitudes' - Empresa coincide pero Sucursal ${sucursalId} NO está en su configuración`);
-                  return false;
-                }
-              }
-            }
-            console.log(`  ✅ Analista ${analista.usuario_nombre} - Prioridad ${nivel}: 'solicitudes' - Empresa ${empresaId}${sucursalId ? ' y Sucursal ' + sucursalId : ''} aplican`);
-            return true;
-
-          default:
-            console.log(`  ❌ Analista ${analista.usuario_nombre} - Prioridad ${nivel}: '${tipoPrioridad}' - Tipo de prioridad desconocido`);
+        // 1) Prioridad 1 es obligatoria y debe coincidir con la solicitud
+        const p1 = analista.nivel_prioridad_1;
+        if (p1 === 'cliente') {
+          if (!coincideEmpresa) {
+            console.log(`  ❌ P1 'cliente' NO coincide empresa para ${analista.usuario_nombre}`);
             return false;
+          }
+        } else if (p1 === 'sucursal') {
+          if (!coincideEmpresa || !sucursalId || !coincideSucursal) {
+            console.log(`  ❌ P1 'sucursal' NO coincide empresa/sucursal para ${analista.usuario_nombre}`);
+            return false;
+          }
+        } else {
+          // Si P1 no es 'cliente' ni 'sucursal', no consideramos elegible según la regla solicitada
+          console.log(`  ❌ P1 '${p1}' no es aceptada para ${analista.usuario_nombre}`);
+          return false;
         }
+
+        // 2) Si existen P2/P3 configuradas, también deben cumplirse
+        const revisarNivel = (nivel: number, tipo: string | null | undefined): boolean => {
+          if (!tipo) return true; // sin restricción en ese nivel
+          if (tipo === 'cliente') {
+            return coincideEmpresa;
+          }
+          if (tipo === 'sucursal') {
+            // Debe existir sucursal en la solicitud y coincidir con configuración
+            return !!sucursalId && coincideEmpresa && coincideSucursal;
+          }
+          if (tipo === 'solicitudes') {
+            // Aún exigimos que pertenezca a la empresa (regla de negocio existente)
+            return coincideEmpresa;
+          }
+          return false;
+        };
+
+        const p2 = analista.nivel_prioridad_2;
+        const p3 = analista.nivel_prioridad_3;
+        const okP2 = revisarNivel(2, p2);
+        if (!okP2) {
+          console.log(`  ❌ P2 '${p2}' NO cumple para ${analista.usuario_nombre}`);
+          return false;
+        }
+        const okP3 = revisarNivel(3, p3);
+        if (!okP3) {
+          console.log(`  ❌ P3 '${p3}' NO cumple para ${analista.usuario_nombre}`);
+          return false;
+        }
+
+        console.log(`  ✅ ${analista.usuario_nombre} cumple TODAS las prioridades configuradas (P1='${p1}', P2='${p2}', P3='${p3}')`);
+        return true;
       };
 
       // Filtrar analistas: deben pertenecer a la empresa de la solicitud y tener al menos una prioridad que aplique
@@ -153,32 +125,16 @@ export const analistaAsignacionService = {
           return;
         }
 
-        // Verificar prioridades en orden jerárquico (1, 2, 3)
-        // Se toma la primera prioridad que aplica (empresa/sucursal coincide según tipo)
-        let nivelAplicable: number | undefined;
-        let tipoAplicable: string | undefined;
-
-        if (analista.nivel_prioridad_1 && verificarPrioridad(analista, 1, analista.nivel_prioridad_1)) {
-          nivelAplicable = 1;
-          tipoAplicable = analista.nivel_prioridad_1;
-        } else if (analista.nivel_prioridad_2 && verificarPrioridad(analista, 2, analista.nivel_prioridad_2)) {
-          nivelAplicable = 2;
-          tipoAplicable = analista.nivel_prioridad_2;
-        } else if (analista.nivel_prioridad_3 && verificarPrioridad(analista, 3, analista.nivel_prioridad_3)) {
-          nivelAplicable = 3;
-          tipoAplicable = analista.nivel_prioridad_3;
-        }
-
-        if (nivelAplicable && tipoAplicable) {
-          console.log(`✅ Analista ${analista.usuario_nombre} es elegible - Prioridad ${nivelAplicable} ('${tipoAplicable}') aplica`);
-          analistasElegibles.push({
-            ...analista,
-            nivel_prioridad_aplicable: nivelAplicable,
-            tipo_prioridad_aplicable: tipoAplicable
-          });
-        } else {
-          console.log(`❌ Analista ${analista.usuario_nombre} no es elegible - Ninguna de sus prioridades aplica a esta solicitud`);
-        }
+      // Requiere que el analista cumpla TODAS sus prioridades configuradas
+      if (cumpleTodasLasPrioridades(analista)) {
+        analistasElegibles.push({
+          ...analista,
+          nivel_prioridad_aplicable: 1,
+          tipo_prioridad_aplicable: analista.nivel_prioridad_1 || ''
+        });
+      } else {
+        console.log(`❌ Analista ${analista.usuario_nombre} no es elegible - No cumple todas las prioridades`);
+      }
       });
 
       if (analistasElegibles.length === 0) {
