@@ -287,7 +287,7 @@ Para probar sin email configurado:
 
 ```env
 # Supabase
-VITE_SUPABASE_URL=https://vlmeifyldcgfmhppynir.supabase.co
+VITE_SUPABASE_URL=https://tu_proyecto.supabase.co.
 VITE_SUPABASE_ANON_KEY=tu_anon_key
 
 # Email (Opcional)
@@ -349,7 +349,7 @@ Para soporte técnico o preguntas sobre el sistema, contactar al equipo de desar
 ---
 
 **Proyecto Supabase:** `rh-compensamos`  
-**URL:** https://vlmeifyldcgfmhppynir.supabase.co  
+**URL:** https://tu_proyecto.supabase.co.  
 **Estado:** ✅ Sistema Funcional  
 **Versión:** 1.0.0  
 **Última actualización:** Diciembre 2024  
