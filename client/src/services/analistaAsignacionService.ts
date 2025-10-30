@@ -62,12 +62,26 @@ export const analistaAsignacionService = {
             const empresaIds = analista.empresa_ids || [];
             const empresaIdLegacy = analista.empresa_id;
             const tieneEmpresa = empresaIds.includes(empresaId) || empresaIdLegacy === empresaId;
-            if (tieneEmpresa) {
-              console.log(`  ✅ Analista ${analista.usuario_nombre} - Prioridad ${nivel}: 'cliente' - Empresa ${empresaId} coincide`);
-            } else {
+            if (!tieneEmpresa) {
               console.log(`  ❌ Analista ${analista.usuario_nombre} - Prioridad ${nivel}: 'cliente' - Empresa ${empresaId} NO coincide`);
+              return false;
             }
-            return tieneEmpresa;
+
+            // Si el analista tiene sucursales configuradas, y la solicitud trae sucursal, validar también sucursal
+            if (sucursalId) {
+              const sucursalIdsCfg = analista.sucursal_ids || [];
+              const sucursalIdLegacyCfg = analista.sucursal_id;
+              const restringePorSucursal = (sucursalIdsCfg && sucursalIdsCfg.length > 0) || !!sucursalIdLegacyCfg;
+              if (restringePorSucursal) {
+                const coincideSucursal = sucursalIdsCfg.includes(sucursalId) || sucursalIdLegacyCfg === sucursalId;
+                if (!coincideSucursal) {
+                  console.log(`  ❌ Analista ${analista.usuario_nombre} - Prioridad ${nivel}: 'cliente' - Empresa coincide pero Sucursal ${sucursalId} NO está en su configuración`);
+                  return false;
+                }
+              }
+            }
+            console.log(`  ✅ Analista ${analista.usuario_nombre} - Prioridad ${nivel}: 'cliente' - Empresa ${empresaId}${sucursalId ? ' y Sucursal ' + sucursalId : ''} aplican`);
+            return true;
 
           case 'sucursal':
             // Verificar empresa Y sucursal
@@ -101,12 +115,25 @@ export const analistaAsignacionService = {
             const empresaIdsSol = analista.empresa_ids || [];
             const empresaIdLegacySol = analista.empresa_id;
             const tieneEmpresaSol = empresaIdsSol.includes(empresaId) || empresaIdLegacySol === empresaId;
-            if (tieneEmpresaSol) {
-              console.log(`  ✅ Analista ${analista.usuario_nombre} - Prioridad ${nivel}: 'solicitudes' - Empresa ${empresaId} coincide`);
-            } else {
+            if (!tieneEmpresaSol) {
               console.log(`  ❌ Analista ${analista.usuario_nombre} - Prioridad ${nivel}: 'solicitudes' - Empresa ${empresaId} NO coincide`);
+              return false;
             }
-            return tieneEmpresaSol;
+            // Si el analista tiene sucursales configuradas, y la solicitud trae sucursal, validar también sucursal
+            if (sucursalId) {
+              const sucursalIdsCfg = analista.sucursal_ids || [];
+              const sucursalIdLegacyCfg = analista.sucursal_id;
+              const restringePorSucursal = (sucursalIdsCfg && sucursalIdsCfg.length > 0) || !!sucursalIdLegacyCfg;
+              if (restringePorSucursal) {
+                const coincideSucursal = sucursalIdsCfg.includes(sucursalId) || sucursalIdLegacyCfg === sucursalId;
+                if (!coincideSucursal) {
+                  console.log(`  ❌ Analista ${analista.usuario_nombre} - Prioridad ${nivel}: 'solicitudes' - Empresa coincide pero Sucursal ${sucursalId} NO está en su configuración`);
+                  return false;
+                }
+              }
+            }
+            console.log(`  ✅ Analista ${analista.usuario_nombre} - Prioridad ${nivel}: 'solicitudes' - Empresa ${empresaId}${sucursalId ? ' y Sucursal ' + sucursalId : ''} aplican`);
+            return true;
 
           default:
             console.log(`  ❌ Analista ${analista.usuario_nombre} - Prioridad ${nivel}: '${tipoPrioridad}' - Tipo de prioridad desconocido`);
