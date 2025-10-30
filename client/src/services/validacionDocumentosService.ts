@@ -157,7 +157,7 @@ export const validacionDocumentosService = {
           .order('dia_semana');
 
         if (horariosError) {
-          console.warn(`Error obteniendo horarios para prestador ${prestador.id}:`, horariosError);
+          // Silenciado en producción
         }
 
         return {
@@ -444,7 +444,6 @@ export const validacionDocumentosService = {
       }
 
       const estadoAnterior = solicitudAnterior?.estado || 'desconocido';
-      console.log('🔍 Estado anterior de la solicitud (validar docs):', estadoAnterior);
 
       // 5. Enviar email con información de prestadores
       const esCiudadAlternativa = ciudadId !== undefined && candidato.ciudad_nombre && 
@@ -479,7 +478,7 @@ export const validacionDocumentosService = {
         });
 
       if (logError) {
-        console.warn('Error registrando log:', logError);
+        // Silenciado en producción
       }
 
       return {
@@ -566,7 +565,6 @@ export const validacionDocumentosService = {
       }
 
       const estadoAnterior = solicitudAnterior?.estado || 'desconocido';
-      console.log('🔍 Estado anterior de la solicitud:', estadoAnterior);
 
       // 5. Enviar email con información de prestadores
       const esCiudadAlternativa = ciudadId !== undefined && candidato.ciudad_nombre && 
@@ -601,7 +599,7 @@ export const validacionDocumentosService = {
         });
 
       if (logError) {
-        console.warn('Error registrando log:', logError);
+        // Silenciado en producción
       }
 
       return {
