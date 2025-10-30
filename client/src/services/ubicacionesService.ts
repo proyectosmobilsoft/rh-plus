@@ -65,7 +65,6 @@ export interface Sucursal {
 export const ubicacionesService = {
   // Servicios para países
   getPaises: async (): Promise<Pais[]> => {
-    console.log('🔧 getPaises ejecutándose...');
     const { data, error } = await supabase
       .from('paises')
       .select('*')
@@ -74,8 +73,6 @@ export const ubicacionesService = {
       console.error('❌ Error en getPaises:', error);
       throw error;
     }
-    console.log('📊 getPaises resultado:', data?.length || 0, 'registros');
-    console.log('📋 Estados de países:', data?.map(p => `${p.nombre}: ${p.estado}`));
     return data || [];
   },
 
@@ -118,7 +115,6 @@ export const ubicacionesService = {
   },
 
   activatePais: async (id: number): Promise<void> => {
-    console.log('🔧 activatePais llamado con ID:', id);
     const { data, error } = await supabase
       .from('paises')
       .update({ estado: true })
@@ -132,11 +128,9 @@ export const ubicacionesService = {
     if (!data || data.estado !== true) {
       throw new Error('No se pudo activar el país (0 filas actualizadas)');
     }
-    console.log('✅ activatePais completado exitosamente');
   },
 
   deactivatePais: async (id: number): Promise<void> => {
-    console.log('🔧 deactivatePais llamado con ID:', id);
     const { data, error } = await supabase
       .from('paises')
       .update({ estado: false })
@@ -150,7 +144,6 @@ export const ubicacionesService = {
     if (!data || data.estado !== false) {
       throw new Error('No se pudo inactivar el país (0 filas actualizadas)');
     }
-    console.log('✅ deactivatePais completado exitosamente');
   },
 
   // Servicios para departamentos
@@ -241,7 +234,6 @@ export const ubicacionesService = {
   },
 
   activateDepartamento: async (id: number): Promise<void> => {
-    console.log('🔧 activateDepartamento llamado con ID:', id);
     const { data, error } = await supabase
       .from('departamentos')
       .update({ estado: true })
@@ -255,11 +247,9 @@ export const ubicacionesService = {
     if (!data || data.estado !== true) {
       throw new Error('No se pudo activar el departamento (0 filas actualizadas)');
     }
-    console.log('✅ activateDepartamento completado exitosamente');
   },
 
   deactivateDepartamento: async (id: number): Promise<void> => {
-    console.log('🔧 deactivateDepartamento llamado con ID:', id);
     const { data, error } = await supabase
       .from('departamentos')
       .update({ estado: false })
@@ -273,7 +263,6 @@ export const ubicacionesService = {
     if (!data || data.estado !== false) {
       throw new Error('No se pudo inactivar el departamento (0 filas actualizadas)');
     }
-    console.log('✅ deactivateDepartamento completado exitosamente');
   },
 
   // Servicios para ciudades
@@ -521,7 +510,6 @@ export const ubicacionesService = {
     // Verificar que NO se esté enviando el campo id
     if (payload.id !== undefined) {
       delete payload.id;
-      console.warn('⚠️ Se detectó campo id en el payload y fue eliminado');
     }
 
     // Verificar si ya existe una ciudad con estos datos exactos en la base de datos
@@ -534,13 +522,8 @@ export const ubicacionesService = {
     if (checkError) {
       console.error('❌ Error al verificar ciudad existente:', checkError);
     } else if (ciudadExistente && ciudadExistente.length > 0) {
-      console.warn('⚠️ Ya existe una ciudad con estos datos:', ciudadExistente);
       throw new Error(`Ya existe una ciudad con el nombre "${payload.nombre}" en el departamento seleccionado.`);
     }
-
-    console.log('📤 Payload que se enviará a ciudades:', JSON.stringify(payload, null, 2));
-    console.log('✅ Verificación: payload.id =', payload.id, '(debe ser undefined)');
-    console.log('✅ Verificación: No existe ciudad duplicada con estos datos');
 
     // Nota: La corrección de secuencia debe hacerse en la base de datos directamente
     // Si persiste el error, ejecutar: SELECT setval('ciudades_id_seq', (SELECT MAX(id) FROM ciudades), true);

@@ -134,7 +134,6 @@ const ExpedicionOrdenPage = () => {
   // Auto-refresh solicitudes every 30 seconds
   useEffect(() => {
     const interval = setInterval(() => {
-      console.log('🔄 Auto-refreshing solicitudes...');
       fetchSolicitudes();
     }, 30000); // 30 seconds
 
@@ -147,10 +146,8 @@ const ExpedicionOrdenPage = () => {
   useEffect(() => {
     const hasPermission = hasAction('ordenes_create');
     const inSpecialPeriod = isInSpecialPeriod();
-    console.log('🔍 Modal check - hasPermission:', hasPermission, 'inSpecialPeriod:', inSpecialPeriod);
     
     if (hasPermission && inSpecialPeriod) {
-      console.log('✅ Mostrando modal informativo de fechas especiales');
       setShowDateInfoModal(true);
     }
   }, [hasAction]);
@@ -159,10 +156,8 @@ const ExpedicionOrdenPage = () => {
   useEffect(() => {
     const hasPermission = hasAction('ordenes_create');
     const inSpecialPeriod = isInSpecialPeriod();
-    console.log('🔍 Tab check - activeTab:', activeTab, 'hasPermission:', hasPermission, 'inSpecialPeriod:', inSpecialPeriod);
     
     if (activeTab === 'registro' && hasPermission && inSpecialPeriod) {
-      console.log('✅ Mostrando modal informativo al cambiar a tab de registro');
       setShowDateInfoModal(true);
     }
   }, [activeTab, hasAction]);
@@ -229,27 +224,19 @@ const ExpedicionOrdenPage = () => {
   };
 
   const handleReactivate = async (id: number) => {
-    console.log('🔍 ExpedicionOrdenPage.handleReactivate llamado con ID:', id);
-    console.log('🔍 Activando loading local...');
     setIsLoading(true);
     try {
-      console.log('🔍 Llamando a solicitudesService.reactivate...');
       const success = await solicitudesService.reactivate(id);
-      console.log('🔍 Resultado de reactivate:', success);
       if (success) {
         toast.success('Solicitud reactivada exitosamente');
-        console.log('🔍 Recargando lista de solicitudes...');
         fetchSolicitudes(); // Recargar la lista
-        console.log('🔍 Solicitud reactivada exitosamente');
       } else {
         toast.error('Error al reactivar la solicitud');
-        console.log('❌ Error al reactivar la solicitud');
       }
     } catch (error) {
       console.error('Error al reactivar solicitud:', error);
       toast.error('Error al reactivar la solicitud');
     } finally {
-      console.log('🔍 Desactivando loading local...');
       setIsLoading(false);
     }
   };
@@ -470,7 +457,6 @@ const ExpedicionOrdenPage = () => {
 
   const handlePlantillaSelect = (plantilla: Plantilla) => {
     // Aquí puedes manejar la selección de plantilla si es necesario
-    console.log('Plantilla seleccionada:', plantilla);
   };
 
   const handleExportToExcel = () => {
