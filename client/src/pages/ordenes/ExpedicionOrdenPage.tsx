@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Plantilla } from '@/services/plantillasService';
 import { empresasService, Empresa } from '@/services/empresasService';
+import { isNonBusinessDay } from '@/services/holidaysService';
 import { Can, usePermissions } from '@/contexts/PermissionsContext';
 import { validacionDocumentosService } from '@/services/validacionDocumentosService';
 import SeleccionarCiudadModal from '@/components/solicitudes/SeleccionarCiudadModal';
@@ -73,16 +74,14 @@ const ExpedicionOrdenPage = () => {
     return dayOfMonth >= 25;
   };
 
-  // Función para obtener el primer día hábil del mes siguiente
+  // Función para obtener el primer día hábil del mes siguiente (excluye fines de semana y festivos)
   const getFirstBusinessDayOfNextMonth = () => {
     const today = new Date();
     const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-    
-    // Buscar el primer día hábil (lunes a viernes)
-    while (nextMonth.getDay() === 0 || nextMonth.getDay() === 6) {
+    // Avanzar hasta el primer día que no sea no hábil (ni fin de semana ni festivo)
+    while (isNonBusinessDay(nextMonth)) {
       nextMonth.setDate(nextMonth.getDate() + 1);
     }
-    
     return nextMonth;
   };
 
