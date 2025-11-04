@@ -59,10 +59,13 @@ export const createEmpresa = async (data: CreateEmpresaDTO): Promise<Empresa | n
       actividad_economica_id: data.actividad_economica, // ID del código CIIU
       regimen_tributario_id: data.regimen_tributario, // ID del régimen tributario
       numero_empleados: data.numero_empleados, // Número de empleados
-      documento_contrato: data.documento_contrato_base64,
-      documento_camara_comercio: data.documento_camara_comercio_base64,
-      documento_rut: data.documento_rut_base64,
-      logo_base64: data.logo_base64,
+      // Guardar URLs de Storage directamente en los campos de documentos
+      // Priorizar documento_contrato_url sobre documento_contrato para asegurar que se guarde la URL de Storage
+      documento_contrato: data.documento_contrato_url || data.documento_contrato || data.documento_contrato_base64 || "",
+      documento_camara_comercio: data.documento_camara_comercio_url || data.documento_camara_comercio || data.documento_camara_comercio_base64 || "",
+      documento_rut: data.documento_rut_url || data.documento_rut || data.documento_rut_base64 || "",
+      // Nota: logo_url no existe en la tabla, usar logo_base64 para URLs y base64
+      logo_base64: data.logo_url || data.logo_base64 || "",
       tipo_empresa: data.tipo_empresa || 'prestador',
       activo: data.activo || true
     };
@@ -121,10 +124,10 @@ export const getEmpresaById = async (id: number): Promise<Empresa | null> => {
   
   try {
     startLoading();
-    // Primero obtener la empresa
+    // Primero obtener la empresa (incluyendo todos los campos de documentos)
     const { data: empresa, error: empresaError } = await supabase
       .from('empresas')
-      .select('*, logo_base64')
+      .select('*')
       .eq('id', id)
       .single();
 
@@ -221,10 +224,13 @@ export const updateEmpresa = async (id: number, data: Partial<CreateEmpresaDTO>)
       actividad_economica_id: data.actividad_economica, // ID del código CIIU
       regimen_tributario_id: data.regimen_tributario, // ID del régimen tributario
       numero_empleados: data.numero_empleados, // Número de empleados
-      documento_contrato: data.documento_contrato_base64,
-      documento_camara_comercio: data.documento_camara_comercio_base64,
-      documento_rut: data.documento_rut_base64,
-      logo_base64: data.logo_base64,
+      // Guardar URLs de Storage directamente en los campos de documentos
+      // Priorizar documento_contrato_url sobre documento_contrato para asegurar que se guarde la URL de Storage
+      documento_contrato: data.documento_contrato_url || data.documento_contrato || data.documento_contrato_base64 || "",
+      documento_camara_comercio: data.documento_camara_comercio_url || data.documento_camara_comercio || data.documento_camara_comercio_base64 || "",
+      documento_rut: data.documento_rut_url || data.documento_rut || data.documento_rut_base64 || "",
+      // Nota: logo_url no existe en la tabla, usar logo_base64 para URLs y base64
+      logo_base64: data.logo_url || data.logo_base64 || "",
       tipo_empresa: data.tipo_empresa || 'prestador',
       activo: data.activo || true
     };

@@ -33,17 +33,10 @@ const Header = ({ sidebarOpen, toggleSidebar }: { sidebarOpen: boolean; toggleSi
   // Obtener información de la empresa y usuario desde localStorage
   useEffect(() => {
     try {
-      console.log('=== INICIO: Cargar datos en Header ===');
-      
       // Verificar estado actual de localStorage
       const currentUserData = localStorage.getItem('userData');
       const currentAuthToken = localStorage.getItem('authToken');
       const currentEmpresaData = localStorage.getItem('empresaData');
-      
-      console.log('📊 Estado actual de localStorage en Header:');
-      console.log('- userData existe:', !!currentUserData);
-      console.log('- authToken existe:', !!currentAuthToken);
-      console.log('- empresaData existe:', !!currentEmpresaData);
       
       // Intentar obtener empresa desde authToken primero
       if (currentAuthToken) {
@@ -51,7 +44,6 @@ const Header = ({ sidebarOpen, toggleSidebar }: { sidebarOpen: boolean; toggleSi
           const tokenParts = currentAuthToken.split('.');
           if (tokenParts.length === 2) {
             const tokenData = JSON.parse(atob(tokenParts[0]));
-            console.log('🔍 Datos del authToken en Header:', tokenData);
             
             if (tokenData.empresaId && tokenData.empresaRazonSocial) {
               const empresaFromToken = {
@@ -59,7 +51,6 @@ const Header = ({ sidebarOpen, toggleSidebar }: { sidebarOpen: boolean; toggleSi
                 razon_social: tokenData.empresaRazonSocial
               };
               setEmpresaData(empresaFromToken);
-              console.log('✅ Empresa cargada desde authToken en Header:', empresaFromToken);
             }
           }
         } catch (error) {
@@ -71,17 +62,14 @@ const Header = ({ sidebarOpen, toggleSidebar }: { sidebarOpen: boolean; toggleSi
       const empresaSeleccionada = obtenerEmpresaSeleccionada();
       if (empresaSeleccionada) {
         setEmpresaData(empresaSeleccionada);
-        console.log('✅ Empresa cargada desde empresaData en Header:', empresaSeleccionada);
       }
       
       // Obtener datos del usuario
       if (currentUserData) {
         const user = JSON.parse(currentUserData);
         setUserData(user);
-        console.log('✅ Datos del usuario cargados en Header:', user);
       }
       
-      console.log('=== FIN: Cargar datos en Header ===');
     } catch (error) {
       console.error('Error al obtener datos en Header:', error);
     }
@@ -91,7 +79,6 @@ const Header = ({ sidebarOpen, toggleSidebar }: { sidebarOpen: boolean; toggleSi
   useEffect(() => {
     const handleEmpresaSelected = (event: CustomEvent) => {
       const empresa = event.detail;
-      console.log('Header: Evento empresaSelected recibido:', empresa);
       setEmpresaData(empresa);
     };
 

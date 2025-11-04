@@ -330,11 +330,7 @@ GMAIL_PASS=tu-app-password
 ### **Logs a Revisar:**
 ```javascript
 // En la consola del navegador
-console.log('✅ Código enviado a email@ejemplo.com: 123456');
 
-// En los logs de Supabase Edge Functions
-console.log('Email enviado:', messageId);
-```
 
 ### **Métricas a Monitorear:**
 - ✅ Emails enviados exitosamente
