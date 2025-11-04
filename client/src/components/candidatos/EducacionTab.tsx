@@ -50,8 +50,6 @@ export function EducacionTab({ educacion, onChange, triggerAutoSave, candidatoId
     }
 
     try {
-      console.log('💾 Actualizando educación en BD:', educacion);
-      
       const { error } = await supabase
         .from('educacion_candidato')
         .update({
@@ -72,7 +70,6 @@ export function EducacionTab({ educacion, onChange, triggerAutoSave, candidatoId
         throw error;
       }
 
-      console.log('✅ Educación actualizada exitosamente en BD');
       toast.success("Educación actualizada correctamente");
     } catch (error) {
       console.error('❌ Error en updateEducacionInDB:', error);
@@ -116,17 +113,14 @@ export function EducacionTab({ educacion, onChange, triggerAutoSave, candidatoId
     if (editingIndex !== null) {
       // Editando registro existente - guardar directamente en BD
       try {
-        console.log('✏️ Editando registro existente en BD...');
         await updateEducacionInDB(currentEducacion, editingIndex);
         newEducacion[editingIndex] = currentEducacion;
-        console.log('✅ Edición completada sin auto-guardado');
       } catch (error) {
         console.error('❌ Error editando registro:', error);
         return; // No actualizar el estado si hay error
       }
     } else {
       // Agregando nuevo registro - usar auto-guardado
-      console.log('➕ Agregando nuevo registro...');
       newEducacion.push({
         ...currentEducacion,
         id: Date.now(), // Temporary ID for new items
@@ -134,7 +128,6 @@ export function EducacionTab({ educacion, onChange, triggerAutoSave, candidatoId
       
       // Trigger auto-save for new additions
       if (triggerAutoSave) {
-        console.log('🔄 Activando auto-guardado para adición...');
         triggerAutoSave(false);
       }
     }
@@ -145,17 +138,12 @@ export function EducacionTab({ educacion, onChange, triggerAutoSave, candidatoId
   };
 
   const handleDelete = (index: number) => {
-    console.log('🗑️ Eliminando educación en índice:', index);
-    console.log('📚 Educación antes de eliminar:', educacion);
-    
     const newEducacion = educacion.filter((_, i) => i !== index);
-    console.log('📚 Educación después de eliminar:', newEducacion);
     
     onChange(newEducacion);
     
     // NO ejecutar auto-guardado inmediatamente para eliminaciones
     // El auto-guardado se ejecutará por el useEffect que detecta cambios en la cantidad
-    console.log('ℹ️ Eliminación completada, auto-guardado se ejecutará automáticamente');
   };
 
   const handleCancel = () => {

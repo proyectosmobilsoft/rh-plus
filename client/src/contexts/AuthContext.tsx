@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { UserRole, Permission, getUserPermissions } from '@/config/permissions';
 import { guardarEmpresaSeleccionadaConConsulta } from '@/utils/empresaUtils';
 import { authService } from '@/services/authService';
+import { supabase } from '@/services/supabaseClient';
 
 export interface User {
   id: number;
@@ -65,29 +66,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const checkSession = async () => {
     try {
-      console.log('=== VERIFICANDO SESIÓN ===');
       const userData = localStorage.getItem('userData');
       const token = localStorage.getItem('authToken');
       
       if (userData && token) {
         try {
-          console.log('Datos encontrados en localStorage:');
-          console.log('- userData:', JSON.parse(userData));
-          console.log('- token:', token.substring(0, 50) + '...');
-          
           // Verificar si es un token simulado (nuestro formato)
           const tokenParts = token.split('.');
-          console.log('Token parts:', tokenParts.length);
           
           if (tokenParts.length === 3 && tokenParts[0] === 'simulated') {
-            console.log('🔎 Token simulado detectado. Ejecutando validaciones locales...');
             const [, expStr, userIdStr] = tokenParts;
             const expMs = Number(expStr);
             const tokenUserId = Number(userIdStr);
 
             // Validaciones básicas del token simulado
             if (!Number.isFinite(expMs)) {
-              console.warn('❌ Token inválido: exp no es numérico. Limpiando sesión.');
               localStorage.removeItem('authToken');
               localStorage.removeItem('userData');
               localStorage.removeItem('empresaData');
@@ -95,7 +88,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
             }
 
             if (expMs <= Date.now()) {
-              console.warn('❌ Token expirado. Limpiando sesión.');
               localStorage.removeItem('authToken');
               localStorage.removeItem('userData');
               localStorage.removeItem('empresaData');
@@ -104,19 +96,31 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
             const parsedUser = JSON.parse(userData);
             if (!Number.isFinite(tokenUserId) || parsedUser?.id !== tokenUserId) {
-              console.warn('❌ Token inválido: userId no coincide. Limpiando sesión.');
               localStorage.removeItem('authToken');
               localStorage.removeItem('userData');
               localStorage.removeItem('empresaData');
               return;
             }
 
-            console.log('✅ Token simulado válido. Restaurando sesión local.');
             setUser(parsedUser);
+            
+            // Intentar sincronizar con Supabase Auth al restaurar sesión
+            try {
+              const email = parsedUser.email || `${parsedUser.username}@compensamos.com`;
+              // Intentar obtener la sesión actual de Supabase Auth
+              const { data: { session } } = await supabase.auth.getSession();
+              if (!session) {
+                // Nota: No podemos hacer sign in sin la contraseña aquí
+                // Pero podemos verificar si hay una sesión guardada
+                const { data: { user } } = await supabase.auth.getUser();
+              }
+            } catch (authSyncError) {
+              // Error sincronizando con Supabase Auth al restaurar
+            }
+            
             return;
           }
           
-          console.log('🔍 Token no simulado, verificando con servidor...');
           // Verificar token con el servidor solo si no es simulado
           const response = await fetch('/api/auth/verify', {
             headers: {
@@ -133,10 +137,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
               ...user,
               permissions: userPermissions
             });
-            console.log('✅ Usuario autenticado y restaurado correctamente');
           } else {
             // Token inválido, limpiar localStorage
-            console.log('❌ Token inválido, limpiando localStorage');
             localStorage.removeItem('authToken');
             localStorage.removeItem('userData');
             localStorage.removeItem('empresaData');
@@ -150,8 +152,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
             localStorage.removeItem('empresaData');
           }
         }
-      } else {
-        console.log('No hay datos de sesión en localStorage');
       }
     } catch (error) {
       console.error('Error en checkSession:', error);
@@ -162,12 +162,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const login = async (credentials: LoginCredentials) => {
     try {
-      console.log('=== INICIO: Login ===');
-      console.log('Credenciales recibidas:', { username: credentials.username });
-      console.log('🔍 Verificando localStorage ANTES del login:');
-      console.log('- userData existe:', !!localStorage.getItem('userData'));
-      console.log('- authToken existe:', !!localStorage.getItem('authToken'));
-      
       // Validar usuario con Supabase
       const userValidation = await authService.validateUser(credentials.username);
       
@@ -175,16 +169,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
         throw new Error('Usuario no encontrado');
       }
 
-      console.log('Usuario validado:', userValidation);
-
       // Verificar contraseña
       const passwordResult = await authService.verifyPassword(userValidation.user.id, credentials.password);
       
       if (!passwordResult.success) {
         throw new Error('Contraseña incorrecta');
       }
-
-      console.log('Contraseña verificada correctamente');
 
       const userData = passwordResult.userData;
 
@@ -211,7 +201,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
             Object.values(accionesPorRol).forEach((arr) => arr.forEach((c) => set.add(c)));
             (userData as any).acciones = Array.from(set);
           } else {
-            console.warn('No se pudo obtener gen_roles_modulos:', error);
             // Asegurar que existan las claves aunque vengan vacías
             (userData as any).accionesPorRol = accionesPorRol;
             (userData as any).acciones = [];
@@ -222,7 +211,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
           (userData as any).acciones = [];
         }
       } catch (e) {
-        console.warn('No se pudieron cargar las acciones por rol:', e);
         // Asegurar claves incluso en error
         if (!(userData as any).accionesPorRol) (userData as any).accionesPorRol = {};
         if (!(userData as any).acciones) (userData as any).acciones = [];
@@ -231,26 +219,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Generar JWT real vía Edge Function (o fallback a token simulado si falla)
       let token: string | null = null;
       try {
-        const res = await fetch('/functions/v1/issue-jwt', {
+        // Usar la URL completa de Supabase para las Edge Functions
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://clffvmueangquavnaokd.supabase.co';
+        const edgeFunctionUrl = `${supabaseUrl}/functions/v1/issue-jwt`;
+        
+        const res = await fetch(edgeFunctionUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || ''}`,
+            'apikey': `${import.meta.env.VITE_SUPABASE_ANON_KEY || ''}`
+          },
           body: JSON.stringify({ userData })
         });
         if (res.ok) {
           const { token: jwt } = await res.json();
           token = jwt;
-          console.log('JWT emitido correctamente');
-        } else {
-          console.warn('Fallo al emitir JWT, status:', res.status);
         }
       } catch (e) {
-        console.warn('Error llamando issue-jwt:', e);
+        // Error llamando issue-jwt
       }
 
       if (!token) {
         const expMs = Date.now() + 1000 * 60 * 60 * 8;
         token = `simulated.${expMs}.${userData.id}`;
-        console.log('Usando token simulado (fallback)');
       }
 
       localStorage.setItem('authToken', token);
@@ -271,7 +263,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           }
         }
       } catch (e) {
-        console.warn('No se pudieron leer acciones desde el JWT:', e);
+        // No se pudieron leer acciones desde el JWT
       }
 
       // Obtener permisos del usuario
@@ -284,24 +276,74 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       // Guardar datos completos del usuario en localStorage (incluye foto)
       /*localStorage.setItem('userData', JSON.stringify(userWithPermissions));*/
-      console.log('Datos completos del usuario guardados en localStorage:', userWithPermissions);
-
-      // Verificar que se guardaron correctamente
-      const savedUserData = localStorage.getItem('userData');
-      const savedAuthToken = localStorage.getItem('authToken');
-      console.log('🔍 Verificación localStorage DESPUÉS del login:');
-      console.log('- userData existe:', !!savedUserData);
-      console.log('- authToken existe:', !!savedAuthToken);
-      console.log('- userData contenido:', savedUserData);
-      console.log('- authToken contenido:', savedAuthToken?.substring(0, 50) + '...');
 
       // Actualizar estado del contexto
       setUser(userWithPermissions);
-      console.log('✅ Estado del contexto actualizado:', userWithPermissions);
+      
+      // 🔐 SINCRONIZAR CON SUPABASE AUTH (Opcional - se ejecuta en background)
+      // Esta sincronización es completamente opcional y no bloquea el login
+      // Solo se intenta para habilitar Storage, pero si falla, la app funciona normalmente
+      // Se ejecuta en un setTimeout para no bloquear el flujo principal
+      setTimeout(async () => {
+        try {
+          const email = userData.email || `${userData.username}@compensamos.com`;
+          
+          // Verificar primero si el usuario ya tiene una sesión activa
+          const { data: { session: existingSession } } = await supabase.auth.getSession();
+          if (existingSession) {
+            return; // Ya está sincronizado
+          }
+          
+          // Guardar temporalmente la contraseña en sessionStorage para poder establecer sesión más tarde
+          // Esto se limpia automáticamente al cerrar la pestaña
+          sessionStorage.setItem('temp_password', credentials.password);
+          
+          // Intentar hacer sign in de forma silenciosa
+          // Si falla, simplemente continuamos sin Supabase Auth
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email: email,
+            password: credentials.password
+          }).catch(() => ({ data: null, error: { message: 'Sign in failed' } }));
+          
+          if (!signInError && signInData?.session) {
+            // Sesión establecida exitosamente
+            // Limpiar la contraseña temporal después de establecer la sesión
+            sessionStorage.removeItem('temp_password');
+          } else {
+            // Si falla el sign in, intentar crear el usuario solo una vez
+            // Usar un flag para evitar múltiples intentos
+            const syncKey = `supabase_auth_sync_attempted_${userData.id}`;
+            if (!localStorage.getItem(syncKey)) {
+              localStorage.setItem(syncKey, 'true');
+              
+              try {
+                const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+                  email: email,
+                  password: credentials.password,
+                  options: {
+                    data: {
+                      username: userData.username,
+                      id: userData.id,
+                      primer_nombre: userData.primerNombre,
+                      primer_apellido: userData.primerApellido,
+                      role: userData.role
+                    }
+                  }
+                });
+                
+                // Si hay error (usuario ya existe, etc.), simplemente ignorar
+              } catch {
+                // Ignorar cualquier error al crear usuario
+              }
+            }
+          }
+        } catch {
+          // Cualquier error se ignora completamente - no es crítico
+        }
+      }, 500); // Ejecutar después de un delay para no interferir con el login
       
       // Si el usuario tiene múltiples empresas, mostrar selector
       if (userValidation.empresas.length > 1) {
-        console.log('Usuario tiene múltiples empresas, redirigiendo a selector');
         window.location.href = '/select-empresa';
         return;
       }
@@ -319,7 +361,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       // Redirigir al dashboard
       const dashboard = getDefaultDashboard(userData.role);
-      console.log('🚀 Redirigiendo a:', dashboard);
       window.location.href = dashboard;
 
     } catch (error) {
@@ -330,14 +371,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const selectEmpresa = async (empresaId: string) => {
     try {
-      console.log('Seleccionando empresa con ID:', empresaId);
-      
       // Consultar empresa en base de datos y guardar TODO
       const resultado = await guardarEmpresaSeleccionadaConConsulta(parseInt(empresaId));
       
       if (resultado) {
-        console.log('Empresa seleccionada y guardada exitosamente');
-        
         // Redirigir al dashboard
         const dashboard = getDefaultDashboard(user?.role || 'admin');
         window.location.href = dashboard;
@@ -362,8 +399,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       localStorage.removeItem('authToken');
       localStorage.removeItem('userData');
       localStorage.removeItem('empresaData'); // Borrar también empresaData
-      
-      console.log('Sesión cerrada - todos los datos eliminados del localStorage');
       
       // Redirigir al login
       window.location.href = '/login';

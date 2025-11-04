@@ -52,8 +52,6 @@ export const ExperienciaLaboralTab: React.FC<ExperienciaLaboralTabProps> = ({ ex
     }
 
     try {
-      console.log('💾 Actualizando experiencia en BD:', experiencia);
-      
       const { error } = await supabase
         .from('experiencia_laboral')
         .update({
@@ -75,7 +73,6 @@ export const ExperienciaLaboralTab: React.FC<ExperienciaLaboralTabProps> = ({ ex
       throw error;
       }
 
-      console.log('✅ Experiencia actualizada exitosamente en BD');
       toast.success("Experiencia laboral actualizada correctamente");
     } catch (error) {
       console.error('❌ Error en updateExperienciaInDB:', error);
@@ -109,17 +106,14 @@ export const ExperienciaLaboralTab: React.FC<ExperienciaLaboralTabProps> = ({ ex
     if (editingIndex !== null) {
       // Editando registro existente - guardar directamente en BD
       try {
-        console.log('✏️ Editando registro existente en BD...');
         await updateExperienciaInDB(currentExperiencia, editingIndex);
         newExperiencia[editingIndex] = currentExperiencia;
-        console.log('✅ Edición completada sin auto-guardado');
       } catch (error) {
         console.error('❌ Error editando registro:', error);
         return; // No actualizar el estado si hay error
       }
     } else {
       // Agregando nuevo registro - usar auto-guardado
-      console.log('➕ Agregando nuevo registro...');
       newExperiencia.push({
         ...currentExperiencia,
         id: Date.now(), // Temporary ID for new items
@@ -127,7 +121,6 @@ export const ExperienciaLaboralTab: React.FC<ExperienciaLaboralTabProps> = ({ ex
       
       // Trigger auto-save for new additions
       if (triggerAutoSave) {
-        console.log('🔄 Activando auto-guardado para adición...');
         triggerAutoSave(false);
       }
     }
@@ -138,17 +131,12 @@ export const ExperienciaLaboralTab: React.FC<ExperienciaLaboralTabProps> = ({ ex
   };
 
   const handleDelete = (index: number) => {
-    console.log('🗑️ Eliminando experiencia laboral en índice:', index);
-    console.log('📋 Experiencia antes de eliminar:', experienciaLaboral);
-    
     const newExperiencia = experienciaLaboral.filter((_, i) => i !== index);
-    console.log('📋 Experiencia después de eliminar:', newExperiencia);
     
     onChange(newExperiencia);
     
     // NO ejecutar auto-guardado inmediatamente para eliminaciones
     // El auto-guardado se ejecutará por el useEffect que detecta cambios en la cantidad
-    console.log('ℹ️ Eliminación completada, auto-guardado se ejecutará automáticamente');
   };
 
   const handleCancel = () => {

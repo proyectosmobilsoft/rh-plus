@@ -121,20 +121,11 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   // Detener loading global cuando se complete una operación de Contacto
   useEffect(() => {
     if (contactingSolicitudId) {
-      console.log('🔍 useEffect de contacto ejecutado, contactingSolicitudId:', contactingSolicitudId);
       const solicitud = solicitudes.find(s => s.id === contactingSolicitudId);
-      console.log('🔍 Solicitud encontrada:', solicitud?.id, 'Estado:', solicitud?.estado);
 
       if (solicitud && solicitud.estado === 'pendiente documentos') {
-        console.log('🔍 Operación de Contacto completada, limpiando estado...');
         setContactingSolicitudId(null);
         stopLoading(); // Detener loading global cuando se complete la operación de Contacto
-        console.log('🔍 Loading global detenido por operación de Contacto');
-      } else if (solicitud) {
-        console.log('🔍 Solicitud aún no en estado pendiente documentos, esperando...');
-        console.log('🔍 Estado actual:', solicitud.estado, 'Esperando: pendiente documentos');
-      } else {
-        console.log('🔍 Solicitud no encontrada, puede que se haya recargado la lista');
       }
     }
   }, [contactingSolicitudId, stopLoading, solicitudes.length]);
@@ -143,7 +134,6 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   useEffect(() => {
     if (contactingSolicitudId) {
       const timeoutId = setTimeout(() => {
-        console.log('⚠️ Timeout de seguridad: Deteniendo loading global por operación de Contacto');
         setContactingSolicitudId(null);
         stopLoading();
       }, 10000); // 10 segundos
@@ -173,20 +163,12 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     // Si hay solicitudes que ya no están en STAND BY y teníamos un reactivatingSolicitudId,
     // significa que la reactivación se completó
     if (reactivatingSolicitudId) {
-      console.log('🔍 useEffect de reactivación ejecutado, reactivatingSolicitudId:', reactivatingSolicitudId);
       const solicitud = solicitudes.find(s => s.id === reactivatingSolicitudId);
-      console.log('🔍 Solicitud encontrada:', solicitud?.id, 'Estado:', solicitud?.estado);
 
       // Verificar si la solicitud ya no está en STAND BY (reactivación completada)
       if (solicitud && !isStandBy(solicitud.estado)) {
-        console.log('🔍 Reactivación completada, limpiando estado...');
         setReactivatingSolicitudId(null);
         stopLoading(); // Detener loading global cuando se complete la reactivación
-        console.log('🔍 Loading global detenido por reactivación');
-      } else if (solicitud) {
-        console.log('🔍 Solicitud aún en Stand By, esperando reactivación...');
-      } else {
-        console.log('🔍 Solicitud no encontrada, puede que se haya recargado la lista');
       }
     }
   }, [solicitudes, reactivatingSolicitudId, stopLoading]);
@@ -195,7 +177,6 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   useEffect(() => {
     if (reactivatingSolicitudId) {
       const timeoutId = setTimeout(() => {
-        console.log('⚠️ Timeout de seguridad: Deteniendo loading global por operación de Reactivación');
         setReactivatingSolicitudId(null);
         stopLoading();
       }, 10000); // 10 segundos
@@ -208,7 +189,6 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   useEffect(() => {
     if (cancelingSolicitudId) {
       const timeoutId = setTimeout(() => {
-        console.log('⚠️ Timeout de seguridad: Deteniendo loading global por operación de Cancelación');
         setCancelingSolicitudId(null);
         stopLoading();
       }, 10000); // 10 segundos
@@ -245,19 +225,11 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   // Detener loading global cuando se complete una operación de Deserto
   useEffect(() => {
     if (desertoSolicitudId) {
-      console.log('🔍 useEffect de deserto ejecutado, desertoSolicitudId:', desertoSolicitudId);
       const solicitud = solicitudes.find(s => s.id === desertoSolicitudId);
-      console.log('🔍 Solicitud encontrada:', solicitud?.id, 'Estado:', solicitud?.estado);
 
       if (solicitud && isDeserto(solicitud.estado)) {
-        console.log('🔍 Operación de Deserto completada, limpiando estado...');
         setDesertoSolicitudId(null);
         stopLoading(); // Detener loading global cuando se complete la operación de Deserto
-        console.log('🔍 Loading global detenido por operación de Deserto');
-      } else if (solicitud) {
-        console.log('🔍 Solicitud aún no en estado Deserto, esperando...');
-      } else {
-        console.log('🔍 Solicitud no encontrada, puede que se haya recargado la lista');
       }
     }
   }, [solicitudes, desertoSolicitudId, stopLoading]);
@@ -265,19 +237,11 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   // Detener loading global cuando se complete una operación de Cancelación
   useEffect(() => {
     if (cancelingSolicitudId) {
-      console.log('🔍 useEffect de cancelación ejecutado, cancelingSolicitudId:', cancelingSolicitudId);
       const solicitud = solicitudes.find(s => s.id === cancelingSolicitudId);
-      console.log('🔍 Solicitud encontrada:', solicitud?.id, 'Estado:', solicitud?.estado);
 
       if (solicitud && solicitud.estado === 'cancelada') {
-        console.log('🔍 Operación de Cancelación completada, limpiando estado...');
         setCancelingSolicitudId(null);
         stopLoading(); // Detener loading global cuando se complete la operación de Cancelación
-        console.log('🔍 Loading global detenido por operación de Cancelación');
-      } else if (solicitud) {
-        console.log('🔍 Solicitud aún no en estado Cancelada, esperando...');
-      } else {
-        console.log('🔍 Solicitud no encontrada, puede que se haya recargado la lista');
       }
     }
   }, [solicitudes, cancelingSolicitudId, stopLoading]);
@@ -552,7 +516,6 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
           if (tipoCandidato) {
             tipoCargoId = tipoCandidato.id;
           } else {
-            console.warn(`No se encontró tipo de candidato para: ${tipoCargoId}`);
             return { total: 0, subidos: 0, progreso: 0 };
           }
         }
@@ -619,10 +582,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
   // Función para renderizar la plantilla en modo de solo lectura
   const renderPlantilla = (estructura: any, datos: any) => {
-    console.log('🔍 renderPlantilla llamado con:', { estructura, datos });
-
     if (!estructura || !estructura.secciones) {
-      console.log('❌ No hay estructura o secciones:', { estructura });
       return (
         <div className="text-center py-4 text-gray-500">
           <p>No hay estructura de plantilla disponible</p>
@@ -809,12 +769,8 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
   const handleContactConfirm = async () => {
     if (selectedSolicitudId && contactObservacion.trim()) {
-      console.log('🔍 handleContactConfirm llamado para solicitud ID:', selectedSolicitudId);
-      console.log('🔍 Llamando a startLoading()...');
       startLoading(); // Activar loading global
-      console.log('🔍 Llamando a onContact con ID:', selectedSolicitudId, 'y observación:', contactObservacion);
       onContact(selectedSolicitudId, contactObservacion);
-      console.log('🔍 onContact ejecutado');
 
       setConfirmContactOpen(false);
       setSelectedSolicitudId(null);
@@ -833,7 +789,6 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
           const data = await solicitudesLogsService.getLogsBySolicitud(selectedSolicitudForView.id);
           setLogs(data);
         } catch (e) {
-          console.warn('No se pudieron cargar los logs de la solicitud:', e);
           setLogs([]);
         } finally {
           setLogsLoading(false);
@@ -901,12 +856,8 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
   const handleDesertoConfirm = () => {
     if (selectedSolicitudId && desertoObservacion.trim()) {
-      console.log('🔍 handleDesertoConfirm llamado para solicitud ID:', selectedSolicitudId);
-      console.log('🔍 Llamando a startLoading()...');
       startLoading(); // Activar loading global
-      console.log('🔍 Llamando a onDeserto con ID:', selectedSolicitudId, 'y observación:', desertoObservacion);
       onDeserto(selectedSolicitudId, desertoObservacion);
-      console.log('🔍 onDeserto ejecutado');
 
       setConfirmDesertoOpen(false);
       setSelectedSolicitudId(null);
@@ -917,35 +868,19 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   };
 
   const handleReactivate = (id: number) => {
-    console.log('🔍 handleReactivate llamado con ID:', id);
-    console.log('🔍 Estado actual de reactivatingSolicitudId:', reactivatingSolicitudId);
     setReactivatingSolicitudId(id);
-    console.log('🔍 reactivatingSolicitudId establecido a:', id);
     setConfirmReactivateOpen(true);
-    console.log('🔍 Diálogo de confirmación abierto');
-
-    // Verificar que el estado se estableció correctamente
-    setTimeout(() => {
-      console.log('🔍 Verificación: reactivatingSolicitudId después de setState:', reactivatingSolicitudId);
-    }, 0);
   };
 
   const handleReactivateConfirm = () => {
-    console.log('🔍 handleReactivateConfirm llamado');
     if (reactivatingSolicitudId) {
-      console.log('🔍 reactivatingSolicitudId válido:', reactivatingSolicitudId);
-      console.log('🔍 Llamando a startLoading()...');
       startLoading(); // Activar loading global
-      console.log('🔍 Llamando a onReactivate con ID:', reactivatingSolicitudId);
       onReactivate(reactivatingSolicitudId);
-      console.log('🔍 onReactivate ejecutado');
 
       setConfirmReactivateOpen(false);
       // NO limpiar reactivatingSolicitudId aquí, se limpiará cuando se complete la operación
       // El loading se detendrá cuando se complete la operación en el useEffect
-      console.log('🔍 reactivatingSolicitudId mantenido para monitoreo:', reactivatingSolicitudId);
     } else {
-      console.log('❌ reactivatingSolicitudId es null o undefined');
       // Si no hay ID válido, detener el loading para evitar que se quede colgado
       stopLoading();
     }
@@ -966,12 +901,8 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
   const handleCancelConfirm = () => {
     if (selectedSolicitudId && cancelObservacion.trim()) {
-      console.log('🔍 handleCancelConfirm llamado para solicitud ID:', selectedSolicitudId);
-      console.log('🔍 Llamando a startLoading()...');
       startLoading(); // Activar loading global
-      console.log('🔍 Llamando a onCancel con ID:', selectedSolicitudId, 'y observación:', cancelObservacion);
       onCancel(selectedSolicitudId, cancelObservacion);
-      console.log('🔍 onCancel ejecutado');
 
       setConfirmCancelOpen(false);
       setSelectedSolicitudId(null);
@@ -1007,9 +938,6 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
   const handleAssignConfirm = () => {
     if (selectedSolicitudId && suggestedAnalyst) {
-      console.log('🔍 handleAssignConfirm llamado para solicitud ID:', selectedSolicitudId);
-      console.log('🔍 Analista a asignar:', suggestedAnalyst);
-      console.log('🔍 Llamando a startLoading()...');
       startLoading(); // Activar loading global
       
       // Llamar a la función de asignación
@@ -1033,8 +961,6 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
   const handleValidateDocumentsConfirm = () => {
     if (selectedSolicitudId && validateDocumentsObservacion.trim()) {
-      console.log('🔍 handleValidateDocumentsConfirm llamado para solicitud ID:', selectedSolicitudId);
-      console.log('🔍 Llamando a startLoading()...');
       startLoading(); // Activar loading global
       
       // Llamar a la función de validación de documentos con observación
@@ -1058,8 +984,6 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
   const handleReturnDocumentsConfirm = () => {
     if (selectedSolicitudId && returnDocumentsObservacion.trim()) {
-      console.log('🔍 handleReturnDocumentsConfirm llamado para solicitud ID:', selectedSolicitudId);
-      console.log('🔍 Llamando a startLoading()...');
       startLoading(); // Activar loading global
       
       // Llamar a la función de devolver documentos con observación
@@ -1083,8 +1007,6 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
   const handleCiteExamsConfirm = () => {
     if (selectedSolicitudId && citeExamsObservacion.trim()) {
-      console.log('🔍 handleCiteExamsConfirm llamado para solicitud ID:', selectedSolicitudId);
-      console.log('🔍 Llamando a startLoading()...');
       startLoading(); // Activar loading global
       
       // Llamar a la función de citar a exámenes con observación
@@ -1108,8 +1030,6 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
   const handleContractConfirm = () => {
     if (selectedSolicitudId && contractObservacion.trim()) {
-      console.log('🔍 handleContractConfirm llamado para solicitud ID:', selectedSolicitudId);
-      console.log('🔍 Llamando a startLoading()...');
       startLoading(); // Activar loading global
       
       // Llamar a la función de contratar con observación

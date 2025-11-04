@@ -54,20 +54,6 @@ export const TipoCandidatoSelector: React.FC<TipoCandidatoSelectorProps> = ({
   const { tiposCandidatos, tiposCandidatosActivos, isLoading: loadingTipos, refetch, invalidateCache, forceRefresh } = useTiposCandidatos();
   const { getDocumentosRequeridos } = useTiposCandidatosDocumentos();
   
-  // Debug: mostrar los tipos de candidatos en consola
-  console.log('🔍 TipoCandidatoSelector - Tipos de candidatos cargados:', tiposCandidatos);
-  console.log('🔍 TipoCandidatoSelector - Tipos activos directos:', tiposCandidatosActivos);
-  console.log('🔍 TipoCandidatoSelector - Estado de carga:', loadingTipos);
-  
-  // Efecto para detectar cambios en los datos
-  useEffect(() => {
-    console.log('🔍 TipoCandidatoSelector - useEffect: Datos actualizados:', {
-      total: tiposCandidatos.length,
-      activos: tiposCandidatosActivos.length,
-      loading: loadingTipos
-    });
-  }, [tiposCandidatos, tiposCandidatosActivos, loadingTipos]);
-  
   const { 
     data: documentosRequeridos = [], 
     isLoading: loadingDocumentos 
@@ -75,31 +61,14 @@ export const TipoCandidatoSelector: React.FC<TipoCandidatoSelectorProps> = ({
 
   const handleTipoChange = (tipoId: string) => {
     const id = tipoId ? parseInt(tipoId) : null;
-    console.log('🔍 TipoCandidatoSelector - Cambiando tipo a:', id);
     onTipoChange(id);
   };
 
   // Función para forzar la recarga de datos
   const handleRefresh = async () => {
-    console.log('🔍 TipoCandidatoSelector - Forzando recarga de datos...');
     await forceRefresh();
   };
 
-  // Función para verificar si los datos están actualizados
-  const checkDataFreshness = () => {
-    console.log('🔍 TipoCandidatoSelector - Verificando frescura de datos:', {
-      totalTypes: tiposCandidatos.length,
-      activeTypes: tiposCandidatosActivos.length,
-      activeTypeNames: tiposCandidatosActivos.map(t => t.nombre),
-      loading: loadingTipos,
-      timestamp: new Date().toISOString()
-    });
-  };
-
-  // Verificar datos cada vez que cambien
-  useEffect(() => {
-    checkDataFreshness();
-  }, [tiposCandidatos, tiposCandidatosActivos]);
 
   const handleFileChange = (documentoId: number, file: File | undefined) => {
     onDocumentoChange(documentoId, { 

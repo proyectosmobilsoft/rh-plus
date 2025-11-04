@@ -21,6 +21,7 @@ import FormRenderer from '@/components/FormRenderer';
 import { Company } from '@/types/company';
 import { CreateEmpresaDTO, createEmpresaSchema } from '@/types/empresa';
 import { useLoading } from '@/contexts/LoadingContext';
+import { supabase } from '@/services/supabaseClient';
 
 interface CompanyFormProps {
   initialData?: any; // Cambiado de Company a any para soportar las nuevas propiedades
@@ -67,7 +68,7 @@ const calculateNITVerificationDigit = (nit: string): number => {
   return remainder > 1 ? 11 - remainder : remainder;
 };
 
-// Función para convertir archivo a Base64
+// Función para convertir archivo a Base64 (mantenida para compatibilidad con previews)
 const convertFileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -75,6 +76,240 @@ const convertFileToBase64 = (file: File): Promise<string> => {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+};
+
+// Función helper para establecer sesión de Supabase Auth si es necesario
+const ensureSupabaseSession = async (): Promise<boolean> => {
+  try {
+    // Verificar si ya hay una sesión activa
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session && session.user) {
+      return true;
+    }
+
+    // Intentar establecer sesión usando el sistema de autenticación personalizado
+    const userData = localStorage.getItem('userData');
+    const authToken = localStorage.getItem('authToken');
+    
+    if (!userData || !authToken) {
+      return false;
+    }
+
+    const parsedUserData = JSON.parse(userData);
+
+    // Primero intentar refrescar la sesión si existe
+    const { data: { user }, error: getUserError } = await supabase.auth.getUser();
+    if (user && !getUserError) {
+      // Intentar refrescar la sesión
+      const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshedSession && !refreshError) {
+        return true;
+      }
+    }
+
+    // Si no hay sesión activa, intentar hacer sign in
+    // Intentar obtener la contraseña desde sessionStorage (guardada durante el login)
+    const email = parsedUserData.email || `${parsedUserData.username}@compensamos.com`;
+    
+    // Intentar sign in con el email y una contraseña temporal (si está disponible)
+    // La contraseña se guarda en sessionStorage durante el login para este propósito
+    try {
+      const tempPassword = sessionStorage.getItem('temp_password');
+      
+      if (tempPassword) {
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: email,
+          password: tempPassword
+        });
+        
+        if (!signInError && signInData?.session) {
+          return true;
+        } else {
+          // Si el sign in falla, puede ser que el usuario no exista en Supabase Auth
+          // Intentar crear el usuario una vez
+          const syncKey = `supabase_auth_sync_attempted_${parsedUserData.id}`;
+          if (!localStorage.getItem(syncKey)) {
+            localStorage.setItem(syncKey, 'true');
+            
+            try {
+              const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+                email: email,
+                password: tempPassword,
+                options: {
+                  data: {
+                    username: parsedUserData.username,
+                    id: parsedUserData.id,
+                    primer_nombre: parsedUserData.primerNombre,
+                    primer_apellido: parsedUserData.primerApellido,
+                    role: parsedUserData.role
+                  }
+                }
+              });
+              
+              if (!signUpError && signUpData?.session) {
+                return true;
+              }
+            } catch (signUpError) {
+              // Error silenciado
+            }
+          }
+        }
+      }
+    } catch (signInError) {
+      // Error silenciado
+    }
+
+    return false;
+  } catch (error) {
+    return false;
+  }
+};
+
+// Función para subir archivo a Supabase Storage
+const uploadFileToStorage = async (
+  file: File, 
+  folder: string, 
+  empresaId?: number
+): Promise<string> => {
+  // Verificar autenticación usando el sistema personalizado (localStorage)
+  const userData = localStorage.getItem('userData');
+  const authToken = localStorage.getItem('authToken');
+  
+  if (!userData || !authToken) {
+    throw new Error('Debes estar autenticado para subir archivos');
+  }
+
+  // Intentar establecer sesión de Supabase Auth si no existe
+  await ensureSupabaseSession();
+
+  // Generar nombre único para el archivo
+  const timestamp = Date.now();
+  const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+  const fileName = empresaId 
+    ? `${empresaId}_${timestamp}_${sanitizedName}`
+    : `temp_${timestamp}_${sanitizedName}`;
+  const filePath = `${folder}/${fileName}`;
+
+  // Subir el archivo a Storage
+  const { data, error } = await supabase.storage
+    .from('empresas-documentos')
+    .upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: false
+    });
+
+  if (error) {
+    console.error('Error subiendo archivo a Storage:', error);
+    throw error;
+  }
+
+  // Obtener URL pública del archivo
+  const { data: urlData } = supabase.storage
+    .from('empresas-documentos')
+    .getPublicUrl(filePath);
+
+  return urlData.publicUrl;
+};
+
+// Función para eliminar archivo de Storage
+const deleteFileFromStorage = async (url: string): Promise<void> => {
+  if (!url || typeof url !== 'string') {
+    return; // URL inválida
+  }
+
+  // Solo procesar si es una URL de Storage (http/https)
+  if (!url.startsWith('http') && !url.startsWith('https')) {
+    return; // No es una URL de Storage válida (probablemente es base64)
+  }
+
+  try {
+    // Intentar extraer la ruta del archivo de diferentes formatos de URL de Supabase Storage
+    let filePath = '';
+    
+    // Formato 1: /storage/v1/object/public/empresas-documentos/...
+    if (url.includes('/storage/v1/object/public/empresas-documentos/')) {
+      const urlParts = url.split('/storage/v1/object/public/empresas-documentos/');
+      if (urlParts.length >= 2) {
+        filePath = urlParts[1];
+        // Remover query params si existen
+        filePath = filePath.split('?')[0];
+        // Decodificar URL encoding si existe
+        filePath = decodeURIComponent(filePath);
+        // Limpiar el path (remover espacios al inicio/fin y slashes duplicados)
+        filePath = filePath.trim().replace(/\/+/g, '/');
+      }
+    }
+    // Formato 2: /storage/v1/object/sign/empresas-documentos/... (signed URLs)
+    else if (url.includes('/storage/v1/object/sign/empresas-documentos/')) {
+      const urlParts = url.split('/storage/v1/object/sign/empresas-documentos/');
+      if (urlParts.length >= 2) {
+        // Remover los parámetros de firma (ej: ?token=...)
+        filePath = urlParts[1].split('?')[0];
+        // Decodificar URL encoding si existe
+        filePath = decodeURIComponent(filePath);
+        // Limpiar el path
+        filePath = filePath.trim().replace(/\/+/g, '/');
+      }
+    }
+    // Formato 3: URL directa con el path (fallback)
+    else if (url.includes('empresas-documentos')) {
+      // Intentar extraer el path después de empresas-documentos
+      const match = url.match(/empresas-documentos\/(.+?)(?:\?|$)/);
+      if (match && match[1]) {
+        filePath = match[1];
+        // Decodificar URL encoding si existe
+        filePath = decodeURIComponent(filePath);
+        // Limpiar el path
+        filePath = filePath.trim().replace(/\/+/g, '/');
+      }
+    }
+
+    if (!filePath) {
+      console.error('❌ No se pudo extraer la ruta del archivo de la URL:', url);
+      throw new Error(`No se pudo extraer el path de la URL: ${url}`);
+    }
+
+    // Asegurar que el path no empiece con / (debe ser relativo al bucket)
+    if (filePath.startsWith('/')) {
+      filePath = filePath.substring(1);
+    }
+    
+    // Verificar autenticación antes de eliminar
+    await ensureSupabaseSession();
+    
+    // Verificar sesión actual
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    // Validar que el path no esté vacío y tenga el formato correcto
+    if (!filePath || filePath.trim().length === 0) {
+      throw new Error('El path del archivo está vacío');
+    }
+    
+    // Asegurar que el path no incluya el nombre del bucket
+    if (filePath.startsWith('empresas-documentos/')) {
+      filePath = filePath.replace('empresas-documentos/', '');
+    }
+    
+    // Normalizar el path final
+    const normalizedPath = filePath.trim().replace(/^\/+|\/+$/g, '');
+    
+    if (!normalizedPath || normalizedPath.length === 0) {
+      throw new Error('El path normalizado está vacío');
+    }
+    
+    const { data, error } = await supabase.storage
+      .from('empresas-documentos')
+      .remove([normalizedPath]);
+
+    if (error) {
+      console.error('❌ Error eliminando archivo de Storage:', error);
+      throw error;
+    }
+  } catch (error: any) {
+    console.error('❌ Error al procesar eliminación de archivo:', error);
+    // Re-lanzar el error para que el código que llama pueda manejarlo
+    throw error;
+  }
 };
 
 export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afiliada' }: CompanyFormProps) {
@@ -94,6 +329,9 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
   const [showDocumentPreview, setShowDocumentPreview] = useState(false);
   const [previewDocument, setPreviewDocument] = useState<{ content: string; name: string; type: string } | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  // Estados para URLs de archivos subidos a Storage
+  const [fileUrls, setFileUrls] = useState<{ [key: string]: string }>({});
+  const [uploading, setUploading] = useState<{ [key: string]: boolean }>({});
 
   // Estado para plantillas asignadas
   const [plantillasAsignadas, setPlantillasAsignadas] = useState<number[]>(
@@ -107,27 +345,16 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
   // Efecto para actualizar plantillas asignadas cuando cambie initialData
   useEffect(() => {
     if (initialData?.plantillas) {
-      console.log('=== ACTUALIZANDO PLANTILLAS ASIGNADAS ===');
-      console.log('initialData.plantillas:', initialData.plantillas);
-      console.log('Tipo de plantillas:', typeof initialData.plantillas);
-      console.log('Es array:', Array.isArray(initialData.plantillas));
-      
       if (Array.isArray(initialData.plantillas) && initialData.plantillas.length > 0) {
         const plantillaIds = initialData.plantillas.map((p: any) => {
           const id = Number(p.id || p.plantilla_id);
-          console.log('Mapeando plantilla:', p, 'ID:', id);
           return id;
         });
-        console.log('IDs de plantillas extraídos:', plantillaIds);
         setPlantillasAsignadas(plantillaIds);
-        console.log('Plantillas asignadas actualizadas:', plantillaIds);
       } else {
-        console.log('No se encontraron plantillas válidas en initialData');
         setPlantillasAsignadas([]);
       }
-      console.log('=== FIN ACTUALIZANDO PLANTILLAS ===');
     } else {
-      console.log('No hay plantillas en initialData, limpiando plantillas asignadas');
       setPlantillasAsignadas([]);
     }
   }, [initialData]);
@@ -137,9 +364,7 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
     queryKey: ['plantillas-activas'],
     queryFn: async () => {
       try {
-        console.log('Iniciando carga de plantillas activas...');
         const result = await plantillasService.getAllActivas();
-        console.log('Resultado de plantillasService.getAllActivas():', result);
         return result;
       } catch (error) {
         console.error('Error al cargar plantillas activas:', error);
@@ -155,9 +380,7 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
     queryKey: ['regimenes-tributarios'],
     queryFn: async () => {
       try {
-        console.log('Iniciando carga de regímenes tributarios...');
         const result = await regimenTributarioService.getAll();
-        console.log('Resultado de regimenTributarioService.getAll():', result);
         return result;
       } catch (error) {
         console.error('Error al cargar regímenes tributarios:', error);
@@ -173,9 +396,7 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
     queryKey: ['actividades-economicas'],
     queryFn: async () => {
       try {
-        console.log('Iniciando carga de actividades económicas...');
         const result = await actividadesEconomicasService.getAll();
-        console.log('Resultado de actividadesEconomicasService.getAll():', result);
         return result;
       } catch (error) {
         console.error('Error al cargar actividades económicas:', error);
@@ -186,21 +407,6 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
     retryDelay: 1000,
   });
 
-  // Debug: Log para verificar las plantillas activas
-  useEffect(() => {
-    console.log('=== DEBUG PLANTILLAS ACTIVAS ===');
-    console.log('Plantillas activas cargadas:', plantillas);
-    console.log('Loading plantillas:', loadingPlantillas);
-    console.log('Error plantillas:', plantillasError);
-    console.log('Plantillas activas length:', plantillas.length);
-    console.log('Tipo de plantillas:', typeof plantillas);
-    console.log('Es array:', Array.isArray(plantillas));
-    if (plantillas.length > 0) {
-      console.log('Primera plantilla activa:', plantillas[0]);
-      console.log('Estado activa de la primera plantilla:', plantillas[0].activa);
-    }
-    console.log('=== FIN DEBUG PLANTILLAS ACTIVAS ===');
-  }, [plantillas, loadingPlantillas, plantillasError]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -270,16 +476,6 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
 
   useEffect(() => {
     if (initialData) {
-      console.log('=== DATOS INICIALES RECIBIDOS ===');
-      console.log('initialData completo:', initialData);
-      console.log('actividad_economica_id:', initialData.actividad_economica_id);
-      console.log('actividad_economica:', initialData.actividad_economica);
-      console.log('regimen_tributario_id:', initialData.regimen_tributario_id);
-      console.log('regimen_tributario:', initialData.regimen_tributario);
-      console.log('numero_empleados:', initialData.numero_empleados);
-      console.log('Tipo de regimen_tributario_id:', typeof initialData.regimen_tributario_id);
-      console.log('Tipo de actividad_economica_id:', typeof initialData.actividad_economica_id);
-      console.log('================================');
 
       let nitBase = initialData.nit || "";
       let nitVerification = "";
@@ -305,66 +501,84 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
         numero_empleados: Number(initialData.numero_empleados || initialData.employeeCount || 1),
         activo: initialData.active !== false,
         tipo_empresa: initialData.tipo_empresa || entityType,
-        // Cargar documentos existentes
-        documento_contrato_base64: initialData.documento_contrato || "",
-        documento_camara_comercio_base64: initialData.documento_camara_comercio || "",
-        documento_rut_base64: initialData.documento_rut || "",
-        logo_base64: initialData.logo_base64 || "", // Cargar el logo si existe
+        // Cargar URLs de documentos existentes (preferir URLs de Storage sobre base64)
+        documento_contrato_url: initialData.documento_contrato_url || initialData.documento_contrato || "",
+        documento_camara_comercio_url: initialData.documento_camara_comercio_url || initialData.documento_camara_comercio || "",
+        documento_rut_url: initialData.documento_rut_url || initialData.documento_rut || "",
+        logo_url: initialData.logo_url || initialData.logo_base64 || "",
         documentos: []
       };
 
-      console.log('Datos del formulario a cargar:', formData);
-      console.log('Actividad económica cargada:', formData.actividad_economica);
-      console.log('Régimen tributario cargado:', formData.regimen_tributario);
       form.reset(formData);
 
       // Cargar plantillas asociadas si existen
-      console.log('=== CARGANDO PLANTILLAS ASOCIADAS ===');
-      console.log('initialData completo:', initialData);
-      console.log('initialData.plantillas:', initialData.plantillas);
-      console.log('Tipo de plantillas:', typeof initialData.plantillas);
-      console.log('Es array:', Array.isArray(initialData.plantillas));
-      console.log('Longitud de plantillas:', initialData.plantillas?.length);
-      
       if (initialData.plantillas && Array.isArray(initialData.plantillas) && initialData.plantillas.length > 0) {
         const plantillaIds = initialData.plantillas.map((p: any) => {
           const id = Number(p.id || p.plantilla_id);
-          console.log('Mapeando plantilla:', p, 'ID:', id);
           return id;
         });
-        console.log('IDs de plantillas extraídos:', plantillaIds);
         setPlantillasAsignadas(plantillaIds);
-        console.log('Plantillas asociadas cargadas:', plantillaIds);
-        console.log('Plantillas detalladas:', initialData.plantillas);
       } else {
-        console.log('No se encontraron plantillas asociadas o no es un array válido');
-        console.log('Plantillas encontradas:', initialData.plantillas);
         setPlantillasAsignadas([]);
       }
-      console.log('=== FIN CARGANDO PLANTILLAS ===');
 
-      // Cargar documentos existentes para mostrar en la UI
+      // Cargar URLs de documentos existentes
+      // Los documentos pueden estar guardados como URLs de Storage o como base64
+      // Priorizar campos _url si existen, sino usar los campos directos
+      const existingFileUrls: { [key: string]: string } = {};
+      
+      // Contrato
+      const contratoUrl = initialData.documento_contrato_url || initialData.documento_contrato;
+      if (contratoUrl && (contratoUrl.startsWith('http') || contratoUrl.startsWith('data:'))) {
+        existingFileUrls['contrato'] = contratoUrl;
+      }
+      
+      // Cámara de Comercio
+      const camaraUrl = initialData.documento_camara_comercio_url || initialData.documento_camara_comercio;
+      if (camaraUrl && (camaraUrl.startsWith('http') || camaraUrl.startsWith('data:'))) {
+        existingFileUrls['camara_comercio'] = camaraUrl;
+      }
+      
+      // RUT
+      const rutUrl = initialData.documento_rut_url || initialData.documento_rut;
+      if (rutUrl && (rutUrl.startsWith('http') || rutUrl.startsWith('data:'))) {
+        existingFileUrls['rut'] = rutUrl;
+      }
+      
+      // Logo
+      const logoUrl = initialData.logo_url || initialData.logo_base64;
+      if (logoUrl && (logoUrl.startsWith('http') || logoUrl.startsWith('data:'))) {
+        existingFileUrls['logo'] = logoUrl;
+      }
+      setFileUrls(existingFileUrls);
+
+      // Cargar nombres de archivos para mostrar en la UI
+      // Usar nombres más descriptivos basados en las URLs
       const existingDocs: { [key: string]: string } = {};
-      if (initialData.documento_contrato) {
-        existingDocs['contrato'] = 'Documento de contrato cargado';
-        console.log('Documento de contrato encontrado:', !!initialData.documento_contrato);
+      if (existingFileUrls['contrato']) {
+        // Extraer nombre del archivo de la URL si es posible
+        const fileName = existingFileUrls['contrato'].split('/').pop() || 'Documento de contrato';
+        existingDocs['contrato'] = fileName.includes('_') ? fileName.split('_').slice(2).join('_') : 'Documento de contrato cargado';
       }
-      if (initialData.documento_camara_comercio) {
-        existingDocs['camara_comercio'] = 'Documento de cámara de comercio cargado';
-        console.log('Documento de cámara de comercio encontrado:', !!initialData.documento_camara_comercio);
+      if (existingFileUrls['camara_comercio']) {
+        const fileName = existingFileUrls['camara_comercio'].split('/').pop() || 'Documento de cámara de comercio';
+        existingDocs['camara_comercio'] = fileName.includes('_') ? fileName.split('_').slice(2).join('_') : 'Documento de cámara de comercio cargado';
       }
-      if (initialData.documento_rut) {
-        existingDocs['rut'] = 'Documento RUT cargado';
-        console.log('Documento RUT encontrado:', !!initialData.documento_rut);
+      if (existingFileUrls['rut']) {
+        const fileName = existingFileUrls['rut'].split('/').pop() || 'Documento RUT';
+        existingDocs['rut'] = fileName.includes('_') ? fileName.split('_').slice(2).join('_') : 'Documento RUT cargado';
       }
-      console.log('Documentos existentes cargados:', existingDocs);
       setUploadedFiles(existingDocs);
       setExistingDocuments(existingDocs);
 
-      // Cargar logo si existe
-      if (initialData.logo_base64) {
-        setLogoPreview(initialData.logo_base64);
-        console.log('Logo encontrado:', !!initialData.logo_base64);
+      // Cargar logo si existe (priorizar URL de Storage)
+      if (initialData.logo_url || initialData.logo_base64) {
+        // Si es URL de Storage, usar directamente; si es base64, usar para preview
+        if (initialData.logo_url && initialData.logo_url.startsWith('http')) {
+          setLogoPreview(initialData.logo_url);
+        } else if (initialData.logo_base64) {
+          setLogoPreview(initialData.logo_base64);
+        }
       }
 
       // Cargar departamento cuando se carga la ciudad
@@ -403,17 +617,6 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
     }
   }, [initialData, form, entityType]);
 
-  // Debug: Verificar valores del formulario después de cargar
-  useEffect(() => {
-    if (initialData) {
-      console.log('=== VALORES DEL FORMULARIO DESPUÉS DE CARGAR ===');
-      console.log('actividad_economica en form:', form.watch("actividad_economica"));
-      console.log('actividad_nombre en form:', form.watch("actividad_nombre"));
-      console.log('regimen_tributario en form:', form.watch("regimen_tributario"));
-      console.log('numero_empleados en form:', form.watch("numero_empleados"));
-      console.log('===============================================');
-    }
-  }, [initialData, form.watch("actividad_economica"), form.watch("regimen_tributario"), form.watch("numero_empleados")]);
 
   const onSubmit = async (data: any) => {
     try {
@@ -430,32 +633,111 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
         actividad_economica: data.actividad_economica, // ID del código CIIU
         regimen_tributario: data.regimen_tributario, // ID del régimen tributario
         numero_empleados: data.numero_empleados, // Número de empleados
-        documento_contrato_base64: data.documento_contrato_base64,
-        documento_camara_comercio_base64: data.documento_camara_comercio_base64,
-        documento_rut_base64: data.documento_rut_base64,
-        logo_base64: data.logo_base64, // Incluir el logo en el payload
+        // IMPORTANTE: Guardar las URLs de Storage directamente en los campos documento_contrato, documento_camara_comercio, documento_rut
+        // Priorizar fileUrls (estado actual con URLs de Storage) sobre los valores del formulario
+        documento_contrato: fileUrls['contrato'] || data.documento_contrato_url || data.documento_contrato || "",
+        documento_camara_comercio: fileUrls['camara_comercio'] || data.documento_camara_comercio_url || data.documento_camara_comercio || "",
+        documento_rut: fileUrls['rut'] || data.documento_rut_url || data.documento_rut || "",
+        logo_base64: fileUrls['logo'] || data.logo_url || data.logo_base64 || "",
         tipo_empresa: data.tipo_empresa || 'prestador',
         tipo_documento: data.tipo_documento, // Agregar el campo que falta
         activo: data.activo || true,
         plantillas_seleccionadas: plantillasAsignadas // Array de IDs de plantillas
       };
-      console.log('Payload enviado a Supabase:', empresaPayload);
-      console.log('=== DATOS DEL PAYLOAD ===');
-      console.log('actividad_economica:', data.actividad_economica);
-      console.log('regimen_tributario:', data.regimen_tributario);
-      console.log('numero_empleados:', data.numero_empleados);
-      console.log('logo_base64:', data.logo_base64 ? 'Presente' : 'No presente');
-      console.log('Tipo de actividad_economica:', typeof data.actividad_economica);
-      console.log('Tipo de regimen_tributario:', typeof data.regimen_tributario);
-      console.log('Tipo de numero_empleados:', typeof data.numero_empleados);
-      console.log('========================');
 
+      let empresaId: number | undefined;
+      
       if (initialData?.id) {
         // Actualizar empresa existente
-        await empresaService.update(initialData.id, empresaPayload);
+        empresaId = initialData.id;
+        
+        // Asegurar que las URLs de Storage se incluyan en el payload
+        // Priorizar fileUrls (URLs actuales de Storage) sobre los valores del formulario
+        empresaPayload.documento_contrato = fileUrls['contrato'] || empresaPayload.documento_contrato || "";
+        empresaPayload.documento_camara_comercio = fileUrls['camara_comercio'] || empresaPayload.documento_camara_comercio || "";
+        empresaPayload.documento_rut = fileUrls['rut'] || empresaPayload.documento_rut || "";
+        empresaPayload.logo_base64 = fileUrls['logo'] || empresaPayload.logo_base64 || "";
+        
+        const updatedEmpresa = await empresaService.update(empresaId!, empresaPayload);
+        if (!updatedEmpresa) {
+          throw new Error('No se pudo actualizar la empresa');
+        }
       } else {
         // Crear nueva empresa
-        await empresaService.create(empresaPayload);
+        const newEmpresa = await empresaService.create(empresaPayload);
+        if (!newEmpresa || !newEmpresa.id) {
+          throw new Error('No se pudo crear la empresa');
+        }
+        empresaId = newEmpresa.id;
+
+        // Mover archivos temporales a la carpeta de la empresa y actualizar URLs
+        const filesToMove = ['contrato', 'camara_comercio', 'rut', 'logo'];
+        const updatedFileUrls: { [key: string]: string } = { ...fileUrls };
+        
+        for (const fileType of filesToMove) {
+          const tempUrl = fileUrls[fileType];
+          if (tempUrl && tempUrl.includes('/empresas/temp/')) {
+            try {
+              // Extraer nombre del archivo de la URL temporal
+              const urlParts = tempUrl.split('/empresas/temp/');
+              if (urlParts.length > 1) {
+                const fileName = urlParts[1];
+                const oldPath = `empresas/temp/${fileName}`;
+                const newPath = `empresas/${empresaId}/${fileName}`;
+
+                // Mover archivo de temp a la carpeta de la empresa
+                const { data: movedFile, error: moveError } = await supabase.storage
+                  .from('empresas-documentos')
+                  .move(oldPath, newPath);
+
+                if (moveError) {
+                  console.error(`Error moviendo archivo ${fileType}:`, moveError);
+                  // Intentar copiar si move no funciona
+                  const { data: fileData } = await supabase.storage
+                    .from('empresas-documentos')
+                    .download(oldPath);
+                  
+                  if (fileData) {
+                    await supabase.storage
+                      .from('empresas-documentos')
+                      .upload(newPath, fileData);
+                    
+                    // Eliminar archivo temporal
+                    await supabase.storage
+                      .from('empresas-documentos')
+                      .remove([oldPath]);
+                  }
+                }
+                
+                // Obtener la nueva URL pública después de mover
+                const { data: urlData } = supabase.storage
+                  .from('empresas-documentos')
+                  .getPublicUrl(newPath);
+                
+                updatedFileUrls[fileType] = urlData.publicUrl;
+              }
+            } catch (error) {
+              console.error(`Error procesando archivo ${fileType} después de crear empresa:`, error);
+            }
+          } else if (tempUrl && !tempUrl.includes('/empresas/temp/')) {
+            // Si ya está en la carpeta correcta, mantener la URL
+            updatedFileUrls[fileType] = tempUrl;
+          }
+        }
+
+        // Actualizar la empresa con las URLs finales (después de mover archivos)
+        const finalUrls: any = {
+          documento_contrato: updatedFileUrls['contrato'] || empresaPayload.documento_contrato || "",
+          documento_camara_comercio: updatedFileUrls['camara_comercio'] || empresaPayload.documento_camara_comercio || "",
+          documento_rut: updatedFileUrls['rut'] || empresaPayload.documento_rut || "",
+          logo_base64: updatedFileUrls['logo'] || empresaPayload.logo_base64 || ""
+        };
+        
+        // Actualizar la empresa con las URLs finales
+        await empresaService.update(empresaId, finalUrls);
+        
+        // Actualizar el estado local con las URLs finales
+        setFileUrls(updatedFileUrls);
       }
 
       toast.success(
@@ -491,18 +773,91 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Validar tipo de archivo (solo PDFs para documentos)
+    if (file.type !== 'application/pdf') {
+      toast.error("Solo se permiten archivos PDF para documentos.");
+      return;
+    }
+
     try {
-      const base64 = await convertFileToBase64(file);
-      const fieldName = `documento_${documentType}_base64`;
-      form.setValue(fieldName as any, base64);
-        setUploadedFiles(prev => ({
-          ...prev,
+      // Mostrar loading global
+      startLoading();
+      setUploading(prev => ({ ...prev, [documentType]: true }));
+
+      // Eliminar archivo anterior si existe (tanto de Storage como de initialData)
+      const oldUrl = fileUrls[documentType] || 
+                     (documentType === 'contrato' ? initialData?.documento_contrato : null) ||
+                     (documentType === 'camara_comercio' ? initialData?.documento_camara_comercio : null) ||
+                     (documentType === 'rut' ? initialData?.documento_rut : null);
+      
+      if (oldUrl && (oldUrl.startsWith('http') || oldUrl.startsWith('https'))) {
+        // Solo eliminar si es una URL de Storage (no base64)
+        try {
+          await deleteFileFromStorage(oldUrl);
+        } catch (deleteError) {
+          console.error(`❌ Error al eliminar archivo anterior para ${documentType}:`, deleteError);
+          // Continuar de todas formas para no bloquear la subida del nuevo archivo
+        }
+      }
+
+      // Subir archivo a Storage
+      const empresaId = initialData?.id;
+      const folder = empresaId ? `empresas/${empresaId}` : 'empresas/temp';
+      const fileUrl = await uploadFileToStorage(file, folder, empresaId);
+
+      // Guardar la URL en el estado y en el formulario
+      setFileUrls(prev => ({ ...prev, [documentType]: fileUrl }));
+      
+      // Guardar en el formulario usando los campos correctos según el tipo de documento
+      // Nota: Estos campos no están en el schema pero se usan temporalmente antes de guardar
+      if (documentType === 'contrato') {
+        form.setValue('documento_contrato_url' as any, fileUrl);
+      } else if (documentType === 'camara_comercio') {
+        form.setValue('documento_camara_comercio_url' as any, fileUrl);
+      } else if (documentType === 'rut') {
+        form.setValue('documento_rut_url' as any, fileUrl);
+      }
+      
+      setUploadedFiles(prev => ({
+        ...prev,
         [documentType]: file.name
       }));
-      toast.success("Documento subido", { description: `${file.name} se ha subido correctamente.` });
+
+      // Si la empresa ya existe, actualizar la URL en la base de datos inmediatamente
+      if (empresaId) {
+        try {
+          const updateField = documentType === 'contrato' ? 'documento_contrato' :
+                             documentType === 'camara_comercio' ? 'documento_camara_comercio' :
+                             'documento_rut';
+          
+          const updateData: any = { [updateField]: fileUrl };
+          
+          const { error: updateError } = await supabase
+            .from('empresas')
+            .update(updateData)
+            .eq('id', empresaId);
+          
+          if (updateError) {
+            console.error(`Error actualizando ${updateField} en la base de datos:`, updateError);
+            toast.error(`Error al actualizar ${updateField} en la base de datos`);
+          } else {
+            toast.success("Documento subido y guardado", { 
+              description: `${file.name} se ha subido correctamente y la URL se ha actualizado en la base de datos.` 
+            });
+          }
+        } catch (dbError) {
+          console.error('Error al actualizar la base de datos:', dbError);
+          toast.error("Error al actualizar la base de datos.");
+        }
+      } else {
+        toast.success("Documento subido", { description: `${file.name} se ha subido correctamente a Storage.` });
+      }
     } catch (error) {
-      console.error('Error al convertir archivo:', error);
-      toast.error("No se pudo procesar el archivo.");
+      console.error('Error al subir archivo:', error);
+      toast.error("No se pudo subir el archivo a Storage.");
+    } finally {
+      setUploading(prev => ({ ...prev, [documentType]: false }));
+      stopLoading(); // Ocultar loading global
     }
   };
 
@@ -554,6 +909,10 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
     }
 
     try {
+      // Mostrar loading global
+      startLoading();
+      setUploading(prev => ({ ...prev, logo: true }));
+
       // Validar dimensiones de la imagen
       const validation = await validateImageDimensions(file);
       
@@ -564,16 +923,58 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
         toast.info("Imagen detectada", { description: validation.message });
       }
       
-      // Comprimir la imagen antes de convertir a Base64
-      const compressedImage = await compressImage(file);
-      const base64 = await convertFileToBase64(compressedImage);
-      form.setValue('logo_base64', base64);
-      setLogoPreview(base64);
+      // Eliminar logo anterior si existe (tanto de Storage como de initialData)
+      const oldLogoUrl = fileUrls.logo || initialData?.logo_url || initialData?.logo_base64;
+      if (oldLogoUrl && (oldLogoUrl.startsWith('http') || oldLogoUrl.startsWith('https'))) {
+        // Solo eliminar si es una URL de Storage (no base64)
+        await deleteFileFromStorage(oldLogoUrl);
+      }
       
-      toast.success("Logo procesado", { description: "Imagen optimizada y convertida a 1600x900px (16:9 ratio)." });
+      // Comprimir la imagen
+      const compressedImage = await compressImage(file);
+      
+      // Subir imagen comprimida a Storage
+      const empresaId = initialData?.id;
+      const folder = empresaId ? `empresas/${empresaId}` : 'empresas/temp';
+      const logoUrl = await uploadFileToStorage(compressedImage, folder, empresaId);
+
+      // Guardar la URL en el estado y en el formulario
+      setFileUrls(prev => ({ ...prev, logo: logoUrl }));
+      form.setValue('logo_url' as any, logoUrl);
+      
+      // También generar preview para visualización
+      const base64 = await convertFileToBase64(compressedImage);
+      setLogoPreview(base64);
+
+      // Si la empresa ya existe, actualizar la URL en la base de datos inmediatamente
+      if (empresaId) {
+        try {
+          const { error: updateError } = await supabase
+            .from('empresas')
+            .update({ logo_base64: logoUrl })
+            .eq('id', empresaId);
+          
+          if (updateError) {
+            console.error('Error actualizando logo en la base de datos:', updateError);
+            toast.error("Error al actualizar el logo en la base de datos");
+          } else {
+            toast.success("Logo procesado y guardado", { 
+              description: "Imagen optimizada, subida a Storage y URL actualizada en la base de datos." 
+            });
+          }
+        } catch (dbError) {
+          console.error('Error al actualizar la base de datos:', dbError);
+          toast.error("Error al actualizar la base de datos.");
+        }
+      } else {
+        toast.success("Logo procesado", { description: "Imagen optimizada y subida a Storage." });
+      }
     } catch (error) {
       console.error('Error al procesar logo:', error);
       toast.error("No se pudo procesar el logo.");
+    } finally {
+      setUploading(prev => ({ ...prev, logo: false }));
+      stopLoading(); // Ocultar loading global
     }
   };
 
@@ -656,29 +1057,73 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
     let documentContent = '';
     let documentName = '';
     
-    // Obtener el contenido del documento según el tipo
+    // Obtener la URL del documento según el tipo
+    // Priorizar: 1. fileUrls (Storage), 2. valores del formulario, 3. initialData
     switch (docType) {
       case 'contrato':
-        documentContent = initialData?.documento_contrato || form.getValues('documento_contrato_base64') || '';
+        documentContent = fileUrls['contrato'] || 
+                          (form.getValues('documento_contrato_url' as any)) || 
+                          initialData?.documento_contrato_url || 
+                          initialData?.documento_contrato || 
+                          form.getValues('documento_contrato_base64') || '';
         documentName = 'Contrato';
         break;
       case 'camara_comercio':
-        documentContent = initialData?.documento_camara_comercio || form.getValues('documento_camara_comercio_base64') || '';
+        documentContent = fileUrls['camara_comercio'] || 
+                          ((form as any).getValues('documento_camara_comercio_url')) || 
+                          initialData?.documento_camara_comercio_url || 
+                          initialData?.documento_camara_comercio || 
+                          form.getValues('documento_camara_comercio_base64') || '';
         documentName = 'Cámara de Comercio';
         break;
       case 'rut':
-        documentContent = initialData?.documento_rut || form.getValues('documento_rut_base64') || '';
+        documentContent = fileUrls['rut'] || 
+                          ((form as any).getValues('documento_rut_url')) || 
+                          initialData?.documento_rut_url || 
+                          initialData?.documento_rut || 
+                          form.getValues('documento_rut_base64') || '';
         documentName = 'RUT';
         break;
     }
 
-    if (documentContent && documentContent.startsWith('data:application/pdf;base64,')) {
-      setPreviewDocument({
-        content: documentContent,
-        name: documentName,
-        type: docType
-      });
-      setShowDocumentPreview(true);
+    // Verificar si hay contenido
+    if (documentContent) {
+      // Si es una URL de Storage (HTTP/HTTPS), usar directamente
+      if (documentContent.startsWith('http://') || documentContent.startsWith('https://')) {
+        setPreviewDocument({
+          content: documentContent,
+          name: documentName,
+          type: docType
+        });
+        setShowDocumentPreview(true);
+      } 
+      // Si es base64 (retrocompatibilidad), usar directamente
+      else if (documentContent.startsWith('data:application/pdf;base64,')) {
+        setPreviewDocument({
+          content: documentContent,
+          name: documentName,
+          type: docType
+        });
+        setShowDocumentPreview(true);
+      } 
+      // Si parece ser una URL pero sin protocolo, intentar agregar https://
+      else if (documentContent.includes('/') && !documentContent.includes('data:')) {
+        // Probablemente es una ruta relativa de Storage, construir URL completa
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://clffvmueangquavnaokd.supabase.co';
+        const fullUrl = documentContent.startsWith('/') 
+          ? `${supabaseUrl}${documentContent}`
+          : `${supabaseUrl}/${documentContent}`;
+        
+        setPreviewDocument({
+          content: fullUrl,
+          name: documentName,
+          type: docType
+        });
+        setShowDocumentPreview(true);
+      } 
+      else {
+        toast.error("No se encontró un documento válido para visualizar.");
+      }
     } else {
       toast.error("No se encontró un documento válido para visualizar.");
     }
@@ -820,11 +1265,6 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
                       >
                         {(() => {
                           const regimenActual = regimenesTributarios.find(r => r.id === form.watch("regimen_tributario"));
-                          console.log('=== SELECTOR RÉGIMEN TRIBUTARIO ===');
-                          console.log('Valor en form:', form.watch("regimen_tributario"));
-                          console.log('regimenesTributarios:', regimenesTributarios);
-                          console.log('regimenActual encontrado:', regimenActual);
-                          console.log('=====================================');
                           return regimenActual ? regimenActual.nombre : "Seleccionar régimen...";
                         })()}
                         <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -1021,14 +1461,6 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
                         <CommandList>
                           <CommandEmpty>No se encontró la actividad económica.</CommandEmpty>
                           <CommandGroup>
-                            {(() => {
-                              console.log('=== SELECTOR ACTIVIDAD ECONÓMICA ===');
-                              console.log('Valor actividad_economica en form:', form.watch("actividad_economica"));
-                              console.log('Valor actividad_nombre en form:', form.watch("actividad_nombre"));
-                              console.log('Actividades cargadas desde BD:', actividadesEconomicas);
-                              console.log('=====================================');
-                              return null;
-                            })()}
                             {loadingActividades ? (
                               <CommandItem disabled>
                                 <div className="flex items-center gap-2">
@@ -1365,7 +1797,7 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        {uploadedFiles[doc.id] ? (
+                        {(uploadedFiles[doc.id] || fileUrls[doc.id]) ? (
                           <div className="flex items-center gap-3">
                             <div className="flex items-center gap-1 text-green-600">
                               <CheckCircle className="h-3 w-3" />
@@ -1379,6 +1811,7 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
                                 onClick={() => handleViewDocument(doc.id)}
                                 className="h-7 w-7 p-0 hover:bg-blue-50 rounded-full"
                                 title="Visualizar documento"
+                                disabled={!fileUrls[doc.id] && !uploadedFiles[doc.id]}
                               >
                                 <Eye className="h-4 w-4 text-blue-600" />
                               </Button>
@@ -1418,14 +1851,19 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
                         />
                       </div>
                     </div>
-                    {uploadedFiles[doc.id] && (
+                    {(uploadedFiles[doc.id] || fileUrls[doc.id]) && (
                       <div className="text-xs mt-2 p-2 bg-gray-50 rounded">
                         <div className="text-gray-700 mb-1">
-                          <span className="font-medium">Archivo:</span> {uploadedFiles[doc.id]}
+                          <span className="font-medium">Archivo:</span> {uploadedFiles[doc.id] || 'Documento cargado'}
                         </div>
-                        {initialData && (
+                        {initialData && (fileUrls[doc.id] || existingDocuments[doc.id]) && (
                           <div className="text-blue-600">
-                            <span className="font-medium">Estado:</span> {existingDocuments[doc.id] ? 'Documento existente' : 'Nuevo documento'}
+                            <span className="font-medium">Estado:</span> Documento existente desde Storage
+                          </div>
+                        )}
+                        {!initialData && uploadedFiles[doc.id] && (
+                          <div className="text-green-600">
+                            <span className="font-medium">Estado:</span> Nuevo documento listo para subir
                           </div>
                         )}
                       </div>

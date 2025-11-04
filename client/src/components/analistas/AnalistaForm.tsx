@@ -93,7 +93,6 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
     queryFn: async () => {
       try {
         const data = await sucursalesService.getAll();
-        console.log('Sucursales cargadas:', data);
         return data;
       } catch (error) {
         console.error('Error cargando sucursales:', error);
@@ -103,17 +102,12 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
     staleTime: 5 * 60 * 1000, // 5 minutos
   });
   
-  console.log('AnalistaForm renderizado con analistaSeleccionado:', analistaSeleccionado);
-  console.log('AnalistaForm con datos actualizados:', analistaActualizado);
-  
   // Cargar clientes desde la base de datos
   const { data: empresas = [], isLoading: empresasLoading, error: empresasError } = useQuery({
     queryKey: ['empresas'],
     queryFn: async () => {
       try {
-        console.log('Iniciando carga de clientes...');
         const data = await empresasService.getAll();
-        console.log('Clientes cargados:', data);
         return data || [];
       } catch (error) {
         console.error('Error cargando clientes:', error);
@@ -122,8 +116,6 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
     },
     staleTime: 5 * 60 * 1000, // 5 minutos
   });
-
-  console.log('Estado de clientes en el componente:', { empresas, empresasLoading, empresasError });
   
   // Actualizar analistaActualizado cuando cambie analistaSeleccionado
   useEffect(() => {
@@ -158,16 +150,11 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
 
   // Cargar datos del analista seleccionado
   useEffect(() => {
-    console.log('useEffect ejecutado con analistaSeleccionado:', analistaSeleccionado);
     if (analistaSeleccionado) {
-      console.log('Analista seleccionado:', analistaSeleccionado);
-      
       // Cargar las prioridades existentes del analista desde la base de datos
       const cargarPrioridadesAnalista = async () => {
         try {
-          console.log('Cargando prioridades del analista ID:', analistaSeleccionado.usuario_id);
           const prioridades = await asociacionPrioridadService.getPrioridadesByUsuarioId(analistaSeleccionado.usuario_id);
-          console.log('Prioridades cargadas:', prioridades);
           
           // Extraer nombre y apellido del usuario_nombre
           const nombreCompleto = analistaSeleccionado.usuario_nombre || '';
@@ -203,7 +190,6 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
                                                        // Procesar las prioridades cargadas (ahora solo un registro)
                   if (prioridades && prioridades.length > 0) {
                     const prioridad = prioridades[0]; // Solo el primer registro
-                    console.log('Procesando prioridad única:', prioridad);
                     
                                          // Procesar prioridad 1
                      if (prioridad.nivel_prioridad_1) {
@@ -254,7 +240,6 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
                      }
                   }
           
-          console.log('Valores del formulario a cargar:', formValues);
           form.reset(formValues);
           
         } catch (error) {
@@ -298,18 +283,10 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
     try {
       setIsSubmitting(true);
       
-      console.log('=== INICIO onSubmit ===');
-      console.log('Datos enviados a Supabase:', data);
-      console.log('analistaSeleccionado:', analistaSeleccionado);
-      
       if (analistaSeleccionado) {
         // Actualizar analista existente
-        console.log('Actualizando prioridades del analista:', analistaSeleccionado.usuario_id);
-        
         // Guardar las prioridades en la nueva tabla
-        console.log('Llamando a guardarPrioridadesAnalista...');
         await guardarPrioridadesAnalista(analistaSeleccionado.usuario_id, data);
-        console.log('guardarPrioridadesAnalista completado');
         
         toast.success('Prioridades del analista actualizadas exitosamente');
       } else {
@@ -335,11 +312,8 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
         toast.success('Analista creado exitosamente');
       }
       
-      console.log('=== FIN onSubmit - ÉXITO ===');
-      
       // Invalidar la consulta del listado de analistas para refrescar los datos
       await queryClient.invalidateQueries({ queryKey: ['analistas-prioridades'] });
-      console.log('Consulta de analistas invalidada, listado refrescado');
       
       form.reset();
       onSuccess?.();
@@ -356,27 +330,8 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
      // Función para guardar las prioridades del analista
    const guardarPrioridadesAnalista = async (usuarioId: number, data: AnalistaFormData) => {
      try {
-       console.log('=== INICIO guardarPrioridadesAnalista ===');
-       console.log('Usuario ID:', usuarioId);
-       console.log('Datos de prioridades:', {
-         prioridad_1: data.prioridad_1,
-         prioridad_2: data.prioridad_2,
-         prioridad_3: data.prioridad_3,
-         empresa_1: data.empresa_1,
-         empresa_2: data.empresa_2,
-         empresa_3: data.empresa_3,
-         solicitudes_1: data.solicitudes_1,
-         solicitudes_2: data.solicitudes_2,
-         solicitudes_3: data.solicitudes_3,
-         sucursal_1: data.sucursal_1,
-         sucursal_2: data.sucursal_2,
-         sucursal_3: data.sucursal_3,
-       });
-       
        // Primero eliminar todas las prioridades existentes del analista
-       console.log('Eliminando prioridades existentes...');
        await asociacionPrioridadService.deleteByUsuarioId(usuarioId);
-       console.log('Prioridades eliminadas');
        
        // Crear un solo registro con todas las prioridades
        const prioridadData: any = {
@@ -459,18 +414,11 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
        prioridadData.empresa_ids = empresaIdsSeleccionadas;
        prioridadData.sucursal_ids = sucursalIdsSeleccionadas;
        
-       console.log('Datos finales a guardar:', prioridadData);
-       
        // Eliminar prioridades existentes del analista (el upsert lo hace automáticamente)
-       console.log('Eliminando prioridades existentes...');
        await asociacionPrioridadService.deleteByUsuarioId(usuarioId);
-       console.log('Prioridades eliminadas');
        
        // Guardar el registro único
-       const resultado = await asociacionPrioridadService.upsert(prioridadData);
-       console.log('Resultado upsert:', resultado);
-       
-       console.log('=== FIN guardarPrioridadesAnalista - ÉXITO ===');
+       await asociacionPrioridadService.upsert(prioridadData);
      } catch (error) {
        console.error('=== ERROR en guardarPrioridadesAnalista ===');
        console.error('Error guardando prioridades:', error);
@@ -566,7 +514,6 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
     };
     
     setAnalistaActualizado(analistaActualizado);
-    console.log('Estado del analista actualizado:', analistaActualizado);
   };
 
      // Función para limpiar campos cuando cambia una prioridad
@@ -1137,29 +1084,12 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
                   disabled={isSubmitting}
                   className="bg-blue-600 hover:bg-blue-700"
                                      onClick={async () => {
-                     console.log('=== BOTÓN GUARDAR CLICKEADO ===');
-                     console.log('Estado del formulario:', form.getValues());
-                     console.log('Errores del formulario:', form.formState.errors);
-                     
                      // Verificar si el formulario es válido
                      const isValid = await form.trigger();
-                     console.log('Formulario válido:', isValid);
-                     
-                     if (!isValid) {
-                       console.log('=== ERRORES DE VALIDACIÓN ===');
-                       console.log('Errores detallados:', form.formState.errors);
-                       console.log('Campos con errores:', Object.keys(form.formState.errors));
-                       Object.entries(form.formState.errors).forEach(([field, error]) => {
-                         console.log(`Campo ${field}:`, error);
-                       });
-                     }
                      
                      if (isValid) {
-                       console.log('Ejecutando onSubmit...');
                        await onSubmit(form.getValues());
                      } else {
-                       console.log('Formulario no válido, no ejecutando onSubmit');
-                       
                        // Corregir campos de solicitudes que están como strings vacíos
                        const formData = form.getValues();
                        const formDataCorregido = { ...formData };
@@ -1173,17 +1103,14 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
                        
                        // Verificar si el formulario es válido después de la corrección
                        const isValidAfterCorrection = await form.trigger();
-                       console.log('Formulario válido después de corrección:', isValidAfterCorrection);
                        
                        if (isValidAfterCorrection) {
-                         console.log('Ejecutando onSubmit con datos corregidos...');
                          await onSubmit(formDataCorregido);
                        } else {
                          // Permitir guardar incluso si no hay prioridades configuradas
                          const tieneAlgunaPrioridad = formDataCorregido.prioridad_1 || formDataCorregido.prioridad_2 || formDataCorregido.prioridad_3;
                          
                          if (!tieneAlgunaPrioridad) {
-                           console.log('No hay prioridades configuradas, pero permitiendo guardar...');
                            await onSubmit(formDataCorregido);
                          }
                        }
