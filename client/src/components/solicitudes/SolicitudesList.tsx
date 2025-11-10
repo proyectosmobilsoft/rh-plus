@@ -14,6 +14,7 @@ import { useRegisterView } from '@/hooks/useRegisterView';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { solicitudesLogsService, type SolicitudLog } from '@/services/solicitudesLogsService';
 import { supabase } from '@/services/supabaseClient';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 // import SolicitudForm from '@/components/solicitudes/SolicitudForm';
 
 interface SolicitudesListProps {
@@ -88,6 +89,9 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   const [confirmAssignOpen, setConfirmAssignOpen] = useState(false);
   const [assigningSolicitudId, setAssigningSolicitudId] = useState<number | null>(null);
   const [suggestedAnalyst, setSuggestedAnalyst] = useState<{analista_id: number, analista_nombre: string} | null>(null);
+  const [availableAnalysts, setAvailableAnalysts] = useState<Array<{id: number, nombre: string, email?: string}>>([]);
+  const [selectedAnalystId, setSelectedAnalystId] = useState<number | null>(null);
+  const [loadingAnalysts, setLoadingAnalysts] = useState(false);
   const [confirmValidateDocumentsOpen, setConfirmValidateDocumentsOpen] = useState(false);
   const [validatingDocumentsSolicitudId, setValidatingDocumentsSolicitudId] = useState<number | null>(null);
   const [validateDocumentsObservacion, setValidateDocumentsObservacion] = useState('');
@@ -917,36 +921,135 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     if (id) {
       setSelectedSolicitudId(id);
       setAssigningSolicitudId(id);
+      setSuggestedAnalyst(null);
+      setSelectedAnalystId(null);
+      setAvailableAnalysts([]);
+      setLoadingAnalysts(true);
       
       // Obtener la solicitud para acceder a la empresa
       const solicitud = solicitudes.find(s => s.id === id);
-      if (solicitud && solicitud.empresa_id) {
+      
+      try {
+        // Importar los servicios necesarios
+        const { solicitudesService } = await import('@/services/solicitudesService');
+        const { analystsService } = await import('@/services/analystsService');
+        
+        if (solicitud && solicitud.empresa_id) {
+          // Extraer sucursal_id de estructura_datos si existe
+          let sucursalId: number | undefined;
+          if (solicitud.estructura_datos && typeof solicitud.estructura_datos === 'object') {
+            const estructura = solicitud.estructura_datos as Record<string, any>;
+            // Buscar sucursal_id en diferentes posibles ubicaciones dentro de estructura_datos
+            const sucursalValue = estructura.sucursal || 
+                                 estructura.sucursal_id || 
+                                 estructura.Sucursal ||
+                                 estructura.sucursalId ||
+                                 estructura.datos?.sucursal ||
+                                 estructura.datos?.sucursal_id;
+            
+            if (sucursalValue !== undefined && sucursalValue !== null && sucursalValue !== '') {
+              const sucursalNum = typeof sucursalValue === 'number' ? sucursalValue : Number(sucursalValue);
+              if (!isNaN(sucursalNum) && sucursalNum > 0) {
+                sucursalId = sucursalNum;
+                console.log('🏢 Sucursal ID extraída de estructura_datos:', sucursalId);
+              } else {
+                console.log('⚠️ Valor de sucursal encontrado pero no es numérico válido:', sucursalValue);
+              }
+            } else {
+              console.log('ℹ️ No se encontró sucursal_id en estructura_datos para la solicitud', id);
+            }
+          }
+          
+          // Intentar obtener analista sugerido automáticamente
+          console.log('🔍 Buscando analista sugerido para empresa:', solicitud.empresa_id, 'sucursal:', sucursalId);
+          const suggested = await solicitudesService.getSuggestedAnalyst(solicitud.empresa_id, sucursalId);
+          
+          if (suggested) {
+            setSuggestedAnalyst(suggested);
+            setSelectedAnalystId(suggested.analista_id);
+            console.log('✅ Analista sugerido encontrado:', suggested.analista_nombre);
+          } else {
+            // Si no hay sugerencia automática, cargar lista de analistas disponibles
+            console.log('⚠️ No se encontró analista sugerido automáticamente, cargando lista de analistas...');
+            console.log('📋 Razones posibles:');
+            console.log('  - No hay analistas con prioridades configuradas para empresa:', solicitud.empresa_id);
+            if (sucursalId) {
+              console.log('  - No hay analistas con prioridades configuradas para sucursal:', sucursalId);
+            }
+            console.log('  - Los analistas no cumplen con las condiciones de prioridad');
+            console.log('  - Los analistas han alcanzado su límite de solicitudes');
+            
+            const analysts = await analystsService.getAll();
+            const analystsList = analysts.map(analyst => ({
+              id: analyst.id!,
+              nombre: `${analyst.primer_nombre || ''} ${analyst.primer_apellido || ''}`.trim() || analyst.username,
+              email: analyst.email
+            }));
+            setAvailableAnalysts(analystsList);
+            
+            // Si solo hay un analista disponible, seleccionarlo automáticamente
+            if (analystsList.length === 1) {
+              setSelectedAnalystId(analystsList[0].id);
+            }
+          }
+        } else {
+          // Si no hay empresa_id, cargar lista de analistas disponibles directamente
+          console.log('La solicitud no tiene empresa_id, cargando lista de analistas...');
+          const analysts = await analystsService.getAll();
+          const analystsList = analysts.map(analyst => ({
+            id: analyst.id!,
+            nombre: `${analyst.primer_nombre || ''} ${analyst.primer_apellido || ''}`.trim() || analyst.username,
+            email: analyst.email
+          }));
+          setAvailableAnalysts(analystsList);
+          
+          // Si solo hay un analista disponible, seleccionarlo automáticamente
+          if (analystsList.length === 1) {
+            setSelectedAnalystId(analystsList[0].id);
+          }
+        }
+      } catch (error) {
+        console.error('Error obteniendo analista sugerido:', error);
+        setSuggestedAnalyst(null);
+        
+        // Intentar cargar lista de analistas como fallback
         try {
-          // Importar el servicio de solicitudes
-          const { solicitudesService } = await import('@/services/solicitudesService');
-          const suggested = await solicitudesService.getSuggestedAnalyst(solicitud.empresa_id);
-          setSuggestedAnalyst(suggested);
-        } catch (error) {
-          console.error('Error obteniendo analista sugerido:', error);
-          setSuggestedAnalyst(null);
+          const { analystsService } = await import('@/services/analystsService');
+          const analysts = await analystsService.getAll();
+          const analystsList = analysts.map(analyst => ({
+            id: analyst.id!,
+            nombre: `${analyst.primer_nombre || ''} ${analyst.primer_apellido || ''}`.trim() || analyst.username,
+            email: analyst.email
+          }));
+          setAvailableAnalysts(analystsList);
+          if (analystsList.length === 1) {
+            setSelectedAnalystId(analystsList[0].id);
+          }
+        } catch (fallbackError) {
+          console.error('Error cargando analistas como fallback:', fallbackError);
         }
       }
       
+      setLoadingAnalysts(false);
       setConfirmAssignOpen(true);
     }
   };
 
   const handleAssignConfirm = () => {
-    if (selectedSolicitudId && suggestedAnalyst) {
+    const analystIdToAssign = suggestedAnalyst?.analista_id || selectedAnalystId;
+    
+    if (selectedSolicitudId && analystIdToAssign) {
       startLoading(); // Activar loading global
       
       // Llamar a la función de asignación
-      onAssign(selectedSolicitudId, suggestedAnalyst.analista_id);
+      onAssign(selectedSolicitudId, analystIdToAssign);
       
       setConfirmAssignOpen(false);
       setSelectedSolicitudId(null);
       setAssigningSolicitudId(null);
       setSuggestedAnalyst(null);
+      setSelectedAnalystId(null);
+      setAvailableAnalysts([]);
     }
   };
 
@@ -1736,31 +1839,75 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
       {/* Confirmación de Asignación de Analista */}
       <AlertDialog open={confirmAssignOpen} onOpenChange={setConfirmAssignOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle>¿Asignar analista a la solicitud?</AlertDialogTitle>
             <AlertDialogDescription>
-              Se asignará la siguiente solicitud al analista sugerido:
-              <br />
-              <br />
-              {suggestedAnalyst ? (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-center gap-2">
-                    <User className="h-5 w-5 text-blue-600" />
-                    <span className="font-semibold text-blue-800">
-                      {suggestedAnalyst.analista_nombre}
-                    </span>
+              {loadingAnalysts ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                  <span className="ml-2 text-sm text-gray-600">Cargando analistas...</span>
+                </div>
+              ) : suggestedAnalyst ? (
+                <>
+                  Se asignará la siguiente solicitud al analista sugerido:
+                  <br />
+                  <br />
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2">
+                      <User className="h-5 w-5 text-blue-600" />
+                      <span className="font-semibold text-blue-800">
+                        {suggestedAnalyst.analista_nombre}
+                      </span>
+                    </div>
+                    <p className="text-sm text-blue-600 mt-1">
+                      ID: {suggestedAnalyst.analista_id}
+                    </p>
                   </div>
-                  <p className="text-sm text-blue-600 mt-1">
-                    ID: {suggestedAnalyst.analista_id}
-                  </p>
-                </div>
+                </>
+              ) : availableAnalysts.length > 0 ? (
+                <>
+                  No se encontró un analista sugerido automáticamente. Por favor, seleccione un analista de la lista:
+                  <br />
+                  <br />
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Seleccionar analista *
+                    </label>
+                    <Select
+                      value={selectedAnalystId?.toString() || ""}
+                      onValueChange={(value) => setSelectedAnalystId(Number(value))}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Seleccione un analista" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableAnalysts.map((analyst) => (
+                          <SelectItem key={analyst.id} value={analyst.id.toString()}>
+                            {analyst.nombre} {analyst.email && `(${analyst.email})`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {availableAnalysts.length} analista(s) disponible(s)
+                    </p>
+                  </div>
+                </>
               ) : (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <p className="text-red-600 font-medium">
-                    No se pudo obtener un analista sugerido
-                  </p>
-                </div>
+                <>
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <p className="text-yellow-800 font-medium mb-2">
+                      No se encontraron analistas disponibles
+                    </p>
+                    <p className="text-sm text-yellow-700">
+                      No hay analistas configurados en el sistema o no cumplen con los criterios de asignación automática.
+                    </p>
+                    <p className="text-xs text-yellow-600 mt-2">
+                      Por favor, verifique que existan analistas activos con el permiso "rol_analista" y que tengan prioridades configuradas para esta empresa.
+                    </p>
+                  </div>
+                </>
               )}
               <br />
               <span className="text-sm text-muted-foreground">
@@ -1773,13 +1920,15 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
               setConfirmAssignOpen(false);
               setAssigningSolicitudId(null);
               setSuggestedAnalyst(null);
+              setSelectedAnalystId(null);
+              setAvailableAnalysts([]);
             }}>
               Cancelar
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleAssignConfirm}
               className="bg-blue-600 hover:bg-blue-700"
-              disabled={!suggestedAnalyst}
+              disabled={!suggestedAnalyst && !selectedAnalystId}
             >
               Asignar Analista
             </AlertDialogAction>

@@ -2406,9 +2406,15 @@ export const solicitudesService = {
   },
 
   // Obtener analista sugerido para asignación
-  async getSuggestedAnalyst(empresaId: number): Promise<{analista_id: number, analista_nombre: string} | null> {
+  async getSuggestedAnalyst(empresaId: number, sucursalId?: number): Promise<{analista_id: number, analista_nombre: string} | null> {
     try {
-      const analistaAsignado = await analistaAsignacionService.asignarAnalistaAutomatico(empresaId);
+      console.log('🔍 getSuggestedAnalyst llamado con:', { empresaId, sucursalId });
+      const analistaAsignado = await analistaAsignacionService.asignarAnalistaAutomatico(empresaId, sucursalId);
+      if (analistaAsignado) {
+        console.log('✅ Analista sugerido encontrado:', analistaAsignado.analista_nombre);
+      } else {
+        console.log('❌ No se encontró analista sugerido para empresa:', empresaId, 'sucursal:', sucursalId);
+      }
       return analistaAsignado;
     } catch (error) {
       console.error("Error getting suggested analyst:", error);
