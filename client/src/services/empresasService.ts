@@ -50,15 +50,16 @@ export const obtenerEmpresaPorId = async (empresaId: number): Promise<Empresa | 
 };
 
 /**
- * Obtiene todas las empresas
+ * Obtiene todas las empresas (sin logo_base64 para evitar timeouts)
  */
 export const obtenerEmpresas = async (): Promise<Empresa[]> => {
   try {
     console.log('Consultando tabla empresas...');
     
+    // NO incluir logo_base64 por defecto (es muy grande y causa timeouts)
     const { data, error } = await supabase
       .from('empresas')
-      .select('*, logo_base64, created_at')
+      .select('*, created_at')
       .order('razon_social', { ascending: true });
 
     if (error) {

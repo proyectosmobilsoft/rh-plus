@@ -296,16 +296,17 @@ export const updateEmpresa = async (id: number, data: Partial<CreateEmpresaDTO>)
 };
 
 /**
- * Obtiene todas las empresas
+ * Obtiene todas las empresas (sin logo_base64 para evitar timeouts)
  */
 export const getAllEmpresas = async (): Promise<Empresa[]> => {
   const { startLoading, stopLoading } = getLoadingContext();
   
   try {
     startLoading();
+    // NO incluir logo_base64 por defecto (es muy grande y causa timeouts)
     const { data, error } = await supabase
       .from('empresas')
-      .select('*, logo_base64')
+      .select('*')
       .order('razon_social');
 
     if (error) {
