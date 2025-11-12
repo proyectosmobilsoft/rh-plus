@@ -297,6 +297,24 @@ const ExpedicionOrdenPage = () => {
     }
   };
 
+  const handleDescartado = async (id: number, observacion: string) => {
+    setIsLoading(true);
+    try {
+      const success = await solicitudesService.updateStatus(id, 'descartado', observacion);
+      if (success) {
+        toast.success('Solicitud marcada como descartada exitosamente');
+        fetchSolicitudes(); // Recargar la lista
+      } else {
+        toast.error('Error al marcar como descartada');
+      }
+    } catch (error) {
+      console.error('Error al marcar como descartada:', error);
+      toast.error('Error al marcar como descartada');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleCancel = async (id: number, observacion: string) => {
     setIsLoading(true);
     try {
@@ -1173,7 +1191,8 @@ const ExpedicionOrdenPage = () => {
       (solicitud.apellidos?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
       (solicitud.cargo?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
       (solicitud.empresa_usuaria?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      (solicitud.numero_documento?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+      (solicitud.numero_documento?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (solicitud.id?.toString() || '').includes(searchTerm);
 
     const matchesEmpresa = !empresaFilter || empresaFilter === 'all' ||
       solicitud.empresas?.id?.toString() === empresaFilter;
@@ -1262,7 +1281,7 @@ const ExpedicionOrdenPage = () => {
             <div className="flex flex-wrap items-center gap-4 p-3 bg-cyan-50 rounded-lg mb-4 shadow-sm">
               <div className="flex-1 min-w-[200px]">
                 <Input
-                  placeholder="Buscar por nombre, cargo, empresa..."
+                  placeholder="Buscar por ID, nombre, cargo, empresa..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full"
@@ -1329,6 +1348,7 @@ const ExpedicionOrdenPage = () => {
                   onStandBy={handleStandBy}
                   onReactivate={handleReactivate}
                   onDeserto={handleDeserto}
+                  onDescartado={handleDescartado}
                   onCancel={handleCancel}
                   onContract={handleContract}
                   onAssign={handleAssign}

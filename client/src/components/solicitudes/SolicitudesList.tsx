@@ -26,6 +26,7 @@ interface SolicitudesListProps {
   onStandBy: (id: number, observacion: string) => void;
   onReactivate: (id: number) => void;
   onDeserto: (id: number, observacion: string) => void;
+  onDescartado: (id: number, observacion: string) => void;
   onCancel: (id: number, observacion: string) => void;
   onContract: (id: number, observacion: string) => void;
   onAssign: (id: number, analistaId: number) => void;
@@ -44,6 +45,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   onStandBy,
   onReactivate,
   onDeserto,
+  onDescartado,
   onCancel,
   onContract,
   onAssign,
@@ -62,6 +64,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     addAction('standby', 'Poner en Stand By');
     addAction('reactivar', 'Reactivar Solicitud');
     addAction('deserto', 'Marcar Deserto');
+    addAction('descartado', 'Marcar Descartado');
     addAction('visualizar', 'Visualizar Solicitud');
     addAction('cancelar', 'Cancelar Solicitud');
     addAction('contratar', 'Contratar Candidato');
@@ -71,15 +74,18 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   const [confirmStandByOpen, setConfirmStandByOpen] = useState(false);
   const [confirmReactivateOpen, setConfirmReactivateOpen] = useState(false);
   const [confirmDesertoOpen, setConfirmDesertoOpen] = useState(false);
+  const [confirmDescartadoOpen, setConfirmDescartadoOpen] = useState(false);
   const [selectedSolicitudId, setSelectedSolicitudId] = useState<number | null>(null);
   const [contactingSolicitudId, setContactingSolicitudId] = useState<number | null>(null);
   const [standByObservacion, setStandByObservacion] = useState('');
   const [contactObservacion, setContactObservacion] = useState('');
   const [desertoObservacion, setDesertoObservacion] = useState('');
+  const [descartadoObservacion, setDescartadoObservacion] = useState('');
   const [cancelObservacion, setCancelObservacion] = useState('');
   const [solicitudesStandBy, setSolicitudesStandBy] = useState<Map<number, string>>(new Map());
   const [reactivatingSolicitudId, setReactivatingSolicitudId] = useState<number | null>(null);
   const [desertoSolicitudId, setDesertoSolicitudId] = useState<number | null>(null);
+  const [descartadoSolicitudId, setDescartadoSolicitudId] = useState<number | null>(null);
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedSolicitudForView, setSelectedSolicitudForView] = useState<Solicitud | null>(null);
   const [logsLoading, setLogsLoading] = useState(false);
@@ -238,6 +244,18 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     }
   }, [solicitudes, desertoSolicitudId, stopLoading]);
 
+  // Detener loading global cuando se complete una operación de Descartado
+  useEffect(() => {
+    if (descartadoSolicitudId) {
+      const solicitud = solicitudes.find(s => s.id === descartadoSolicitudId);
+
+      if (solicitud && solicitud.estado === 'descartado') {
+        setDescartadoSolicitudId(null);
+        stopLoading(); // Detener loading global cuando se complete la operación de Descartado
+      }
+    }
+  }, [solicitudes, descartadoSolicitudId, stopLoading]);
+
   // Detener loading global cuando se complete una operación de Cancelación
   useEffect(() => {
     if (cancelingSolicitudId) {
@@ -271,10 +289,51 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
       const progresoData: Record<number, { total: number; subidos: number; progreso: number }> = {};
       
-      // Procesar todas las solicitudes en paralelo
+      // Obtener todos los IDs de solicitudes y candidatos válidos
+      const solicitudesConDatos = solicitudes.filter(s => s.id && s.candidato_id);
+      const solicitudIds = solicitudesConDatos.map(s => s.id!);
+      const candidatoIds = solicitudesConDatos.map(s => s.candidato_id!).filter((id, index, self) => self.indexOf(id) === index); // únicos
+      
+      // OPTIMIZACIÓN: Hacer una sola petición para obtener todos los documentos de todas las solicitudes
+      let todosDocumentosSubidos: Array<{ tipo_documento_id: number; candidato_id: number; solicitud_id: number }> = [];
+      
+      if (solicitudIds.length > 0 && candidatoIds.length > 0) {
+        try {
+          const { data, error: subidosError } = await supabase
+            .from('candidatos_documentos')
+            .select('tipo_documento_id, candidato_id, solicitud_id')
+            .in('solicitud_id', solicitudIds)
+            .in('candidato_id', candidatoIds);
+          
+          if (subidosError) {
+            console.error('Error obteniendo documentos subidos:', subidosError);
+          } else {
+            todosDocumentosSubidos = data || [];
+          }
+        } catch (error) {
+          console.error('Error en petición optimizada de documentos:', error);
+        }
+      }
+      
+      // Crear un mapa para acceso rápido: (candidato_id, solicitud_id) -> documentos subidos
+      const documentosPorSolicitud = new Map<string, Set<number>>();
+      todosDocumentosSubidos.forEach(doc => {
+        const key = `${doc.candidato_id}_${doc.solicitud_id}`;
+        if (!documentosPorSolicitud.has(key)) {
+          documentosPorSolicitud.set(key, new Set());
+        }
+        documentosPorSolicitud.get(key)!.add(doc.tipo_documento_id);
+      });
+      
+      // Procesar cada solicitud usando los datos ya cargados
       const promesas = solicitudes.map(async (solicitud) => {
         if (solicitud.id) {
-          const progreso = await calcularProgresoDocumentosRequeridos(solicitud);
+          // Obtener documentos subidos desde el mapa (ya cargados)
+          const key = `${solicitud.candidato_id}_${solicitud.id}`;
+          const documentosSubidosIds = documentosPorSolicitud.get(key) || new Set<number>();
+          
+          // Calcular progreso usando la función existente pero pasando los documentos ya cargados
+          const progreso = await calcularProgresoDocumentosRequeridos(solicitud, documentosSubidosIds);
           progresoData[solicitud.id] = progreso;
         }
       });
@@ -387,7 +446,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   const hasAnyAvailableAction = (s: Solicitud): boolean => {
     const puedeEditar = s.estado === 'asignado' && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-editar-solicitud');
     const puedeVisualizar = hasAction('accion-visualizar-solicitud');
-    const puedeAsignar = isPendienteAsignacion(s.estado) && !isStandBy(s.estado) && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-asignar-solicitud');
+    const puedeAsignar = (isPendienteAsignacion(s.estado) || s.estado?.toLowerCase() === 'asignado') && !isStandBy(s.estado) && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-asignar-solicitud');
     const puedeAprobar = s.estado === 'pendiente' && !isStandBy(s.estado) && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-aprobar-solicitud');
     const puedeContactar = s.estado === 'asignado' && !isStandBy(s.estado) && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-contactar-solicitud');
     const puedeReactivar = isStandBy(s.estado) && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-reactivar-solicitud');
@@ -494,7 +553,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   };
 
   // Función para calcular el progreso de documentos requeridos de una solicitud
-  const calcularProgresoDocumentosRequeridos = async (solicitud: Solicitud) => {
+  const calcularProgresoDocumentosRequeridos = async (solicitud: Solicitud, documentosSubidosIdsPrecargados?: Set<number>) => {
     try {
       // Obtener el tipo de cargo de la solicitud
       let tipoCargoId = solicitud.estructura_datos?.cargo ?? solicitud.estructura_datos?.datos?.cargo;
@@ -552,24 +611,30 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
         return { total: 0, subidos: 0, progreso: 100 };
       }
 
-      // Obtener documentos subidos por el candidato para esta solicitud
-      let documentosSubidos: Array<{ tipo_documento_id: number }> = [];
-      if (solicitud.candidato_id) {
-        const { data, error: subidosError } = await supabase
-          .from('candidatos_documentos')
-          .select('tipo_documento_id')
-          .eq('candidato_id', solicitud.candidato_id)
-          .eq('solicitud_id', solicitud.id);
-        
-        if (subidosError) {
-          console.error('Error obteniendo documentos subidos:', subidosError);
-          return { total: totalDocumentos, subidos: 0, progreso: 0 };
+      // Usar documentos precargados si están disponibles, sino hacer petición individual
+      let documentosSubidosIds: Set<number>;
+      if (documentosSubidosIdsPrecargados) {
+        documentosSubidosIds = documentosSubidosIdsPrecargados;
+      } else {
+        // Fallback: obtener documentos subidos por el candidato para esta solicitud (solo si no se precargaron)
+        let documentosSubidos: Array<{ tipo_documento_id: number }> = [];
+        if (solicitud.candidato_id) {
+          const { data, error: subidosError } = await supabase
+            .from('candidatos_documentos')
+            .select('tipo_documento_id')
+            .eq('candidato_id', solicitud.candidato_id)
+            .eq('solicitud_id', solicitud.id);
+          
+          if (subidosError) {
+            console.error('Error obteniendo documentos subidos:', subidosError);
+            return { total: totalDocumentos, subidos: 0, progreso: 0 };
+          }
+          
+          documentosSubidos = data || [];
         }
-        
-        documentosSubidos = data || [];
+        documentosSubidosIds = new Set(documentosSubidos.map((doc) => doc.tipo_documento_id));
       }
 
-      const documentosSubidosIds = new Set(documentosSubidos.map((doc) => doc.tipo_documento_id));
       const documentosRequeridosIds = new Set(documentosRequeridos?.map((doc: any) => doc.tipos_documentos.id) || []);
       
       // Contar cuántos documentos requeridos están subidos
@@ -871,6 +936,27 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     }
   };
 
+  const handleDescartadoClick = (id: number | undefined) => {
+    if (id) {
+      setSelectedSolicitudId(id);
+      setDescartadoSolicitudId(id);
+      setConfirmDescartadoOpen(true);
+    }
+  };
+
+  const handleDescartadoConfirm = () => {
+    if (selectedSolicitudId && descartadoObservacion.trim()) {
+      startLoading(); // Activar loading global
+      onDescartado(selectedSolicitudId, descartadoObservacion);
+
+      setConfirmDescartadoOpen(false);
+      setSelectedSolicitudId(null);
+      setDescartadoObservacion('');
+      // NO limpiar descartadoSolicitudId aquí, se limpiará cuando se complete la operación
+      // El loading se detendrá cuando se complete la operación en el componente padre
+    }
+  };
+
   const handleReactivate = (id: number) => {
     setReactivatingSolicitudId(id);
     setConfirmReactivateOpen(true);
@@ -926,14 +1012,36 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
       setAvailableAnalysts([]);
       setLoadingAnalysts(true);
       
-      // Obtener la solicitud para acceder a la empresa
+      // Abrir el modal inmediatamente para mostrar el loading personalizado dentro
+      setConfirmAssignOpen(true);
+      
+      // Obtener la solicitud para acceder a la empresa y estado
       const solicitud = solicitudes.find(s => s.id === id);
+      const isAsignado = solicitud?.estado?.toLowerCase() === 'asignado';
       
       try {
+        console.log('🔄 [handleAssignClick] Iniciando peticiones asíncronas');
         // Importar los servicios necesarios
         const { solicitudesService } = await import('@/services/solicitudesService');
         const { analystsService } = await import('@/services/analystsService');
         
+        // Si la solicitud está en estado "asignado", mostrar directamente el select sin buscar analista sugerido
+        if (isAsignado) {
+          console.log('📋 Solicitud en estado "asignado", mostrando select de analistas directamente...');
+          console.log('🔄 [handleAssignClick] Llamando a analystsService.getAll() - esto hará petición a gen_usuarios');
+          const analysts = await analystsService.getAll(); // Esta petición incluye gen_usuarios con gen_usuario_roles
+          console.log('✅ [handleAssignClick] analystsService.getAll() completado, analistas recibidos:', analysts.length);
+          const analystsList = analysts.map(analyst => ({
+            id: analyst.id!,
+            nombre: `${analyst.primer_nombre || ''} ${analyst.primer_apellido || ''}`.trim() || analyst.username,
+            email: analyst.email
+          }));
+          setAvailableAnalysts(analystsList);
+          setLoadingAnalysts(false);
+          return;
+        }
+        
+        // Para otros estados, mantener el comportamiento original (buscar analista sugerido)
         if (solicitud && solicitud.empresa_id) {
           // Extraer sucursal_id de estructura_datos si existe
           let sucursalId: number | undefined;
@@ -961,13 +1069,18 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
           }
           
           // Intentar obtener analista sugerido automáticamente
+          // NOTA: getSuggestedAnalyst internamente llama a getAnalistasWithPriorities 
+          // que hace la petición a gen_usuarios con gen_usuario_roles
           console.log('🔍 Buscando analista sugerido para empresa:', solicitud.empresa_id, 'sucursal:', sucursalId);
+          console.log('🔄 [handleAssignClick] Llamando a getSuggestedAnalyst - esto hará petición a gen_usuarios');
           const suggested = await solicitudesService.getSuggestedAnalyst(solicitud.empresa_id, sucursalId);
+          console.log('✅ [handleAssignClick] getSuggestedAnalyst completado, resultado:', suggested ? 'encontrado' : 'no encontrado');
           
           if (suggested) {
             setSuggestedAnalyst(suggested);
             setSelectedAnalystId(suggested.analista_id);
             console.log('✅ Analista sugerido encontrado:', suggested.analista_nombre);
+            // La petición a gen_usuarios ya se completó dentro de getSuggestedAnalyst
           } else {
             // Si no hay sugerencia automática, cargar lista de analistas disponibles
             console.log('⚠️ No se encontró analista sugerido automáticamente, cargando lista de analistas...');
@@ -979,7 +1092,10 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
             console.log('  - Los analistas no cumplen con las condiciones de prioridad');
             console.log('  - Los analistas han alcanzado su límite de solicitudes');
             
+            // Esta petición también incluye gen_usuarios con gen_usuario_roles
+            console.log('🔄 [handleAssignClick] Llamando a analystsService.getAll() - esto hará petición a gen_usuarios');
             const analysts = await analystsService.getAll();
+            console.log('✅ [handleAssignClick] analystsService.getAll() completado, analistas recibidos:', analysts.length);
             const analystsList = analysts.map(analyst => ({
               id: analyst.id!,
               nombre: `${analyst.primer_nombre || ''} ${analyst.primer_apellido || ''}`.trim() || analyst.username,
@@ -995,7 +1111,9 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
         } else {
           // Si no hay empresa_id, cargar lista de analistas disponibles directamente
           console.log('La solicitud no tiene empresa_id, cargando lista de analistas...');
-          const analysts = await analystsService.getAll();
+          console.log('🔄 [handleAssignClick] Llamando a analystsService.getAll() - esto hará petición a gen_usuarios');
+          const analysts = await analystsService.getAll(); // Esta petición incluye gen_usuarios con gen_usuario_roles
+          console.log('✅ [handleAssignClick] analystsService.getAll() completado, analistas recibidos:', analysts.length);
           const analystsList = analysts.map(analyst => ({
             id: analyst.id!,
             nombre: `${analyst.primer_nombre || ''} ${analyst.primer_apellido || ''}`.trim() || analyst.username,
@@ -1015,7 +1133,9 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
         // Intentar cargar lista de analistas como fallback
         try {
           const { analystsService } = await import('@/services/analystsService');
-          const analysts = await analystsService.getAll();
+          console.log('🔄 [handleAssignClick] Fallback: Llamando a analystsService.getAll() - esto hará petición a gen_usuarios');
+          const analysts = await analystsService.getAll(); // Esta petición incluye gen_usuarios con gen_usuario_roles
+          console.log('✅ [handleAssignClick] Fallback: analystsService.getAll() completado, analistas recibidos:', analysts.length);
           const analystsList = analysts.map(analyst => ({
             id: analyst.id!,
             nombre: `${analyst.primer_nombre || ''} ${analyst.primer_apellido || ''}`.trim() || analyst.username,
@@ -1028,10 +1148,10 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
         } catch (fallbackError) {
           console.error('Error cargando analistas como fallback:', fallbackError);
         }
+      } finally {
+        setLoadingAnalysts(false);
+        console.log('🔄 [handleAssignClick] Bloque finally ejecutado - loading detenido');
       }
-      
-      setLoadingAnalysts(false);
-      setConfirmAssignOpen(true);
     }
   };
 
@@ -1212,8 +1332,8 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                               </DropdownMenuItem>
                             </Can>
 
-                            {/* Botón Asignar Solicitud - solo visible en estado PENDIENTE ASIGNACION */}
-                            {isPendienteAsignacion(solicitud.estado) && !isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                            {/* Botón Asignar Solicitud - visible en estado PENDIENTE ASIGNACION o ASIGNADO */}
+                            {(isPendienteAsignacion(solicitud.estado) || solicitud.estado?.toLowerCase() === 'asignado') && !isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
                               <Can action="accion-asignar-solicitud">
                                 <DropdownMenuItem onClick={() => handleAssignClick(solicitud.id)} className="cursor-pointer">
                                   <User className="h-4 w-4 mr-2 text-blue-600" />
@@ -1275,6 +1395,16 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                                 <DropdownMenuItem onClick={() => handleDesertoClick(solicitud.id)} className="cursor-pointer">
                                   <Ban className="h-4 w-4 mr-2 text-red-600" />
                                   Marcar como Deserto
+                                </DropdownMenuItem>
+                              </Can>
+                            )}
+
+                            {/* Botón Descartado */}
+                            {!isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && solicitud.estado !== 'descartado' && (
+                              <Can action="accion-descartado-solicitud">
+                                <DropdownMenuItem onClick={() => handleDescartadoClick(solicitud.id)} className="cursor-pointer">
+                                  <XCircle className="h-4 w-4 mr-2 text-red-600" />
+                                  Descartado
                                 </DropdownMenuItem>
                               </Can>
                             )}
@@ -1682,6 +1812,52 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Confirmación de Descartado */}
+      <AlertDialog open={confirmDescartadoOpen} onOpenChange={setConfirmDescartadoOpen}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Marcar como Descartado?</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas marcar esta solicitud como Descartado?
+              <br />
+              <span className="text-sm text-muted-foreground">
+                Esta acción marcará la solicitud como descartada y deshabilitará todas las acciones futuras.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="py-4">
+            <label htmlFor="descartadoObservacion" className="block text-sm font-medium text-gray-700 mb-2">
+              Observación (requerida)
+            </label>
+            <Textarea
+              id="descartadoObservacion"
+              value={descartadoObservacion}
+              onChange={(e) => setDescartadoObservacion(e.target.value)}
+              placeholder="Ingrese la razón por la cual se marca como descartado..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+              rows={4}
+              required
+            />
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setDescartadoObservacion('');
+            }}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDescartadoConfirm}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={!descartadoObservacion.trim()}
+            >
+              Marcar como Descartado
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Modal de Visualización de Solicitud */}
       <AlertDialog open={viewModalOpen} onOpenChange={setViewModalOpen}>
         <AlertDialogContent className="sm:max-w-[96vw] w-[96vw] h-[92vh] overflow-hidden relative p-0">
@@ -1844,9 +2020,10 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
             <AlertDialogTitle>¿Asignar analista a la solicitud?</AlertDialogTitle>
             <AlertDialogDescription>
               {loadingAnalysts ? (
-                <div className="flex items-center justify-center py-4">
-                  <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
-                  <span className="ml-2 text-sm text-gray-600">Cargando analistas...</span>
+                <div className="flex flex-col items-center justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-600 mb-3" />
+                  <span className="text-sm font-medium text-gray-700">Cargando analistas disponibles...</span>
+                  <span className="text-xs text-gray-500 mt-1">Por favor espere mientras se obtienen los datos</span>
                 </div>
               ) : suggestedAnalyst ? (
                 <>
