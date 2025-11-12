@@ -24,14 +24,14 @@ export const usuariosService = {
   // NO incluye foto_base64 por defecto (es muy grande y causa timeouts)
   async listUsuarios() {
     try {
-      // Primero obtener solo los usuarios básicos (sin relaciones anidadas, sin foto_base64)
-      const selectFields = `id, identificacion, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, telefono, email, username, activo, password, created_at`;
+      // Primero obtener solo los usuarios básicos (sin relaciones anidadas)
+      // Incluir foto_base64 (ahora es URL de Storage, no base64 completo, así que es seguro)
+      const selectFields = `id, identificacion, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, telefono, email, username, activo, password, foto_base64, created_at`;
 
       const { data: usuarios, error: usuariosError } = await supabase
         .from('gen_usuarios')
         .select(selectFields)
-        .order('created_at', { ascending: false })
-        .limit(100);
+        .order('created_at', { ascending: false });
       
       if (usuariosError) throw usuariosError;
       if (!usuarios || usuarios.length === 0) return [];

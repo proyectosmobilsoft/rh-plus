@@ -4,8 +4,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from "sonner";
 import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Lock, Shield, AlertTriangle, Check, X } from 'lucide-react';
+import { Eye, EyeOff, Lock, Shield, AlertTriangle, Check, X, Loader2, CheckCircle, Trash2 } from 'lucide-react';
 import { supabase } from '@/services/supabaseClient';
+import { useLoading } from '@/contexts/LoadingContext';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,6 +33,266 @@ const cambiarPasswordSchema = z.object({
 
 type CambiarPasswordForm = z.infer<typeof cambiarPasswordSchema>;
 
+// Función para asegurar sesión de Supabase
+const ensureSupabaseSession = async (): Promise<boolean> => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session && session.user) {
+      return true;
+    }
+
+    const userData = localStorage.getItem('userData');
+    const authToken = localStorage.getItem('authToken');
+    
+    if (!userData || !authToken) {
+      return false;
+    }
+
+    const parsedUserData = JSON.parse(userData);
+    const { data: { user }, error: getUserError } = await supabase.auth.getUser();
+    if (user && !getUserError) {
+      const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshedSession && !refreshError) {
+        return true;
+      }
+    }
+
+    const email = parsedUserData.email || `${parsedUserData.username}@compensamos.com`;
+    try {
+      const tempPassword = sessionStorage.getItem('temp_password');
+      if (tempPassword) {
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: email,
+          password: tempPassword
+        });
+        if (!signInError && signInData?.session) {
+          return true;
+        }
+      }
+    } catch (signInError) {
+      // Error silenciado
+    }
+
+    return false;
+  } catch (error) {
+    return false;
+  }
+};
+
+// Función para subir foto a Supabase Storage
+// En el contexto de cambio de contraseña, el usuario puede no estar completamente autenticado
+const uploadFotoToStorage = async (
+  file: File, 
+  folder: string, 
+  usuarioId?: number,
+  passwordActual?: string
+): Promise<string> => {
+  const userData = localStorage.getItem('userData');
+  
+  // Intentar establecer sesión de Supabase Auth
+  let sessionEstablished = await ensureSupabaseSession();
+  
+  // Si no se pudo establecer sesión, intentar con la contraseña actual del formulario
+  if (!sessionEstablished && userData && passwordActual) {
+    try {
+      const parsedUserData = JSON.parse(userData);
+      const email = parsedUserData.email || `${parsedUserData.username}@compensamos.com`;
+      
+      // Intentar hacer sign in con la contraseña actual
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: passwordActual
+      });
+      
+      if (!signInError && signInData?.session) {
+        sessionEstablished = true;
+        console.log('✅ Sesión establecida con contraseña actual');
+      }
+    } catch (error) {
+      console.warn('⚠️ No se pudo establecer sesión con contraseña actual:', error);
+    }
+  }
+  
+  // Si aún no hay sesión, intentar con temp_password
+  if (!sessionEstablished && userData) {
+    try {
+      const parsedUserData = JSON.parse(userData);
+      const email = parsedUserData.email || `${parsedUserData.username}@compensamos.com`;
+      const tempPassword = sessionStorage.getItem('temp_password');
+      if (tempPassword) {
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: email,
+          password: tempPassword
+        });
+        if (!signInError && signInData?.session) {
+          sessionEstablished = true;
+          console.log('✅ Sesión establecida con temp_password');
+        }
+      }
+    } catch (error) {
+      console.warn('⚠️ No se pudo establecer sesión con temp_password:', error);
+    }
+  }
+  
+  // Si aún no hay sesión, continuar de todas formas (puede que las políticas RLS lo permitan)
+  if (!sessionEstablished) {
+    console.warn('⚠️ No se pudo establecer sesión de Supabase Auth, intentando subir archivo de todas formas');
+  }
+
+  const timestamp = Date.now();
+  const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+  const fileName = usuarioId 
+    ? `${usuarioId}_${timestamp}_${sanitizedName}`
+    : `temp_${timestamp}_${sanitizedName}`;
+  const filePath = `${folder}/${fileName}`;
+
+  const { data, error } = await supabase.storage
+    .from('usuarios-fotos')
+    .upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: false
+    });
+
+  if (error) {
+    console.error('Error subiendo foto a Storage:', error);
+    throw error;
+  }
+
+  const { data: urlData } = supabase.storage
+    .from('usuarios-fotos')
+    .getPublicUrl(filePath);
+
+  return urlData.publicUrl;
+};
+
+// Función para eliminar foto de Storage
+const deleteFotoFromStorage = async (url: string): Promise<void> => {
+  if (!url || typeof url !== 'string') {
+    return;
+  }
+
+  if (!url.startsWith('http') && !url.startsWith('https')) {
+    return;
+  }
+
+  try {
+    let filePath = '';
+    
+    if (url.includes('/storage/v1/object/public/usuarios-fotos/')) {
+      const urlParts = url.split('/storage/v1/object/public/usuarios-fotos/');
+      if (urlParts.length >= 2) {
+        filePath = urlParts[1].split('?')[0];
+        filePath = decodeURIComponent(filePath);
+        filePath = filePath.trim().replace(/\/+/g, '/');
+      }
+    } else if (url.includes('/storage/v1/object/sign/usuarios-fotos/')) {
+      const urlParts = url.split('/storage/v1/object/sign/usuarios-fotos/');
+      if (urlParts.length >= 2) {
+        filePath = urlParts[1].split('?')[0];
+        filePath = decodeURIComponent(filePath);
+        filePath = filePath.trim().replace(/\/+/g, '/');
+      }
+    } else if (url.includes('usuarios-fotos')) {
+      const match = url.match(/usuarios-fotos\/(.+?)(?:\?|$)/);
+      if (match && match[1]) {
+        filePath = match[1];
+        filePath = decodeURIComponent(filePath);
+        filePath = filePath.trim().replace(/\/+/g, '/');
+      }
+    }
+
+    if (!filePath) {
+      throw new Error(`No se pudo extraer el path de la URL: ${url}`);
+    }
+
+    if (filePath.startsWith('/')) {
+      filePath = filePath.substring(1);
+    }
+    
+    await ensureSupabaseSession();
+    
+    if (filePath.startsWith('usuarios-fotos/')) {
+      filePath = filePath.replace('usuarios-fotos/', '');
+    }
+    
+    const normalizedPath = filePath.trim().replace(/^\/+|\/+$/g, '');
+    
+    if (!normalizedPath || normalizedPath.length === 0) {
+      throw new Error('El path normalizado está vacío');
+    }
+    
+    const { data, error } = await supabase.storage
+      .from('usuarios-fotos')
+      .remove([normalizedPath]);
+
+    if (error) {
+      console.error('❌ Error eliminando foto de Storage:', error);
+      throw error;
+    }
+  } catch (error: any) {
+    console.error('❌ Error al procesar eliminación de foto:', error);
+    throw error;
+  }
+};
+
+// Función para comprimir imagen
+const compressImage = (file: File): Promise<File> => {
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    img.onload = () => {
+      const targetWidth = 400;
+      const targetHeight = 400;
+      
+      let { width, height } = img;
+      const aspectRatio = width / height;
+      
+      let finalWidth, finalHeight;
+      
+      if (width > height) {
+        finalWidth = targetWidth;
+        finalHeight = targetWidth / aspectRatio;
+      } else {
+        finalHeight = targetHeight;
+        finalWidth = targetHeight * aspectRatio;
+      }
+      
+      canvas.width = finalWidth;
+      canvas.height = finalHeight;
+      
+      if (ctx) {
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, finalWidth, finalHeight);
+        ctx.drawImage(img, 0, 0, finalWidth, finalHeight);
+      }
+      
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, '.png'), {
+              type: 'image/png',
+              lastModified: Date.now()
+            });
+            resolve(compressedFile);
+          } else {
+            reject(new Error('Error al comprimir la imagen'));
+          }
+        },
+        'image/png',
+        0.9
+      );
+    };
+    
+    img.onerror = () => {
+      reject(new Error('Error al cargar la imagen'));
+    };
+    
+    img.src = URL.createObjectURL(file);
+  });
+};
+
 export default function CambiarPassword() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -39,7 +300,11 @@ export default function CambiarPassword() {
   const [isLoading, setIsLoading] = useState(false);
   const [userData, setUserData] = useState<any>(null);
   const [isSystemUser, setIsSystemUser] = useState(false);
+  const [fotoUrl, setFotoUrl] = useState<string>("");
+  const [fotoPreview, setFotoPreview] = useState<string | null>(null);
+  const [uploadingFoto, setUploadingFoto] = useState(false);
   const navigate = useNavigate();
+  const { startLoading, stopLoading } = useLoading();
 
   useEffect(() => {
     // Verificar si hay datos de usuario en localStorage
@@ -52,30 +317,162 @@ export default function CambiarPassword() {
       // Los usuarios del sistema tienen roles y empresas, los candidatos no
       const isSystem = parsedUserData.roles && parsedUserData.roles.length > 0;
       setIsSystemUser(isSystem);
+
+      // Cargar foto existente del usuario si es usuario del sistema
+      if (isSystem && parsedUserData.id) {
+        loadUserFoto(parsedUserData.id);
+      } else if (parsedUserData.foto_base64) {
+        // Si es candidato y tiene foto_base64, cargarla
+        const fotoUrlValue = parsedUserData.foto_base64;
+        setFotoUrl(fotoUrlValue);
+        const isUrl = fotoUrlValue && (
+          fotoUrlValue.startsWith('http://') || 
+          fotoUrlValue.startsWith('https://') ||
+          fotoUrlValue.includes('supabase.co/storage') ||
+          fotoUrlValue.includes('/storage/v1/object/')
+        );
+        const isBase64 = fotoUrlValue && fotoUrlValue.startsWith('data:');
+        if (isUrl || isBase64) {
+          setFotoPreview(fotoUrlValue);
+        }
+      }
     }
   }, []);
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Función para cargar foto del usuario desde la base de datos
+  const loadUserFoto = async (userId: number) => {
+    try {
+      const { data: usuario, error } = await supabase
+        .from('gen_usuarios')
+        .select('foto_base64')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error cargando foto del usuario:', error);
+        return;
+      }
+
+      if (usuario && usuario.foto_base64) {
+        const fotoUrlValue = usuario.foto_base64;
+        setFotoUrl(fotoUrlValue);
+        
+        const isUrl = fotoUrlValue && (
+          fotoUrlValue.startsWith('http://') || 
+          fotoUrlValue.startsWith('https://') ||
+          fotoUrlValue.includes('supabase.co/storage') ||
+          fotoUrlValue.includes('/storage/v1/object/')
+        );
+        const isBase64 = fotoUrlValue && fotoUrlValue.startsWith('data:');
+        
+        if (isUrl || isBase64) {
+          setFotoPreview(fotoUrlValue);
+        }
+      }
+    } catch (error) {
+      console.error('Error al cargar foto del usuario:', error);
+    }
+  };
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-      // Validar que sea una imagen
-      if (!file.type.startsWith('image/')) {
-        toast.error('Por favor selecciona un archivo de imagen válido');
-        return;
+    if (!file) return;
+
+    // Validar que sea una imagen
+    if (!file.type.startsWith('image/')) {
+      toast.error('Por favor selecciona un archivo de imagen válido');
+      return;
+    }
+
+    // Validar tamaño (máximo 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('La imagen debe ser menor a 5MB');
+      return;
+    }
+
+    try {
+      startLoading();
+      setUploadingFoto(true);
+
+      // Si hay una foto anterior en Storage, eliminarla
+      if (fotoUrl && (fotoUrl.startsWith('http://') || fotoUrl.startsWith('https://'))) {
+        try {
+          await deleteFotoFromStorage(fotoUrl);
+        } catch (deleteError) {
+          console.error('Error al eliminar foto anterior:', deleteError);
+        }
       }
 
-      // Validar tamaño (máximo 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('La imagen debe ser menor a 5MB');
-        return;
-      }
+      // Comprimir la imagen
+      const compressedImage = await compressImage(file);
+      
+      // Obtener la contraseña actual del formulario para intentar autenticarse
+      const passwordActual = form.getValues('passwordActual');
+      
+      // Subir imagen comprimida a Storage
+      const usuarioId = userData?.id;
+      const folder = usuarioId ? `usuarios/${usuarioId}` : 'usuarios/temp';
+      const fotoUrlValue = await uploadFotoToStorage(compressedImage, folder, usuarioId, passwordActual);
 
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        form.setValue('foto', result);
-      };
-      reader.readAsDataURL(file);
+      // Guardar la URL en el estado y en el formulario
+      setFotoUrl(fotoUrlValue);
+      form.setValue('foto', fotoUrlValue);
+      
+      // También generar preview para visualización
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(compressedImage);
+      });
+      setFotoPreview(base64);
+
+      toast.success("Foto procesada y guardada", { 
+        description: "Imagen optimizada y subida a Storage." 
+      });
+    } catch (error: any) {
+      console.error('Error al procesar foto:', error);
+      toast.error("Error al procesar la foto", {
+        description: error.message || "Por favor intenta de nuevo"
+      });
+    } finally {
+      setUploadingFoto(false);
+      stopLoading();
+    }
+  };
+
+  const handleEliminarFoto = async () => {
+    if (!fotoUrl) {
+      setFotoUrl("");
+      setFotoPreview(null);
+      form.setValue('foto', "");
+      return;
+    }
+
+    try {
+      startLoading();
+      
+      // Si hay una URL de Storage, eliminar el archivo
+      if (fotoUrl && (fotoUrl.startsWith('http://') || fotoUrl.startsWith('https://'))) {
+        try {
+          await deleteFotoFromStorage(fotoUrl);
+          toast.success("Foto eliminada de Storage");
+        } catch (deleteError) {
+          console.error('Error eliminando foto de Storage:', deleteError);
+        }
+      }
+      
+      // Limpiar estados locales
+      setFotoUrl("");
+      setFotoPreview(null);
+      form.setValue('foto', "");
+      
+      toast.success("Foto eliminada correctamente");
+    } catch (error: any) {
+      console.error('Error al eliminar foto:', error);
+      toast.error("Error al eliminar la foto");
+    } finally {
+      stopLoading();
     }
   };
 
@@ -129,6 +526,13 @@ export default function CambiarPassword() {
     },
   });
 
+  // Efecto para actualizar el formulario cuando se carga la foto
+  useEffect(() => {
+    if (fotoPreview || fotoUrl) {
+      form.setValue('foto', fotoUrl || fotoPreview || "");
+    }
+  }, [fotoPreview, fotoUrl, form]);
+
   const onSubmit = async (data: CambiarPasswordForm) => {
     setIsLoading(true);
     try {
@@ -157,12 +561,13 @@ export default function CambiarPassword() {
           return;
         }
 
-        // Actualizar la contraseña y la foto
+        // Actualizar la contraseña y la foto (usar fotoUrl si existe, sino usar data.foto)
+        const fotoFinal = fotoUrl || data.foto || "";
         const { error: updateError } = await supabase
           .from('gen_usuarios')
           .update({ 
             password: data.passwordNueva,
-            foto_base64: data.foto
+            foto_base64: fotoFinal
           })
           .eq('id', userData.id);
 
@@ -429,18 +834,73 @@ export default function CambiarPassword() {
                       <FormControl>
                         <div className="flex flex-col items-center space-y-4">
                           <div className="relative">
-                            <Avatar className="w-24 h-24 border-4 border-gray-200">
-                              <AvatarImage src={field.value} alt="Foto de perfil" />
-                              <AvatarFallback className="bg-gray-100">
-                                <User className="w-8 h-8 text-gray-400" />
-                              </AvatarFallback>
-                            </Avatar>
+                            <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-gray-200 bg-gray-50 flex items-center justify-center">
+                              {(() => {
+                                const fotoParaMostrar = fotoPreview || field.value || fotoUrl;
+                                if (fotoParaMostrar) {
+                                  return (
+                                    <img 
+                                      src={fotoParaMostrar as string} 
+                                      alt="Foto de perfil" 
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        console.error('Error cargando imagen:', e);
+                                      }}
+                                    />
+                                  );
+                                }
+                                return <User className="w-10 h-10 text-gray-400" />;
+                              })()}
+                            </div>
+                            {uploadingFoto && (
+                              <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
+                                <Loader2 className="w-6 h-6 text-white animate-spin" />
+                              </div>
+                            )}
+                            {!uploadingFoto && (fotoPreview || field.value || fotoUrl) && (
+                              <div className="absolute -bottom-2 -right-2 bg-green-600 text-white rounded-full p-1">
+                                <CheckCircle className="w-4 h-4" />
+                              </div>
+                            )}
+                            {!uploadingFoto && !(fotoPreview || field.value || fotoUrl) && (
+                              <label
+                                htmlFor="foto-upload"
+                                className="absolute -bottom-2 -right-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-2 cursor-pointer transition-colors"
+                              >
+                                <Camera className="w-4 h-4" />
+                              </label>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
                             <label
                               htmlFor="foto-upload"
-                              className="absolute -bottom-2 -right-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-2 cursor-pointer transition-colors"
+                              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg cursor-pointer transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                             >
-                              <Camera className="w-4 h-4" />
+                              {uploadingFoto ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  Subiendo...
+                                </>
+                              ) : (
+                                <>
+                                  <Upload className="w-4 h-4" />
+                                  {fotoPreview || field.value || fotoUrl ? 'Cambiar Foto' : 'Subir Foto'}
+                                </>
+                              )}
                             </label>
+                            {(fotoPreview || field.value || fotoUrl) && (
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                size="sm"
+                                onClick={handleEliminarFoto}
+                                disabled={uploadingFoto}
+                                className="flex items-center gap-2"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                Quitar
+                              </Button>
+                            )}
                           </div>
                           <input
                             id="foto-upload"
@@ -448,12 +908,16 @@ export default function CambiarPassword() {
                             accept="image/*"
                             onChange={handleImageUpload}
                             className="hidden"
+                            disabled={uploadingFoto}
                           />
                           <p className="text-sm text-gray-600 text-center">
-                            Haz clic en la cámara para subir tu foto
+                            {fotoPreview || field.value || fotoUrl 
+                              ? "Foto lista. Puedes cambiarla o eliminarla."
+                              : "Haz clic en 'Subir Foto' para seleccionar tu imagen"
+                            }
                           </p>
                           <p className="text-xs text-blue-600 text-center font-medium">
-                            La foto debe ser formal y elegante
+                            La foto debe ser formal y elegante (máx. 5MB)
                           </p>
                         </div>
                       </FormControl>

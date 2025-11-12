@@ -15,26 +15,69 @@ export interface Analyst {
   updated_at?: string;
 }
 
+// Función helper para reintentar consultas con timeout
+const retryQuery = async <T>(
+  queryFn: () => Promise<{ data: T | null; error: any }>,
+  maxRetries: number = 2,
+  retryDelay: number = 1000
+): Promise<{ data: T | null; error: any }> => {
+  let lastError: any = null;
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await queryFn();
+      
+      // Si hay error y es timeout (57014), reintentar
+      if (result.error && result.error.code === '57014') {
+        lastError = result.error;
+        if (attempt < maxRetries) {
+          console.log(`⚠️ [retryQuery] Timeout en intento ${attempt + 1}/${maxRetries + 1}, reintentando en ${retryDelay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          continue;
+        }
+      }
+      
+      // Si no hay error o no es timeout, retornar resultado
+      return result;
+    } catch (error) {
+      lastError = error;
+      if (attempt < maxRetries) {
+        console.log(`⚠️ [retryQuery] Error en intento ${attempt + 1}/${maxRetries + 1}, reintentando en ${retryDelay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        continue;
+      }
+    }
+  }
+  
+  // Si llegamos aquí, todos los intentos fallaron
+  return { data: null, error: lastError };
+};
+
 export const analystsService = {
   // Listar solo analistas (usuarios con permiso rol_analista)
   getAll: async (): Promise<Analyst[]> => {
     try {
       console.log('🔄 [analystsService.getAll] Iniciando petición a gen_usuarios...');
-      // Obtener todos los usuarios activos primero
-      const { data: usuarios, error: usuariosError } = await supabase
-        .from('gen_usuarios')
-        .select(`
-          *,
-          gen_usuario_roles(
-            gen_roles(id, nombre)
-          )
-        `)
-        .eq('activo', true);
+      
+      // Obtener todos los usuarios activos con reintentos
+      const { data: usuarios, error: usuariosError } = await retryQuery(
+        () => supabase
+          .from('gen_usuarios')
+          .select(`
+            *,
+            gen_usuario_roles(
+              gen_roles(id, nombre)
+            )
+          `)
+          .eq('activo', true),
+        2, // 2 reintentos (total 3 intentos)
+        1000 // 1 segundo de espera entre reintentos
+      );
 
       console.log('✅ [analystsService.getAll] Petición a gen_usuarios completada, usuarios recibidos:', usuarios?.length || 0);
 
       if (usuariosError) {
-        console.error('❌ [analystsService.getAll] Error al obtener usuarios:', usuariosError);
+        console.error('❌ [analystsService.getAll] Error al obtener usuarios después de reintentos:', usuariosError);
         return [];
       }
 
