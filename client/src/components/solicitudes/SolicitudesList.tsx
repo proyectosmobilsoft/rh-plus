@@ -452,7 +452,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     const puedeReactivar = isStandBy(s.estado) && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-reactivar-solicitud');
     const puedeStandBy = !isStandBy(s.estado) && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-standby-solicitud');
     const puedeDeserto = !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-deserto-solicitud');
-    const puedeCancelar = s.estado === 'asignado' && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-cancelar-solicitud');
+    const puedeCancelar = !isCancelada(s.estado) && hasAction('accion-cancelar-solicitud');
     const puedeValidarDocumentos = s.estado?.toLowerCase() === 'documentos entregados' && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-validar-documentos-solicitud');
     const puedeDevolverDocumentos = s.estado?.toLowerCase() === 'documentos entregados' && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-devolver-documentos-solicitud');
     const puedeContratar = s.estado?.toLowerCase() === 'firma contrato' && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-contratar-solicitud');
@@ -1410,7 +1410,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                             )}
 
                             {/* Botón Cancelar */}
-                            {solicitud.estado === 'asignado' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                            {!isCancelada(solicitud.estado) && (
                               <Can action="accion-cancelar-solicitud">
                                 <DropdownMenuItem onClick={() => handleCancelClick(solicitud.id)} className="cursor-pointer">
                                   <X className="h-4 w-4 mr-2 text-red-600" />

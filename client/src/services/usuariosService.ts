@@ -26,7 +26,7 @@ export const usuariosService = {
     try {
       // Primero obtener solo los usuarios básicos (sin relaciones anidadas)
       // Incluir foto_base64 (ahora es URL de Storage, no base64 completo, así que es seguro)
-      const selectFields = `id, identificacion, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, telefono, email, username, activo, password, foto_base64, created_at`;
+      const selectFields = `id, identificacion, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, telefono, email, username, activo, password, created_at`;
 
       const { data: usuarios, error: usuariosError } = await supabase
         .from('gen_usuarios')

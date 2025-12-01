@@ -542,9 +542,16 @@ const CertificadosMedicosPage = () => {
       }
 
       // Actualizar el estado de la solicitud
-      await solicitudesService.update(selectedSolicitud.id!, {
+      // Si se marca como apto y pasa a "firma contrato", guardar en previous_state
+      const updateData: any = {
         estado: nuevoEstado
-      });
+      };
+      
+      if ((modalType === 'apto' || modalType === 'aprobar') && nuevoEstado === 'firma contrato') {
+        updateData.previous_state = 'firma contrato';
+      }
+      
+      await solicitudesService.update(selectedSolicitud.id!, updateData);
 
       // Si se descarta por restricciones, enviar email al candidato
       if (modalType === 'no-aprobar') {

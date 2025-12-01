@@ -432,10 +432,10 @@ export const validacionDocumentosService = {
         };
       }
 
-      // 4. Obtener el estado anterior antes de actualizar
+      // 4. Obtener el estado anterior y previous_state antes de actualizar
       const { data: solicitudAnterior, error: fetchError } = await supabase
         .from('hum_solicitudes')
-        .select('estado')
+        .select('estado, previous_state')
         .eq('id', solicitudId)
         .single();
 
@@ -444,6 +444,38 @@ export const validacionDocumentosService = {
       }
 
       const estadoAnterior = solicitudAnterior?.estado || 'desconocido';
+      const previousState = solicitudAnterior?.previous_state;
+
+      // Verificar si previous_state es "firma contrato" - si es así, no actualizar el estado
+      if (previousState === 'firma contrato') {
+        // No actualizar el estado, pero sí enviar el email y registrar el log
+        const esCiudadAlternativa = ciudadId !== undefined && candidato.ciudad_nombre && 
+          prestadores.length > 0 && prestadores[0].ciudad_nombre !== candidato.ciudad_nombre;
+        
+        await this.enviarEmailPrestadores(candidato, prestadores, undefined, esCiudadAlternativa);
+
+        // Registrar log indicando que no se actualizó el estado porque ya estaba en firma contrato
+        const { data: { user } } = await supabase.auth.getUser();
+        const { error: logError } = await supabase
+          .from('hum_solicitudes_logs')
+          .insert({
+            solicitud_id: solicitudId,
+            accion: 'validar_documentos',
+            observacion: `${observacion} (Estado no actualizado: la solicitud ya está en "firma contrato" según previous_state)`,
+            usuario_id: user?.id || null,
+            estado_anterior: estadoAnterior,
+            estado_nuevo: estadoAnterior // Mantener el estado actual
+          });
+
+        if (logError) {
+          // Silenciado en producción
+        }
+
+        return {
+          success: true,
+          message: `Documentos validados exitosamente. Se envió un email a ${candidato.email} con información de ${prestadores.length} prestadores médicos. El estado de la solicitud se mantuvo en "${estadoAnterior}" porque ya había sido marcada como apta previamente.`
+        };
+      }
 
       // 5. Enviar email con información de prestadores
       const esCiudadAlternativa = ciudadId !== undefined && candidato.ciudad_nombre && 
@@ -553,10 +585,10 @@ export const validacionDocumentosService = {
         };
       }
 
-      // 4. Obtener el estado anterior antes de actualizar
+      // 4. Obtener el estado anterior y previous_state antes de actualizar
       const { data: solicitudAnterior, error: fetchError } = await supabase
         .from('hum_solicitudes')
-        .select('estado')
+        .select('estado, previous_state')
         .eq('id', solicitudId)
         .single();
 
@@ -565,6 +597,38 @@ export const validacionDocumentosService = {
       }
 
       const estadoAnterior = solicitudAnterior?.estado || 'desconocido';
+      const previousState = solicitudAnterior?.previous_state;
+
+      // Verificar si previous_state es "firma contrato" - si es así, no actualizar el estado
+      if (previousState === 'firma contrato') {
+        // No actualizar el estado, pero sí enviar el email y registrar el log
+        const esCiudadAlternativa = ciudadId !== undefined && candidato.ciudad_nombre && 
+          prestadores.length > 0 && prestadores[0].ciudad_nombre !== candidato.ciudad_nombre;
+        
+        await this.enviarEmailPrestadores(candidato, prestadores, undefined, esCiudadAlternativa);
+
+        // Registrar log indicando que no se actualizó el estado porque ya estaba en firma contrato
+        const { data: { user } } = await supabase.auth.getUser();
+        const { error: logError } = await supabase
+          .from('hum_solicitudes_logs')
+          .insert({
+            solicitud_id: solicitudId,
+            accion: 'citar_examenes',
+            observacion: `${observacion} (Estado no actualizado: la solicitud ya está en "firma contrato" según previous_state)`,
+            usuario_id: user?.id || null,
+            estado_anterior: estadoAnterior,
+            estado_nuevo: estadoAnterior // Mantener el estado actual
+          });
+
+        if (logError) {
+          // Silenciado en producción
+        }
+
+        return {
+          success: true,
+          message: `Candidato citado a exámenes exitosamente. Se envió un email a ${candidato.email} con información de ${prestadores.length} prestadores médicos. El estado de la solicitud se mantuvo en "${estadoAnterior}" porque ya había sido marcada como apta previamente.`
+        };
+      }
 
       // 5. Enviar email con información de prestadores
       const esCiudadAlternativa = ciudadId !== undefined && candidato.ciudad_nombre && 
