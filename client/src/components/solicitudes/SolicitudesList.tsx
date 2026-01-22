@@ -1420,7 +1420,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                             )}
 
                             {/* Botón Documentos Validados - solo visible en estado DOCUMENTOS ENTREGADOS */}
-                            {solicitud.estado?.toUpperCase() === 'DOCUMENTOS ENTREGADOS' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                            {solicitud.estado?.toLowerCase() === 'documentos entregados' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
                               <Can action="accion-validar-documentos-solicitud">
                                 <DropdownMenuItem 
                                   onClick={() => handleValidateDocumentsClick(solicitud.id)} 
@@ -1433,7 +1433,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                             )}
 
                             {/* Botón Documentos Devueltos - solo visible en estado DOCUMENTOS ENTREGADOS */}
-                            {solicitud.estado?.toUpperCase() === 'DOCUMENTOS ENTREGADOS' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                            {solicitud.estado?.toLowerCase() === 'documentos entregados' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
                               <Can action="accion-devolver-documentos-solicitud">
                                 <DropdownMenuItem 
                                   onClick={() => handleReturnDocumentsClick(solicitud.id)} 
