@@ -1212,7 +1212,7 @@ const CertificadosMedicosPage = () => {
                           className="bg-yellow-100/80 hover:bg-yellow-500 hover:text-white text-yellow-800 border border-yellow-200 hover:border-yellow-500 px-4 py-2 text-sm shadow-sm transition-colors"
                         >
                           <FileText className="h-3 w-3 mr-1" />
-                          Apto con Restricciones y/o Recomendación
+                          Apto con recomendaciones
                         </Button>
                       </div>
                     </div>
@@ -1287,7 +1287,7 @@ const CertificadosMedicosPage = () => {
               ) : (
                 <>
                   <FileText className="h-5 w-5 text-yellow-600" />
-                  <span>Marcar como Apto con Restricciones y/o Recomendación</span>
+                  <span>Marcar como Apto con recomendaciones</span>
                 </>
               )}
             </DialogTitle>
@@ -1302,7 +1302,7 @@ const CertificadosMedicosPage = () => {
                    modalType === 'no-apto' ? 'marcar esta solicitud como No Apto' : 
                    modalType === 'aprobar' ? 'aprobar esta solicitud' : 
                    modalType === 'no-aprobar' ? 'no aprobar esta solicitud (se descartará por restricciones médicas)' : 
-                   'marcar esta solicitud como Apto con Restricciones y/o Recomendación'}
+                   'marcar esta solicitud como Apto con recomendaciones'}
                 </span>?
               </p>
             </div>

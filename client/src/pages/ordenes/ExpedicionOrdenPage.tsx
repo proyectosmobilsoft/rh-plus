@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { FileText, Plus, Filter, Users, Building, DollarSign, CheckCircle, Clock, AlertCircle, Loader2, Download, Calendar, Info } from "lucide-react";
+import { FileText, Plus, Filter, Users, Building, DollarSign, CheckCircle, Clock, AlertCircle, Loader2, Download, Calendar, Info, Check } from "lucide-react";
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
@@ -23,18 +23,47 @@ import SeleccionarCiudadModal from '@/components/solicitudes/SeleccionarCiudadMo
 import { ubicacionesService } from '@/services/ubicacionesService';
 import { centrosCostoService } from '@/services/centrosCostoService';
 import { supabase } from '@/services/supabaseClient';
+import { tiposCandidatosService } from '@/services/tiposCandidatosService';
+import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
+import { X } from 'lucide-react';
+
+interface TipoCandidato {
+  id: number;
+  nombre: string;
+  descripcion?: string;
+  activo?: boolean;
+}
 
 const ExpedicionOrdenPage = () => {
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isApplyingFilters, setIsApplyingFilters] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [estadoFilter, setEstadoFilter] = useState<string | undefined>(undefined);
   const [empresaFilter, setEmpresaFilter] = useState<string | undefined>(undefined);
   const [activeTab, setActiveTab] = useState("registro");
-  const [searchTerm, setSearchTerm] = useState("");
+  
+  // Filtros individuales (inputs)
+  const [solicitudIdFilter, setSolicitudIdFilter] = useState<string>("");
+  const [numeroDocumentoFilter, setNumeroDocumentoFilter] = useState<string>("");
+  const [nombreCandidatoFilter, setNombreCandidatoFilter] = useState<string>("");
+  const [cargoFilter, setCargoFilter] = useState<string | undefined>(undefined);
+
+  // Filtros aplicados (se usan para las consultas al backend)
+  const [appliedSolicitudId, setAppliedSolicitudId] = useState<number | undefined>(undefined);
+  const [appliedNumeroDocumento, setAppliedNumeroDocumento] = useState<string | undefined>(undefined);
+  const [appliedNombreCandidato, setAppliedNombreCandidato] = useState<string | undefined>(undefined);
+  
+  // Paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const pageSize = 100;
+  
   const [selectedSolicitud, setSelectedSolicitud] = useState<Solicitud | undefined>(undefined);
   const [empresaData, setEmpresaData] = useState<any>(null);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [cargos, setCargos] = useState<TipoCandidato[]>([]);
   const [readOnlyView, setReadOnlyView] = useState(false);
   
   // Estado para el modal informativo de fechas
@@ -124,25 +153,45 @@ const ExpedicionOrdenPage = () => {
     fetchEmpresas();
   }, []);
 
-  // Fetch solicitudes when component mounts or filter changes
+  // Cargar lista de cargos para el filtro
+  useEffect(() => {
+    const fetchCargos = async () => {
+      try {
+        const cargosData = await tiposCandidatosService.getAll();
+        setCargos(cargosData);
+      } catch (error) {
+        console.error('Error al cargar cargos:', error);
+        toast.error('Error al cargar la lista de cargos');
+      }
+    };
+
+    fetchCargos();
+  }, []);
+
+  // Resetear página a 1 cuando cambien los filtros aplicados
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [estadoFilter, empresaFilter, appliedSolicitudId, appliedNumeroDocumento, appliedNombreCandidato, cargoFilter]);
+
+  // Fetch solicitudes when component mounts or filters/pagination change
   useEffect(() => {
     fetchSolicitudes();
     return () => {
       // Limpieza al salir de la pantalla
       try { setIsLoading(false); } catch { }
     };
-  }, [estadoFilter, empresaFilter]);
+  }, [currentPage, estadoFilter, empresaFilter, appliedSolicitudId, appliedNumeroDocumento, appliedNombreCandidato, cargoFilter]);
 
-  // Auto-refresh solicitudes every 30 seconds
+  // Auto-refresh solicitudes cada 60 segundos (respeta filtros y paginación actuales)
   useEffect(() => {
     const interval = setInterval(() => {
       fetchSolicitudes();
-    }, 30000); // 30 seconds
+    }, 60000); // 60 segundos
 
     return () => {
       clearInterval(interval);
     };
-  }, [estadoFilter, empresaFilter]); // Re-create interval when filters change
+  }, [currentPage, estadoFilter, empresaFilter, appliedSolicitudId, appliedNumeroDocumento, appliedNombreCandidato, cargoFilter]);
 
   // Mostrar modal informativo si el usuario tiene permisos y está en el período especial
   useEffect(() => {
@@ -168,17 +217,42 @@ const ExpedicionOrdenPage = () => {
     setIsLoading(true);
     setError(null);
     try {
-      let data;
-      if (estadoFilter) {
-        data = await solicitudesService.getByStatus(estadoFilter);
-      } else {
-        data = await solicitudesService.getAll();
-      }
-      setSolicitudes(data);
+      // Preparar filtros para la paginación
+      const empresaId = empresaFilter && empresaFilter !== 'all' ? Number(empresaFilter) : undefined;
+
+      // Filtros aplicados
+      const solicitudId = appliedSolicitudId;
+      const numeroDocumento = appliedNumeroDocumento;
+
+      // Nombre candidato: solo se envía al backend si tiene más de 3 caracteres
+      const nombreCandidato =
+        appliedNombreCandidato && appliedNombreCandidato.trim().length > 3
+          ? appliedNombreCandidato.trim()
+          : undefined;
+      const cargoId = cargoFilter && cargoFilter !== 'all' ? Number(cargoFilter) : undefined;
+
+      // Usar paginación server-side
+      const result = await solicitudesService.getPaginated({
+        page: currentPage,
+        pageSize: pageSize,
+        empresaId,
+        estado: estadoFilter,
+        solicitudId,
+        numeroDocumento,
+        nombreCandidato,
+        cargoId,
+      });
+
+      setSolicitudes(result.data);
+      setTotalRecords(result.total);
+      setTotalPages(result.totalPages);
     } catch (error) {
       console.error("Error fetching solicitudes:", error);
       setError('Error al cargar las solicitudes');
       toast.error('Error al cargar las solicitudes');
+      setSolicitudes([]);
+      setTotalRecords(0);
+      setTotalPages(0);
     } finally {
       setIsLoading(false);
     }
@@ -673,12 +747,13 @@ const ExpedicionOrdenPage = () => {
       // También recolectar cualquier campo adicional que esté directamente en estructura_datos
       // pero que no esté en las secciones (para compatibilidad con estructuras antiguas)
       solicitudesFiltradas.forEach((solicitud) => {
-        if (solicitud.estructura_datos) {
-          Object.keys(solicitud.estructura_datos).forEach((key) => {
+        const estructuraDatos = solicitud.estructura_datos;
+        if (estructuraDatos) {
+          Object.keys(estructuraDatos).forEach((key) => {
             // Ignorar propiedades especiales como 'secciones'
             if (key !== 'secciones' && !camposEstructuraMap.has(key)) {
               // Solo agregar si parece ser un campo de datos (no es un objeto complejo)
-              const valor = solicitud.estructura_datos[key];
+              const valor = estructuraDatos[key];
               if (valor !== null && 
                   valor !== undefined && 
                   (typeof valor === 'string' || typeof valor === 'number' || typeof valor === 'boolean')) {
@@ -1184,21 +1259,111 @@ const ExpedicionOrdenPage = () => {
     }
   };
 
-  // Filtrado de solicitudes
-  const solicitudesFiltradas = solicitudes.filter(solicitud => {
-    const matchesSearch =
-      (solicitud.nombres?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      (solicitud.apellidos?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      (solicitud.cargo?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      (solicitud.empresa_usuaria?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      (solicitud.numero_documento?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      (solicitud.id?.toString() || '').includes(searchTerm);
+  // Los filtros ahora se aplican en el servidor, no necesitamos filtrado adicional
+  const solicitudesFiltradas = solicitudes;
 
-    const matchesEmpresa = !empresaFilter || empresaFilter === 'all' ||
-      solicitud.empresas?.id?.toString() === empresaFilter;
+  // Funciones para limpiar filtros individuales
+  const clearSolicitudIdFilter = () => {
+    setSolicitudIdFilter("");
+    setAppliedSolicitudId(undefined);
+    setCurrentPage(1);
+  };
 
-    return matchesSearch && matchesEmpresa;
-  });
+  const clearNombreCandidatoFilter = () => {
+    setNombreCandidatoFilter("");
+    setAppliedNombreCandidato(undefined);
+    setCurrentPage(1);
+  };
+
+  const clearCargoFilter = () => {
+    setCargoFilter(undefined);
+    setCurrentPage(1);
+  };
+
+  const clearAllFilters = () => {
+    setSolicitudIdFilter("");
+    setNombreCandidatoFilter("");
+    setNumeroDocumentoFilter("");
+    setAppliedSolicitudId(undefined);
+    setAppliedNumeroDocumento(undefined);
+    setAppliedNombreCandidato(undefined);
+    setCargoFilter(undefined);
+    setEstadoFilter(undefined);
+    setEmpresaFilter(undefined);
+    setCurrentPage(1);
+  };
+
+  // Función para renderizar el paginador
+  const renderPagination = () => {
+    if (totalPages <= 1) return null;
+
+    const pagesToShow: (number | string)[] = [];
+    const maxPagesToShow = 7;
+
+    if (totalPages <= maxPagesToShow) {
+      // Mostrar todas las páginas
+      for (let i = 1; i <= totalPages; i++) {
+        pagesToShow.push(i);
+      }
+    } else {
+      // Lógica para mostrar páginas con elipsis
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) {
+          pagesToShow.push(i);
+        }
+        pagesToShow.push("ellipsis");
+        pagesToShow.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pagesToShow.push(1);
+        pagesToShow.push("ellipsis");
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pagesToShow.push(i);
+        }
+      } else {
+        pagesToShow.push(1);
+        pagesToShow.push("ellipsis");
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pagesToShow.push(i);
+        }
+        pagesToShow.push("ellipsis");
+        pagesToShow.push(totalPages);
+      }
+    }
+
+    return (
+      <Pagination>
+        <PaginationContent>
+          <PaginationItem>
+            <PaginationPrevious
+              onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
+              className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+            />
+          </PaginationItem>
+          {pagesToShow.map((page, index) => (
+            <PaginationItem key={index}>
+              {page === "ellipsis" ? (
+                <PaginationEllipsis />
+              ) : (
+                <PaginationLink
+                  onClick={() => setCurrentPage(page as number)}
+                  isActive={currentPage === page}
+                  className="cursor-pointer"
+                >
+                  {page}
+                </PaginationLink>
+              )}
+            </PaginationItem>
+          ))}
+          <PaginationItem>
+            <PaginationNext
+              onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}
+              className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+            />
+          </PaginationItem>
+        </PaginationContent>
+      </Pagination>
+    );
+  };
 
   return (
     <div className="p-4 max-w-full mx-auto">
@@ -1277,50 +1442,225 @@ const ExpedicionOrdenPage = () => {
               </div>
             </div>
 
-            {/* Filtros y búsqueda */}
-            <div className="flex flex-wrap items-center gap-4 p-3 bg-cyan-50 rounded-lg mb-4 shadow-sm">
-              <div className="flex-1 min-w-[200px]">
-                <Input
-                  placeholder="Buscar por ID, nombre, cargo, empresa..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full"
-                />
+            {/* Filtros individuales */}
+            <div className="p-4 bg-cyan-50 rounded-lg mb-4 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-semibold text-gray-700">Filtros</span>
+                </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <Filter className="h-4 w-4 text-muted-foreground" />
-                <Select
-                  value={estadoFilter || 'all'}
-                  onValueChange={(value) => setEstadoFilter(value === 'all' ? undefined : value)}
-                >
-                  <SelectTrigger className="w-[180px] h-9">
-                    <SelectValue placeholder="Filtrar por estado" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    {estadosDisponibles.map((estado) => (
-                      <SelectItem key={estado.value} value={estado.value}>
-                        {estado.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={empresaFilter || 'all'}
-                  onValueChange={(value) => setEmpresaFilter(value === 'all' ? undefined : value)}
-                >
-                  <SelectTrigger className="w-[200px] h-9">
-                    <SelectValue placeholder="Filtrar por empresa" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas las empresas</SelectItem>
-                    {empresas.map((empresa) => (
-                      <SelectItem key={empresa.id} value={empresa.id.toString()}>
-                        {empresa.razon_social}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-2  mb-3">
+                {/* Filtro por ID de solicitud - más pequeño */}
+                <div className="relative">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    ID
+                  </label>
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      placeholder=""
+                      value={solicitudIdFilter}
+                      onChange={(e) => {
+                        setSolicitudIdFilter(e.target.value);
+                      }}
+                      className="w-full pr-6 h-8 text-xs"
+                    />
+                    {solicitudIdFilter && (
+                      <button
+                        onClick={clearSolicitudIdFilter}
+                        className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Filtro por número de documento */}
+                <div className="relative">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Documento
+                  </label>
+                  <div className="relative">
+                    <Input
+                      placeholder=""
+                      value={numeroDocumentoFilter}
+                      onChange={(e) => {
+                        setNumeroDocumentoFilter(e.target.value);
+                      }}
+                      className="w-full pr-6 h-8 text-xs"
+                    />
+                    {numeroDocumentoFilter && (
+                      <button
+                        onClick={() => {
+                          setNumeroDocumentoFilter("");
+                          setAppliedNumeroDocumento(undefined);
+                          setCurrentPage(1);
+                        }}
+                        className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Filtro por nombre de candidato - más pequeño */}
+                <div className="relative">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Nombre
+                  </label>
+                  <div className="relative">
+                    <Input
+                      placeholder=""
+                      value={nombreCandidatoFilter}
+                      onChange={(e) => {
+                        setNombreCandidatoFilter(e.target.value);
+                      }}
+                      className="w-full pr-6 h-8 text-xs"
+                    />
+                    {nombreCandidatoFilter && (
+                      <button
+                        onClick={clearNombreCandidatoFilter}
+                        className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Filtro por cargo */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Cargo
+                  </label>
+                  <Select
+                    value={cargoFilter || 'all'}
+                    onValueChange={(value) => {
+                      setCargoFilter(value === 'all' ? undefined : value);
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-full h-9">
+                      <SelectValue placeholder="" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all"></SelectItem>
+                      {cargos.map((cargo) => (
+                        <SelectItem key={cargo.id} value={cargo.id.toString()}>
+                          {cargo.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Filtro por estado */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Estado
+                  </label>
+                  <Select
+                    value={estadoFilter || 'all'}
+                    onValueChange={(value) => {
+                      setEstadoFilter(value === 'all' ? undefined : value);
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-full h-9">
+                      <SelectValue placeholder="" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all"></SelectItem>
+                      {estadosDisponibles.map((estado) => (
+                        <SelectItem key={estado.value} value={estado.value}>
+                          {estado.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Filtro por empresa */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Empresa
+                  </label>
+                  <Select
+                    value={empresaFilter || 'all'}
+                    onValueChange={(value) => {
+                      setEmpresaFilter(value === 'all' ? undefined : value);
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-full h-9">
+                      <SelectValue placeholder="" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all"></SelectItem>
+                      {empresas.map((empresa) => (
+                        <SelectItem key={empresa.id} value={empresa.id.toString()}>
+                          {empresa.razon_social}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2"></div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={async () => {
+                      setIsApplyingFilters(true);
+                      try {
+                        // Aplicar filtros actuales
+                        // ID
+                        const rawId = solicitudIdFilter.trim();
+                        setAppliedSolicitudId(rawId ? Number(rawId) : undefined);
+                        // Número de documento
+                        const rawDoc = numeroDocumentoFilter.trim();
+                        setAppliedNumeroDocumento(rawDoc || undefined);
+                        // Nombre candidato (se validará longitud en fetch)
+                        const rawNombre = nombreCandidatoFilter.trim();
+                        setAppliedNombreCandidato(rawNombre || undefined);
+                        // Resetear a primera página
+                        setCurrentPage(1);
+                        // Pequeño delay para que se vea la animación
+                        await new Promise(resolve => setTimeout(resolve, 300));
+                      } finally {
+                        setIsApplyingFilters(false);
+                      }
+                    }}
+                    disabled={isApplyingFilters || isLoading}
+                    className="text-xs h-7 bg-cyan-600 hover:bg-cyan-700 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                  >
+                    {isApplyingFilters || isLoading ? (
+                      <>
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        Aplicando...
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-3 w-3 mr-1" />
+                        Aplicar filtros
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearAllFilters}
+                    className="text-xs h-7"
+                  >
+                    <X className="h-3 w-3 mr-1" />
+                    Limpiar todos
+                  </Button>
+                </div>
               </div>
             </div>
 
@@ -1339,24 +1679,41 @@ const ExpedicionOrdenPage = () => {
                   Error al cargar las solicitudes. Por favor intente nuevamente.
                 </div>
               ) : (
-                <SolicitudesList
-                  solicitudes={solicitudesFiltradas}
-                  onEdit={handleEdit}
-                  onView={handleView}
-                  onApprove={handleApprove}
-                  onContact={handleContact}
-                  onStandBy={handleStandBy}
-                  onReactivate={handleReactivate}
-                  onDeserto={handleDeserto}
-                  onDescartado={handleDescartado}
-                  onCancel={handleCancel}
-                  onContract={handleContract}
-                  onAssign={handleAssign}
-                  onValidateDocuments={handleValidateDocuments}
-                  onReturnDocuments={handleReturnDocuments}
-                  onCiteExams={handleCiteExams}
-                  isLoading={isLoading}
-                />
+                <>
+                  <SolicitudesList
+                    solicitudes={solicitudesFiltradas}
+                    onEdit={handleEdit}
+                    onView={handleView}
+                    onApprove={handleApprove}
+                    onContact={handleContact}
+                    onStandBy={handleStandBy}
+                    onReactivate={handleReactivate}
+                    onDeserto={handleDeserto}
+                    onDescartado={handleDescartado}
+                    onCancel={handleCancel}
+                    onContract={handleContract}
+                    onAssign={handleAssign}
+                    onValidateDocuments={handleValidateDocuments}
+                    onReturnDocuments={handleReturnDocuments}
+                    onCiteExams={handleCiteExams}
+                    isLoading={isLoading}
+                  />
+                  
+                  {/* Información de paginación y contador */}
+                  <div className="flex items-center justify-between p-4 border-t bg-gray-50">
+                    <div className="text-sm text-gray-600">
+                      Mostrando <span className="font-semibold">{solicitudesFiltradas.length}</span> de{' '}
+                      <span className="font-semibold">{totalRecords}</span> solicitudes
+                      {totalPages > 0 && (
+                        <>
+                          {' '}(Página <span className="font-semibold">{currentPage}</span> de{' '}
+                          <span className="font-semibold">{totalPages}</span>)
+                        </>
+                      )}
+                    </div>
+                    {renderPagination()}
+                  </div>
+                </>
               )}
             </div>
           </div>

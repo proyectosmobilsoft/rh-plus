@@ -2089,30 +2089,55 @@ export default function PerfilCandidato() {
                 </TabsList>
 
                   <TabsContent value="personal" className="space-y-4">
-                    {/* Primera fila */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Nombres y Apellidos separados */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div className="space-y-2">
-                        <label className="text-sm font-medium">Nombres *</label>
+                        <label className="text-sm font-medium">Primer Nombre *</label>
                         <Input 
-                          value={form.watch('nombres') || ''}
-                          onChange={(e) => form.setValue('nombres', e.target.value)}
+                          value={form.watch('primer_nombre') || ''}
+                          onChange={(e) => form.setValue('primer_nombre', e.target.value, { shouldDirty: true })}
                         />
-                        {form.formState.errors.nombres && (
-                          <p className="text-sm text-red-500">{form.formState.errors.nombres.message}</p>
+                        {form.formState.errors.primer_nombre && (
+                          <p className="text-sm text-red-500">{form.formState.errors.primer_nombre.message}</p>
                         )}
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-sm font-medium">Apellidos *</label>
-                              <Input 
-                          value={form.watch('apellidos') || ''}
-                          onChange={(e) => form.setValue('apellidos', e.target.value)}
+                        <label className="text-sm font-medium">Segundo Nombre</label>
+                        <Input 
+                          value={form.watch('segundo_nombre') || ''}
+                          onChange={(e) => form.setValue('segundo_nombre', e.target.value, { shouldDirty: true })}
                         />
-                        {form.formState.errors.apellidos && (
-                          <p className="text-sm text-red-500">{form.formState.errors.apellidos.message}</p>
+                        {form.formState.errors.segundo_nombre && (
+                          <p className="text-sm text-red-500">{form.formState.errors.segundo_nombre.message}</p>
                         )}
                       </div>
 
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Primer Apellido *</label>
+                        <Input 
+                          value={form.watch('primer_apellido') || ''}
+                          onChange={(e) => form.setValue('primer_apellido', e.target.value, { shouldDirty: true })}
+                        />
+                        {form.formState.errors.primer_apellido && (
+                          <p className="text-sm text-red-500">{form.formState.errors.primer_apellido.message}</p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Segundo Apellido</label>
+                        <Input 
+                          value={form.watch('segundo_apellido') || ''}
+                          onChange={(e) => form.setValue('segundo_apellido', e.target.value, { shouldDirty: true })}
+                        />
+                        {form.formState.errors.segundo_apellido && (
+                          <p className="text-sm text-red-500">{form.formState.errors.segundo_apellido.message}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Fecha de nacimiento y demás campos personales */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Fecha de Nacimiento *</label>
                         <div 

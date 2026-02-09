@@ -441,6 +441,501 @@ export const solicitudesService = {
     }
   },
 
+  // Paginación con filtros individuales
+  getPaginated: async (params: {
+    page: number;
+    pageSize: number;
+    empresaId?: number;
+    estado?: string;
+    solicitudId?: number;
+    numeroDocumento?: string;
+    nombreCandidato?: string;
+    cargoId?: number;
+  }): Promise<{ data: Solicitud[]; total: number; page: number; pageSize: number; totalPages: number }> => {
+    try {
+      const {
+        page,
+        pageSize,
+        empresaId: empresaIdParam,
+        estado,
+        solicitudId,
+        numeroDocumento,
+        nombreCandidato,
+        cargoId
+      } = params;
+      
+      // Obtener la empresa seleccionada del localStorage si no se proporciona como parámetro
+      let empresaId: number | undefined = empresaIdParam;
+      let analistaId: number | undefined;
+
+      if (!empresaId) {
+        try {
+          const empresaData = localStorage.getItem('empresaData');
+          if (empresaData) {
+            const empresa = JSON.parse(empresaData);
+            empresaId = empresa.id;
+            console.log("🏢 [getPaginated] Filtrando por empresa del localStorage:", empresa.razon_social, "ID:", empresaId);
+          }
+        } catch (error) {
+          console.warn("Error al obtener empresa del localStorage en getPaginated:", error);
+        }
+      }
+
+      // Obtener el analista autenticado del localStorage
+      try {
+        const userData = localStorage.getItem('userData');
+        if (userData) {
+          const user = JSON.parse(userData);
+          const isAnalyst = user.acciones && user.acciones.includes('rol_analista');
+          if (isAnalyst) {
+            analistaId = user.id;
+            console.log("👤 [getPaginated] Usuario es analista, filtrando por analista:", user.username, "ID:", analistaId);
+          }
+        }
+      } catch (error) {
+        console.warn("Error al obtener usuario del localStorage en getPaginated:", error);
+      }
+
+      // Determinar si necesitamos inner join para filtrar por candidatos
+      // Solo para numeroDocumento, el filtro de nombre se hace en el cliente
+      const needsCandidatosFilter = !!numeroDocumento;
+      
+      // Construir la consulta base para contar total
+      // Para count con inner join, necesitamos incluir los campos por los que vamos a filtrar
+      let countQuery = supabase
+        .from("hum_solicitudes")
+        .select(
+          needsCandidatosFilter
+            ? "id, candidatos!inner(id, numero_documento, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido)"
+            : "*",
+          { count: "exact", head: true }
+        );
+
+      // Construir la consulta base para obtener datos
+      let dataQuery = supabase
+        .from("hum_solicitudes")
+        .select(
+          needsCandidatosFilter
+            ? `
+          *,
+          candidatos!inner (
+            primer_nombre,
+            segundo_nombre,
+            primer_apellido,
+            segundo_apellido,
+            email,
+            tipo_documento,
+            numero_documento,
+            telefono,
+            direccion,
+            ciudad_id,
+            ciudades!ciudad_id ( nombre )
+          ),
+          empresas!empresa_id (
+            razon_social,
+            nit,
+            ciudad
+          )
+        `
+            : `
+          *,
+          candidatos!candidato_id (
+            primer_nombre,
+            segundo_nombre,
+            primer_apellido,
+            segundo_apellido,
+            email,
+            tipo_documento,
+            numero_documento,
+            telefono,
+            direccion,
+            ciudad_id,
+            ciudades!ciudad_id ( nombre )
+          ),
+          empresas!empresa_id (
+            razon_social,
+            nit,
+            ciudad
+          )
+        `
+        );
+
+      // Aplicar filtros comunes a ambas consultas
+      if (empresaId) {
+        countQuery = countQuery.eq("empresa_id", empresaId);
+        dataQuery = dataQuery.eq("empresa_id", empresaId);
+      }
+
+      if (analistaId) {
+        countQuery = countQuery.eq("analista_id", analistaId);
+        dataQuery = dataQuery.eq("analista_id", analistaId);
+      }
+
+      if (estado) {
+        countQuery = countQuery.eq("estado", estado);
+        dataQuery = dataQuery.eq("estado", estado);
+      }
+
+      if (solicitudId) {
+        countQuery = countQuery.eq("id", solicitudId);
+        dataQuery = dataQuery.eq("id", solicitudId);
+      }
+
+      if (numeroDocumento && numeroDocumento.trim()) {
+        const identPattern = `%${numeroDocumento.trim()}%`;
+        // Filtrar por campo de la relación candidatos usando la sintaxis correcta
+        // Con !inner, usamos el nombre de la relación seguido del campo
+        countQuery = countQuery.ilike("candidatos.numero_documento", identPattern);
+        dataQuery = dataQuery.ilike("candidatos.numero_documento", identPattern);
+      }
+
+      if (nombreCandidato && nombreCandidato.trim().length > 3) {
+        // PostgREST no soporta .or() directamente con campos de relaciones anidadas de manera confiable
+        // Solución: hacer múltiples consultas separadas (una por cada campo) y combinar resultados
+        // O mejor: usar una función RPC en Supabase que concatene los nombres
+        // Por ahora, vamos a hacer el filtrado en el cliente después de obtener los datos
+        // cuando hay filtro de nombre, obtenemos más datos y filtramos en el cliente
+        
+        // NOTA: Este filtro se aplicará después de obtener los datos en el cliente
+        // para evitar problemas con la sintaxis de PostgREST
+        // Se marca con un flag especial para que el código cliente sepa que debe filtrar
+      }
+
+      if (cargoId) {
+        // El cargo está en estructura_datos.cargo, necesitamos filtrar por JSON
+        // Supabase permite filtrar por JSON usando -> para acceder a propiedades
+        // Usamos -> para obtener el valor como texto (->>)
+        const cargoIdStr = cargoId.toString();
+        countQuery = countQuery.eq("estructura_datos->>cargo", cargoIdStr);
+        dataQuery = dataQuery.eq("estructura_datos->>cargo", cargoIdStr);
+      }
+
+      // Ejecutar count primero
+      // Si hay filtro de nombre, el count será aproximado porque el filtro se aplica en el cliente
+      const { count, error: countError } = await countQuery;
+
+      if (countError) {
+        console.error("Error counting solicitudes:", countError);
+        throw countError;
+      }
+
+      // Si hay filtro de nombre, el total se recalculará después del filtrado en el cliente
+      let total = count || 0;
+      let totalPages = Math.ceil(total / pageSize);
+
+      // Si hay filtro de nombre, necesitamos obtener más datos y filtrar en el cliente
+      // porque PostgREST no soporta .or() con relaciones anidadas
+      const hasNombreFilter = !!(nombreCandidato && nombreCandidato.trim().length > 3);
+      const limitForNombreFilter = hasNombreFilter ? 1000 : pageSize; // Obtener más datos si hay filtro de nombre
+      
+      // Aplicar paginación a la consulta de datos
+      const from = hasNombreFilter ? 0 : (page - 1) * pageSize;
+      const to = hasNombreFilter ? limitForNombreFilter - 1 : from + pageSize - 1;
+
+      const { data, error: dataError } = await dataQuery
+        .order("created_at", { ascending: false })
+        .range(from, to);
+
+      if (dataError) {
+        console.error("Error fetching paginated solicitudes:", dataError);
+        throw dataError;
+      }
+
+      const solicitudesBase = data || [];
+
+      // Enriquecer con analistas (igual que en getAll)
+      const analistaIds = Array.from(
+        new Set(
+          solicitudesBase
+            .map((s: any) => s.analista_id)
+            .filter((v: any) => v != null)
+        )
+      ) as number[];
+
+      const analistaMap = new Map<number, { id: number; nombre: string; email?: string }>();
+      if (analistaIds.length > 0) {
+        try {
+          const { data: analistasBatch } = await supabase
+            .from("gen_usuarios")
+            .select("id, primer_nombre, primer_apellido, username, email")
+            .in("id", analistaIds);
+          (analistasBatch || []).forEach((a: any) => {
+            analistaMap.set(a.id, {
+              id: a.id,
+              nombre: `${a.primer_nombre || ""} ${a.primer_apellido || ""}`.trim() || a.username,
+              email: a.email,
+            });
+          });
+        } catch {}
+      }
+
+      const solicitudesConAnalistas = solicitudesBase.map((s: any) => {
+        const analista = s.analista_id ? analistaMap.get(s.analista_id) : undefined;
+        return { ...s, analista };
+      });
+
+      // Enriquecer con tipos_candidatos (cargo)
+      const cargoIds = Array.from(
+        new Set(
+          solicitudesConAnalistas
+            .map((s: any) => (s.estructura_datos?.cargo != null ? Number(s.estructura_datos.cargo) : undefined))
+            .filter((v) => typeof v === "number" && !Number.isNaN(v))
+        )
+      ) as number[];
+
+      let tiposMap = new Map<number, { id: number; nombre: string; descripcion?: string }>();
+      if (cargoIds.length > 0) {
+        try {
+          const { data: tipos } = await supabase
+            .from("tipos_candidatos")
+            .select("id, nombre, descripcion")
+            .in("id", cargoIds);
+          (tipos || []).forEach((t: any) => tiposMap.set(t.id, t));
+        } catch {}
+      }
+
+      let enriquecidas = solicitudesConAnalistas.map((s: any) => {
+        const cargoId = s.estructura_datos?.cargo != null ? Number(s.estructura_datos.cargo) : undefined;
+        const tipo = cargoId ? tiposMap.get(cargoId) : undefined;
+        return { ...s, tipos_candidatos: tipo };
+      });
+
+      // Aplicar filtro de nombre en el cliente si existe
+      // (porque PostgREST no soporta .or() con relaciones anidadas de manera confiable)
+      if (hasNombreFilter) {
+        const nombreBusqueda = nombreCandidato!.trim().toLowerCase();
+        const todasLasSolicitudes = enriquecidas;
+        
+        // Filtrar por nombre completo concatenado
+        enriquecidas = todasLasSolicitudes.filter((s: any) => {
+          const candidato = s.candidatos;
+          if (!candidato) return false;
+          
+          // Construir nombre completo concatenado (primer_nombre + segundo_nombre + primer_apellido + segundo_apellido)
+          const nombreCompleto = [
+            candidato.primer_nombre || '',
+            candidato.segundo_nombre || '',
+            candidato.primer_apellido || '',
+            candidato.segundo_apellido || ''
+          ]
+            .filter(n => n.trim())
+            .join(' ')
+            .toLowerCase();
+          
+          // Buscar si el término está en cualquier parte del nombre completo
+          return nombreCompleto.includes(nombreBusqueda);
+        });
+        
+        // Recalcular total después del filtrado
+        total = enriquecidas.length;
+        totalPages = Math.ceil(total / pageSize);
+        
+        // Aplicar paginación en el cliente después del filtrado
+        const fromClient = (page - 1) * pageSize;
+        const toClient = fromClient + pageSize;
+        enriquecidas = enriquecidas.slice(fromClient, toClient);
+      }
+
+      return {
+        data: enriquecidas,
+        total,
+        page,
+        pageSize,
+        totalPages,
+      };
+    } catch (error) {
+      console.error("Error in solicitudesService.getPaginated:", error);
+      throw error;
+    }
+  },
+
+  // Búsqueda por texto para expedición de orden
+  search: async (searchTerm: string, estado?: string): Promise<Solicitud[]> => {
+    try {
+      // Obtener la empresa seleccionada del localStorage
+      let empresaId: number | undefined;
+      let analistaId: number | undefined;
+
+      try {
+        const empresaData = localStorage.getItem('empresaData');
+        if (empresaData) {
+          const empresa = JSON.parse(empresaData);
+          empresaId = empresa.id;
+          console.log("🏢 [search] Filtrando solicitudes por empresa:", empresa.razon_social, "ID:", empresaId);
+        } else {
+          console.log("🏢 [search] No hay empresa seleccionada, búsqueda sobre todas las solicitudes");
+        }
+      } catch (error) {
+        console.warn("Error al obtener empresa del localStorage en search:", error);
+      }
+
+      // Obtener el analista autenticado del localStorage
+      try {
+        const userData = localStorage.getItem('userData');
+        if (userData) {
+          const user = JSON.parse(userData);
+
+          // Solo aplicar filtro de analista si el usuario tiene el permiso "rol_analista"
+          const isAnalyst = user.acciones && user.acciones.includes('rol_analista');
+          if (isAnalyst) {
+            analistaId = user.id;
+            console.log("👤 [search] Usuario es analista, filtrando por analista:", user.username, "ID:", analistaId);
+          } else {
+            console.log("👤 [search] Usuario no es analista (rol:", user.role, "), no filtrando por analista_id");
+          }
+        } else {
+          console.log("👤 [search] No hay usuario autenticado, búsqueda sin filtro de analista");
+        }
+      } catch (error) {
+        console.warn("Error al obtener usuario del localStorage en search:", error);
+      }
+
+      // Construir la consulta base
+      let query = supabase
+        .from("hum_solicitudes")
+        .select(
+          `
+          *,
+          candidatos!candidato_id (
+            primer_nombre,
+            segundo_nombre,
+            primer_apellido,
+            segundo_apellido,
+            email,
+            tipo_documento,
+            numero_documento,
+            telefono,
+            direccion,
+            ciudad_id,
+            ciudades!ciudad_id ( nombre )
+          ),
+          empresas!empresa_id (
+            razon_social,
+            nit,
+            ciudad
+          )
+        `
+        );
+
+      // Filtro por estado si aplica
+      if (estado) {
+        query = query.eq("estado", estado);
+      }
+
+      // Aplicar filtros de negocio (empresa y analista)
+      if (empresaId) {
+        query = query.eq("empresa_id", empresaId);
+        console.log("🏢 [search] Filtrando por empresa:", empresaId);
+
+        if (analistaId) {
+          query = query.eq("analista_id", analistaId);
+          console.log("👤 [search] Filtrando adicionalmente por analista:", analistaId);
+        }
+      } else {
+        console.log("🔓 [search] Modo admin: no hay empresa, búsqueda sobre todas las solicitudes");
+      }
+
+      // Limpiar término de búsqueda para evitar caracteres problemáticos en la cláusula OR
+      const rawTerm = searchTerm.trim();
+      const safeTerm = rawTerm.replace(/[,\s]+/g, " "); // quitar comas y normalizar espacios
+      const likePattern = `%${safeTerm}%`;
+
+      const orFilters: string[] = [
+        // Identificación / número de documento
+        `numero_documento.ilike.${likePattern}`,
+        // Nombre del candidato
+        `nombres.ilike.${likePattern}`,
+        `apellidos.ilike.${likePattern}`,
+        // Cargo
+        `cargo.ilike.${likePattern}`,
+      ];
+
+      // Si el término es numérico, buscar también por ID exacto
+      const numericId = Number(safeTerm);
+      if (!Number.isNaN(numericId) && Number.isInteger(numericId)) {
+        orFilters.unshift(`id.eq.${numericId}`);
+      }
+
+      // Aplicar búsqueda OR en las columnas relevantes
+      if (orFilters.length > 0) {
+        query = query.or(orFilters.join(","));
+      }
+
+      const { data, error } = await query.order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching solicitudes in search:", error);
+        throw error;
+      }
+
+      const solicitudesBase = data || [];
+
+      // Enriquecer con analistas (igual que en getAll/getByStatus)
+      const analistaIds = Array.from(
+        new Set(
+          (solicitudesBase || [])
+            .map((s: any) => s.analista_id)
+            .filter((v: any) => v != null)
+        )
+      ) as number[];
+
+      const analistaMap = new Map<number, { id: number; nombre: string; email?: string }>();
+      if (analistaIds.length > 0) {
+        try {
+          const { data: analistasBatch } = await supabase
+            .from("gen_usuarios")
+            .select("id, primer_nombre, primer_apellido, username, email")
+            .in("id", analistaIds);
+          (analistasBatch || []).forEach((a: any) => {
+            analistaMap.set(a.id, {
+              id: a.id,
+              nombre: `${a.primer_nombre || ""} ${a.primer_apellido || ""}`.trim() || a.username,
+              email: a.email,
+            });
+          });
+        } catch {}
+      }
+
+      const solicitudesConAnalistas = (solicitudesBase || []).map((s: any) => {
+        const analista = s.analista_id ? analistaMap.get(s.analista_id) : undefined;
+        return { ...s, analista };
+      });
+
+      // Enriquecer con tipos_candidatos (cargo)
+      const cargoIds = Array.from(
+        new Set(
+          solicitudesConAnalistas
+            .map((s: any) =>
+              s.estructura_datos?.cargo != null ? Number(s.estructura_datos.cargo) : undefined
+            )
+            .filter((v) => typeof v === "number" && !Number.isNaN(v))
+        )
+      ) as number[];
+
+      let tiposMap = new Map<number, { id: number; nombre: string; descripcion?: string }>();
+      if (cargoIds.length > 0) {
+        try {
+          const { data: tipos } = await supabase
+            .from("tipos_candidatos")
+            .select("id, nombre, descripcion")
+            .in("id", cargoIds);
+          (tipos || []).forEach((t: any) => tiposMap.set(t.id, t));
+        } catch {}
+      }
+
+      const enriquecidas = solicitudesConAnalistas.map((s: any) => {
+        const cargoId = s.estructura_datos?.cargo != null ? Number(s.estructura_datos.cargo) : undefined;
+        const tipo = cargoId ? tiposMap.get(cargoId) : undefined;
+        return { ...s, tipos_candidatos: tipo };
+      });
+
+      return enriquecidas;
+    } catch (error) {
+      console.error("Error in solicitudesService.search:", error);
+      throw error;
+    }
+  },
+
   getByStatus: async (estado: string): Promise<Solicitud[]> => {
     try {
       // Obtener la empresa seleccionada del localStorage
