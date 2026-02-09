@@ -16,14 +16,14 @@ interface FormRendererProps {
   readOnly?: boolean; // Nuevo: modo solo lectura
 }
 
-const FormRenderer: React.FC<FormRendererProps> = ({ 
-  estructura, 
-  hideFieldLabels, 
-  initialData = {}, 
+const FormRenderer: React.FC<FormRendererProps> = ({
+  estructura,
+  hideFieldLabels,
+  initialData = {},
   onSave,
-  onCancel, 
+  onCancel,
   showButtons = false,
-  readOnly = false 
+  readOnly = false
 }) => {
   const [formData, setFormData] = React.useState<Record<string, any>>(initialData);
 
@@ -31,13 +31,13 @@ const FormRenderer: React.FC<FormRendererProps> = ({
   const calculateMinDate = (diasMinimos: number | string): Date | undefined => {
     // Convertir a número si viene como string
     const diasMinimosNum = typeof diasMinimos === 'string' ? parseInt(diasMinimos, 10) : diasMinimos;
-    
+
     if (!diasMinimosNum || diasMinimosNum <= 0 || isNaN(diasMinimosNum)) return undefined;
-    
+
     const today = new Date();
     // Crear la fecha mínima sumando los días, normalizada al inicio del día
     const minDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + diasMinimosNum);
-    
+
     return minDate;
   };
 
@@ -45,29 +45,31 @@ const FormRenderer: React.FC<FormRendererProps> = ({
   const isDateDisabled = (day: Date, diasMinimos: number | string): boolean => {
     // Convertir a número si viene como string
     const diasMinimosNum = typeof diasMinimos === 'string' ? parseInt(diasMinimos, 10) : diasMinimos;
-    
+
     if (!diasMinimosNum || diasMinimosNum <= 0 || isNaN(diasMinimosNum)) return false;
-    
+
     const today = new Date();
     const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const dayOnly = new Date(day.getFullYear(), day.getMonth(), day.getDate());
-    
+
     // Desactivar días anteriores a hoy Y días del rango configurado
     const maxDisabledDate = new Date(todayOnly);
     maxDisabledDate.setDate(todayOnly.getDate() + diasMinimosNum); // +diasMinimos (no -1)
-    
+
     // Desactivar si es anterior a hoy O está en el rango de días mínimos
     return dayOnly < todayOnly || (dayOnly >= todayOnly && dayOnly <= maxDisabledDate);
   };
-  
-  
+
+
   // Hook para obtener tipos de candidatos
   const { data: tiposCandidatos = [], isLoading: isLoadingTiposCandidatos } = useTiposCandidatos();
-  
+
   // Hook para obtener datos dinámicos de la base de datos
   const { data: sucursales = [], isLoading: isLoadingSucursales } = useDatabaseData('gen_sucursales');
   const { data: centrosCosto = [], isLoading: isLoadingCentrosCosto } = useDatabaseData('centros_costo');
   const { data: ciudades = [], isLoading: isLoadingCiudades } = useDatabaseData('ciudades');
+  const { data: proyectos = [], isLoading: isLoadingProyectos } = useDatabaseData('gen_proyectos');
+  const { data: areaNegocio = [], isLoading: isLoadingAreaNegocio } = useDatabaseData('gen_areas_negocios');
 
   // Función helper para obtener datos dinámicos según configuración del campo
   const getDynamicData = (campo: any) => {
@@ -84,6 +86,10 @@ const FormRenderer: React.FC<FormRendererProps> = ({
         return { data: centrosCosto, isLoading: isLoadingCentrosCosto };
       case 'ciudades':
         return { data: ciudades, isLoading: isLoadingCiudades };
+      case 'gen_proyectos':
+        return { data: proyectos, isLoading: isLoadingProyectos };
+      case 'gen_areas_negocios':
+        return { data: areaNegocio, isLoading: isLoadingAreaNegocio };
       default:
         return { data: [], isLoading: false };
     }
@@ -108,20 +114,20 @@ const FormRenderer: React.FC<FormRendererProps> = ({
   const handleSave = () => {
     // Validar campos antes de guardar
     const validationErrors: string[] = [];
-    
+
     // Obtener los campos de la estructura
     const campos = estructura?.secciones?.flatMap((seccion: any) => seccion.campos || []) || [];
-    
+
     // Validar cada campo
     campos.forEach((campo: any) => {
       const fieldName = campo.nombre;
       const value = formData[fieldName];
-      
+
       // Validar campos requeridos
       if (campo.required && (!value || String(value).trim() === '')) {
         validationErrors.push(`El campo "${campo.label}" es requerido`);
       }
-      
+
       // Validar minLength para campos tipo number o text (especialmente documento)
       if (campo.minLength && value) {
         const valueLength = String(value).length;
@@ -129,7 +135,7 @@ const FormRenderer: React.FC<FormRendererProps> = ({
           validationErrors.push(`El campo "${campo.label}" debe tener al menos ${campo.minLength} dígitos`);
         }
       }
-      
+
       // Validar campos de tipo email
       if (campo.tipo === 'email' && value) {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -138,7 +144,7 @@ const FormRenderer: React.FC<FormRendererProps> = ({
         }
       }
     });
-    
+
     // Si hay errores, mostrarlos y no guardar
     if (validationErrors.length > 0) {
       toast.error('Errores de validación', {
@@ -149,7 +155,7 @@ const FormRenderer: React.FC<FormRendererProps> = ({
       });
       return;
     }
-    
+
     if (onSave) {
       onSave(formData);
     }
@@ -203,7 +209,7 @@ const FormRenderer: React.FC<FormRendererProps> = ({
           </option>
         );
       }
-      
+
       // Si la opción es un string o número
       return (
         <option key={opcionIndex} value={String(opcion)}>
@@ -290,7 +296,7 @@ const FormRenderer: React.FC<FormRendererProps> = ({
           )}
 
           {tipo === 'select' && (
-            <select 
+            <select
               value={value}
               onChange={readOnly ? undefined : (e) => handleFieldChange(fieldName, e.target.value)}
               className="w-full max-w-md px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors"
@@ -330,7 +336,7 @@ const FormRenderer: React.FC<FormRendererProps> = ({
 
           {/* Campo cargo como texto - convertirlo automáticamente a select */}
           {tipo === 'text' && (fieldName === 'cargo' || label.toLowerCase().includes('cargo')) && (
-            <select 
+            <select
               value={value}
               onChange={readOnly ? undefined : (e) => handleFieldChange(fieldName, e.target.value)}
               className="w-full max-w-md px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors"
@@ -430,241 +436,241 @@ const FormRenderer: React.FC<FormRendererProps> = ({
           {Array.isArray(campos) && campos
             .sort((a, b) => (a.order || 0) - (b.order || 0)) // Ordenar por order
             .map((campo: any, campoIndex: number) => {
-            // Calcular el colspan del campo de manera simple y directa
-            let fieldWidth = 'col-span-12'; // Por defecto ocupa toda la fila
-            let customStyle: { 
-              width?: string;
-              maxWidth?: string;
-            } = {}; // Para valores problemáticos
-            
-            // Función para calcular el ancho del campo
-            const calcularAnchoCampo = (span: number) => {
-              if ([5, 6, 7, 9, 10, 11].includes(span)) {
-                // Para valores problemáticos, usar width personalizado con un poco menos de ancho
-                const porcentaje = (span / 12) * 100 * 0.9; // Reducir un 10% del ancho
-                return {
-                  fieldWidth: 'col-span-12',
-                  customStyle: {
-                    width: `${porcentaje}%`,
-                    maxWidth: `${porcentaje}%`
-                  }
-                };
-              } else {
-                // Para valores que funcionan bien con Tailwind
-                return {
-                  fieldWidth: `col-span-${span}`,
-                  customStyle: {}
-                };
-              }
-            };
-            
-            if (campo.colspan) {
-              if (typeof campo.colspan === 'string') {
-                if (campo.colspan.startsWith('col-span-')) {
-                  // Extraer el número de la clase col-span-X
-                  const match = campo.colspan.match(/col-span-(\d+)/);
-                  if (match) {
-                    const span = parseInt(match[1]);
-                    const resultado = calcularAnchoCampo(span);
-                    fieldWidth = resultado.fieldWidth;
-                    customStyle = resultado.customStyle;
+              // Calcular el colspan del campo de manera simple y directa
+              let fieldWidth = 'col-span-12'; // Por defecto ocupa toda la fila
+              let customStyle: {
+                width?: string;
+                maxWidth?: string;
+              } = {}; // Para valores problemáticos
+
+              // Función para calcular el ancho del campo
+              const calcularAnchoCampo = (span: number) => {
+                if ([5, 6, 7, 9, 10, 11].includes(span)) {
+                  // Para valores problemáticos, usar width personalizado con un poco menos de ancho
+                  const porcentaje = (span / 12) * 100 * 0.9; // Reducir un 10% del ancho
+                  return {
+                    fieldWidth: 'col-span-12',
+                    customStyle: {
+                      width: `${porcentaje}%`,
+                      maxWidth: `${porcentaje}%`
+                    }
+                  };
+                } else {
+                  // Para valores que funcionan bien con Tailwind
+                  return {
+                    fieldWidth: `col-span-${span}`,
+                    customStyle: {}
+                  };
+                }
+              };
+
+              if (campo.colspan) {
+                if (typeof campo.colspan === 'string') {
+                  if (campo.colspan.startsWith('col-span-')) {
+                    // Extraer el número de la clase col-span-X
+                    const match = campo.colspan.match(/col-span-(\d+)/);
+                    if (match) {
+                      const span = parseInt(match[1]);
+                      const resultado = calcularAnchoCampo(span);
+                      fieldWidth = resultado.fieldWidth;
+                      customStyle = resultado.customStyle;
+                    } else {
+                      fieldWidth = campo.colspan;
+                    }
+                  } else if (campo.colspan.match(/^\d+$/)) {
+                    // Si es un número en string, convertirlo
+                    const span = parseInt(campo.colspan);
+                    if (span >= 1 && span <= 12) {
+                      const resultado = calcularAnchoCampo(span);
+                      fieldWidth = resultado.fieldWidth;
+                      customStyle = resultado.customStyle;
+                    }
                   } else {
+                    // Si es otro string, intentar usarlo como está
                     fieldWidth = campo.colspan;
                   }
-                } else if (campo.colspan.match(/^\d+$/)) {
-                  // Si es un número en string, convertirlo
-                  const span = parseInt(campo.colspan);
-                  if (span >= 1 && span <= 12) {
-                    const resultado = calcularAnchoCampo(span);
-                    fieldWidth = resultado.fieldWidth;
-                    customStyle = resultado.customStyle;
-                  }
-                } else {
-                  // Si es otro string, intentar usarlo como está
-                  fieldWidth = campo.colspan;
+                } else if (typeof campo.colspan === 'number') {
+                  const span = Math.min(Math.max(campo.colspan, 1), 12);
+                  const resultado = calcularAnchoCampo(span);
+                  fieldWidth = resultado.fieldWidth;
+                  customStyle = resultado.customStyle;
                 }
-              } else if (typeof campo.colspan === 'number') {
-                const span = Math.min(Math.max(campo.colspan, 1), 12);
+              } else if (campo.dimension) {
+                const span = Math.min(Math.max(campo.dimension, 1), 12);
                 const resultado = calcularAnchoCampo(span);
                 fieldWidth = resultado.fieldWidth;
                 customStyle = resultado.customStyle;
+              } else if (campo.gridColumnSpan) {
+                const match = campo.gridColumnSpan.match(/span (\d+)/);
+                if (match) {
+                  const span = Math.min(Math.max(parseInt(match[1]), 1), 12);
+                  const resultado = calcularAnchoCampo(span);
+                  fieldWidth = resultado.fieldWidth;
+                  customStyle = resultado.customStyle;
+                }
               }
-            } else if (campo.dimension) {
-              const span = Math.min(Math.max(campo.dimension, 1), 12);
-              const resultado = calcularAnchoCampo(span);
-              fieldWidth = resultado.fieldWidth;
-              customStyle = resultado.customStyle;
-            } else if (campo.gridColumnSpan) {
-              const match = campo.gridColumnSpan.match(/span (\d+)/);
-              if (match) {
-                const span = Math.min(Math.max(parseInt(match[1]), 1), 12);
-                const resultado = calcularAnchoCampo(span);
-                fieldWidth = resultado.fieldWidth;
-                customStyle = resultado.customStyle;
-              }
-            }
-            
-            return (
-              <div 
-                key={campoIndex} 
-                className={`space-y-2 ${fieldWidth}`}
-                style={customStyle}
-              >
-                {/* Label del campo */}
-                <div className="flex items-center gap-2">
-                  <label className="font-medium text-sm text-gray-700">
-                    {String(campo.label || campo.nombre || `Campo ${campoIndex}`)}
-                    {!hideFieldLabels && campo.required && <span className="text-red-500 ml-1">*</span>}
-                  </label>
-                  {!hideFieldLabels && (
-                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                      {String(campo.tipo || 'text')}
-                    </span>
-                  )}
-                  {!hideFieldLabels && (
-                    <span className="text-xs text-blue-500 bg-blue-100 px-2 py-1 rounded">
-                      {campo.colspan || campo.dimension || '12'} cols
-                    </span>
-                  )}
-                </div>
 
-                {/* Renderizado del campo según su tipo */}
-                <div className="ml-2">
-                  {campo.tipo === 'text' && (
-                    <input
-                      type="text"
-                      value={formData[campo.nombre] || ''}
-                      onChange={readOnly ? undefined : (e) => handleFieldChange(campo.nombre, e.target.value)}
-                      placeholder={String(campo.placeholder || `Ingrese ${(campo.label || '').toLowerCase()}`)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                      disabled={readOnly}
-                    />
-                  )}
-
-                  {campo.tipo === 'textarea' && (
-                    <textarea
-                      value={formData[campo.nombre] || ''}
-                      onChange={readOnly ? undefined : (e) => handleFieldChange(campo.nombre, e.target.value)}
-                      placeholder={String(campo.placeholder || `Ingrese ${(campo.label || '').toLowerCase()}`)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm min-h-[80px] resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                      disabled={readOnly}
-                    />
-                  )}
-
-                  {campo.tipo === 'date' && (
-                    <CustomDatePicker
-                      value={formData[campo.nombre] ? new Date(formData[campo.nombre] + 'T00:00:00') : null}
-                      onChange={(date) => {
-                        if (date) {
-                          // Crear fecha local sin problemas de zona horaria
-                          const year = date.getFullYear();
-                          const month = String(date.getMonth() + 1).padStart(2, '0');
-                          const day = String(date.getDate()).padStart(2, '0');
-                          const dateString = `${year}-${month}-${day}`;
-                          handleFieldChange(campo.nombre, dateString);
-                        } else {
-                          handleFieldChange(campo.nombre, '');
-                        }
-                      }}
-                      placeholder={String(campo.placeholder || 'Seleccione una fecha')}
-                      className="w-full"
-                      disabled={readOnly}
-                      minDate={calculateMinDate(campo.diasMinimos)}
-                      diasMinimos={campo.diasMinimos}
-                      isDateDisabled={isDateDisabled}
-                    />
-                  )}
-
-                  {campo.tipo === 'select' && (
-                    <select 
-                      value={formData[campo.nombre] || ''}
-                      onChange={readOnly ? undefined : (e) => handleFieldChange(campo.nombre, e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                      disabled={readOnly}
-                    >
-                      <option value="">{String(campo.placeholder || 'Seleccione una opción')}</option>
-                      {campo.dataSource === 'database' ? (
-                        // Cargar opciones desde la base de datos usando la nueva configuración
-                        (() => {
-                          const { data: dynamicData, isLoading: isLoadingDynamic } = getDynamicData(campo);
-                          if (isLoadingDynamic) {
-                            return <option value="" disabled>Cargando opciones...</option>;
-                          }
-                          return dynamicData.map((item: any) => {
-                            const displayValue = item[campo.databaseField || 'nombre'];
-                            const selectValue = item[campo.databaseValueField || 'nombre'];
-                            return (
-                              <option key={item.id} value={selectValue}>
-                                {displayValue}
-                              </option>
-                            );
-                          });
-                        })()
-                      ) : campo.opciones === 'tipos_candidatos' ? (
-                        // Compatibilidad hacia atrás: carga desde tipos_candidatos
-                        tiposCandidatos.map((tipo) => (
-                          <option key={tipo.id} value={tipo.nombre}>
-                            {tipo.nombre}
-                          </option>
-                        ))
-                      ) : (
-                        // Usar opciones estáticas
-                        renderSelectOptions(campo.opciones)
-                      )}
-                    </select>
-                  )}
-
-                  {campo.tipo === 'checkbox' && (
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={formData[campo.nombre] || false}
-                        onChange={readOnly ? undefined : (e) => handleFieldChange(campo.nombre, e.target.checked)}
-                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-                        disabled={readOnly}
-                      />
-                      <span className="text-sm text-gray-600">
-                        {String(campo.label || campo.nombre)}
+              return (
+                <div
+                  key={campoIndex}
+                  className={`space-y-2 ${fieldWidth}`}
+                  style={customStyle}
+                >
+                  {/* Label del campo */}
+                  <div className="flex items-center gap-2">
+                    <label className="font-medium text-sm text-gray-700">
+                      {String(campo.label || campo.nombre || `Campo ${campoIndex}`)}
+                      {!hideFieldLabels && campo.required && <span className="text-red-500 ml-1">*</span>}
+                    </label>
+                    {!hideFieldLabels && (
+                      <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                        {String(campo.tipo || 'text')}
                       </span>
-                    </div>
-                  )}
-
-                  {campo.tipo === 'number' && (
-                    <input
-                      type="number"
-                      value={formData[campo.nombre] || ''}
-                      onChange={readOnly ? undefined : (e) => handleFieldChange(campo.nombre, e.target.value)}
-                      placeholder={String(campo.placeholder || `Ingrese ${(campo.label || '').toLowerCase()}`)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      disabled={readOnly}
-                    />
-                  )}
-
-                  {campo.tipo === 'email' && (
-                    <input
-                      type="email"
-                      value={formData[campo.nombre] || ''}
-                      onChange={readOnly ? undefined : (e) => handleFieldChange(campo.nombre, e.target.value)}
-                      placeholder={String(campo.placeholder || `Ingrese ${(campo.label || '').toLowerCase()}`)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      disabled={readOnly}
-                    />
-                  )}
-
-                  {/* Información adicional del campo */}
-                  <div className="mt-1 text-xs text-gray-500">
-                    {!hideFieldLabels && campo.required && <span className="text-red-500">Campo requerido</span>}
-                    {!hideFieldLabels && !campo.required && <span className="text-gray-400">Campo opcional</span>}
-                    {campo.validacion && (
-                      <span className="ml-2">
-                        • Validación: {String(campo.validacion)}
+                    )}
+                    {!hideFieldLabels && (
+                      <span className="text-xs text-blue-500 bg-blue-100 px-2 py-1 rounded">
+                        {campo.colspan || campo.dimension || '12'} cols
                       </span>
                     )}
                   </div>
+
+                  {/* Renderizado del campo según su tipo */}
+                  <div className="ml-2">
+                    {campo.tipo === 'text' && (
+                      <input
+                        type="text"
+                        value={formData[campo.nombre] || ''}
+                        onChange={readOnly ? undefined : (e) => handleFieldChange(campo.nombre, e.target.value)}
+                        placeholder={String(campo.placeholder || `Ingrese ${(campo.label || '').toLowerCase()}`)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                        disabled={readOnly}
+                      />
+                    )}
+
+                    {campo.tipo === 'textarea' && (
+                      <textarea
+                        value={formData[campo.nombre] || ''}
+                        onChange={readOnly ? undefined : (e) => handleFieldChange(campo.nombre, e.target.value)}
+                        placeholder={String(campo.placeholder || `Ingrese ${(campo.label || '').toLowerCase()}`)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm min-h-[80px] resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                        disabled={readOnly}
+                      />
+                    )}
+
+                    {campo.tipo === 'date' && (
+                      <CustomDatePicker
+                        value={formData[campo.nombre] ? new Date(formData[campo.nombre] + 'T00:00:00') : null}
+                        onChange={(date) => {
+                          if (date) {
+                            // Crear fecha local sin problemas de zona horaria
+                            const year = date.getFullYear();
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const day = String(date.getDate()).padStart(2, '0');
+                            const dateString = `${year}-${month}-${day}`;
+                            handleFieldChange(campo.nombre, dateString);
+                          } else {
+                            handleFieldChange(campo.nombre, '');
+                          }
+                        }}
+                        placeholder={String(campo.placeholder || 'Seleccione una fecha')}
+                        className="w-full"
+                        disabled={readOnly}
+                        minDate={calculateMinDate(campo.diasMinimos)}
+                        diasMinimos={campo.diasMinimos}
+                        isDateDisabled={isDateDisabled}
+                      />
+                    )}
+
+                    {campo.tipo === 'select' && (
+                      <select
+                        value={formData[campo.nombre] || ''}
+                        onChange={readOnly ? undefined : (e) => handleFieldChange(campo.nombre, e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                        disabled={readOnly}
+                      >
+                        <option value="">{String(campo.placeholder || 'Seleccione una opción')}</option>
+                        {campo.dataSource === 'database' ? (
+                          // Cargar opciones desde la base de datos usando la nueva configuración
+                          (() => {
+                            const { data: dynamicData, isLoading: isLoadingDynamic } = getDynamicData(campo);
+                            if (isLoadingDynamic) {
+                              return <option value="" disabled>Cargando opciones...</option>;
+                            }
+                            return dynamicData.map((item: any) => {
+                              const displayValue = item[campo.databaseField || 'nombre'];
+                              const selectValue = item[campo.databaseValueField || 'nombre'];
+                              return (
+                                <option key={item.id} value={selectValue}>
+                                  {displayValue}
+                                </option>
+                              );
+                            });
+                          })()
+                        ) : campo.opciones === 'tipos_candidatos' ? (
+                          // Compatibilidad hacia atrás: carga desde tipos_candidatos
+                          tiposCandidatos.map((tipo) => (
+                            <option key={tipo.id} value={tipo.nombre}>
+                              {tipo.nombre}
+                            </option>
+                          ))
+                        ) : (
+                          // Usar opciones estáticas
+                          renderSelectOptions(campo.opciones)
+                        )}
+                      </select>
+                    )}
+
+                    {campo.tipo === 'checkbox' && (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={formData[campo.nombre] || false}
+                          onChange={readOnly ? undefined : (e) => handleFieldChange(campo.nombre, e.target.checked)}
+                          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                          disabled={readOnly}
+                        />
+                        <span className="text-sm text-gray-600">
+                          {String(campo.label || campo.nombre)}
+                        </span>
+                      </div>
+                    )}
+
+                    {campo.tipo === 'number' && (
+                      <input
+                        type="number"
+                        value={formData[campo.nombre] || ''}
+                        onChange={readOnly ? undefined : (e) => handleFieldChange(campo.nombre, e.target.value)}
+                        placeholder={String(campo.placeholder || `Ingrese ${(campo.label || '').toLowerCase()}`)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        disabled={readOnly}
+                      />
+                    )}
+
+                    {campo.tipo === 'email' && (
+                      <input
+                        type="email"
+                        value={formData[campo.nombre] || ''}
+                        onChange={readOnly ? undefined : (e) => handleFieldChange(campo.nombre, e.target.value)}
+                        placeholder={String(campo.placeholder || `Ingrese ${(campo.label || '').toLowerCase()}`)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        disabled={readOnly}
+                      />
+                    )}
+
+                    {/* Información adicional del campo */}
+                    <div className="mt-1 text-xs text-gray-500">
+                      {!hideFieldLabels && campo.required && <span className="text-red-500">Campo requerido</span>}
+                      {!hideFieldLabels && !campo.required && <span className="text-gray-400">Campo opcional</span>}
+                      {campo.validacion && (
+                        <span className="ml-2">
+                          • Validación: {String(campo.validacion)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
         </div>
       </div>
     );
@@ -709,5 +715,5 @@ const FormRenderer: React.FC<FormRendererProps> = ({
   );
 };
 
-export default FormRenderer; 
+export default FormRenderer;
 
