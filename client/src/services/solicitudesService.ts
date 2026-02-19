@@ -20,23 +20,23 @@ const getUsuarioId = (): number | undefined => {
 // Función auxiliar para obtener el nombre del cargo por ID
 async function obtenerNombreCargo(cargoId: any): Promise<string> {
   if (!cargoId) return "-";
-  
+
   // Si ya es un string (nombre), devolverlo
   if (typeof cargoId === 'string' && isNaN(Number(cargoId))) {
     return cargoId;
   }
-  
+
   // Si es un número o string numérico, buscar en la base de datos
   const id = Number(cargoId);
   if (isNaN(id)) return "-";
-  
+
   try {
     const { data: tipoCandidato } = await supabase
       .from('tipos_candidatos')
       .select('nombre')
       .eq('id', id)
       .single();
-    
+
     return tipoCandidato?.nombre || `Cargo #${id}`;
   } catch (error) {
     console.warn('Error obteniendo nombre del cargo:', error);
@@ -134,51 +134,51 @@ export interface Solicitud {
 // Función helper para obtener ciudad_id desde diferentes variaciones del campo
 const obtenerCiudadId = (datos: Record<string, any>): number | undefined => {
   // Buscar en diferentes variaciones del nombre del campo
-  const ciudadValue = datos.ciudad_id || datos.ciudad || datos.Ciudad || 
-                     datos[normalizeCampo('ciudad_id')] || datos[normalizeCampo('ciudad')] ||
-                     datos[normalizeCampo('Ciudad')];
-  
+  const ciudadValue = datos.ciudad_id || datos.ciudad || datos.Ciudad ||
+    datos[normalizeCampo('ciudad_id')] || datos[normalizeCampo('ciudad')] ||
+    datos[normalizeCampo('Ciudad')];
+
   // Si es un número, retornarlo directamente
   if (typeof ciudadValue === 'number') {
     return ciudadValue;
   }
-  
+
   // Si es un string que parece ser un número, convertirlo
   if (typeof ciudadValue === 'string' && /^\d+$/.test(ciudadValue.trim())) {
     const numValue = parseInt(ciudadValue.trim(), 10);
     return isNaN(numValue) ? undefined : numValue;
   }
-  
+
   // Si no es válido, retornar undefined
   return undefined;
 };
 
 // Función auxiliar para crear candidato de manera segura
 const crearCandidatoSeguro = async (datosNormalizados: Record<string, any>, solicitud: any): Promise<number | null> => {
-  const numeroDocumento = datosNormalizados.numero_documento || 
-    datosNormalizados.documento || 
-    datosNormalizados.cedula || 
-    datosNormalizados.cedula_ciudadania || 
+  const numeroDocumento = datosNormalizados.numero_documento ||
+    datosNormalizados.documento ||
+    datosNormalizados.cedula ||
+    datosNormalizados.cedula_ciudadania ||
     datosNormalizados.cedulaciudadania ||
     datosNormalizados.identificacion;
   const email = datosNormalizados.email || datosNormalizados.correo_electronico || datosNormalizados.correo;
-  
+
   if (!numeroDocumento || !email) {
     throw new Error("❌ ERROR: Faltan datos obligatorios del candidato (documento y email)");
   }
 
   // Función para extraer nombres de manera inteligente
   const extractNames = (data: Record<string, any>) => {
-    const nombreCompleto = data.nombre_completo || data.nombrecompleto || 
-                         data.nombres || data.nombre || data.nombres_completos ||
-                         data.nombre_y_apellidos || data.nombre_apellidos ||
-                         data.nombre_completo_candidato || data.nombre_candidato ||
-                         data.nombrecompleto || data.nombrescompletos ||
-                         data.nombreyapellidos || data.nombreapellidos;
-    
+    const nombreCompleto = data.nombre_completo || data.nombrecompleto ||
+      data.nombres || data.nombre || data.nombres_completos ||
+      data.nombre_y_apellidos || data.nombre_apellidos ||
+      data.nombre_completo_candidato || data.nombre_candidato ||
+      data.nombrecompleto || data.nombrescompletos ||
+      data.nombreyapellidos || data.nombreapellidos;
+
     if (nombreCompleto && typeof nombreCompleto === 'string' && nombreCompleto.trim()) {
       const partes = nombreCompleto.trim().split(/\s+/).filter(parte => parte.length > 0);
-      
+
       if (partes.length >= 2) {
         if (partes.length === 2) {
           return {
@@ -211,7 +211,7 @@ const crearCandidatoSeguro = async (datosNormalizados: Record<string, any>, soli
         }
       }
     }
-    
+
     return {
       primer_nombre: data.primer_nombre || data.nombre || data.nombres || '',
       segundo_nombre: data.segundo_nombre || '',
@@ -241,13 +241,13 @@ const crearCandidatoSeguro = async (datosNormalizados: Record<string, any>, soli
       (candidatoPayload as any)[map[key]] = v;
     }
   }
-  
+
   // Manejar ciudad_id desde diferentes variaciones (ciudad, ciudad_id, Ciudad)
   const ciudadId = obtenerCiudadId(datosNormalizados);
   if (ciudadId !== undefined) {
     candidatoPayload.ciudad_id = ciudadId;
   }
-  
+
   // Asignar empresa_id
   if (solicitud.empresa_id) {
     candidatoPayload.empresa_id = solicitud.empresa_id;
@@ -283,7 +283,7 @@ export const solicitudesService = {
       // Obtener la empresa seleccionada del localStorage
       let empresaId: number | undefined;
       let analistaId: number | undefined;
-      
+
       try {
         const empresaData = localStorage.getItem('empresaData');
         if (empresaData) {
@@ -292,7 +292,7 @@ export const solicitudesService = {
         } else {
         }
       } catch (error) {
-        
+
       }
 
       // Obtener el analista autenticado del localStorage
@@ -300,11 +300,11 @@ export const solicitudesService = {
         const userData = localStorage.getItem('userData');
         if (userData) {
           const user = JSON.parse(userData);
-          
+
           // Solo aplicar filtro de analista si el usuario tiene el permiso "rol_analista"
           const isAnalyst = user.acciones && user.acciones.includes('rol_analista');
           if (isAnalyst) {
-          analistaId = user.id;
+            analistaId = user.id;
           } else {
           }
         } else {
@@ -343,7 +343,7 @@ export const solicitudesService = {
       // Aplicar filtros según la lógica de negocio
       // PRIORIDAD 1: Empresa (siempre filtrar por empresa si existe)
       // PRIORIDAD 2: Analista (filtrar adicionalmente por analista si existe userData)
-      
+
       if (empresaId) {
         // SIEMPRE filtrar por empresa si existe
         query = query.eq('empresa_id', empresaId);
@@ -359,7 +359,7 @@ export const solicitudesService = {
       const { data, error } = await query.order("created_at", { ascending: false });
 
       if (error) {
-       
+
         throw error;
       }
 
@@ -389,7 +389,7 @@ export const solicitudesService = {
               email: a.email,
             });
           });
-        } catch {}
+        } catch { }
       }
 
       const solicitudesConAnalistas = (solicitudesBase || []).map((s: any) => {
@@ -414,7 +414,7 @@ export const solicitudesService = {
             .select('id, nombre, descripcion')
             .in('id', cargoIds);
           (tipos || []).forEach((t: any) => tiposMap.set(t.id, t));
-        } catch {}
+        } catch { }
       }
 
       // 3) Adjuntar tipos_candidatos
@@ -425,7 +425,7 @@ export const solicitudesService = {
       });
 
       return enriquecidas;
-    } catch (error) {      
+    } catch (error) {
       throw error;
     }
   },
@@ -452,7 +452,7 @@ export const solicitudesService = {
         nombreCandidato,
         cargoId
       } = params;
-      
+
       // Obtener la empresa seleccionada del localStorage si no se proporciona como parámetro
       let empresaId: number | undefined = empresaIdParam;
       let analistaId: number | undefined;
@@ -488,7 +488,7 @@ export const solicitudesService = {
       // Determinar si necesitamos inner join para filtrar por candidatos
       // Solo para numeroDocumento, el filtro de nombre se hace en el cliente
       const needsCandidatosFilter = !!numeroDocumento;
-      
+
       // Construir la consulta base para contar total
       // Para count con inner join, necesitamos incluir los campos por los que vamos a filtrar
       let countQuery = supabase
@@ -584,7 +584,7 @@ export const solicitudesService = {
         // O mejor: usar una función RPC en Supabase que concatene los nombres
         // Por ahora, vamos a hacer el filtrado en el cliente después de obtener los datos
         // cuando hay filtro de nombre, obtenemos más datos y filtramos en el cliente
-        
+
         // NOTA: Este filtro se aplicará después de obtener los datos en el cliente
         // para evitar problemas con la sintaxis de PostgREST
         // Se marca con un flag especial para que el código cliente sepa que debe filtrar
@@ -616,7 +616,7 @@ export const solicitudesService = {
       // porque PostgREST no soporta .or() con relaciones anidadas
       const hasNombreFilter = !!(nombreCandidato && nombreCandidato.trim().length > 3);
       const limitForNombreFilter = hasNombreFilter ? 1000 : pageSize; // Obtener más datos si hay filtro de nombre
-      
+
       // Aplicar paginación a la consulta de datos
       const from = hasNombreFilter ? 0 : (page - 1) * pageSize;
       const to = hasNombreFilter ? limitForNombreFilter - 1 : from + pageSize - 1;
@@ -655,7 +655,7 @@ export const solicitudesService = {
               email: a.email,
             });
           });
-        } catch {}
+        } catch { }
       }
 
       const solicitudesConAnalistas = solicitudesBase.map((s: any) => {
@@ -680,7 +680,7 @@ export const solicitudesService = {
             .select("id, nombre, descripcion")
             .in("id", cargoIds);
           (tipos || []).forEach((t: any) => tiposMap.set(t.id, t));
-        } catch {}
+        } catch { }
       }
 
       let enriquecidas = solicitudesConAnalistas.map((s: any) => {
@@ -694,12 +694,12 @@ export const solicitudesService = {
       if (hasNombreFilter) {
         const nombreBusqueda = nombreCandidato!.trim().toLowerCase();
         const todasLasSolicitudes = enriquecidas;
-        
+
         // Filtrar por nombre completo concatenado
         enriquecidas = todasLasSolicitudes.filter((s: any) => {
           const candidato = s.candidatos;
           if (!candidato) return false;
-          
+
           // Construir nombre completo concatenado (primer_nombre + segundo_nombre + primer_apellido + segundo_apellido)
           const nombreCompleto = [
             candidato.primer_nombre || '',
@@ -710,15 +710,15 @@ export const solicitudesService = {
             .filter(n => n.trim())
             .join(' ')
             .toLowerCase();
-          
+
           // Buscar si el término está en cualquier parte del nombre completo
           return nombreCompleto.includes(nombreBusqueda);
         });
-        
+
         // Recalcular total después del filtrado
         total = enriquecidas.length;
         totalPages = Math.ceil(total / pageSize);
-        
+
         // Aplicar paginación en el cliente después del filtrado
         const fromClient = (page - 1) * pageSize;
         const toClient = fromClient + pageSize;
@@ -882,7 +882,7 @@ export const solicitudesService = {
               email: a.email,
             });
           });
-        } catch {}
+        } catch { }
       }
 
       const solicitudesConAnalistas = (solicitudesBase || []).map((s: any) => {
@@ -909,7 +909,7 @@ export const solicitudesService = {
             .select("id, nombre, descripcion")
             .in("id", cargoIds);
           (tipos || []).forEach((t: any) => tiposMap.set(t.id, t));
-        } catch {}
+        } catch { }
       }
 
       const enriquecidas = solicitudesConAnalistas.map((s: any) => {
@@ -930,7 +930,7 @@ export const solicitudesService = {
       // Obtener la empresa seleccionada del localStorage
       let empresaId: number | undefined;
       let analistaId: number | undefined;
-      
+
       try {
         const empresaData = localStorage.getItem('empresaData');
         if (empresaData) {
@@ -949,11 +949,11 @@ export const solicitudesService = {
         const userData = localStorage.getItem('userData');
         if (userData) {
           const user = JSON.parse(userData);
-          
+
           // Solo aplicar filtro de analista si el usuario tiene el permiso "rol_analista"
           const isAnalyst = user.acciones && user.acciones.includes('rol_analista');
           if (isAnalyst) {
-          analistaId = user.id;
+            analistaId = user.id;
             console.log("👤 Usuario es analista, filtrando solicitudes por estado y analista:", estado, user.username, "ID:", analistaId);
           } else {
             console.log("👤 Usuario no es analista (rol:", user.role, "), no filtrando por analista_id para estado:", estado);
@@ -996,11 +996,11 @@ export const solicitudesService = {
       // Aplicar filtros según la lógica de negocio
       // PRIORIDAD 1: Empresa (siempre filtrar por empresa si existe)
       // PRIORIDAD 2: Analista (filtrar adicionalmente por analista si existe userData)
-      
+
       if (empresaId) {
         // SIEMPRE filtrar por empresa si existe
         query = query.eq('empresa_id', empresaId);
-        
+
         if (analistaId) {
           // Si además hay usuario autenticado, filtrar también por analista
           query = query.eq('analista_id', analistaId);
@@ -1013,7 +1013,7 @@ export const solicitudesService = {
       const { data, error } = await query.order("created_at", { ascending: false });
 
       if (error) {
-        console .error("Error fetching solicitudes by status:", error);
+        console.error("Error fetching solicitudes by status:", error);
         throw error;
       }
 
@@ -1043,7 +1043,7 @@ export const solicitudesService = {
               email: a.email,
             });
           });
-        } catch {}
+        } catch { }
       }
 
       const solicitudesConAnalistas = (solicitudesBase || []).map((s: any) => {
@@ -1067,7 +1067,7 @@ export const solicitudesService = {
             .select('id, nombre, descripcion')
             .in('id', cargoIds);
           (tipos || []).forEach((t: any) => tiposMap.set(t.id, t));
-        } catch {}
+        } catch { }
       }
 
       const enriquecidas = solicitudesConAnalistas.map((s: any) => {
@@ -1123,7 +1123,7 @@ export const solicitudesService = {
       // Obtener información del analista por separado y tipo de candidato
       let analista = undefined;
       let tipos_candidatos: any = undefined;
-      
+
       if (data.analista_id) {
         try {
           const { data: analistaData, error: analistaError } = await supabase
@@ -1131,14 +1131,13 @@ export const solicitudesService = {
             .select("id, primer_nombre, primer_apellido, username, email")
             .eq("id", data.analista_id)
             .single();
-          
+
           if (!analistaError && analistaData) {
             analista = {
               id: analistaData.id,
               nombre:
-                `${analistaData.primer_nombre || ""} ${
-                  analistaData.primer_apellido || ""
-                }`.trim() || analistaData.username,
+                `${analistaData.primer_nombre || ""} ${analistaData.primer_apellido || ""
+                  }`.trim() || analistaData.username,
               email: analistaData.email,
             };
           }
@@ -1158,7 +1157,7 @@ export const solicitudesService = {
             .single();
           tipos_candidatos = tipo;
         }
-      } catch {}
+      } catch { }
 
       const solicitudTransformada = {
         ...data,
@@ -1177,11 +1176,11 @@ export const solicitudesService = {
     solicitud: Omit<Solicitud, "id" | "created_at" | "updated_at">
   ): Promise<Solicitud> => {
     try {
-      
+
       // Asignar analista automáticamente si no viene uno pre-asignado
       let analistaId = solicitud.analista_id;
       let estadoFinal = solicitud.estado;
-      
+
       // Extraer sucursal_id de estructura_datos si existe
       let sucursalId: number | undefined;
       if (solicitud.estructura_datos && typeof solicitud.estructura_datos === 'object') {
@@ -1194,12 +1193,12 @@ export const solicitudesService = {
           }
         }
       }
-      
+
       // Si no hay analista asignado, intentar asignación automática
       if (!analistaId && solicitud.empresa_id) {
-        
+
         const analistaAsignado = await analistaAsignacionService.asignarAnalistaAutomatico(solicitud.empresa_id, sucursalId);
-        
+
         if (analistaAsignado) {
           analistaId = analistaAsignado.analista_id;
           estadoFinal = "asignado";
@@ -1214,7 +1213,7 @@ export const solicitudesService = {
       let candidatoIdFinal = solicitud.candidato_id;
       if (!candidatoIdFinal && solicitud.estructura_datos) {
         const d = solicitud.estructura_datos as Record<string, any>;
-        
+
         // Normalizar campos que pueden venir pegados
         const datosNormalizados = { ...d };
         Object.keys(datosNormalizados).forEach(key => {
@@ -1222,12 +1221,12 @@ export const solicitudesService = {
             datosNormalizados[normalizeCampo(key)] = datosNormalizados[key];
           }
         });
-        
+
         const numeroDocumento =
-          datosNormalizados.numero_documento || 
-          datosNormalizados.documento || 
-          datosNormalizados.cedula || 
-          datosNormalizados.cedula_ciudadania || 
+          datosNormalizados.numero_documento ||
+          datosNormalizados.documento ||
+          datosNormalizados.cedula ||
+          datosNormalizados.cedula_ciudadania ||
           datosNormalizados.cedulaciudadania ||
           datosNormalizados.identificacion;
         const email = datosNormalizados.email || datosNormalizados.correo_electronico || datosNormalizados.correo;
@@ -1242,16 +1241,16 @@ export const solicitudesService = {
           // Función para extraer nombres de manera inteligente
           const extractNames = (data: Record<string, any>) => {
             // Buscar nombre completo en múltiples variaciones (incluyendo campos pegados)
-            const nombreCompleto = data.nombre_completo || data.nombrecompleto || 
-                                 data.nombres || data.nombre || data.nombres_completos ||
-                                 data.nombre_y_apellidos || data.nombre_apellidos ||
-                                 data.nombre_completo_candidato || data.nombre_candidato ||
-                                 data.nombrecompleto || data.nombrescompletos ||
-                                 data.nombreyapellidos || data.nombreapellidos;
-            
+            const nombreCompleto = data.nombre_completo || data.nombrecompleto ||
+              data.nombres || data.nombre || data.nombres_completos ||
+              data.nombre_y_apellidos || data.nombre_apellidos ||
+              data.nombre_completo_candidato || data.nombre_candidato ||
+              data.nombrecompleto || data.nombrescompletos ||
+              data.nombreyapellidos || data.nombreapellidos;
+
             if (nombreCompleto && typeof nombreCompleto === 'string' && nombreCompleto.trim()) {
               const partes = nombreCompleto.trim().split(/\s+/).filter(parte => parte.length > 0);
-              
+
               if (partes.length >= 2) {
                 // Lógica mejorada para separar nombres y apellidos
                 if (partes.length === 2) {
@@ -1289,7 +1288,7 @@ export const solicitudesService = {
                 }
               }
             }
-            
+
             // Si no hay nombre completo, buscar campos individuales (incluyendo campos pegados)
             return {
               primer_nombre: data.primer_nombre || data.primer_nombre_candidato || data.primer_nombre || data.primer_nombre_candidato || '',
@@ -1301,9 +1300,9 @@ export const solicitudesService = {
 
           // Función para extraer teléfono de manera inteligente
           const extractPhone = (data: Record<string, any>) => {
-            return data.telefono || data.celular || data.phone || data.movil || 
-                   data.numero_telefono || data.numero_celular || data.contacto ||
-                   data.telefono_candidato || data.celular_candidato || data.telefono_contacto;
+            return data.telefono || data.celular || data.phone || data.movil ||
+              data.numero_telefono || data.numero_celular || data.contacto ||
+              data.telefono_candidato || data.celular_candidato || data.telefono_contacto;
           };
 
           // Extraer nombres y teléfono
@@ -1337,13 +1336,13 @@ export const solicitudesService = {
               (candidatoPayload as any)[map[key]] = v;
             }
           }
-          
+
           // Manejar ciudad_id desde diferentes variaciones (ciudad, ciudad_id, Ciudad)
           const ciudadId = obtenerCiudadId(d);
           if (ciudadId !== undefined) {
             candidatoPayload.ciudad_id = ciudadId;
           }
-          
+
           // Asignar empresa_id desde la solicitud
           if (solicitud.empresa_id) {
             candidatoPayload.empresa_id = solicitud.empresa_id;
@@ -1417,12 +1416,12 @@ export const solicitudesService = {
       const getFirstBusinessDayOfNextMonth = () => {
         const today = new Date();
         const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-        
+
         // Buscar el primer día hábil (lunes a viernes)
         while (nextMonth.getDay() === 0 || nextMonth.getDay() === 6) {
           nextMonth.setDate(nextMonth.getDate() + 1);
         }
-        
+
         return nextMonth;
       };
 
@@ -1486,7 +1485,7 @@ export const solicitudesService = {
 
       // Obtener información del analista por separado
       let analista = undefined;
-      
+
       if (data.analista_id) {
         try {
           const { data: analistaData, error: analistaError } = await supabase
@@ -1494,14 +1493,13 @@ export const solicitudesService = {
             .select("id, primer_nombre, primer_apellido, username, email")
             .eq("id", data.analista_id)
             .single();
-          
+
           if (!analistaError && analistaData) {
             analista = {
               id: analistaData.id,
               nombre:
-                `${analistaData.primer_nombre || ""} ${
-                  analistaData.primer_apellido || ""
-                }`.trim() || analistaData.username,
+                `${analistaData.primer_nombre || ""} ${analistaData.primer_apellido || ""
+                  }`.trim() || analistaData.username,
               email: analistaData.email,
             };
           }
@@ -1533,9 +1531,8 @@ export const solicitudesService = {
             accion: ACCIONES_SISTEMA.ASIGNAR_ANALISTA,
             estado_anterior: solicitud.estado,
             estado_nuevo: "asignado",
-            observacion: `Analista ${
-              analista?.nombre || analistaId
-            } asignado automáticamente`,
+            observacion: `Analista ${analista?.nombre || analistaId
+              } asignado automáticamente`,
           });
         }
       } catch (logError) {
@@ -1558,10 +1555,10 @@ export const solicitudesService = {
           // Obtener la URL base del sistema
           const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://localhost';
           const sistemaUrl = `${baseUrl}/login`;
-          
+
           // Obtener el campo temporal de la estructura_datos (buscar ambos nombres)
           const temporal = (solDet?.estructura_datos as any)?.temporalaingresar || (solDet?.estructura_datos as any)?.temporal;
-          
+
           // Debug: Verificar qué datos tenemos disponibles
           console.log('🔍 Debug - Datos de la solicitud:', {
             estructura_datos: solDet?.estructura_datos,
@@ -1570,22 +1567,21 @@ export const solicitudesService = {
             temporal_final: temporal,
             empresa: solDet?.empresas?.razon_social
           });
-          
+
           // Obtener el cargo de la estructura_datos si está disponible
           const cargoId = (solDet?.estructura_datos as any)?.cargo || solDet?.cargo || "-";
           const cargo = await obtenerNombreCargo(cargoId);
-          
+
           await emailService.sendSolicitudCreada({
             to: String(emailDestino),
             candidatoNombre:
-              `${solDet?.candidatos?.primer_nombre || ""} ${
-                solDet?.candidatos?.primer_apellido || ""
-              }`.trim() || String(emailDestino),
+              `${solDet?.candidatos?.primer_nombre || ""} ${solDet?.candidatos?.primer_apellido || ""
+                }`.trim() || String(emailDestino),
             usuario: String(emailDestino),
             password: String(
               (solDet?.estructura_datos as any)?.numero_documento ||
-                (solDet?.estructura_datos as any)?.documento ||
-                ""
+              (solDet?.estructura_datos as any)?.documento ||
+              ""
             ),
             empresaNombre: String(solDet?.empresas?.razon_social || ""),
             solicitudId: solDet?.id || data.id,
@@ -1612,9 +1608,9 @@ export const solicitudesService = {
       try {
         const fechaCreacion = new Date(solicitudData.fecha_solicitud || new Date());
         const diaNoHabilInfo = getNonBusinessDayInfo(fechaCreacion);
-        
+
         if (diaNoHabilInfo.isNonBusinessDay) {
-          
+
           // Obtener información de la empresa para el email
           const empresaInfo = await supabase
             .from("empresas")
@@ -1624,7 +1620,7 @@ export const solicitudesService = {
 
           if (empresaInfo.data) {
             const emailEmpresa = empresaInfo.data.email;
-            
+
             if (emailEmpresa) {
               // Determinar el tipo de día no hábil
               let tipoDiaNoHabil = "";
@@ -1648,19 +1644,19 @@ export const solicitudesService = {
                 sistemaUrl: sistemaUrl
               });
 
-              
+
             } else {
-              
+
             }
           } else {
-            
+
           }
         }
       } catch (holidayErr) {
-        
+
       }
 
-      
+
       return solicitudTransformada;
     } catch (error) {
       console.error("Error in solicitudesService.create:", error);
@@ -1771,28 +1767,7 @@ export const solicitudesService = {
     }
   },
 
-  // Buscar solicitudes
-  search: async (searchTerm: string): Promise<Solicitud[]> => {
-    try {
-      const { data, error } = await supabase
-        .from("hum_solicitudes")
-        .select("*")
-        .or(
-          `nombres.ilike.%${searchTerm}%,apellidos.ilike.%${searchTerm}%,cargo.ilike.%${searchTerm}%,empresa_usuaria.ilike.%${searchTerm}%`
-        )
-        .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error("Error searching solicitudes:", error);
-        throw error;
-      }
-
-      return data || [];
-    } catch (error) {
-      console.error("Error in solicitudesService.search:", error);
-      throw error;
-    }
-  },
 
   // Obtener estadísticas
   getStatistics: async () => {
@@ -1843,11 +1818,11 @@ export const solicitudesService = {
       console.log(
         "🔍 Creando solicitud con plantilla y asignación automática de analista..."
       );
-      
+
       // Asignar analista automáticamente si no viene uno pre-asignado
       let analistaId: number | undefined;
       let estadoFinal = "pendiente asignacion"; // Estado por defecto
-      
+
       // Extraer sucursal_id de estructura_datos si existe
       let sucursalId: number | undefined;
       if (estructuraDatos && typeof estructuraDatos === 'object') {
@@ -1860,7 +1835,7 @@ export const solicitudesService = {
           }
         }
       }
-      
+
       // Intentar asignación automática
       if (empresaId) {
         console.log("🔄 Asignando analista automáticamente...");
@@ -1868,9 +1843,9 @@ export const solicitudesService = {
         if (sucursalId) {
           console.log("🏢 Sucursal ID de la solicitud:", sucursalId);
         }
-        
+
         const analistaAsignado = await analistaAsignacionService.asignarAnalistaAutomatico(empresaId, sucursalId);
-        
+
         if (analistaAsignado) {
           analistaId = analistaAsignado.analista_id;
           estadoFinal = "asignado";
@@ -1895,12 +1870,12 @@ export const solicitudesService = {
       const getFirstBusinessDayOfNextMonth = () => {
         const today = new Date();
         const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-        
+
         // Buscar el primer día hábil (lunes a viernes)
         while (nextMonth.getDay() === 0 || nextMonth.getDay() === 6) {
           nextMonth.setDate(nextMonth.getDate() + 1);
         }
-        
+
         return nextMonth;
       };
 
@@ -2002,12 +1977,12 @@ export const solicitudesService = {
             datosNormalizados[normalizeCampo(key)] = datosNormalizados[key];
           }
         });
-        
+
         const numeroDocumento =
-          datosNormalizados.numero_documento || 
-          datosNormalizados.documento || 
-          datosNormalizados.cedula || 
-          datosNormalizados.cedula_ciudadania || 
+          datosNormalizados.numero_documento ||
+          datosNormalizados.documento ||
+          datosNormalizados.cedula ||
+          datosNormalizados.cedula_ciudadania ||
           datosNormalizados.cedulaciudadania ||
           datosNormalizados.identificacion;
         const email = datosNormalizados.email || datosNormalizados.correo_electronico || datosNormalizados.correo;
@@ -2021,16 +1996,16 @@ export const solicitudesService = {
           // Función para extraer nombres de manera inteligente (misma lógica que en create)
           const extractNames = (data: Record<string, any>) => {
             // Buscar nombre completo en múltiples variaciones (incluyendo campos pegados)
-            const nombreCompleto = data.nombre_completo || data.nombrecompleto || 
-                                 data.nombres || data.nombre || data.nombres_completos ||
-                                 data.nombre_y_apellidos || data.nombre_apellidos ||
-                                 data.nombre_completo_candidato || data.nombre_candidato ||
-                                 data.nombrecompleto || data.nombrescompletos ||
-                                 data.nombreyapellidos || data.nombreapellidos;
-            
+            const nombreCompleto = data.nombre_completo || data.nombrecompleto ||
+              data.nombres || data.nombre || data.nombres_completos ||
+              data.nombre_y_apellidos || data.nombre_apellidos ||
+              data.nombre_completo_candidato || data.nombre_candidato ||
+              data.nombrecompleto || data.nombrescompletos ||
+              data.nombreyapellidos || data.nombreapellidos;
+
             if (nombreCompleto && typeof nombreCompleto === 'string' && nombreCompleto.trim()) {
               const partes = nombreCompleto.trim().split(/\s+/).filter(parte => parte.length > 0);
-              
+
               if (partes.length >= 2) {
                 // Lógica mejorada para separar nombres y apellidos
                 if (partes.length === 2) {
@@ -2068,7 +2043,7 @@ export const solicitudesService = {
                 }
               }
             }
-            
+
             // Si no hay nombre completo, buscar campos individuales (incluyendo campos pegados)
             return {
               primer_nombre: data.primer_nombre || data.primer_nombre_candidato || data.primer_nombre || data.primer_nombre_candidato || '',
@@ -2080,9 +2055,9 @@ export const solicitudesService = {
 
           // Función para extraer teléfono de manera inteligente
           const extractPhone = (data: Record<string, any>) => {
-            return data.telefono || data.celular || data.phone || data.movil || 
-                   data.numero_telefono || data.numero_celular || data.contacto ||
-                   data.telefono_candidato || data.celular_candidato || data.telefono_contacto;
+            return data.telefono || data.celular || data.phone || data.movil ||
+              data.numero_telefono || data.numero_celular || data.contacto ||
+              data.telefono_candidato || data.celular_candidato || data.telefono_contacto;
           };
 
           // Extraer nombres y teléfono
@@ -2116,18 +2091,18 @@ export const solicitudesService = {
               (candidatoPayload as any)[map[key]] = v;
             }
           }
-          
+
           // Manejar ciudad_id desde diferentes variaciones (ciudad, ciudad_id, Ciudad)
           const ciudadId = obtenerCiudadId(d);
           if (ciudadId !== undefined) {
             candidatoPayload.ciudad_id = ciudadId;
           }
-          
+
           // Asignar empresa_id desde el parámetro de la función
           if (empresaId) {
             candidatoPayload.empresa_id = empresaId;
           }
-          
+
           // Verificar si el candidato ya existe antes de intentar crearlo
           try {
             const { data: candidatoExistente, error: searchError } = await supabase
@@ -2136,42 +2111,42 @@ export const solicitudesService = {
               .eq("numero_documento", String(numeroDocumento))
               .eq("email", String(email))
               .maybeSingle();
-            
+
             if (candidatoExistente && !searchError) {
               // El candidato ya existe, usar ese ID
               candidatoIdFinal = candidatoExistente.id;
               console.log("✅ Candidato ya existe. ID:", candidatoExistente.id);
-              
+
               // Actualizar la solicitud con el candidato_id existente
               const { error: updateError } = await supabase
                 .from("hum_solicitudes")
                 .update({ candidato_id: candidatoIdFinal })
                 .eq("id", dataSoli.id);
-              
+
               if (updateError) {
                 console.error("❌ Error actualizando solicitud con candidato_id existente:", updateError);
               } else {
                 console.log("✅ Solicitud actualizada con candidato_id existente:", candidatoIdFinal);
               }
-              
+
               toast.info("Este candidato ya está registrado en el sistema");
             } else {
               // El candidato no existe, crearlo
-            const creado = await candidatosService.create(candidatoPayload);
-            if (creado?.id) {
-              candidatoIdFinal = creado.id;
-              console.log(
-                "✅ Candidato creado desde solicitud (plantilla). ID:",
-                creado.id
-              );
-                
+              const creado = await candidatosService.create(candidatoPayload);
+              if (creado?.id) {
+                candidatoIdFinal = creado.id;
+                console.log(
+                  "✅ Candidato creado desde solicitud (plantilla). ID:",
+                  creado.id
+                );
+
                 // Actualizar la solicitud con el candidato_id
                 try {
                   const { error: updateError } = await supabase
                     .from("hum_solicitudes")
                     .update({ candidato_id: candidatoIdFinal })
                     .eq("id", dataSoli.id);
-                  
+
                   if (updateError) {
                     console.error("❌ Error actualizando solicitud con candidato_id:", updateError);
                   } else {
@@ -2180,68 +2155,67 @@ export const solicitudesService = {
                 } catch (updateErr) {
                   console.error("❌ Error actualizando solicitud:", updateErr);
                 }
-              try {
-                if (!error && data) {
-                  // Obtener la URL base del sistema
-                  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://localhost';
-                  const sistemaUrl = `${baseUrl}/login`;
-                  
-                  // Obtener el campo temporal de la estructura_datos (buscar ambos nombres)
-                  const temporal = (d as any)?.temporalaingresar || (d as any)?.temporal;
-                  
-                  // Debug: Verificar qué datos tenemos disponibles
-                  console.log('🔍 Debug - Datos de la solicitud (createWithTemplate):', {
-                    estructura_datos: d,
-                    temporalaingresar: (d as any)?.temporalaingresar,
-                    temporal: (d as any)?.temporal,
-                    temporal_final: temporal,
-                    empresa: data.empresas?.razon_social
-                  });
-                  
-                  // Obtener el cargo de la estructura_datos si está disponible
-                  const cargoId = (d as any)?.cargo || data.cargo || "-";
-                  const cargo = await obtenerNombreCargo(cargoId);
-                  
-                  await emailService.sendSolicitudCreada({
-                    to: String(email),
-                    candidatoNombre:
-                      `${data.candidatos?.primer_nombre || ""} ${
-                        data.candidatos?.primer_apellido || ""
-                      }`.trim() || String(email),
-                    usuario: String(email),
-                    password: String(
-                      (d as any)?.numero_documento ||
+                try {
+                  if (!error && data) {
+                    // Obtener la URL base del sistema
+                    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://localhost';
+                    const sistemaUrl = `${baseUrl}/login`;
+
+                    // Obtener el campo temporal de la estructura_datos (buscar ambos nombres)
+                    const temporal = (d as any)?.temporalaingresar || (d as any)?.temporal;
+
+                    // Debug: Verificar qué datos tenemos disponibles
+                    console.log('🔍 Debug - Datos de la solicitud (createWithTemplate):', {
+                      estructura_datos: d,
+                      temporalaingresar: (d as any)?.temporalaingresar,
+                      temporal: (d as any)?.temporal,
+                      temporal_final: temporal,
+                      empresa: data.empresas?.razon_social
+                    });
+
+                    // Obtener el cargo de la estructura_datos si está disponible
+                    const cargoId = (d as any)?.cargo || data.cargo || "-";
+                    const cargo = await obtenerNombreCargo(cargoId);
+
+                    await emailService.sendSolicitudCreada({
+                      to: String(email),
+                      candidatoNombre:
+                        `${data.candidatos?.primer_nombre || ""} ${data.candidatos?.primer_apellido || ""
+                          }`.trim() || String(email),
+                      usuario: String(email),
+                      password: String(
+                        (d as any)?.numero_documento ||
                         (d as any)?.documento ||
                         ""
-                    ),
-                    empresaNombre: String(data.empresas?.razon_social || ""),
-                    solicitudId: data.id,
-                    temporal: temporal,
-                    sistemaUrl: sistemaUrl,
-                    detalles: {
-                      Estado: data.estado,
-                      "Fecha solicitud": new Date(
-                        data.fecha_solicitud
-                      ).toLocaleString("es-ES"),
-                      Cargo: cargo,
-                      "Ciudad prestación":
-                        data.ciudad_prestacion_servicio || "-",
-                    },
-                  });
+                      ),
+                      empresaNombre: String(data.empresas?.razon_social || ""),
+                      solicitudId: data.id,
+                      temporal: temporal,
+                      sistemaUrl: sistemaUrl,
+                      detalles: {
+                        Estado: data.estado,
+                        "Fecha solicitud": new Date(
+                          data.fecha_solicitud
+                        ).toLocaleString("es-ES"),
+                        Cargo: cargo,
+                        "Ciudad prestación":
+                          data.ciudad_prestacion_servicio || "-",
+                      },
+                    });
+                  }
+                } catch (mailErr) {
+                  console.warn(
+                    "No se pudo enviar email post creación de solicitud (plantilla):",
+                    mailErr
+                  );
                 }
-              } catch (mailErr) {
-                console.warn(
-                  "No se pudo enviar email post creación de solicitud (plantilla):",
-                  mailErr
-                );
-              }
               }
             }
           } catch (e: any) {
-              console.warn(
-                "No se pudo crear candidato desde solicitud (plantilla):",
-                e
-              );
+            console.warn(
+              "No se pudo crear candidato desde solicitud (plantilla):",
+              e
+            );
           }
         } else {
           console.warn(
@@ -2254,10 +2228,10 @@ export const solicitudesService = {
       try {
         const fechaCreacion = new Date(solicitudData.fecha_solicitud || new Date());
         const diaNoHabilInfo = getNonBusinessDayInfo(fechaCreacion);
-        
+
         if (diaNoHabilInfo.isNonBusinessDay) {
           console.log("📅 Solicitud creada en día no hábil (plantilla):", diaNoHabilInfo);
-          
+
           // Obtener información de la empresa para el email
           const empresaInfo = await supabase
             .from("empresas")
@@ -2267,7 +2241,7 @@ export const solicitudesService = {
 
           if (empresaInfo.data) {
             const emailEmpresa = empresaInfo.data.email;
-            
+
             if (emailEmpresa) {
               // Determinar el tipo de día no hábil
               let tipoDiaNoHabil = "";
@@ -2307,7 +2281,7 @@ export const solicitudesService = {
 
       // Obtener información del analista por separado
       let analista = undefined;
-      
+
       if (data.analista_id) {
         try {
           const { data: analistaData, error: analistaError } = await supabase
@@ -2315,14 +2289,13 @@ export const solicitudesService = {
             .select("id, primer_nombre, primer_apellido, username, email")
             .eq("id", data.analista_id)
             .single();
-          
+
           if (!analistaError && analistaData) {
             analista = {
               id: analistaData.id,
               nombre:
-                `${analistaData.primer_nombre || ""} ${
-                  analistaData.primer_apellido || ""
-                }`.trim() || analistaData.username,
+                `${analistaData.primer_nombre || ""} ${analistaData.primer_apellido || ""
+                  }`.trim() || analistaData.username,
               email: analistaData.email,
             };
           }
@@ -2354,9 +2327,8 @@ export const solicitudesService = {
             accion: ACCIONES_SISTEMA.ASIGNAR_ANALISTA,
             estado_anterior: "pendiente",
             estado_nuevo: "asignado",
-            observacion: `Analista ${
-              analista?.nombre || analistaId
-            } asignado automáticamente`,
+            observacion: `Analista ${analista?.nombre || analistaId
+              } asignado automáticamente`,
           });
         }
       } catch (logError) {
@@ -2444,7 +2416,7 @@ export const solicitudesService = {
 
       console.log("🔍 Solicitud anterior:", solicitudAnterior);
 
-      const updateData: any = { 
+      const updateData: any = {
         estado: newStatus,
         updated_at: new Date().toISOString(),
       };
@@ -2634,7 +2606,7 @@ export const solicitudesService = {
   async contact(id: number, observacion?: string): Promise<boolean> {
     try {
       console.log("📞 Iniciando proceso de contacto para solicitud:", id);
-      
+
       // Obtener el estado anterior antes de actualizar
       const { data: solicitudAnterior, error: fetchError } = await supabase
         .from("hum_solicitudes")
@@ -2649,9 +2621,9 @@ export const solicitudesService = {
 
       const estadoAnterior = solicitudAnterior?.estado || "desconocido";
       console.log("📞 Estado anterior de la solicitud:", estadoAnterior);
-      
+
       // Actualizar estado directamente sin crear log de cambio de estado
-      const updateData: any = { 
+      const updateData: any = {
         estado: "pendiente documentos",
         updated_at: new Date().toISOString(),
       };
@@ -2672,7 +2644,7 @@ export const solicitudesService = {
       }
 
       console.log("📞 Estado actualizado exitosamente, creando log específico de contacto...");
-      
+
       // Crear solo el log específico de contacto
       try {
         await solicitudesLogsService.crearLog({
@@ -2703,7 +2675,7 @@ export const solicitudesService = {
   async approve(id: number, observacion?: string): Promise<boolean> {
     try {
       const success = await this.updateStatus(id, "aprobada", observacion);
-      
+
       if (success) {
         return success;
       } else {
@@ -2719,7 +2691,7 @@ export const solicitudesService = {
   async reject(id: number, observacion?: string): Promise<boolean> {
     try {
       const success = await this.updateStatus(id, "rechazada", observacion);
-      
+
       if (success) {
         // Log adicional específico para rechazo
         try {
@@ -2749,7 +2721,7 @@ export const solicitudesService = {
   async contract(id: number, observacion?: string): Promise<boolean> {
     try {
       console.log("📝 Iniciando proceso de contratación para solicitud:", id);
-      
+
       // Obtener el estado anterior antes de actualizar
       const { data: solicitudAnterior, error: fetchError } = await supabase
         .from("hum_solicitudes")
@@ -2764,9 +2736,9 @@ export const solicitudesService = {
 
       const estadoAnterior = solicitudAnterior?.estado || "desconocido";
       console.log("📝 Estado anterior de la solicitud:", estadoAnterior);
-      
+
       // Actualizar estado directamente sin crear log de cambio de estado
-      const updateData: any = { 
+      const updateData: any = {
         estado: "contratado",
         updated_at: new Date().toISOString(),
       };
@@ -2787,7 +2759,7 @@ export const solicitudesService = {
       }
 
       console.log("📝 Estado actualizado exitosamente, creando log específico de contratación...");
-      
+
       // Crear solo el log específico de contratación con estado anterior
       try {
         await solicitudesLogsService.crearLog({
@@ -2858,7 +2830,7 @@ export const solicitudesService = {
   },
 
   // Obtener analista sugerido para asignación
-  async getSuggestedAnalyst(empresaId: number, sucursalId?: number): Promise<{analista_id: number, analista_nombre: string} | null> {
+  async getSuggestedAnalyst(empresaId: number, sucursalId?: number): Promise<{ analista_id: number, analista_nombre: string } | null> {
     try {
       console.log('🔍 getSuggestedAnalyst llamado con:', { empresaId, sucursalId });
       const analistaAsignado = await analistaAsignacionService.asignarAnalistaAutomatico(empresaId, sucursalId);
@@ -3014,10 +2986,10 @@ export const solicitudesService = {
       try {
         const candidato = solicitud.candidatos;
         const empresa = solicitud.empresas;
-        
+
         if (candidato?.email) {
           const candidatoNombre = `${candidato.primer_nombre || ''} ${candidato.segundo_nombre || ''} ${candidato.primer_apellido || ''} ${candidato.segundo_apellido || ''}`.trim();
-          
+
           await emailService.sendDocumentosDevueltos({
             to: candidato.email,
             candidatoNombre: candidatoNombre,
@@ -3041,5 +3013,5 @@ export const solicitudesService = {
       return false;
     }
   },
-}; 
+};
 
