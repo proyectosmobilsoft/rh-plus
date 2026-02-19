@@ -171,7 +171,6 @@ export const novedadesService = {
 
     getMotivos: async (): Promise<NovedadMotivo[]> => {
         try {
-            console.log('Fetching motivos...');
             const { data, error } = await supabase
                 .from('novedades_motivos')
                 .select('*')
@@ -179,13 +178,12 @@ export const novedadesService = {
                 .order('orden', { ascending: true });
 
             if (error) {
-                console.error('Error obteniendo motivos (Supabase):', error);
+                console.error('Error obteniendo motivos:', error);
                 return [];
             }
-            console.log('Motivos fetched:', data);
             return data || [];
         } catch (error) {
-            console.error('Error en getMotivos (Catch):', error);
+            console.error('Error en getMotivos:', error);
             return [];
         }
     },

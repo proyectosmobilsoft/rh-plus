@@ -363,7 +363,34 @@ const NovedadesPage: React.FC = () => {
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => toast.info('Exportación a Excel en desarrollo')}
+                        onClick={() => {
+                            if (!solicitudes.length) {
+                                toast.error('No hay datos para exportar');
+                                return;
+                            }
+
+                            const dataToExport = solicitudes.map(s => ({
+                                ID: s.id,
+                                Empleado: s.empleado ? `${s.empleado.nombre} ${s.empleado.apellido || ''}`.trim() : 'N/A',
+                                Documento: s.empleado?.documento || 'N/A',
+                                Cargo: s.empleado?.cargo || 'N/A',
+                                Motivo: s.motivo?.nombre || 'N/A',
+                                Estado: ESTADO_LABELS[s.estado || 'solicitada'] || s.estado,
+                                'Fecha Solicitud': formatDate(s.created_at),
+                                Sucursal: s.sucursal || 'N/A',
+                                'Creado Por': s.creador ? `${s.creador.primer_nombre} ${s.creador.primer_apellido}`.trim() : 'Sistema',
+                                Observaciones: s.observaciones || '',
+                                'Requiere Reemplazo': s.requiere_reemplazo ? 'Sí' : 'No'
+                            }));
+
+                            import('@/utils/exportUtils').then(({ exportToExcel }) => {
+                                exportToExcel(dataToExport, `Solicitudes_Novedades_${new Date().toISOString().split('T')[0]}`, 'Solicitudes');
+                                toast.success('Exportación generada exitosamente');
+                            }).catch(err => {
+                                console.error('Error al exportar:', err);
+                                toast.error('Error al generar el archivo Excel');
+                            });
+                        }}
                         className="gap-2 border-gray-200 hover:border-cyan-300 hover:bg-cyan-50 transition-all duration-200"
                     >
                         <Download className="h-4 w-4" />
