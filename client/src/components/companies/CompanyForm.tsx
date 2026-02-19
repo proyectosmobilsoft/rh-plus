@@ -90,7 +90,7 @@ const ensureSupabaseSession = async (): Promise<boolean> => {
     // Intentar establecer sesión usando el sistema de autenticación personalizado
     const userData = localStorage.getItem('userData');
     const authToken = localStorage.getItem('authToken');
-    
+
     if (!userData || !authToken) {
       return false;
     }
@@ -110,18 +110,18 @@ const ensureSupabaseSession = async (): Promise<boolean> => {
     // Si no hay sesión activa, intentar hacer sign in
     // Intentar obtener la contraseña desde sessionStorage (guardada durante el login)
     const email = parsedUserData.email || `${parsedUserData.username}@compensamos.com`;
-    
+
     // Intentar sign in con el email y una contraseña temporal (si está disponible)
     // La contraseña se guarda en sessionStorage durante el login para este propósito
     try {
       const tempPassword = sessionStorage.getItem('temp_password');
-      
+
       if (tempPassword) {
         const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
           email: email,
           password: tempPassword
         });
-        
+
         if (!signInError && signInData?.session) {
           return true;
         } else {
@@ -130,7 +130,7 @@ const ensureSupabaseSession = async (): Promise<boolean> => {
           const syncKey = `supabase_auth_sync_attempted_${parsedUserData.id}`;
           if (!localStorage.getItem(syncKey)) {
             localStorage.setItem(syncKey, 'true');
-            
+
             try {
               const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
                 email: email,
@@ -145,7 +145,7 @@ const ensureSupabaseSession = async (): Promise<boolean> => {
                   }
                 }
               });
-              
+
               if (!signUpError && signUpData?.session) {
                 return true;
               }
@@ -167,14 +167,14 @@ const ensureSupabaseSession = async (): Promise<boolean> => {
 
 // Función para subir archivo a Supabase Storage
 const uploadFileToStorage = async (
-  file: File, 
-  folder: string, 
+  file: File,
+  folder: string,
   empresaId?: number
 ): Promise<string> => {
   // Verificar autenticación usando el sistema personalizado (localStorage)
   const userData = localStorage.getItem('userData');
   const authToken = localStorage.getItem('authToken');
-  
+
   if (!userData || !authToken) {
     throw new Error('Debes estar autenticado para subir archivos');
   }
@@ -185,7 +185,7 @@ const uploadFileToStorage = async (
   // Generar nombre único para el archivo
   const timestamp = Date.now();
   const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-  const fileName = empresaId 
+  const fileName = empresaId
     ? `${empresaId}_${timestamp}_${sanitizedName}`
     : `temp_${timestamp}_${sanitizedName}`;
   const filePath = `${folder}/${fileName}`;
@@ -225,7 +225,7 @@ const deleteFileFromStorage = async (url: string): Promise<void> => {
   try {
     // Intentar extraer la ruta del archivo de diferentes formatos de URL de Supabase Storage
     let filePath = '';
-    
+
     // Formato 1: /storage/v1/object/public/empresas-documentos/...
     if (url.includes('/storage/v1/object/public/empresas-documentos/')) {
       const urlParts = url.split('/storage/v1/object/public/empresas-documentos/');
@@ -273,30 +273,30 @@ const deleteFileFromStorage = async (url: string): Promise<void> => {
     if (filePath.startsWith('/')) {
       filePath = filePath.substring(1);
     }
-    
+
     // Verificar autenticación antes de eliminar
     await ensureSupabaseSession();
-    
+
     // Verificar sesión actual
     const { data: { session } } = await supabase.auth.getSession();
-    
+
     // Validar que el path no esté vacío y tenga el formato correcto
     if (!filePath || filePath.trim().length === 0) {
       throw new Error('El path del archivo está vacío');
     }
-    
+
     // Asegurar que el path no incluya el nombre del bucket
     if (filePath.startsWith('empresas-documentos/')) {
       filePath = filePath.replace('empresas-documentos/', '');
     }
-    
+
     // Normalizar el path final
     const normalizedPath = filePath.trim().replace(/^\/+|\/+$/g, '');
-    
+
     if (!normalizedPath || normalizedPath.length === 0) {
       throw new Error('El path normalizado está vacío');
     }
-    
+
     const { data, error } = await supabase.storage
       .from('empresas-documentos')
       .remove([normalizedPath]);
@@ -313,7 +313,7 @@ const deleteFileFromStorage = async (url: string): Promise<void> => {
 };
 
 export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afiliada' }: CompanyFormProps) {
-  
+
   const { startLoading, stopLoading } = useLoading();
   const [existingDocuments, setExistingDocuments] = useState<{ [key: string]: string }>({});
   const [selectedPlantilla, setSelectedPlantilla] = useState<number | null>(null);
@@ -526,25 +526,25 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
       // Los documentos pueden estar guardados como URLs de Storage o como base64
       // Priorizar campos _url si existen, sino usar los campos directos
       const existingFileUrls: { [key: string]: string } = {};
-      
+
       // Contrato
       const contratoUrl = initialData.documento_contrato_url || initialData.documento_contrato;
       if (contratoUrl && (contratoUrl.startsWith('http') || contratoUrl.startsWith('data:'))) {
         existingFileUrls['contrato'] = contratoUrl;
       }
-      
+
       // Cámara de Comercio
       const camaraUrl = initialData.documento_camara_comercio_url || initialData.documento_camara_comercio;
       if (camaraUrl && (camaraUrl.startsWith('http') || camaraUrl.startsWith('data:'))) {
         existingFileUrls['camara_comercio'] = camaraUrl;
       }
-      
+
       // RUT
       const rutUrl = initialData.documento_rut_url || initialData.documento_rut;
       if (rutUrl && (rutUrl.startsWith('http') || rutUrl.startsWith('data:'))) {
         existingFileUrls['rut'] = rutUrl;
       }
-      
+
       // Logo
       const logoUrl = initialData.logo_url || initialData.logo_base64;
       if (logoUrl && (logoUrl.startsWith('http') || logoUrl.startsWith('data:'))) {
@@ -608,7 +608,7 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
           { codigo: "9311", descripcion: "Gestión de instalaciones deportivas" },
           { codigo: "9602", descripcion: "Peluquería y otros tratamientos de belleza" }
         ];
-        
+
         const actividadEncontrada = actividadesEconomicas.find(a => a.codigo === actividadId);
         if (actividadEncontrada) {
           form.setValue("actividad_nombre", `${actividadEncontrada.codigo} - ${actividadEncontrada.descripcion}`);
@@ -646,18 +646,18 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
       };
 
       let empresaId: number | undefined;
-      
+
       if (initialData?.id) {
         // Actualizar empresa existente
         empresaId = initialData.id;
-        
+
         // Asegurar que las URLs de Storage se incluyan en el payload
         // Priorizar fileUrls (URLs actuales de Storage) sobre los valores del formulario
         empresaPayload.documento_contrato = fileUrls['contrato'] || empresaPayload.documento_contrato || "";
         empresaPayload.documento_camara_comercio = fileUrls['camara_comercio'] || empresaPayload.documento_camara_comercio || "";
         empresaPayload.documento_rut = fileUrls['rut'] || empresaPayload.documento_rut || "";
         empresaPayload.logo_base64 = fileUrls['logo'] || empresaPayload.logo_base64 || "";
-        
+
         const updatedEmpresa = await empresaService.update(empresaId!, empresaPayload);
         if (!updatedEmpresa) {
           throw new Error('No se pudo actualizar la empresa');
@@ -673,7 +673,7 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
         // Mover archivos temporales a la carpeta de la empresa y actualizar URLs
         const filesToMove = ['contrato', 'camara_comercio', 'rut', 'logo'];
         const updatedFileUrls: { [key: string]: string } = { ...fileUrls };
-        
+
         for (const fileType of filesToMove) {
           const tempUrl = fileUrls[fileType];
           if (tempUrl && tempUrl.includes('/empresas/temp/')) {
@@ -696,24 +696,24 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
                   const { data: fileData } = await supabase.storage
                     .from('empresas-documentos')
                     .download(oldPath);
-                  
+
                   if (fileData) {
                     await supabase.storage
                       .from('empresas-documentos')
                       .upload(newPath, fileData);
-                    
+
                     // Eliminar archivo temporal
                     await supabase.storage
                       .from('empresas-documentos')
                       .remove([oldPath]);
                   }
                 }
-                
+
                 // Obtener la nueva URL pública después de mover
                 const { data: urlData } = supabase.storage
                   .from('empresas-documentos')
                   .getPublicUrl(newPath);
-                
+
                 updatedFileUrls[fileType] = urlData.publicUrl;
               }
             } catch (error) {
@@ -732,10 +732,10 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
           documento_rut: updatedFileUrls['rut'] || empresaPayload.documento_rut || "",
           logo_base64: updatedFileUrls['logo'] || empresaPayload.logo_base64 || ""
         };
-        
+
         // Actualizar la empresa con las URLs finales
         await empresaService.update(empresaId, finalUrls);
-        
+
         // Actualizar el estado local con las URLs finales
         setFileUrls(updatedFileUrls);
       }
@@ -744,7 +744,7 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
         initialData
           ? `${entityType === 'prestador' ? 'Prestador' : 'Empresa'} actualizada`
           : `${entityType === 'prestador' ? 'Prestador' : 'Empresa'} registrada`,
-        { 
+        {
           description: initialData
             ? `La información del ${entityType === 'prestador' ? 'prestador' : 'la empresa'} ha sido actualizada exitosamente.`
             : `${entityType === 'prestador' ? 'El prestador' : 'La empresa'} ha sido registrada exitosamente.`
@@ -785,11 +785,11 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
       setUploading(prev => ({ ...prev, [documentType]: true }));
 
       // Eliminar archivo anterior si existe (tanto de Storage como de initialData)
-      const oldUrl = fileUrls[documentType] || 
-                     (documentType === 'contrato' ? initialData?.documento_contrato : null) ||
-                     (documentType === 'camara_comercio' ? initialData?.documento_camara_comercio : null) ||
-                     (documentType === 'rut' ? initialData?.documento_rut : null);
-      
+      const oldUrl = fileUrls[documentType] ||
+        (documentType === 'contrato' ? initialData?.documento_contrato : null) ||
+        (documentType === 'camara_comercio' ? initialData?.documento_camara_comercio : null) ||
+        (documentType === 'rut' ? initialData?.documento_rut : null);
+
       if (oldUrl && (oldUrl.startsWith('http') || oldUrl.startsWith('https'))) {
         // Solo eliminar si es una URL de Storage (no base64)
         try {
@@ -807,7 +807,7 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
 
       // Guardar la URL en el estado y en el formulario
       setFileUrls(prev => ({ ...prev, [documentType]: fileUrl }));
-      
+
       // Guardar en el formulario usando los campos correctos según el tipo de documento
       // Nota: Estos campos no están en el schema pero se usan temporalmente antes de guardar
       if (documentType === 'contrato') {
@@ -817,7 +817,7 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
       } else if (documentType === 'rut') {
         form.setValue('documento_rut_url' as any, fileUrl);
       }
-      
+
       setUploadedFiles(prev => ({
         ...prev,
         [documentType]: file.name
@@ -827,22 +827,22 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
       if (empresaId) {
         try {
           const updateField = documentType === 'contrato' ? 'documento_contrato' :
-                             documentType === 'camara_comercio' ? 'documento_camara_comercio' :
-                             'documento_rut';
-          
+            documentType === 'camara_comercio' ? 'documento_camara_comercio' :
+              'documento_rut';
+
           const updateData: any = { [updateField]: fileUrl };
-          
+
           const { error: updateError } = await supabase
             .from('empresas')
             .update(updateData)
             .eq('id', empresaId);
-          
+
           if (updateError) {
             console.error(`Error actualizando ${updateField} en la base de datos:`, updateError);
             toast.error(`Error al actualizar ${updateField} en la base de datos`);
           } else {
-            toast.success("Documento subido y guardado", { 
-              description: `${file.name} se ha subido correctamente y la URL se ha actualizado en la base de datos.` 
+            toast.success("Documento subido y guardado", {
+              description: `${file.name} se ha subido correctamente y la URL se ha actualizado en la base de datos.`
             });
           }
         } catch (dbError) {
@@ -869,12 +869,12 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
         const { width, height } = img;
         const aspectRatio = width / height;
         const targetAspectRatio = 16 / 9; // 16:9 ratio
-        
+
         // Verificar si las dimensiones están en el rango recomendado
         const isWidthInRange = width >= 1200 && width <= 1920;
         const isHeightInRange = height >= 675 && height <= 1080;
         const isAspectRatioClose = Math.abs(aspectRatio - targetAspectRatio) < 0.5;
-        
+
         if (isWidthInRange && isHeightInRange && isAspectRatioClose) {
           resolve({
             isValid: true,
@@ -898,7 +898,7 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
 
     // Validar que sea una imagen
     if (!file.type.startsWith('image/')) {
-        toast.error("Por favor selecciona un archivo de imagen válido.");
+      toast.error("Por favor selecciona un archivo de imagen válido.");
       return;
     }
 
@@ -915,24 +915,24 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
 
       // Validar dimensiones de la imagen
       const validation = await validateImageDimensions(file);
-      
+
       // Mostrar información sobre la imagen
       if (validation.isValid) {
         toast.success("Imagen óptima", { description: validation.message });
       } else {
         toast.info("Imagen detectada", { description: validation.message });
       }
-      
+
       // Eliminar logo anterior si existe (tanto de Storage como de initialData)
       const oldLogoUrl = fileUrls.logo || initialData?.logo_url || initialData?.logo_base64;
       if (oldLogoUrl && (oldLogoUrl.startsWith('http') || oldLogoUrl.startsWith('https'))) {
         // Solo eliminar si es una URL de Storage (no base64)
         await deleteFileFromStorage(oldLogoUrl);
       }
-      
+
       // Comprimir la imagen
       const compressedImage = await compressImage(file);
-      
+
       // Subir imagen comprimida a Storage
       const empresaId = initialData?.id;
       const folder = empresaId ? `empresas/${empresaId}` : 'empresas/temp';
@@ -941,7 +941,7 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
       // Guardar la URL en el estado y en el formulario
       setFileUrls(prev => ({ ...prev, logo: logoUrl }));
       form.setValue('logo_url' as any, logoUrl);
-      
+
       // También generar preview para visualización
       const base64 = await convertFileToBase64(compressedImage);
       setLogoPreview(base64);
@@ -953,13 +953,13 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
             .from('empresas')
             .update({ logo_base64: logoUrl })
             .eq('id', empresaId);
-          
+
           if (updateError) {
             console.error('Error actualizando logo en la base de datos:', updateError);
             toast.error("Error al actualizar el logo en la base de datos");
           } else {
-            toast.success("Logo procesado y guardado", { 
-              description: "Imagen optimizada, subida a Storage y URL actualizada en la base de datos." 
+            toast.success("Logo procesado y guardado", {
+              description: "Imagen optimizada, subida a Storage y URL actualizada en la base de datos."
             });
           }
         } catch (dbError) {
@@ -984,19 +984,19 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       const img = new Image();
-      
+
       img.onload = () => {
         // Usar las medidas recomendadas: 1600x900px (16:9 ratio)
         const targetWidth = 1600;
         const targetHeight = 900;
-        
+
         // Calcular dimensiones manteniendo el aspect ratio
         let { width, height } = img;
         const aspectRatio = width / height;
         const targetAspectRatio = targetWidth / targetHeight;
-        
+
         let finalWidth, finalHeight;
-        
+
         if (aspectRatio > targetAspectRatio) {
           // Imagen más ancha que 16:9, ajustar por altura
           finalHeight = targetHeight;
@@ -1006,24 +1006,24 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
           finalWidth = targetWidth;
           finalHeight = targetWidth / aspectRatio;
         }
-        
+
         // Configurar canvas con las dimensiones finales
         canvas.width = finalWidth;
         canvas.height = finalHeight;
-        
+
         // Crear fondo blanco para centrar la imagen
         if (ctx) {
           ctx.fillStyle = '#FFFFFF';
           ctx.fillRect(0, 0, finalWidth, finalHeight);
-          
+
           // Calcular posición para centrar la imagen
           const offsetX = (finalWidth - width) / 2;
           const offsetY = (finalHeight - height) / 2;
-          
+
           // Dibujar imagen centrada
           ctx.drawImage(img, offsetX, offsetY, width, height);
         }
-        
+
         // Convertir a blob con alta calidad (PNG para mantener transparencia)
         canvas.toBlob(
           (blob) => {
@@ -1041,7 +1041,7 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
           0.95 // Alta calidad
         );
       };
-      
+
       img.onerror = () => reject(new Error('Error al cargar imagen'));
       img.src = URL.createObjectURL(file);
     });
@@ -1056,32 +1056,32 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
   const handleViewDocument = (docType: string) => {
     let documentContent = '';
     let documentName = '';
-    
+
     // Obtener la URL del documento según el tipo
     // Priorizar: 1. fileUrls (Storage), 2. valores del formulario, 3. initialData
     switch (docType) {
       case 'contrato':
-        documentContent = fileUrls['contrato'] || 
-                          (form.getValues('documento_contrato_url' as any)) || 
-                          initialData?.documento_contrato_url || 
-                          initialData?.documento_contrato || 
-                          form.getValues('documento_contrato_base64') || '';
+        documentContent = fileUrls['contrato'] ||
+          (form.getValues('documento_contrato_url' as any)) ||
+          initialData?.documento_contrato_url ||
+          initialData?.documento_contrato ||
+          form.getValues('documento_contrato_base64') || '';
         documentName = 'Contrato';
         break;
       case 'camara_comercio':
-        documentContent = fileUrls['camara_comercio'] || 
-                          ((form as any).getValues('documento_camara_comercio_url')) || 
-                          initialData?.documento_camara_comercio_url || 
-                          initialData?.documento_camara_comercio || 
-                          form.getValues('documento_camara_comercio_base64') || '';
+        documentContent = fileUrls['camara_comercio'] ||
+          ((form as any).getValues('documento_camara_comercio_url')) ||
+          initialData?.documento_camara_comercio_url ||
+          initialData?.documento_camara_comercio ||
+          form.getValues('documento_camara_comercio_base64') || '';
         documentName = 'Cámara de Comercio';
         break;
       case 'rut':
-        documentContent = fileUrls['rut'] || 
-                          ((form as any).getValues('documento_rut_url')) || 
-                          initialData?.documento_rut_url || 
-                          initialData?.documento_rut || 
-                          form.getValues('documento_rut_base64') || '';
+        documentContent = fileUrls['rut'] ||
+          ((form as any).getValues('documento_rut_url')) ||
+          initialData?.documento_rut_url ||
+          initialData?.documento_rut ||
+          form.getValues('documento_rut_base64') || '';
         documentName = 'RUT';
         break;
     }
@@ -1096,7 +1096,7 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
           type: docType
         });
         setShowDocumentPreview(true);
-      } 
+      }
       // Si es base64 (retrocompatibilidad), usar directamente
       else if (documentContent.startsWith('data:application/pdf;base64,')) {
         setPreviewDocument({
@@ -1105,22 +1105,22 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
           type: docType
         });
         setShowDocumentPreview(true);
-      } 
+      }
       // Si parece ser una URL pero sin protocolo, intentar agregar https://
       else if (documentContent.includes('/') && !documentContent.includes('data:')) {
         // Probablemente es una ruta relativa de Storage, construir URL completa
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://clffvmueangquavnaokd.supabase.co';
-        const fullUrl = documentContent.startsWith('/') 
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'http://supabase.179.33.214.86.sslip.io';
+        const fullUrl = documentContent.startsWith('/')
           ? `${supabaseUrl}${documentContent}`
           : `${supabaseUrl}/${documentContent}`;
-        
+
         setPreviewDocument({
           content: fullUrl,
           name: documentName,
           type: docType
         });
         setShowDocumentPreview(true);
-      } 
+      }
       else {
         toast.error("No se encontró un documento válido para visualizar.");
       }
@@ -1134,12 +1134,12 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <Card>
           <CardContent className="pt-6">
-              {/* Información Básica */}
-              <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
-                  <Building2 className="w-5 h-5 text-blue-600" />
-                  Información Básica
-                </h3>
+            {/* Información Básica */}
+            <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-blue-600" />
+                Información Básica
+              </h3>
 
               {/* Primera fila: Tipo de documento, DV, Número empleados, NIT base, Régimen tributario */}
               <div className="grid grid-cols-12 gap-4 mb-4">
@@ -1334,15 +1334,15 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
               </div>
             </div>
 
-              {/* Separador */}
-              <div className="border-t border-gray-200 my-6"></div>
+            {/* Separador */}
+            <div className="border-t border-gray-200 my-6"></div>
 
-              {/* Información de Contacto */}
-              <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-blue-600" />
-                  Información de Contacto
-                </h3>
+            {/* Información de Contacto */}
+            <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                <MapPin className="w-5 h-5 text-blue-600" />
+                Información de Contacto
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div>
                   <Label htmlFor="ciudad" className="text-left">Ciudad *</Label>
@@ -1432,15 +1432,15 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
               </div>
             </div>
 
-              {/* Separador */}
-              <div className="border-t border-gray-200 my-6"></div>
+            {/* Separador */}
+            <div className="border-t border-gray-200 my-6"></div>
 
-              {/* Información Adicional */}
-              <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
-                  <Users className="w-5 h-5 text-blue-600" />
-                  Información Adicional
-                </h3>
+            {/* Información Adicional */}
+            <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                <Users className="w-5 h-5 text-blue-600" />
+                Información Adicional
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div>
                   <Label htmlFor="actividad_economica" className="text-left">Actividad Económica (CIIU)</Label>
@@ -1470,27 +1470,27 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
                               </CommandItem>
                             ) : (
                               actividadesEconomicas.map((actividad) => (
-                              <CommandItem
-                                key={actividad.id}
-                                value={`${actividad.codigo} - ${actividad.nombre}`}
-                                onSelect={() => {
-                                  form.setValue("actividad_economica", actividad.id.toString());
-                                  form.setValue("actividad_nombre", `${actividad.codigo} - ${actividad.nombre}`);
-                                  setActividadEconomicaOpen(false);
-                                }}
-                              >
-                                <Check
-                                  className={`mr-2 h-4 w-4 ${form.watch("actividad_economica") === actividad.id.toString() ? "opacity-100" : "opacity-0"
-                                    }`}
-                                />
-                                <div className="flex flex-col">
-                                  <span className="font-medium">{actividad.codigo} - {actividad.nombre}</span>
-                                  {actividad.descripcion && (
-                                    <span className="text-sm text-gray-500">{actividad.descripcion}</span>
-                                  )}
-                                </div>
-                              </CommandItem>
-                            ))
+                                <CommandItem
+                                  key={actividad.id}
+                                  value={`${actividad.codigo} - ${actividad.nombre}`}
+                                  onSelect={() => {
+                                    form.setValue("actividad_economica", actividad.id.toString());
+                                    form.setValue("actividad_nombre", `${actividad.codigo} - ${actividad.nombre}`);
+                                    setActividadEconomicaOpen(false);
+                                  }}
+                                >
+                                  <Check
+                                    className={`mr-2 h-4 w-4 ${form.watch("actividad_economica") === actividad.id.toString() ? "opacity-100" : "opacity-0"
+                                      }`}
+                                  />
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{actividad.codigo} - {actividad.nombre}</span>
+                                    {actividad.descripcion && (
+                                      <span className="text-sm text-gray-500">{actividad.descripcion}</span>
+                                    )}
+                                  </div>
+                                </CommandItem>
+                              ))
                             )}
                           </CommandGroup>
                         </CommandList>
@@ -1503,13 +1503,13 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
                 {entityType === 'afiliada' && (
                   <div>
                     <Label className="text-left">Plantillas de Solicitudes</Label>
-                    
+
                     {/* Información sobre RLS si no hay plantillas */}
                     {plantillas.length === 0 && !loadingPlantillas && (
                       <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                         <div className="flex items-center justify-between">
                           <div className="text-sm text-blue-800">
-                            <strong>Info:</strong> No hay plantillas disponibles. 
+                            <strong>Info:</strong> No hay plantillas disponibles.
                             Esto puede deberse a políticas de seguridad (RLS) en Supabase.
                           </div>
                           <Button
@@ -1529,7 +1529,7 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
                         </div>
                       </div>
                     )}
-                    
+
                     <div className="relative mt-2" ref={dropdownRef}>
                       <div
                         className="w-full min-h-10 border rounded-md p-2 flex flex-wrap gap-1 cursor-pointer"
@@ -1682,105 +1682,105 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
               </div>
             </div>
 
-              {/* Separador */}
-              <div className="border-t border-gray-200 my-6"></div>
+            {/* Separador */}
+            <div className="border-t border-gray-200 my-6"></div>
 
-              {/* Sección del Logo */}
-              <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
-                  <Building2 className="w-5 h-5 text-blue-600" />
-                  Logo de la Empresa
-                </h3>
-                <div className="flex items-center gap-6">
-                  {/* Vista previa del logo */}
-                  <div className="flex-shrink-0">
-                    <div className="w-32 h-32 border-2 border-dashed border-gray-300 rounded-lg overflow-hidden bg-white flex items-center justify-center">
-                      {logoPreview || form.watch('logo_base64') ? (
-                        <div 
-                          className="logo-preview-empresa"
-                          style={{
-                            backgroundImage: `url(${logoPreview || form.watch('logo_base64')})`
-                          }}
-                        ></div>
-                      ) : (
-                        <div className="text-center text-gray-400">
-                          <Building2 className="w-8 h-8 mx-auto mb-2" />
-                          <p className="text-xs">Sin logo</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Controles del logo */}
-                  <div className="flex-1">
-                    <div className="space-y-3">
-                      <div>
-                        <Label htmlFor="logo" className="text-sm font-medium text-gray-700">
-                          Seleccionar Logo
-                        </Label>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Formatos soportados: JPG, PNG. Tamaño máximo: 5MB. 
-                          Se optimizará automáticamente a 1600x900px (16:9 ratio).
-                        </p>
+            {/* Sección del Logo */}
+            <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-blue-600" />
+                Logo de la Empresa
+              </h3>
+              <div className="flex items-center gap-6">
+                {/* Vista previa del logo */}
+                <div className="flex-shrink-0">
+                  <div className="w-32 h-32 border-2 border-dashed border-gray-300 rounded-lg overflow-hidden bg-white flex items-center justify-center">
+                    {logoPreview || form.watch('logo_base64') ? (
+                      <div
+                        className="logo-preview-empresa"
+                        style={{
+                          backgroundImage: `url(${logoPreview || form.watch('logo_base64')})`
+                        }}
+                      ></div>
+                    ) : (
+                      <div className="text-center text-gray-400">
+                        <Building2 className="w-8 h-8 mx-auto mb-2" />
+                        <p className="text-xs">Sin logo</p>
                       </div>
-                      
-                      <div className="flex items-center gap-3">
+                    )}
+                  </div>
+                </div>
+
+                {/* Controles del logo */}
+                <div className="flex-1">
+                  <div className="space-y-3">
+                    <div>
+                      <Label htmlFor="logo" className="text-sm font-medium text-gray-700">
+                        Seleccionar Logo
+                      </Label>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Formatos soportados: JPG, PNG. Tamaño máximo: 5MB.
+                        Se optimizará automáticamente a 1600x900px (16:9 ratio).
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => document.getElementById('logo')?.click()}
+                        className="flex items-center gap-2"
+                      >
+                        <Upload className="w-4 h-4" />
+                        {form.watch('logo_base64') ? 'Cambiar Logo' : 'Subir Logo'}
+                      </Button>
+
+                      {form.watch('logo_base64') && (
                         <Button
                           type="button"
-                          variant="outline"
+                          variant="ghost"
                           size="sm"
-                          onClick={() => document.getElementById('logo')?.click()}
-                          className="flex items-center gap-2"
+                          onClick={() => {
+                            form.setValue('logo_base64', '');
+                            setLogoPreview(null);
+                          }}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
                         >
-                          <Upload className="w-4 h-4" />
-                          {form.watch('logo_base64') ? 'Cambiar Logo' : 'Subir Logo'}
+                          Quitar Logo
                         </Button>
-                        
-                        {form.watch('logo_base64') && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              form.setValue('logo_base64', '');
-                              setLogoPreview(null);
-                            }}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            Quitar Logo
-                          </Button>
-                        )}
-                      </div>
-                      
-                      <input
-                        id="logo"
-                        type="file"
-                        className="hidden"
-                        accept="image/*"
-                        onChange={handleLogoChange}
-                        onClick={(e) => (e.target as HTMLInputElement).value = ''}
-                      />
-                      
-                      {form.watch('logo_base64') && (
-                        <div className="text-xs text-green-600 bg-green-50 p-2 rounded">
-                          <CheckCircle className="w-3 h-3 inline mr-1" />
-                          Logo cargado correctamente
-                        </div>
                       )}
                     </div>
+
+                    <input
+                      id="logo"
+                      type="file"
+                      className="hidden"
+                      accept="image/*"
+                      onChange={handleLogoChange}
+                      onClick={(e) => (e.target as HTMLInputElement).value = ''}
+                    />
+
+                    {form.watch('logo_base64') && (
+                      <div className="text-xs text-green-600 bg-green-50 p-2 rounded">
+                        <CheckCircle className="w-3 h-3 inline mr-1" />
+                        Logo cargado correctamente
+                      </div>
+                    )}
                   </div>
+                </div>
               </div>
             </div>
 
-              {/* Separador */}
-              <div className="border-t border-gray-200 my-6"></div>
+            {/* Separador */}
+            <div className="border-t border-gray-200 my-6"></div>
 
-              {/* Sección de Documentos */}
-              <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
-                  <FileUp className="w-5 h-5 text-blue-600" />
-                  Documentos
-                </h3>
+            {/* Sección de Documentos */}
+            <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                <FileUp className="w-5 h-5 text-blue-600" />
+                Documentos
+              </h3>
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
                 {[
                   { id: 'contrato', label: 'Contrato', icon: '📄' },
@@ -1873,24 +1873,24 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
               </div>
             </div>
 
-              {/* Botones de acción */}
-              <div className="flex justify-end gap-3 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => (onCancel ? onCancel() : onSaved?.())}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  type="submit"
-                  size="sm"
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                >
-                  {initialData ? "Actualizar Empresa" : "Registrar Empresa"}
-                </Button>
-              </div>
+            {/* Botones de acción */}
+            <div className="flex justify-end gap-3 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => (onCancel ? onCancel() : onSaved?.())}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                {initialData ? "Actualizar Empresa" : "Registrar Empresa"}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </form>
@@ -1926,7 +1926,7 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
 
       {/* Modal independiente para el preview de plantillas */}
       <Dialog open={showPreviewModal} onOpenChange={setShowPreviewModal}>
-        <DialogContent 
+        <DialogContent
           className="max-w-6xl max-h-[90vh] overflow-y-auto"
           onPointerDownOutside={(e) => {
             // Solo cerrar si se hace clic en el overlay (fuera del contenido)
@@ -1956,7 +1956,7 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
                   <span className="font-medium">Nombre:</span> {previewPlantilla?.nombre}
                 </div>
                 <div>
-                  <span className="font-medium">Estado:</span> 
+                  <span className="font-medium">Estado:</span>
                   <span className={`ml-1 px-2 py-1 rounded text-xs ${previewPlantilla?.activa ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                     {previewPlantilla?.activa ? 'Activa' : 'Inactiva'}
                   </span>
@@ -1968,7 +1968,7 @@ export function CompanyForm({ initialData, onSaved, onCancel, entityType = 'afil
                 )}
                 {previewPlantilla?.es_default && (
                   <div className="col-span-2">
-                    <span className="font-medium">Tipo:</span> 
+                    <span className="font-medium">Tipo:</span>
                     <span className="ml-1 px-2 py-1 bg-green-100 text-green-700 text-xs rounded">
                       Plantilla por Defecto
                     </span>

@@ -68,12 +68,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       const userData = localStorage.getItem('userData');
       const token = localStorage.getItem('authToken');
-      
+
       if (userData && token) {
         try {
           // Verificar si es un token simulado (nuestro formato)
           const tokenParts = token.split('.');
-          
+
           if (tokenParts.length === 3 && tokenParts[0] === 'simulated') {
             const [, expStr, userIdStr] = tokenParts;
             const expMs = Number(expStr);
@@ -103,7 +103,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             }
 
             setUser(parsedUser);
-            
+
             // Intentar sincronizar con Supabase Auth al restaurar sesión
             try {
               const email = parsedUser.email || `${parsedUser.username}@compensamos.com`;
@@ -117,10 +117,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
             } catch (authSyncError) {
               // Error sincronizando con Supabase Auth al restaurar
             }
-            
+
             return;
           }
-          
+
           // Verificar token con el servidor solo si no es simulado
           const response = await fetch('/api/auth/verify', {
             headers: {
@@ -132,7 +132,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             // Token válido, restaurar usuario
             const user = JSON.parse(userData);
             const userPermissions = await getUserPermissionsFromDB(user.id, user.role);
-          
+
             setUser({
               ...user,
               permissions: userPermissions
@@ -164,14 +164,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       // Validar usuario con Supabase
       const userValidation = await authService.validateUser(credentials.username);
-      
+
       if (!userValidation) {
         throw new Error('Usuario no encontrado');
       }
 
       // Verificar contraseña
       const passwordResult = await authService.verifyPassword(userValidation.user.id, credentials.password);
-      
+
       if (!passwordResult.success) {
         throw new Error('Contraseña incorrecta');
       }
@@ -220,12 +220,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       let token: string | null = null;
       try {
         // Usar la URL completa de Supabase para las Edge Functions
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://clffvmueangquavnaokd.supabase.co';
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'http://supabase.179.33.214.86.sslip.io';
         const edgeFunctionUrl = `${supabaseUrl}/functions/v1/issue-jwt`;
-        
+
         const res = await fetch(edgeFunctionUrl, {
           method: 'POST',
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || ''}`,
             'apikey': `${import.meta.env.VITE_SUPABASE_ANON_KEY || ''}`
@@ -246,7 +246,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       localStorage.setItem('authToken', token);
-      
+
       // Si recibimos un JWT real, tomar accionesPorRol/acciones desde su payload
       try {
         const parts = token.split('.');
@@ -268,7 +268,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       // Obtener permisos del usuario
       const userPermissions = await getUserPermissionsFromDB(userData.id, userData.role);
-      
+
       const userWithPermissions = {
         ...userData,
         permissions: userPermissions
@@ -279,7 +279,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       // Actualizar estado del contexto
       setUser(userWithPermissions);
-      
+
       // 🔐 SINCRONIZAR CON SUPABASE AUTH (Opcional - se ejecuta en background)
       // Esta sincronización es completamente opcional y no bloquea el login
       // Solo se intenta para habilitar Storage, pero si falla, la app funciona normalmente
@@ -287,24 +287,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setTimeout(async () => {
         try {
           const email = userData.email || `${userData.username}@compensamos.com`;
-          
+
           // Verificar primero si el usuario ya tiene una sesión activa
           const { data: { session: existingSession } } = await supabase.auth.getSession();
           if (existingSession) {
             return; // Ya está sincronizado
           }
-          
+
           // Guardar temporalmente la contraseña en sessionStorage para poder establecer sesión más tarde
           // Esto se limpia automáticamente al cerrar la pestaña
           sessionStorage.setItem('temp_password', credentials.password);
-          
+
           // Intentar hacer sign in de forma silenciosa
           // Si falla, simplemente continuamos sin Supabase Auth
           const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
             email: email,
             password: credentials.password
           }).catch(() => ({ data: null, error: { message: 'Sign in failed' } }));
-          
+
           if (!signInError && signInData?.session) {
             // Sesión establecida exitosamente
             // Limpiar la contraseña temporal después de establecer la sesión
@@ -315,7 +315,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             const syncKey = `supabase_auth_sync_attempted_${userData.id}`;
             if (!localStorage.getItem(syncKey)) {
               localStorage.setItem(syncKey, 'true');
-              
+
               try {
                 const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
                   email: email,
@@ -330,7 +330,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                     }
                   }
                 });
-                
+
                 // Si hay error (usuario ya existe, etc.), simplemente ignorar
               } catch {
                 // Ignorar cualquier error al crear usuario
@@ -341,13 +341,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
           // Cualquier error se ignora completamente - no es crítico
         }
       }, 500); // Ejecutar después de un delay para no interferir con el login
-      
+
       // Si el usuario tiene múltiples empresas, mostrar selector
       if (userValidation.empresas.length > 1) {
         window.location.href = '/select-empresa';
         return;
       }
-      
+
       // Si tiene solo una empresa, seleccionarla automáticamente
       if (userValidation.empresas.length === 1) {
         try {
@@ -358,7 +358,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           // Continuar con el flujo normal
         }
       }
-      
+
       // Redirigir al dashboard
       const dashboard = getDefaultDashboard(userData.role);
       window.location.href = dashboard;
@@ -373,7 +373,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       // Consultar empresa en base de datos y guardar TODO
       const resultado = await guardarEmpresaSeleccionadaConConsulta(parseInt(empresaId));
-      
+
       if (resultado) {
         // Redirigir al dashboard
         const dashboard = getDefaultDashboard(user?.role || 'admin');
@@ -399,7 +399,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       localStorage.removeItem('authToken');
       localStorage.removeItem('userData');
       localStorage.removeItem('empresaData'); // Borrar también empresaData
-      
+
       // Redirigir al login
       window.location.href = '/login';
     }
@@ -410,7 +410,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       // Obtener permisos base del rol
       const basePermissions = getUserPermissions(role);
-      
+
       // Con Supabase, por ahora solo retornamos los permisos base del rol
       // En el futuro puedes agregar permisos específicos del usuario desde Supabase
       return basePermissions;
