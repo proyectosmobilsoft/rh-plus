@@ -97,6 +97,12 @@ const menuItems = [
     subItems: [],
   },
   {
+    title: "Novedades",
+    icon: <ClipboardCheck className="h-5 w-5" />,
+    path: "/novedades",
+    subItems: [],
+  },
+  {
     title: "Información Personal",
     icon: <User className="h-5 w-5" />,
     path: "/perfil-candidato",
@@ -199,6 +205,9 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
 
     // Analistas
     '/analistas': ['vista-analistas'],
+
+    // Novedades
+    '/novedades': ['vista-novedades'],
 
     // Información Personal
     '/perfil-candidato': ['vista-informacion-personal'],
