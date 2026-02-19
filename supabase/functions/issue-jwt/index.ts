@@ -38,11 +38,35 @@ type IssueJwtBody = {
   userData: any;
 };
 
+// Headers CORS para permitir peticiones desde el cliente
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
 // @ts-ignore - Deno global
 Deno.serve(async (req: Request) => {
+  // Manejar preflight CORS
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { 
+      status: 204, 
+      headers: corsHeaders 
+    });
+  }
+
   try {
     if (req.method !== "POST") {
-      return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405, headers: { "Content-Type": "application/json" } });
+      return new Response(
+        JSON.stringify({ error: "Method not allowed" }), 
+        { 
+          status: 405, 
+          headers: { 
+            ...corsHeaders,
+            "Content-Type": "application/json" 
+          } 
+        }
+      );
     }
 
     const { userData } = (await req.json()) as IssueJwtBody;
@@ -97,9 +121,27 @@ Deno.serve(async (req: Request) => {
     };
 
     const token = await create(header, payload, key);
-    return new Response(JSON.stringify({ token }), { status: 200, headers: { "Content-Type": "application/json" } });
+    return new Response(
+      JSON.stringify({ token }), 
+      { 
+        status: 200, 
+        headers: { 
+          ...corsHeaders,
+          "Content-Type": "application/json" 
+        } 
+      }
+    );
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err?.message ?? err) }), { status: 500, headers: { "Content-Type": "application/json" } });
+    return new Response(
+      JSON.stringify({ error: String(err?.message ?? err) }), 
+      { 
+        status: 500, 
+        headers: { 
+          ...corsHeaders,
+          "Content-Type": "application/json" 
+        } 
+      }
+    );
   }
 });
 

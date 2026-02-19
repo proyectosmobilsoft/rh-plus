@@ -65,17 +65,25 @@ export const analistaAsignacionService = {
         const p1 = analista.nivel_prioridad_1;
         if (p1 === 'cliente') {
           if (!coincideEmpresa) {
-            console.log(`  ❌ P1 'cliente' NO coincide empresa para ${analista.usuario_nombre}`);
+            console.log(`  ❌ P1 'cliente' NO coincide empresa para ${analista.usuario_nombre} (empresa buscada: ${empresaId}, empresas configuradas: [${empresaIds.join(', ')}])`);
             return false;
           }
         } else if (p1 === 'sucursal') {
-          if (!coincideEmpresa || !sucursalId || !coincideSucursal) {
-            console.log(`  ❌ P1 'sucursal' NO coincide empresa/sucursal para ${analista.usuario_nombre}`);
+          if (!coincideEmpresa) {
+            console.log(`  ❌ P1 'sucursal' NO coincide empresa para ${analista.usuario_nombre} (empresa buscada: ${empresaId}, empresas configuradas: [${empresaIds.join(', ')}])`);
+            return false;
+          }
+          if (!sucursalId) {
+            console.log(`  ❌ P1 'sucursal' requiere sucursal_id pero la solicitud no tiene sucursal para ${analista.usuario_nombre}`);
+            return false;
+          }
+          if (!coincideSucursal) {
+            console.log(`  ❌ P1 'sucursal' NO coincide sucursal para ${analista.usuario_nombre} (sucursal buscada: ${sucursalId}, sucursales configuradas: [${sucursalIds.join(', ')}])`);
             return false;
           }
         } else {
           // Si P1 no es 'cliente' ni 'sucursal', no consideramos elegible según la regla solicitada
-          console.log(`  ❌ P1 '${p1}' no es aceptada para ${analista.usuario_nombre}`);
+          console.log(`  ❌ P1 '${p1}' no es aceptada para ${analista.usuario_nombre} (debe ser 'cliente' o 'sucursal')`);
           return false;
         }
 

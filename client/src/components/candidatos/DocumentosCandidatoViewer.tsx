@@ -76,8 +76,6 @@ const DocumentosCandidatoViewer: React.FC<DocumentosCandidatoViewerProps> = ({
     
     try {
       // Obtener documentos con información de empresa directamente desde candidatos_documentos
-      console.log('🔍 Cargando documentos para candidato ID:', candidatoId);
-      
                  const { data: documentos, error: documentosError } = await supabase
              .from('candidatos_documentos')
              .select(`
@@ -120,8 +118,6 @@ const DocumentosCandidatoViewer: React.FC<DocumentosCandidatoViewerProps> = ({
         throw documentosError;
       }
       
-      console.log('📄 Documentos obtenidos:', documentos);
-      
       if (!documentos || documentos.length === 0) {
         setDocumentosPorEmpresa([]);
         return;
@@ -136,17 +132,6 @@ const DocumentosCandidatoViewer: React.FC<DocumentosCandidatoViewerProps> = ({
         const tipoCargoId = doc.tipo_cargo_id;
         const cargoNombre = doc.tipos_candidatos?.nombre || 'Sin Cargo';
         
-        console.log('📋 Procesando documento:', {
-          id: doc.id,
-          nombre: doc.nombre_archivo,
-          solicitud_id: doc.solicitud_id,
-          empresa_id: empresaId,
-          tipo_cargo_id: tipoCargoId,
-          cargo_nombre: cargoNombre,
-          empresa_data: empresaData,
-          tiene_url_archivo: !!doc.url_archivo
-        });
-        
         if (empresaId && empresaData) {
           // Documento con empresa asignada desde la solicitud
           if (!empresasMap.has(empresaId)) {
@@ -154,7 +139,6 @@ const DocumentosCandidatoViewer: React.FC<DocumentosCandidatoViewerProps> = ({
               empresa: empresaData,
               cargos: new Map()
             });
-            console.log('🏢 Nueva empresa agregada:', empresaData);
           }
           
           const empresaDataMap = empresasMap.get(empresaId)!;
@@ -164,7 +148,6 @@ const DocumentosCandidatoViewer: React.FC<DocumentosCandidatoViewerProps> = ({
               tipoCargoId: tipoCargoId,
               documentos: []
             });
-            console.log('💼 Nuevo cargo agregado:', cargoNombre);
           }
           
           empresaDataMap.cargos.get(tipoCargoId)!.documentos.push(doc);
@@ -179,7 +162,6 @@ const DocumentosCandidatoViewer: React.FC<DocumentosCandidatoViewerProps> = ({
               },
               cargos: new Map()
             });
-            console.log('📁 Agregando sección "Sin Empresa Asignada"');
           }
           
           const empresaDataMap = empresasMap.get(0)!;
@@ -200,8 +182,6 @@ const DocumentosCandidatoViewer: React.FC<DocumentosCandidatoViewerProps> = ({
         empresa: empresaData.empresa,
         cargos: Array.from(empresaData.cargos.values())
       }));
-      
-      console.log('📊 Documentos agrupados por empresa y cargo:', documentosAgrupados);
 
       setDocumentosPorEmpresa(documentosAgrupados);
            
@@ -240,12 +220,6 @@ const DocumentosCandidatoViewer: React.FC<DocumentosCandidatoViewerProps> = ({
   // Función para descargar documento
   const handleDownload = async (documento: any) => {
     try {
-      console.log('⬇️ Iniciando descarga de documento:', {
-        nombre: documento.nombre_archivo,
-        tiene_base64: !!documento.url_archivo,
-        tiene_url: !!documento.url_archivo
-      });
-      
       if (documento.url_archivo) {
         // Verificar si es base64 o URL
         const isBase64 = isBase64Data(documento.url_archivo);
@@ -283,7 +257,6 @@ const DocumentosCandidatoViewer: React.FC<DocumentosCandidatoViewerProps> = ({
             // Limpiar URL del blob
             URL.revokeObjectURL(blobUrl);
             
-            console.log('✅ Descarga de base64 iniciada exitosamente');
             toast.success(`Descargando ${documento.nombre_archivo}`);
           } catch (base64Error) {
             console.error('❌ Error procesando base64:', base64Error);
@@ -300,11 +273,9 @@ const DocumentosCandidatoViewer: React.FC<DocumentosCandidatoViewerProps> = ({
           link.click();
           document.body.removeChild(link);
           
-          console.log('✅ Descarga de URL iniciada exitosamente');
           toast.success(`Descargando ${documento.nombre_archivo}`);
         }
       } else {
-        console.warn('⚠️ No hay archivo disponible');
         toast.error('No hay archivo disponible para descargar');
       }
     } catch (error) {
@@ -316,12 +287,6 @@ const DocumentosCandidatoViewer: React.FC<DocumentosCandidatoViewerProps> = ({
   // Función para visualizar documento
   const handleView = async (documento: any) => {
     try {
-      console.log('👁️ Abriendo documento para visualización:', {
-        nombre: documento.nombre_archivo,
-        tiene_base64: !!documento.url_archivo,
-        tipo_archivo: documento.nombre_archivo?.split('.').pop()?.toLowerCase()
-      });
-      
       if (documento.url_archivo) {
         // Limpiar blob URL anterior si existe
         if (documentoBlobUrl) {
@@ -353,8 +318,6 @@ const DocumentosCandidatoViewer: React.FC<DocumentosCandidatoViewerProps> = ({
             const blobUrl = URL.createObjectURL(blob);
             setDocumentoBlobUrl(blobUrl);
             urlParaVisualizar = blobUrl;
-            
-            console.log('✅ Blob URL creado para visualización');
           } catch (blobError) {
             console.error('❌ Error creando blob URL:', blobError);
             toast.error('Error al procesar el documento para visualización');
@@ -364,9 +327,7 @@ const DocumentosCandidatoViewer: React.FC<DocumentosCandidatoViewerProps> = ({
 
         setDocumentoSeleccionado({ ...documento, url_archivo: urlParaVisualizar });
         setModalVisualizacionOpen(true);
-        console.log('✅ Modal de visualización abierto');
       } else {
-        console.warn('⚠️ No hay archivo disponible');
         toast.error('No hay archivo disponible para visualizar');
       }
     } catch (error) {

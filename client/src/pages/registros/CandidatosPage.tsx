@@ -274,7 +274,7 @@ const CandidatosPage = () => {
 
   // Función para manejar envío del formulario
   const handleSubmit = async () => {
-    if (formData.identificacion && formData.nombre && formData.apellido && formData.correo && formData.tipoCandidatoId) {
+    if (formData.identificacion && formData.nombre && formData.apellido && formData.correo) {
       setIsSubmitting(true);
       
       const candidatoPayload = {
@@ -283,7 +283,7 @@ const CandidatosPage = () => {
         primer_nombre: formData.nombre,
         primer_apellido: formData.apellido,
         email: formData.correo,
-        tipo_candidato_id: formData.tipoCandidatoId,
+        // Nota: tipo_candidato_id no existe en la tabla candidatos, se omite del payload
         activo: true, // Por defecto activo
       };
       
@@ -322,10 +322,7 @@ const CandidatosPage = () => {
       let errorMessage = "Por favor complete todos los campos obligatorios";
       let errorTitle = "❌ Campos Incompletos";
       
-      if (!formData.tipoCandidatoId) {
-        errorMessage = "Por favor seleccione un tipo de candidato";
-        errorTitle = "❌ Tipo de Candidato Requerido";
-      } else if (!formData.identificacion) {
+      if (!formData.identificacion) {
         errorMessage = "Por favor ingrese el número de documento";
         errorTitle = "❌ Documento Requerido";
       } else if (!formData.nombre) {
@@ -364,7 +361,7 @@ const CandidatosPage = () => {
       nombre: candidato.primer_nombre || '',
       apellido: candidato.primer_apellido || '',
       correo: candidato.email || '',
-      tipoCandidatoId: candidato.tipo_candidato_id
+      tipoCandidatoId: undefined // tipo_candidato_id no existe en la tabla candidatos
     });
     setEditingId(candidato.id);
     setActiveTab("registro");

@@ -14,6 +14,7 @@ import { useRegisterView } from '@/hooks/useRegisterView';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { solicitudesLogsService, type SolicitudLog } from '@/services/solicitudesLogsService';
 import { supabase } from '@/services/supabaseClient';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 // import SolicitudForm from '@/components/solicitudes/SolicitudForm';
 
 interface SolicitudesListProps {
@@ -25,6 +26,7 @@ interface SolicitudesListProps {
   onStandBy: (id: number, observacion: string) => void;
   onReactivate: (id: number) => void;
   onDeserto: (id: number, observacion: string) => void;
+  onDescartado: (id: number, observacion: string) => void;
   onCancel: (id: number, observacion: string) => void;
   onContract: (id: number, observacion: string) => void;
   onAssign: (id: number, analistaId: number) => void;
@@ -43,6 +45,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   onStandBy,
   onReactivate,
   onDeserto,
+  onDescartado,
   onCancel,
   onContract,
   onAssign,
@@ -61,6 +64,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     addAction('standby', 'Poner en Stand By');
     addAction('reactivar', 'Reactivar Solicitud');
     addAction('deserto', 'Marcar Deserto');
+    addAction('descartado', 'Marcar Descartado');
     addAction('visualizar', 'Visualizar Solicitud');
     addAction('cancelar', 'Cancelar Solicitud');
     addAction('contratar', 'Contratar Candidato');
@@ -70,15 +74,18 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   const [confirmStandByOpen, setConfirmStandByOpen] = useState(false);
   const [confirmReactivateOpen, setConfirmReactivateOpen] = useState(false);
   const [confirmDesertoOpen, setConfirmDesertoOpen] = useState(false);
+  const [confirmDescartadoOpen, setConfirmDescartadoOpen] = useState(false);
   const [selectedSolicitudId, setSelectedSolicitudId] = useState<number | null>(null);
   const [contactingSolicitudId, setContactingSolicitudId] = useState<number | null>(null);
   const [standByObservacion, setStandByObservacion] = useState('');
   const [contactObservacion, setContactObservacion] = useState('');
   const [desertoObservacion, setDesertoObservacion] = useState('');
+  const [descartadoObservacion, setDescartadoObservacion] = useState('');
   const [cancelObservacion, setCancelObservacion] = useState('');
   const [solicitudesStandBy, setSolicitudesStandBy] = useState<Map<number, string>>(new Map());
   const [reactivatingSolicitudId, setReactivatingSolicitudId] = useState<number | null>(null);
   const [desertoSolicitudId, setDesertoSolicitudId] = useState<number | null>(null);
+  const [descartadoSolicitudId, setDescartadoSolicitudId] = useState<number | null>(null);
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedSolicitudForView, setSelectedSolicitudForView] = useState<Solicitud | null>(null);
   const [logsLoading, setLogsLoading] = useState(false);
@@ -88,6 +95,9 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   const [confirmAssignOpen, setConfirmAssignOpen] = useState(false);
   const [assigningSolicitudId, setAssigningSolicitudId] = useState<number | null>(null);
   const [suggestedAnalyst, setSuggestedAnalyst] = useState<{analista_id: number, analista_nombre: string} | null>(null);
+  const [availableAnalysts, setAvailableAnalysts] = useState<Array<{id: number, nombre: string, email?: string}>>([]);
+  const [selectedAnalystId, setSelectedAnalystId] = useState<number | null>(null);
+  const [loadingAnalysts, setLoadingAnalysts] = useState(false);
   const [confirmValidateDocumentsOpen, setConfirmValidateDocumentsOpen] = useState(false);
   const [validatingDocumentsSolicitudId, setValidatingDocumentsSolicitudId] = useState<number | null>(null);
   const [validateDocumentsObservacion, setValidateDocumentsObservacion] = useState('');
@@ -121,20 +131,11 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   // Detener loading global cuando se complete una operación de Contacto
   useEffect(() => {
     if (contactingSolicitudId) {
-      console.log('🔍 useEffect de contacto ejecutado, contactingSolicitudId:', contactingSolicitudId);
       const solicitud = solicitudes.find(s => s.id === contactingSolicitudId);
-      console.log('🔍 Solicitud encontrada:', solicitud?.id, 'Estado:', solicitud?.estado);
 
       if (solicitud && solicitud.estado === 'pendiente documentos') {
-        console.log('🔍 Operación de Contacto completada, limpiando estado...');
         setContactingSolicitudId(null);
         stopLoading(); // Detener loading global cuando se complete la operación de Contacto
-        console.log('🔍 Loading global detenido por operación de Contacto');
-      } else if (solicitud) {
-        console.log('🔍 Solicitud aún no en estado pendiente documentos, esperando...');
-        console.log('🔍 Estado actual:', solicitud.estado, 'Esperando: pendiente documentos');
-      } else {
-        console.log('🔍 Solicitud no encontrada, puede que se haya recargado la lista');
       }
     }
   }, [contactingSolicitudId, stopLoading, solicitudes.length]);
@@ -143,7 +144,6 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   useEffect(() => {
     if (contactingSolicitudId) {
       const timeoutId = setTimeout(() => {
-        console.log('⚠️ Timeout de seguridad: Deteniendo loading global por operación de Contacto');
         setContactingSolicitudId(null);
         stopLoading();
       }, 10000); // 10 segundos
@@ -173,20 +173,12 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     // Si hay solicitudes que ya no están en STAND BY y teníamos un reactivatingSolicitudId,
     // significa que la reactivación se completó
     if (reactivatingSolicitudId) {
-      console.log('🔍 useEffect de reactivación ejecutado, reactivatingSolicitudId:', reactivatingSolicitudId);
       const solicitud = solicitudes.find(s => s.id === reactivatingSolicitudId);
-      console.log('🔍 Solicitud encontrada:', solicitud?.id, 'Estado:', solicitud?.estado);
 
       // Verificar si la solicitud ya no está en STAND BY (reactivación completada)
       if (solicitud && !isStandBy(solicitud.estado)) {
-        console.log('🔍 Reactivación completada, limpiando estado...');
         setReactivatingSolicitudId(null);
         stopLoading(); // Detener loading global cuando se complete la reactivación
-        console.log('🔍 Loading global detenido por reactivación');
-      } else if (solicitud) {
-        console.log('🔍 Solicitud aún en Stand By, esperando reactivación...');
-      } else {
-        console.log('🔍 Solicitud no encontrada, puede que se haya recargado la lista');
       }
     }
   }, [solicitudes, reactivatingSolicitudId, stopLoading]);
@@ -195,7 +187,6 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   useEffect(() => {
     if (reactivatingSolicitudId) {
       const timeoutId = setTimeout(() => {
-        console.log('⚠️ Timeout de seguridad: Deteniendo loading global por operación de Reactivación');
         setReactivatingSolicitudId(null);
         stopLoading();
       }, 10000); // 10 segundos
@@ -208,7 +199,6 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   useEffect(() => {
     if (cancelingSolicitudId) {
       const timeoutId = setTimeout(() => {
-        console.log('⚠️ Timeout de seguridad: Deteniendo loading global por operación de Cancelación');
         setCancelingSolicitudId(null);
         stopLoading();
       }, 10000); // 10 segundos
@@ -245,39 +235,35 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   // Detener loading global cuando se complete una operación de Deserto
   useEffect(() => {
     if (desertoSolicitudId) {
-      console.log('🔍 useEffect de deserto ejecutado, desertoSolicitudId:', desertoSolicitudId);
       const solicitud = solicitudes.find(s => s.id === desertoSolicitudId);
-      console.log('🔍 Solicitud encontrada:', solicitud?.id, 'Estado:', solicitud?.estado);
 
       if (solicitud && isDeserto(solicitud.estado)) {
-        console.log('🔍 Operación de Deserto completada, limpiando estado...');
         setDesertoSolicitudId(null);
         stopLoading(); // Detener loading global cuando se complete la operación de Deserto
-        console.log('🔍 Loading global detenido por operación de Deserto');
-      } else if (solicitud) {
-        console.log('🔍 Solicitud aún no en estado Deserto, esperando...');
-      } else {
-        console.log('🔍 Solicitud no encontrada, puede que se haya recargado la lista');
       }
     }
   }, [solicitudes, desertoSolicitudId, stopLoading]);
 
+  // Detener loading global cuando se complete una operación de Descartado
+  useEffect(() => {
+    if (descartadoSolicitudId) {
+      const solicitud = solicitudes.find(s => s.id === descartadoSolicitudId);
+
+      if (solicitud && solicitud.estado === 'descartado') {
+        setDescartadoSolicitudId(null);
+        stopLoading(); // Detener loading global cuando se complete la operación de Descartado
+      }
+    }
+  }, [solicitudes, descartadoSolicitudId, stopLoading]);
+
   // Detener loading global cuando se complete una operación de Cancelación
   useEffect(() => {
     if (cancelingSolicitudId) {
-      console.log('🔍 useEffect de cancelación ejecutado, cancelingSolicitudId:', cancelingSolicitudId);
       const solicitud = solicitudes.find(s => s.id === cancelingSolicitudId);
-      console.log('🔍 Solicitud encontrada:', solicitud?.id, 'Estado:', solicitud?.estado);
 
       if (solicitud && solicitud.estado === 'cancelada') {
-        console.log('🔍 Operación de Cancelación completada, limpiando estado...');
         setCancelingSolicitudId(null);
         stopLoading(); // Detener loading global cuando se complete la operación de Cancelación
-        console.log('🔍 Loading global detenido por operación de Cancelación');
-      } else if (solicitud) {
-        console.log('🔍 Solicitud aún no en estado Cancelada, esperando...');
-      } else {
-        console.log('🔍 Solicitud no encontrada, puede que se haya recargado la lista');
       }
     }
   }, [solicitudes, cancelingSolicitudId, stopLoading]);
@@ -303,10 +289,51 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
       const progresoData: Record<number, { total: number; subidos: number; progreso: number }> = {};
       
-      // Procesar todas las solicitudes en paralelo
+      // Obtener todos los IDs de solicitudes y candidatos válidos
+      const solicitudesConDatos = solicitudes.filter(s => s.id && s.candidato_id);
+      const solicitudIds = solicitudesConDatos.map(s => s.id!);
+      const candidatoIds = solicitudesConDatos.map(s => s.candidato_id!).filter((id, index, self) => self.indexOf(id) === index); // únicos
+      
+      // OPTIMIZACIÓN: Hacer una sola petición para obtener todos los documentos de todas las solicitudes
+      let todosDocumentosSubidos: Array<{ tipo_documento_id: number; candidato_id: number; solicitud_id: number }> = [];
+      
+      if (solicitudIds.length > 0 && candidatoIds.length > 0) {
+        try {
+          const { data, error: subidosError } = await supabase
+            .from('candidatos_documentos')
+            .select('tipo_documento_id, candidato_id, solicitud_id')
+            .in('solicitud_id', solicitudIds)
+            .in('candidato_id', candidatoIds);
+          
+          if (subidosError) {
+            console.error('Error obteniendo documentos subidos:', subidosError);
+          } else {
+            todosDocumentosSubidos = data || [];
+          }
+        } catch (error) {
+          console.error('Error en petición optimizada de documentos:', error);
+        }
+      }
+      
+      // Crear un mapa para acceso rápido: (candidato_id, solicitud_id) -> documentos subidos
+      const documentosPorSolicitud = new Map<string, Set<number>>();
+      todosDocumentosSubidos.forEach(doc => {
+        const key = `${doc.candidato_id}_${doc.solicitud_id}`;
+        if (!documentosPorSolicitud.has(key)) {
+          documentosPorSolicitud.set(key, new Set());
+        }
+        documentosPorSolicitud.get(key)!.add(doc.tipo_documento_id);
+      });
+      
+      // Procesar cada solicitud usando los datos ya cargados
       const promesas = solicitudes.map(async (solicitud) => {
         if (solicitud.id) {
-          const progreso = await calcularProgresoDocumentosRequeridos(solicitud);
+          // Obtener documentos subidos desde el mapa (ya cargados)
+          const key = `${solicitud.candidato_id}_${solicitud.id}`;
+          const documentosSubidosIds = documentosPorSolicitud.get(key) || new Set<number>();
+          
+          // Calcular progreso usando la función existente pero pasando los documentos ya cargados
+          const progreso = await calcularProgresoDocumentosRequeridos(solicitud, documentosSubidosIds);
           progresoData[solicitud.id] = progreso;
         }
       });
@@ -419,13 +446,13 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   const hasAnyAvailableAction = (s: Solicitud): boolean => {
     const puedeEditar = s.estado === 'asignado' && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-editar-solicitud');
     const puedeVisualizar = hasAction('accion-visualizar-solicitud');
-    const puedeAsignar = isPendienteAsignacion(s.estado) && !isStandBy(s.estado) && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-asignar-solicitud');
+    const puedeAsignar = (isPendienteAsignacion(s.estado) || s.estado?.toLowerCase() === 'asignado') && !isStandBy(s.estado) && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-asignar-solicitud');
     const puedeAprobar = s.estado === 'pendiente' && !isStandBy(s.estado) && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-aprobar-solicitud');
     const puedeContactar = s.estado === 'asignado' && !isStandBy(s.estado) && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-contactar-solicitud');
     const puedeReactivar = isStandBy(s.estado) && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-reactivar-solicitud');
     const puedeStandBy = !isStandBy(s.estado) && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-standby-solicitud');
     const puedeDeserto = !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-deserto-solicitud');
-    const puedeCancelar = s.estado === 'asignado' && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-cancelar-solicitud');
+    const puedeCancelar = !isCancelada(s.estado) && hasAction('accion-cancelar-solicitud');
     const puedeValidarDocumentos = s.estado?.toLowerCase() === 'documentos entregados' && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-validar-documentos-solicitud');
     const puedeDevolverDocumentos = s.estado?.toLowerCase() === 'documentos entregados' && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-devolver-documentos-solicitud');
     const puedeContratar = s.estado?.toLowerCase() === 'firma contrato' && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-contratar-solicitud');
@@ -526,7 +553,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
   };
 
   // Función para calcular el progreso de documentos requeridos de una solicitud
-  const calcularProgresoDocumentosRequeridos = async (solicitud: Solicitud) => {
+  const calcularProgresoDocumentosRequeridos = async (solicitud: Solicitud, documentosSubidosIdsPrecargados?: Set<number>) => {
     try {
       // Obtener el tipo de cargo de la solicitud
       let tipoCargoId = solicitud.estructura_datos?.cargo ?? solicitud.estructura_datos?.datos?.cargo;
@@ -552,7 +579,6 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
           if (tipoCandidato) {
             tipoCargoId = tipoCandidato.id;
           } else {
-            console.warn(`No se encontró tipo de candidato para: ${tipoCargoId}`);
             return { total: 0, subidos: 0, progreso: 0 };
           }
         }
@@ -585,24 +611,30 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
         return { total: 0, subidos: 0, progreso: 100 };
       }
 
-      // Obtener documentos subidos por el candidato para esta solicitud
-      let documentosSubidos: Array<{ tipo_documento_id: number }> = [];
-      if (solicitud.candidato_id) {
-        const { data, error: subidosError } = await supabase
-          .from('candidatos_documentos')
-          .select('tipo_documento_id')
-          .eq('candidato_id', solicitud.candidato_id)
-          .eq('solicitud_id', solicitud.id);
-        
-        if (subidosError) {
-          console.error('Error obteniendo documentos subidos:', subidosError);
-          return { total: totalDocumentos, subidos: 0, progreso: 0 };
+      // Usar documentos precargados si están disponibles, sino hacer petición individual
+      let documentosSubidosIds: Set<number>;
+      if (documentosSubidosIdsPrecargados) {
+        documentosSubidosIds = documentosSubidosIdsPrecargados;
+      } else {
+        // Fallback: obtener documentos subidos por el candidato para esta solicitud (solo si no se precargaron)
+        let documentosSubidos: Array<{ tipo_documento_id: number }> = [];
+        if (solicitud.candidato_id) {
+          const { data, error: subidosError } = await supabase
+            .from('candidatos_documentos')
+            .select('tipo_documento_id')
+            .eq('candidato_id', solicitud.candidato_id)
+            .eq('solicitud_id', solicitud.id);
+          
+          if (subidosError) {
+            console.error('Error obteniendo documentos subidos:', subidosError);
+            return { total: totalDocumentos, subidos: 0, progreso: 0 };
+          }
+          
+          documentosSubidos = data || [];
         }
-        
-        documentosSubidos = data || [];
+        documentosSubidosIds = new Set(documentosSubidos.map((doc) => doc.tipo_documento_id));
       }
 
-      const documentosSubidosIds = new Set(documentosSubidos.map((doc) => doc.tipo_documento_id));
       const documentosRequeridosIds = new Set(documentosRequeridos?.map((doc: any) => doc.tipos_documentos.id) || []);
       
       // Contar cuántos documentos requeridos están subidos
@@ -619,10 +651,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
   // Función para renderizar la plantilla en modo de solo lectura
   const renderPlantilla = (estructura: any, datos: any) => {
-    console.log('🔍 renderPlantilla llamado con:', { estructura, datos });
-
     if (!estructura || !estructura.secciones) {
-      console.log('❌ No hay estructura o secciones:', { estructura });
       return (
         <div className="text-center py-4 text-gray-500">
           <p>No hay estructura de plantilla disponible</p>
@@ -809,12 +838,8 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
   const handleContactConfirm = async () => {
     if (selectedSolicitudId && contactObservacion.trim()) {
-      console.log('🔍 handleContactConfirm llamado para solicitud ID:', selectedSolicitudId);
-      console.log('🔍 Llamando a startLoading()...');
       startLoading(); // Activar loading global
-      console.log('🔍 Llamando a onContact con ID:', selectedSolicitudId, 'y observación:', contactObservacion);
       onContact(selectedSolicitudId, contactObservacion);
-      console.log('🔍 onContact ejecutado');
 
       setConfirmContactOpen(false);
       setSelectedSolicitudId(null);
@@ -833,7 +858,6 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
           const data = await solicitudesLogsService.getLogsBySolicitud(selectedSolicitudForView.id);
           setLogs(data);
         } catch (e) {
-          console.warn('No se pudieron cargar los logs de la solicitud:', e);
           setLogs([]);
         } finally {
           setLogsLoading(false);
@@ -901,12 +925,8 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
   const handleDesertoConfirm = () => {
     if (selectedSolicitudId && desertoObservacion.trim()) {
-      console.log('🔍 handleDesertoConfirm llamado para solicitud ID:', selectedSolicitudId);
-      console.log('🔍 Llamando a startLoading()...');
       startLoading(); // Activar loading global
-      console.log('🔍 Llamando a onDeserto con ID:', selectedSolicitudId, 'y observación:', desertoObservacion);
       onDeserto(selectedSolicitudId, desertoObservacion);
-      console.log('🔍 onDeserto ejecutado');
 
       setConfirmDesertoOpen(false);
       setSelectedSolicitudId(null);
@@ -916,36 +936,41 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     }
   };
 
-  const handleReactivate = (id: number) => {
-    console.log('🔍 handleReactivate llamado con ID:', id);
-    console.log('🔍 Estado actual de reactivatingSolicitudId:', reactivatingSolicitudId);
-    setReactivatingSolicitudId(id);
-    console.log('🔍 reactivatingSolicitudId establecido a:', id);
-    setConfirmReactivateOpen(true);
-    console.log('🔍 Diálogo de confirmación abierto');
+  const handleDescartadoClick = (id: number | undefined) => {
+    if (id) {
+      setSelectedSolicitudId(id);
+      setDescartadoSolicitudId(id);
+      setConfirmDescartadoOpen(true);
+    }
+  };
 
-    // Verificar que el estado se estableció correctamente
-    setTimeout(() => {
-      console.log('🔍 Verificación: reactivatingSolicitudId después de setState:', reactivatingSolicitudId);
-    }, 0);
+  const handleDescartadoConfirm = () => {
+    if (selectedSolicitudId && descartadoObservacion.trim()) {
+      startLoading(); // Activar loading global
+      onDescartado(selectedSolicitudId, descartadoObservacion);
+
+      setConfirmDescartadoOpen(false);
+      setSelectedSolicitudId(null);
+      setDescartadoObservacion('');
+      // NO limpiar descartadoSolicitudId aquí, se limpiará cuando se complete la operación
+      // El loading se detendrá cuando se complete la operación en el componente padre
+    }
+  };
+
+  const handleReactivate = (id: number) => {
+    setReactivatingSolicitudId(id);
+    setConfirmReactivateOpen(true);
   };
 
   const handleReactivateConfirm = () => {
-    console.log('🔍 handleReactivateConfirm llamado');
     if (reactivatingSolicitudId) {
-      console.log('🔍 reactivatingSolicitudId válido:', reactivatingSolicitudId);
-      console.log('🔍 Llamando a startLoading()...');
       startLoading(); // Activar loading global
-      console.log('🔍 Llamando a onReactivate con ID:', reactivatingSolicitudId);
       onReactivate(reactivatingSolicitudId);
-      console.log('🔍 onReactivate ejecutado');
 
       setConfirmReactivateOpen(false);
       // NO limpiar reactivatingSolicitudId aquí, se limpiará cuando se complete la operación
       // El loading se detendrá cuando se complete la operación en el useEffect
-      console.log('🔍 reactivatingSolicitudId mantenido para monitoreo:', reactivatingSolicitudId);
     } else {
-      console.log('❌ reactivatingSolicitudId es null o undefined');
       // Si no hay ID válido, detener el loading para evitar que se quede colgado
       stopLoading();
     }
@@ -966,12 +991,8 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
   const handleCancelConfirm = () => {
     if (selectedSolicitudId && cancelObservacion.trim()) {
-      console.log('🔍 handleCancelConfirm llamado para solicitud ID:', selectedSolicitudId);
-      console.log('🔍 Llamando a startLoading()...');
       startLoading(); // Activar loading global
-      console.log('🔍 Llamando a onCancel con ID:', selectedSolicitudId, 'y observación:', cancelObservacion);
       onCancel(selectedSolicitudId, cancelObservacion);
-      console.log('🔍 onCancel ejecutado');
 
       setConfirmCancelOpen(false);
       setSelectedSolicitudId(null);
@@ -986,39 +1007,169 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     if (id) {
       setSelectedSolicitudId(id);
       setAssigningSolicitudId(id);
+      setSuggestedAnalyst(null);
+      setSelectedAnalystId(null);
+      setAvailableAnalysts([]);
+      setLoadingAnalysts(true);
       
-      // Obtener la solicitud para acceder a la empresa
-      const solicitud = solicitudes.find(s => s.id === id);
-      if (solicitud && solicitud.empresa_id) {
-        try {
-          // Importar el servicio de solicitudes
-          const { solicitudesService } = await import('@/services/solicitudesService');
-          const suggested = await solicitudesService.getSuggestedAnalyst(solicitud.empresa_id);
-          setSuggestedAnalyst(suggested);
-        } catch (error) {
-          console.error('Error obteniendo analista sugerido:', error);
-          setSuggestedAnalyst(null);
-        }
-      }
-      
+      // Abrir el modal inmediatamente para mostrar el loading personalizado dentro
       setConfirmAssignOpen(true);
+      
+      // Obtener la solicitud para acceder a la empresa y estado
+      const solicitud = solicitudes.find(s => s.id === id);
+      const isAsignado = solicitud?.estado?.toLowerCase() === 'asignado';
+      
+      try {
+        console.log('🔄 [handleAssignClick] Iniciando peticiones asíncronas');
+        // Importar los servicios necesarios
+        const { solicitudesService } = await import('@/services/solicitudesService');
+        const { analystsService } = await import('@/services/analystsService');
+        
+        // Si la solicitud está en estado "asignado", mostrar directamente el select sin buscar analista sugerido
+        if (isAsignado) {
+          console.log('📋 Solicitud en estado "asignado", mostrando select de analistas directamente...');
+          console.log('🔄 [handleAssignClick] Llamando a analystsService.getAll() - esto hará petición a gen_usuarios');
+          const analysts = await analystsService.getAll(); // Esta petición incluye gen_usuarios con gen_usuario_roles
+          console.log('✅ [handleAssignClick] analystsService.getAll() completado, analistas recibidos:', analysts.length);
+          const analystsList = analysts.map(analyst => ({
+            id: analyst.id!,
+            nombre: `${analyst.primer_nombre || ''} ${analyst.primer_apellido || ''}`.trim() || analyst.username,
+            email: analyst.email
+          }));
+          setAvailableAnalysts(analystsList);
+          setLoadingAnalysts(false);
+          return;
+        }
+        
+        // Para otros estados, mantener el comportamiento original (buscar analista sugerido)
+        if (solicitud && solicitud.empresa_id) {
+          // Extraer sucursal_id de estructura_datos si existe
+          let sucursalId: number | undefined;
+          if (solicitud.estructura_datos && typeof solicitud.estructura_datos === 'object') {
+            const estructura = solicitud.estructura_datos as Record<string, any>;
+            // Buscar sucursal_id en diferentes posibles ubicaciones dentro de estructura_datos
+            const sucursalValue = estructura.sucursal || 
+                                 estructura.sucursal_id || 
+                                 estructura.Sucursal ||
+                                 estructura.sucursalId ||
+                                 estructura.datos?.sucursal ||
+                                 estructura.datos?.sucursal_id;
+            
+            if (sucursalValue !== undefined && sucursalValue !== null && sucursalValue !== '') {
+              const sucursalNum = typeof sucursalValue === 'number' ? sucursalValue : Number(sucursalValue);
+              if (!isNaN(sucursalNum) && sucursalNum > 0) {
+                sucursalId = sucursalNum;
+                console.log('🏢 Sucursal ID extraída de estructura_datos:', sucursalId);
+              } else {
+                console.log('⚠️ Valor de sucursal encontrado pero no es numérico válido:', sucursalValue);
+              }
+            } else {
+              console.log('ℹ️ No se encontró sucursal_id en estructura_datos para la solicitud', id);
+            }
+          }
+          
+          // Intentar obtener analista sugerido automáticamente
+          // NOTA: getSuggestedAnalyst internamente llama a getAnalistasWithPriorities 
+          // que hace la petición a gen_usuarios con gen_usuario_roles
+          console.log('🔍 Buscando analista sugerido para empresa:', solicitud.empresa_id, 'sucursal:', sucursalId);
+          console.log('🔄 [handleAssignClick] Llamando a getSuggestedAnalyst - esto hará petición a gen_usuarios');
+          const suggested = await solicitudesService.getSuggestedAnalyst(solicitud.empresa_id, sucursalId);
+          console.log('✅ [handleAssignClick] getSuggestedAnalyst completado, resultado:', suggested ? 'encontrado' : 'no encontrado');
+          
+          if (suggested) {
+            setSuggestedAnalyst(suggested);
+            setSelectedAnalystId(suggested.analista_id);
+            console.log('✅ Analista sugerido encontrado:', suggested.analista_nombre);
+            // La petición a gen_usuarios ya se completó dentro de getSuggestedAnalyst
+          } else {
+            // Si no hay sugerencia automática, cargar lista de analistas disponibles
+            console.log('⚠️ No se encontró analista sugerido automáticamente, cargando lista de analistas...');
+            console.log('📋 Razones posibles:');
+            console.log('  - No hay analistas con prioridades configuradas para empresa:', solicitud.empresa_id);
+            if (sucursalId) {
+              console.log('  - No hay analistas con prioridades configuradas para sucursal:', sucursalId);
+            }
+            console.log('  - Los analistas no cumplen con las condiciones de prioridad');
+            console.log('  - Los analistas han alcanzado su límite de solicitudes');
+            
+            // Esta petición también incluye gen_usuarios con gen_usuario_roles
+            console.log('🔄 [handleAssignClick] Llamando a analystsService.getAll() - esto hará petición a gen_usuarios');
+            const analysts = await analystsService.getAll();
+            console.log('✅ [handleAssignClick] analystsService.getAll() completado, analistas recibidos:', analysts.length);
+            const analystsList = analysts.map(analyst => ({
+              id: analyst.id!,
+              nombre: `${analyst.primer_nombre || ''} ${analyst.primer_apellido || ''}`.trim() || analyst.username,
+              email: analyst.email
+            }));
+            setAvailableAnalysts(analystsList);
+            
+            // Si solo hay un analista disponible, seleccionarlo automáticamente
+            if (analystsList.length === 1) {
+              setSelectedAnalystId(analystsList[0].id);
+            }
+          }
+        } else {
+          // Si no hay empresa_id, cargar lista de analistas disponibles directamente
+          console.log('La solicitud no tiene empresa_id, cargando lista de analistas...');
+          console.log('🔄 [handleAssignClick] Llamando a analystsService.getAll() - esto hará petición a gen_usuarios');
+          const analysts = await analystsService.getAll(); // Esta petición incluye gen_usuarios con gen_usuario_roles
+          console.log('✅ [handleAssignClick] analystsService.getAll() completado, analistas recibidos:', analysts.length);
+          const analystsList = analysts.map(analyst => ({
+            id: analyst.id!,
+            nombre: `${analyst.primer_nombre || ''} ${analyst.primer_apellido || ''}`.trim() || analyst.username,
+            email: analyst.email
+          }));
+          setAvailableAnalysts(analystsList);
+          
+          // Si solo hay un analista disponible, seleccionarlo automáticamente
+          if (analystsList.length === 1) {
+            setSelectedAnalystId(analystsList[0].id);
+          }
+        }
+      } catch (error) {
+        console.error('Error obteniendo analista sugerido:', error);
+        setSuggestedAnalyst(null);
+        
+        // Intentar cargar lista de analistas como fallback
+        try {
+          const { analystsService } = await import('@/services/analystsService');
+          console.log('🔄 [handleAssignClick] Fallback: Llamando a analystsService.getAll() - esto hará petición a gen_usuarios');
+          const analysts = await analystsService.getAll(); // Esta petición incluye gen_usuarios con gen_usuario_roles
+          console.log('✅ [handleAssignClick] Fallback: analystsService.getAll() completado, analistas recibidos:', analysts.length);
+          const analystsList = analysts.map(analyst => ({
+            id: analyst.id!,
+            nombre: `${analyst.primer_nombre || ''} ${analyst.primer_apellido || ''}`.trim() || analyst.username,
+            email: analyst.email
+          }));
+          setAvailableAnalysts(analystsList);
+          if (analystsList.length === 1) {
+            setSelectedAnalystId(analystsList[0].id);
+          }
+        } catch (fallbackError) {
+          console.error('Error cargando analistas como fallback:', fallbackError);
+        }
+      } finally {
+        setLoadingAnalysts(false);
+        console.log('🔄 [handleAssignClick] Bloque finally ejecutado - loading detenido');
+      }
     }
   };
 
   const handleAssignConfirm = () => {
-    if (selectedSolicitudId && suggestedAnalyst) {
-      console.log('🔍 handleAssignConfirm llamado para solicitud ID:', selectedSolicitudId);
-      console.log('🔍 Analista a asignar:', suggestedAnalyst);
-      console.log('🔍 Llamando a startLoading()...');
+    const analystIdToAssign = suggestedAnalyst?.analista_id || selectedAnalystId;
+    
+    if (selectedSolicitudId && analystIdToAssign) {
       startLoading(); // Activar loading global
       
       // Llamar a la función de asignación
-      onAssign(selectedSolicitudId, suggestedAnalyst.analista_id);
+      onAssign(selectedSolicitudId, analystIdToAssign);
       
       setConfirmAssignOpen(false);
       setSelectedSolicitudId(null);
       setAssigningSolicitudId(null);
       setSuggestedAnalyst(null);
+      setSelectedAnalystId(null);
+      setAvailableAnalysts([]);
     }
   };
 
@@ -1033,8 +1184,6 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
   const handleValidateDocumentsConfirm = () => {
     if (selectedSolicitudId && validateDocumentsObservacion.trim()) {
-      console.log('🔍 handleValidateDocumentsConfirm llamado para solicitud ID:', selectedSolicitudId);
-      console.log('🔍 Llamando a startLoading()...');
       startLoading(); // Activar loading global
       
       // Llamar a la función de validación de documentos con observación
@@ -1058,8 +1207,6 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
   const handleReturnDocumentsConfirm = () => {
     if (selectedSolicitudId && returnDocumentsObservacion.trim()) {
-      console.log('🔍 handleReturnDocumentsConfirm llamado para solicitud ID:', selectedSolicitudId);
-      console.log('🔍 Llamando a startLoading()...');
       startLoading(); // Activar loading global
       
       // Llamar a la función de devolver documentos con observación
@@ -1083,8 +1230,6 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
   const handleCiteExamsConfirm = () => {
     if (selectedSolicitudId && citeExamsObservacion.trim()) {
-      console.log('🔍 handleCiteExamsConfirm llamado para solicitud ID:', selectedSolicitudId);
-      console.log('🔍 Llamando a startLoading()...');
       startLoading(); // Activar loading global
       
       // Llamar a la función de citar a exámenes con observación
@@ -1108,8 +1253,6 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
   const handleContractConfirm = () => {
     if (selectedSolicitudId && contractObservacion.trim()) {
-      console.log('🔍 handleContractConfirm llamado para solicitud ID:', selectedSolicitudId);
-      console.log('🔍 Llamando a startLoading()...');
       startLoading(); // Activar loading global
       
       // Llamar a la función de contratar con observación
@@ -1189,8 +1332,8 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                               </DropdownMenuItem>
                             </Can>
 
-                            {/* Botón Asignar Solicitud - solo visible en estado PENDIENTE ASIGNACION */}
-                            {isPendienteAsignacion(solicitud.estado) && !isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                            {/* Botón Asignar Solicitud - visible en estado PENDIENTE ASIGNACION o ASIGNADO */}
+                            {(isPendienteAsignacion(solicitud.estado) || solicitud.estado?.toLowerCase() === 'asignado') && !isStandBy(solicitud.estado) && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
                               <Can action="accion-asignar-solicitud">
                                 <DropdownMenuItem onClick={() => handleAssignClick(solicitud.id)} className="cursor-pointer">
                                   <User className="h-4 w-4 mr-2 text-blue-600" />
@@ -1256,8 +1399,18 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                               </Can>
                             )}
 
+                            {/* Botón Descartado */}
+                            {!isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && solicitud.estado !== 'descartado' && (
+                              <Can action="accion-descartado-solicitud">
+                                <DropdownMenuItem onClick={() => handleDescartadoClick(solicitud.id)} className="cursor-pointer">
+                                  <XCircle className="h-4 w-4 mr-2 text-red-600" />
+                                  Descartado
+                                </DropdownMenuItem>
+                              </Can>
+                            )}
+
                             {/* Botón Cancelar */}
-                            {solicitud.estado === 'asignado' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                            {!isCancelada(solicitud.estado) && (
                               <Can action="accion-cancelar-solicitud">
                                 <DropdownMenuItem onClick={() => handleCancelClick(solicitud.id)} className="cursor-pointer">
                                   <X className="h-4 w-4 mr-2 text-red-600" />
@@ -1267,7 +1420,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                             )}
 
                             {/* Botón Documentos Validados - solo visible en estado DOCUMENTOS ENTREGADOS */}
-                            {solicitud.estado?.toUpperCase() === 'DOCUMENTOS ENTREGADOS' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                            {solicitud.estado?.toLowerCase() === 'documentos entregados' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
                               <Can action="accion-validar-documentos-solicitud">
                                 <DropdownMenuItem 
                                   onClick={() => handleValidateDocumentsClick(solicitud.id)} 
@@ -1280,7 +1433,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                             )}
 
                             {/* Botón Documentos Devueltos - solo visible en estado DOCUMENTOS ENTREGADOS */}
-                            {solicitud.estado?.toUpperCase() === 'DOCUMENTOS ENTREGADOS' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                            {solicitud.estado?.toLowerCase() === 'documentos entregados' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
                               <Can action="accion-devolver-documentos-solicitud">
                                 <DropdownMenuItem 
                                   onClick={() => handleReturnDocumentsClick(solicitud.id)} 
@@ -1659,6 +1812,52 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Confirmación de Descartado */}
+      <AlertDialog open={confirmDescartadoOpen} onOpenChange={setConfirmDescartadoOpen}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Marcar como Descartado?</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas marcar esta solicitud como Descartado?
+              <br />
+              <span className="text-sm text-muted-foreground">
+                Esta acción marcará la solicitud como descartada y deshabilitará todas las acciones futuras.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="py-4">
+            <label htmlFor="descartadoObservacion" className="block text-sm font-medium text-gray-700 mb-2">
+              Observación (requerida)
+            </label>
+            <Textarea
+              id="descartadoObservacion"
+              value={descartadoObservacion}
+              onChange={(e) => setDescartadoObservacion(e.target.value)}
+              placeholder="Ingrese la razón por la cual se marca como descartado..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+              rows={4}
+              required
+            />
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setDescartadoObservacion('');
+            }}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDescartadoConfirm}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={!descartadoObservacion.trim()}
+            >
+              Marcar como Descartado
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Modal de Visualización de Solicitud */}
       <AlertDialog open={viewModalOpen} onOpenChange={setViewModalOpen}>
         <AlertDialogContent className="sm:max-w-[96vw] w-[96vw] h-[92vh] overflow-hidden relative p-0">
@@ -1816,31 +2015,76 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
 
       {/* Confirmación de Asignación de Analista */}
       <AlertDialog open={confirmAssignOpen} onOpenChange={setConfirmAssignOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle>¿Asignar analista a la solicitud?</AlertDialogTitle>
             <AlertDialogDescription>
-              Se asignará la siguiente solicitud al analista sugerido:
-              <br />
-              <br />
-              {suggestedAnalyst ? (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-center gap-2">
-                    <User className="h-5 w-5 text-blue-600" />
-                    <span className="font-semibold text-blue-800">
-                      {suggestedAnalyst.analista_nombre}
-                    </span>
+              {loadingAnalysts ? (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-600 mb-3" />
+                  <span className="text-sm font-medium text-gray-700">Cargando analistas disponibles...</span>
+                  <span className="text-xs text-gray-500 mt-1">Por favor espere mientras se obtienen los datos</span>
+                </div>
+              ) : suggestedAnalyst ? (
+                <>
+                  Se asignará la siguiente solicitud al analista sugerido:
+                  <br />
+                  <br />
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2">
+                      <User className="h-5 w-5 text-blue-600" />
+                      <span className="font-semibold text-blue-800">
+                        {suggestedAnalyst.analista_nombre}
+                      </span>
+                    </div>
+                    <p className="text-sm text-blue-600 mt-1">
+                      ID: {suggestedAnalyst.analista_id}
+                    </p>
                   </div>
-                  <p className="text-sm text-blue-600 mt-1">
-                    ID: {suggestedAnalyst.analista_id}
-                  </p>
-                </div>
+                </>
+              ) : availableAnalysts.length > 0 ? (
+                <>
+                  No se encontró un analista sugerido automáticamente. Por favor, seleccione un analista de la lista:
+                  <br />
+                  <br />
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Seleccionar analista *
+                    </label>
+                    <Select
+                      value={selectedAnalystId?.toString() || ""}
+                      onValueChange={(value) => setSelectedAnalystId(Number(value))}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Seleccione un analista" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableAnalysts.map((analyst) => (
+                          <SelectItem key={analyst.id} value={analyst.id.toString()}>
+                            {analyst.nombre} {analyst.email && `(${analyst.email})`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {availableAnalysts.length} analista(s) disponible(s)
+                    </p>
+                  </div>
+                </>
               ) : (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <p className="text-red-600 font-medium">
-                    No se pudo obtener un analista sugerido
-                  </p>
-                </div>
+                <>
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <p className="text-yellow-800 font-medium mb-2">
+                      No se encontraron analistas disponibles
+                    </p>
+                    <p className="text-sm text-yellow-700">
+                      No hay analistas configurados en el sistema o no cumplen con los criterios de asignación automática.
+                    </p>
+                    <p className="text-xs text-yellow-600 mt-2">
+                      Por favor, verifique que existan analistas activos con el permiso "rol_analista" y que tengan prioridades configuradas para esta empresa.
+                    </p>
+                  </div>
+                </>
               )}
               <br />
               <span className="text-sm text-muted-foreground">
@@ -1853,13 +2097,15 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
               setConfirmAssignOpen(false);
               setAssigningSolicitudId(null);
               setSuggestedAnalyst(null);
+              setSelectedAnalystId(null);
+              setAvailableAnalysts([]);
             }}>
               Cancelar
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleAssignConfirm}
               className="bg-blue-600 hover:bg-blue-700"
-              disabled={!suggestedAnalyst}
+              disabled={!suggestedAnalyst && !selectedAnalystId}
             >
               Asignar Analista
             </AlertDialogAction>

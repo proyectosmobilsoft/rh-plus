@@ -33,6 +33,7 @@ import {
   FileCheck,
   Database,
   Lock,
+  FolderKanban,
 } from 'lucide-react';
 
 const menuItems = [
@@ -61,7 +62,9 @@ const menuItems = [
       { title: "Plantillas", path: "/maestro/plantillas", icon: <Layers className="h-4 w-4" /> },
       { title: "Ubicaciones", path: "/maestro/ubicaciones", icon: <MapPin className="h-4 w-4" /> },
       { title: "Centros de Costos", path: "/maestro/centros-costo", icon: <Building className="h-4 w-4" /> },
-      { title: "Actividades Económicas", path: "/maestro/actividades-economicas", icon: <Building2 className="h-4 w-4" /> },
+      { title: "Actividad Económica", path: "/maestro/actividades-economicas", icon: <Building2 className="h-4 w-4" /> },
+      { title: "Proyectos", path: "/maestro/proyectos", icon: <FolderKanban className="h-4 w-4" /> },
+      { title: "Áreas de Negocios", path: "/maestro/areas-negocios", icon: <Briefcase className="h-4 w-4" /> },
       { title: "Correos Masivos", path: "/maestro/correos-masivos", icon: <Mail className="h-4 w-4" /> },
     ],
   },
@@ -174,6 +177,8 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
     '/maestro/ubicaciones': ['vista-ubicaciones'],
     '/maestro/centros-costo': ['vista-centros-costo'],
     '/maestro/actividades-economicas': ['vista-actividades-economicas'],
+    '/maestro/proyectos': ['vista-proyectos'],
+    '/maestro/areas-negocios': ['vista-areas-negocios'],
     '/maestro/correos-masivos': ['vista-correos-masivos'],
 
     // Registros

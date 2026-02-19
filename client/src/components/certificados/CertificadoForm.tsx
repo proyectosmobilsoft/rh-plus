@@ -92,13 +92,11 @@ const CertificadoForm = ({ orden, onSubmit, onCancel }: CertificadoFormProps) =>
             // Get basic aspirante information
             const data = await aspirantesService.getById(aspiranteId);
             if (data) {
-              console.log("Aspirante data:", data);
               setAspirante(data);
               
               // Get detailed information (education and experience)
               const detalles = await aspirantesService.getDetailById(aspiranteId);
               if (detalles) {
-                console.log("Aspirante detalles:", detalles);
                 setAspiranteDetalles(detalles);
               }
             }

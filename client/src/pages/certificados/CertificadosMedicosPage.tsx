@@ -8,13 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -43,12 +43,12 @@ const CertificadosMedicosPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [solicitudSeleccionada, setSolicitudSeleccionada] = useState<Solicitud | null>(null);
-  
+
   // Estados para el adjunto de aprobación
   const [adjuntoAprobacion, setAdjuntoAprobacion] = useState<File | null>(null);
   const [adjuntoPreview, setAdjuntoPreview] = useState<string | null>(null);
   const [isUploadingAdjunto, setIsUploadingAdjunto] = useState(false);
-  
+
   // Estados del formulario de certificado médico
   const [formData, setFormData] = useState({
     nombresApellidos: '',
@@ -107,7 +107,7 @@ const CertificadosMedicosPage = () => {
 
       setDocumentoConceptoMedico(file);
       setDocumentoPreview(base64Data);
-      
+
       toast.success('Documento cargado exitosamente');
     } catch (error) {
       console.error('Error procesando archivo:', error);
@@ -152,7 +152,7 @@ const CertificadosMedicosPage = () => {
 
       setAdjuntoAprobacion(file);
       setAdjuntoPreview(base64Data);
-      
+
       toast.success('Adjunto cargado exitosamente');
     } catch (error) {
       console.error('Error procesando archivo:', error);
@@ -179,7 +179,7 @@ const CertificadosMedicosPage = () => {
   // Filtrar solicitudes
   const filteredSolicitudes = solicitudes
     .filter(solicitud => {
-      const matchesSearch = 
+      const matchesSearch =
         solicitud.nombres?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         solicitud.apellidos?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         solicitud.cargo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -189,11 +189,11 @@ const CertificadosMedicosPage = () => {
 
       const matchesStatus = statusFilter === "all" ? true :
         statusFilter === "pendiente" ? solicitud.estado === 'pendiente documentos' :
-        statusFilter === "documentos" ? solicitud.estado === 'documentos entregados' :
-        statusFilter === "citado" ? solicitud.estado === 'citado examenes' :
-        statusFilter === "restricciones" ? solicitud.estado === 'validacion cliente' :
-        statusFilter === "descartado" ? solicitud.estado === 'descartado' :
-        true;
+          statusFilter === "documentos" ? solicitud.estado === 'documentos entregados' :
+            statusFilter === "citado" ? solicitud.estado === 'citado examenes' :
+              statusFilter === "restricciones" ? solicitud.estado === 'validacion cliente' :
+                statusFilter === "descartado" ? solicitud.estado === 'descartado' :
+                  true;
 
       return matchesSearch && matchesStatus;
     })
@@ -210,36 +210,36 @@ const CertificadosMedicosPage = () => {
     try {
       // Obtener todas las solicitudes
       const data = await solicitudesService.getAll();
-      
+
       // Obtener IDs de solicitudes que ya tienen certificados médicos
       const { data: certificadosExistentes, error: certificadosError } = await supabase
         .from('certificados_medicos')
         .select('solicitud_id');
-      
+
       if (certificadosError) {
         console.error('Error obteniendo certificados existentes:', certificadosError);
         throw certificadosError;
       }
-      
+
       const idsConCertificados = new Set(certificadosExistentes?.map(c => c.solicitud_id) || []);
-      
+
       // Verificar si el usuario tiene el permiso campo-resumen-restriccion
       const tienePermisoRestriccion = hasAction('campo-resumen-restriccion');
       console.log('🔍 Usuario tiene permiso campo-resumen-restriccion:', tienePermisoRestriccion);
-      
+
       // Filtrar solicitudes según el permiso del usuario
       const solicitudesParaCertificacion = data.filter(solicitud => {
         // Si tiene permiso de restricción, solo mostrar solicitudes en 'validacion cliente' (con restricciones)
         if (tienePermisoRestriccion) {
           return solicitud.estado === 'validacion cliente';
         }
-        
+
         // Si NO tiene el permiso, mostrar solicitudes normales (flujo estándar)
-        const esEstadoValido = (solicitud.estado === 'documentos entregados' || 
-                               solicitud.estado === 'pendiente documentos' || 
-                               solicitud.estado === 'citado examenes' ||
-                               solicitud.estado === 'validacion cliente');
-        
+        const esEstadoValido = (solicitud.estado === 'documentos entregados' ||
+          solicitud.estado === 'pendiente documentos' ||
+          solicitud.estado === 'citado examenes' ||
+          solicitud.estado === 'validacion cliente');
+
         if (solicitud.estado === 'validacion cliente') {
           // Para validacion cliente, siempre mostrar (necesita acciones Aprobar/No Aprobar)
           return esEstadoValido;
@@ -248,7 +248,7 @@ const CertificadosMedicosPage = () => {
           return esEstadoValido && !idsConCertificados.has(solicitud.id!);
         }
       });
-      
+
       console.log(`📊 Solicitudes filtradas: ${solicitudesParaCertificacion.length} de ${data.length}`);
       setSolicitudes(solicitudesParaCertificacion);
     } catch (error) {
@@ -290,12 +290,12 @@ const CertificadosMedicosPage = () => {
 
   const handleSeleccionar = async (solicitud: Solicitud) => {
     setSolicitudSeleccionada(solicitud);
-    
+
     try {
       // Obtener datos del candidato desde la relación
       let nombresApellidos = '';
       let identificacion = '';
-      
+
       if (solicitud.candidato_id && (solicitud as any).candidatos) {
         const candidato = (solicitud as any).candidatos;
         nombresApellidos = `${candidato.primer_nombre || ''} ${candidato.segundo_nombre || ''} ${candidato.primer_apellido || ''} ${candidato.segundo_apellido || ''}`.trim();
@@ -305,7 +305,7 @@ const CertificadosMedicosPage = () => {
         nombresApellidos = `${solicitud.nombres || ''} ${solicitud.apellidos || ''}`.trim();
         identificacion = solicitud.numero_documento || '';
       }
-      
+
       // Obtener el nombre del cargo desde la relación tipos_candidatos
       let nombreCargo = '';
       if ((solicitud as any).tipos_candidatos?.nombre) {
@@ -390,7 +390,7 @@ const CertificadosMedicosPage = () => {
           recomendacionesGenerales: ''
         });
       }
-      
+
       setActiveTab("registro");
     } catch (error) {
       console.error('Error obteniendo datos del candidato:', error);
@@ -400,7 +400,7 @@ const CertificadosMedicosPage = () => {
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!solicitudSeleccionada) {
       toast.error('No hay solicitud seleccionada');
       return;
@@ -416,7 +416,7 @@ const CertificadosMedicosPage = () => {
       };
 
       console.log('Datos del certificado médico:', certificadoData);
-      
+
       // Guardar en la base de datos
       const { error } = await supabase
         .from('certificados_medicos')
@@ -429,7 +429,7 @@ const CertificadosMedicosPage = () => {
       }
 
       toast.success('Certificado médico guardado correctamente');
-      
+
       // Limpiar el formulario
       setFormData({
         nombresApellidos: '',
@@ -447,7 +447,7 @@ const CertificadosMedicosPage = () => {
       });
       setDocumentoConceptoMedico(null);
       setDocumentoPreview(null);
-      
+
     } catch (error) {
       console.error('Error al guardar el certificado médico:', error);
       toast.error('Error al guardar el certificado médico');
@@ -466,7 +466,7 @@ const CertificadosMedicosPage = () => {
       toast.error('No hay solicitud seleccionada');
       return;
     }
-    
+
     setSelectedSolicitud(solicitudSeleccionada);
     setModalType(tipo as 'apto' | 'no-apto');
     setObservaciones('');
@@ -491,7 +491,7 @@ const CertificadosMedicosPage = () => {
       // Determinar el nuevo estado según el concepto médico
       let nuevoEstado = '';
       let conceptoMedico: 'apto' | 'no-apto' | 'apto-con-restricciones' = 'apto';
-      
+
       if (modalType === 'apto') {
         nuevoEstado = 'firma contrato';
         conceptoMedico = 'apto';
@@ -527,7 +527,7 @@ const CertificadosMedicosPage = () => {
 
       // Guardar el certificado médico
       const certificadoCreado = await certificadosMedicosService.create(certificadoData);
-      
+
       // Si hay adjunto de aprobación, actualizar el certificado con el adjunto
       if (adjuntoPreview && (modalType === 'aprobar' || modalType === 'no-aprobar')) {
         try {
@@ -542,27 +542,34 @@ const CertificadosMedicosPage = () => {
       }
 
       // Actualizar el estado de la solicitud
-      await solicitudesService.update(selectedSolicitud.id!, {
+      // Si se marca como apto y pasa a "firma contrato", guardar en previous_state
+      const updateData: any = {
         estado: nuevoEstado
-      });
+      };
+
+      if ((modalType === 'apto' || modalType === 'aprobar') && nuevoEstado === 'firma contrato') {
+        updateData.previous_state = 'firma contrato';
+      }
+
+      await solicitudesService.update(selectedSolicitud.id!, updateData);
 
       // Si se descarta por restricciones, enviar email al candidato
       if (modalType === 'no-aprobar') {
         try {
           // Obtener datos del candidato para el email
-          const candidatoNombre = selectedSolicitud.nombres && selectedSolicitud.apellidos 
+          const candidatoNombre = selectedSolicitud.nombres && selectedSolicitud.apellidos
             ? `${selectedSolicitud.nombres} ${selectedSolicitud.apellidos}`
             : 'Candidato';
-          
+
           const empresaNombre = (selectedSolicitud as any).empresas?.razon_social || selectedSolicitud.empresa_usuaria || 'Empresa';
-          
+
           // Obtener email del candidato
           const { data: candidatoData } = await supabase
             .from('candidatos')
             .select('email')
             .eq('id', selectedSolicitud.candidato_id)
             .single();
-          
+
           if (candidatoData?.email) {
             await emailService.sendDescartadoPorRestricciones({
               to: candidatoData.email,
@@ -579,7 +586,7 @@ const CertificadosMedicosPage = () => {
       }
 
       toast.success(`Certificado médico guardado y solicitud actualizada a "${nuevoEstado}" correctamente.`);
-      
+
       // Limpiar estados
       setIsModalOpen(false);
       setSelectedSolicitud(null);
@@ -587,7 +594,7 @@ const CertificadosMedicosPage = () => {
       setObservaciones('');
       setSolicitudSeleccionada(null);
       setActiveTab("listado");
-      
+
       // Refrescar la lista de solicitudes
       fetchSolicitudes();
     } catch (error) {
@@ -838,7 +845,7 @@ const CertificadosMedicosPage = () => {
                             #{solicitud.id || 'N/A'}
                           </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-900">
-                            {solicitud.candidatos?.primer_nombre && solicitud.candidatos?.primer_apellido 
+                            {solicitud.candidatos?.primer_nombre && solicitud.candidatos?.primer_apellido
                               ? `${solicitud.candidatos.primer_nombre} ${solicitud.candidatos.segundo_nombre || ''} ${solicitud.candidatos.primer_apellido} ${solicitud.candidatos.segundo_apellido || ''}`.trim()
                               : 'N/A'
                             }
@@ -931,32 +938,32 @@ const CertificadosMedicosPage = () => {
 
                   {/* Restricciones y Remisión */}
                   <div className="bg-orange-50 p-4 rounded-lg border border-orange-200 space-y-4">
-                    <h3 className="text-lg font-semibold text-orange-800">RESTRICCIONES Y/O RECOMENDACIÓN Y REMISIÓN</h3>
-                    
+                    <h3 className="text-lg font-semibold text-orange-800">RECOMENDACIÓN Y REMISIÓN</h3>
+
                     {/* Campos de restricciones en dos columnas */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Can action="campo-restriccion-macro">
-                          <Label htmlFor="restriccionMacro" className="text-sm font-medium text-gray-700">RESTRICCIÓN o RECOMENDACIÓN MACRO</Label>
+                          <Label htmlFor="restriccionMacro" className="text-sm font-medium text-gray-700">RECOMENDACIÓN MACRO</Label>
                           <Textarea
                             id="restriccionMacro"
                             value={formData.restriccionMacro}
                             onChange={(e) => handleFormChange('restriccionMacro', e.target.value)}
-                            placeholder="Ingrese la restricción o recomendación macro..."
+                            placeholder="Ingrese la recomendación macro..."
                             className="w-full min-h-[100px] resize-y"
                             disabled={solicitudSeleccionada?.estado === 'validacion cliente'}
                           />
                         </Can>
                       </div>
-                      
+
                       <div className="space-y-2">
                         <Can action="campo-resumen-restriccion">
-                          <Label htmlFor="resumenRestriccion" className="text-sm font-medium text-gray-700">RESUMEN RESTRICCIÓN o RECOMENDACIÓN</Label>
+                          <Label htmlFor="resumenRestriccion" className="text-sm font-medium text-gray-700">RESUMEN RECOMENDACIÓN</Label>
                           <Textarea
                             id="resumenRestriccion"
                             value={formData.resumenRestriccion}
                             onChange={(e) => handleFormChange('resumenRestriccion', e.target.value)}
-                            placeholder="Ingrese el resumen de la restricción o recomendación..."
+                            placeholder="Ingrese el resumen de la recomendación..."
                             className="w-full min-h-[100px] resize-y"
                             disabled={false}
                             readOnly={solicitudSeleccionada?.estado === 'validacion cliente'}
@@ -1047,17 +1054,15 @@ const CertificadosMedicosPage = () => {
                       Documento del concepto médico:
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Card className={`border-2 transition-all duration-200 hover:shadow-md ${
-                        documentoConceptoMedico 
-                          ? 'border-green-200 bg-green-50' 
-                          : 'border-gray-200 bg-white hover:border-blue-300'
-                      }`}>
+                      <Card className={`border-2 transition-all duration-200 hover:shadow-md ${documentoConceptoMedico
+                        ? 'border-green-200 bg-green-50'
+                        : 'border-gray-200 bg-white hover:border-blue-300'
+                        }`}>
                         <CardHeader className="pb-3 pt-4">
                           <CardTitle className="flex items-center justify-between text-sm">
                             <div className="flex items-center">
-                              <div className={`p-2 rounded-lg mr-3 ${
-                                documentoConceptoMedico ? 'bg-green-100' : 'bg-blue-100'
-                              }`}>
+                              <div className={`p-2 rounded-lg mr-3 ${documentoConceptoMedico ? 'bg-green-100' : 'bg-blue-100'
+                                }`}>
                                 <FileText className="w-4 h-4 text-blue-600" />
                               </div>
                               <div>
@@ -1086,13 +1091,13 @@ const CertificadosMedicosPage = () => {
                                   <span>Subiendo documento...</span>
                                   <span>100%</span>
                                 </div>
-                                <Progress 
-                                  value={100} 
+                                <Progress
+                                  value={100}
                                   className="h-2 bg-gray-200"
                                 />
                               </div>
                             )}
-                            
+
                             <div className="flex items-center gap-3">
                               {documentoConceptoMedico ? (
                                 <div className="flex items-center gap-2">
@@ -1138,7 +1143,7 @@ const CertificadosMedicosPage = () => {
                                 </Button>
                               )}
                             </div>
-                            
+
                             {/* Input file oculto */}
                             <input
                               id="documento-concepto-medico"
@@ -1148,7 +1153,7 @@ const CertificadosMedicosPage = () => {
                               disabled={solicitudSeleccionada?.estado === 'validacion cliente' || isUploadingDocumento}
                               className="hidden"
                             />
-                            
+
                             {/* Información del archivo */}
                             {documentoConceptoMedico && (
                               <div className="text-xs text-gray-500 space-y-1">
@@ -1205,7 +1210,7 @@ const CertificadosMedicosPage = () => {
                           className="bg-yellow-100/80 hover:bg-yellow-500 hover:text-white text-yellow-800 border border-yellow-200 hover:border-yellow-500 px-4 py-2 text-sm shadow-sm transition-colors"
                         >
                           <FileText className="h-3 w-3 mr-1" />
-                          Apto con Restricciones y/o Recomendación
+                          Apto con recomendaciones
                         </Button>
                       </div>
                     </div>
@@ -1214,7 +1219,7 @@ const CertificadosMedicosPage = () => {
                   {/* Mensaje informativo para validacion cliente */}
                   {solicitudSeleccionada?.estado === 'validacion cliente' && (
                     <div className="bg-orange-50 p-6 rounded-lg border border-orange-200">
-                      <h3 className="text-lg font-semibold text-orange-800 mb-4 text-center">CERTIFICADO MÉDICO CON RESTRICCIONES Y/O RECOMENDACIÓN</h3>
+                      <h3 className="text-lg font-semibold text-orange-800 mb-4 text-center">CERTIFICADO MÉDICO CON RECOMENDACIÓN</h3>
                       <div className="text-center space-y-4">
                         <p className="text-orange-700">
                           Este certificado médico ya fue creado con restricciones o recomendaciones. Los datos mostrados son de solo lectura.
@@ -1280,26 +1285,26 @@ const CertificadosMedicosPage = () => {
               ) : (
                 <>
                   <FileText className="h-5 w-5 text-yellow-600" />
-                  <span>Marcar como Apto con Restricciones y/o Recomendación</span>
+                  <span>Marcar como Apto con recomendaciones</span>
                 </>
               )}
             </DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             <div>
               <p className="text-sm text-muted-foreground">
                 ¿Está seguro de que desea{' '}
                 <span className="font-semibold">
-                  {modalType === 'apto' ? 'marcar esta solicitud como Apto' : 
-                   modalType === 'no-apto' ? 'marcar esta solicitud como No Apto' : 
-                   modalType === 'aprobar' ? 'aprobar esta solicitud' : 
-                   modalType === 'no-aprobar' ? 'no aprobar esta solicitud (se descartará por restricciones médicas)' : 
-                   'marcar esta solicitud como Apto con Restricciones y/o Recomendación'}
+                  {modalType === 'apto' ? 'marcar esta solicitud como Apto' :
+                    modalType === 'no-apto' ? 'marcar esta solicitud como No Apto' :
+                      modalType === 'aprobar' ? 'aprobar esta solicitud' :
+                        modalType === 'no-aprobar' ? 'no aprobar esta solicitud (se descartará por restricciones médicas)' :
+                          'marcar esta solicitud como Apto con recomendaciones'}
                 </span>?
               </p>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="observaciones">Observaciones (Opcional)</Label>
               <Textarea
@@ -1310,24 +1315,22 @@ const CertificadosMedicosPage = () => {
                 className="min-h-[100px]"
               />
             </div>
-            
+
             {/* Sección para adjuntar archivo - Solo para aprobar/no aprobar */}
             {(modalType === 'aprobar' || modalType === 'no-aprobar') && (
               <div className="space-y-4">
                 <div className="text-sm font-medium text-gray-700">
                   Adjuntar archivo (Opcional)
                 </div>
-                <Card className={`border-2 transition-all duration-200 hover:shadow-md ${
-                  adjuntoAprobacion 
-                    ? 'border-green-200 bg-green-50' 
-                    : 'border-gray-200 bg-white hover:border-blue-300'
-                }`}>
+                <Card className={`border-2 transition-all duration-200 hover:shadow-md ${adjuntoAprobacion
+                  ? 'border-green-200 bg-green-50'
+                  : 'border-gray-200 bg-white hover:border-blue-300'
+                  }`}>
                   <CardHeader className="pb-3 pt-4">
                     <CardTitle className="flex items-center justify-between text-sm">
                       <div className="flex items-center">
-                        <div className={`p-2 rounded-lg mr-3 ${
-                          adjuntoAprobacion ? 'bg-green-100' : 'bg-blue-100'
-                        }`}>
+                        <div className={`p-2 rounded-lg mr-3 ${adjuntoAprobacion ? 'bg-green-100' : 'bg-blue-100'
+                          }`}>
                           <FileText className="w-4 h-4 text-blue-600" />
                         </div>
                         <div>
@@ -1356,13 +1359,13 @@ const CertificadosMedicosPage = () => {
                             <span>Subiendo archivo...</span>
                             <span>100%</span>
                           </div>
-                          <Progress 
-                            value={100} 
+                          <Progress
+                            value={100}
                             className="h-2 bg-gray-200"
                           />
                         </div>
                       )}
-                      
+
                       <div className="flex items-center gap-3">
                         {adjuntoAprobacion ? (
                           <div className="flex items-center gap-2">
@@ -1408,7 +1411,7 @@ const CertificadosMedicosPage = () => {
                           </Button>
                         )}
                       </div>
-                      
+
                       {/* Input file oculto */}
                       <input
                         id="adjunto-aprobacion"
@@ -1418,7 +1421,7 @@ const CertificadosMedicosPage = () => {
                         disabled={isUploadingAdjunto}
                         className="hidden"
                       />
-                      
+
                       {/* Información del archivo */}
                       {adjuntoAprobacion && (
                         <div className="text-xs text-gray-500 space-y-1">
@@ -1451,10 +1454,10 @@ const CertificadosMedicosPage = () => {
               disabled={isConfirming}
               className={
                 modalType === 'apto' || modalType === 'aprobar'
-                  ? 'bg-green-600 hover:bg-green-700 text-white disabled:bg-green-400' 
+                  ? 'bg-green-600 hover:bg-green-700 text-white disabled:bg-green-400'
                   : modalType === 'no-apto' || modalType === 'no-aprobar'
-                  ? 'bg-red-600 hover:bg-red-700 text-white disabled:bg-red-400'
-                  : 'bg-yellow-600 hover:bg-yellow-700 text-white disabled:bg-yellow-400'
+                    ? 'bg-red-600 hover:bg-red-700 text-white disabled:bg-red-400'
+                    : 'bg-yellow-600 hover:bg-yellow-700 text-white disabled:bg-yellow-400'
               }
             >
               {isConfirming ? (
@@ -1463,11 +1466,11 @@ const CertificadosMedicosPage = () => {
                   Procesando...
                 </>
               ) : (
-                modalType === 'apto' ? 'Confirmar Apto' : 
-                modalType === 'no-apto' ? 'Confirmar No Apto' : 
-                modalType === 'aprobar' ? 'Confirmar Aprobación' : 
-                modalType === 'no-aprobar' ? 'Confirmar Descarte' : 
-                'Confirmar'
+                modalType === 'apto' ? 'Confirmar Apto' :
+                  modalType === 'no-apto' ? 'Confirmar No Apto' :
+                    modalType === 'aprobar' ? 'Confirmar Aprobación' :
+                      modalType === 'no-aprobar' ? 'Confirmar Descarte' :
+                        'Confirmar'
               )}
             </Button>
           </DialogFooter>

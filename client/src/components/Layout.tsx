@@ -18,7 +18,7 @@ import logo from '/src/assets/logo.png';
 const Header = ({ sidebarOpen, toggleSidebar }: { sidebarOpen: boolean; toggleSidebar: () => void }) => {
   const [empresaData, setEmpresaData] = useState<any>(null);
   const [userData, setUserData] = useState<any>(null);
-  
+
   // Obtener función de logout del AuthContext
   let logout: (() => Promise<void>) | null = null;
   let user: any = null;
@@ -32,54 +32,43 @@ const Header = ({ sidebarOpen, toggleSidebar }: { sidebarOpen: boolean; toggleSi
   // Obtener información de la empresa y usuario desde localStorage
   useEffect(() => {
     try {
-  
       // Verificar estado actual de localStorage
       const currentUserData = localStorage.getItem('userData');
       const currentAuthToken = localStorage.getItem('authToken');
       const currentEmpresaData = localStorage.getItem('empresaData');
-      
-      console.log('📊 Estado actual de localStorage en Header:');
-      console.log('- userData existe:', !!currentUserData);
-      console.log('- authToken existe:', !!currentAuthToken);
-      console.log('- empresaData existe:', !!currentEmpresaData);
-      
+
       // Intentar obtener empresa desde authToken primero
       if (currentAuthToken) {
         try {
           const tokenParts = currentAuthToken.split('.');
           if (tokenParts.length === 2) {
             const tokenData = JSON.parse(atob(tokenParts[0]));
-            console.log('🔍 Datos del authToken en Header:', tokenData);
-            
+
             if (tokenData.empresaId && tokenData.empresaRazonSocial) {
               const empresaFromToken = {
                 id: tokenData.empresaId,
                 razon_social: tokenData.empresaRazonSocial
               };
               setEmpresaData(empresaFromToken);
-              console.log('✅ Empresa cargada desde authToken en Header:', empresaFromToken);
             }
           }
         } catch (error) {
           console.log('Error parseando authToken en Header:', error);
         }
       }
-      
+
       // Fallback: obtener empresa desde empresaData
       const empresaSeleccionada = obtenerEmpresaSeleccionada();
       if (empresaSeleccionada) {
         setEmpresaData(empresaSeleccionada);
-        console.log('✅ Empresa cargada desde empresaData en Header:', empresaSeleccionada);
       }
-      
+
       // Obtener datos del usuario
       if (currentUserData) {
         const user = JSON.parse(currentUserData);
         setUserData(user);
-        console.log('✅ Datos del usuario cargados en Header:', user);
       }
-      
-      console.log('=== FIN: Cargar datos en Header ===');
+
     } catch (error) {
       console.error('Error al obtener datos en Header:', error);
     }
@@ -89,7 +78,6 @@ const Header = ({ sidebarOpen, toggleSidebar }: { sidebarOpen: boolean; toggleSi
   useEffect(() => {
     const handleEmpresaSelected = (event: CustomEvent) => {
       const empresa = event.detail;
-      console.log('Header: Evento empresaSelected recibido:', empresa);
       setEmpresaData(empresa);
     };
 
@@ -109,23 +97,21 @@ const Header = ({ sidebarOpen, toggleSidebar }: { sidebarOpen: boolean; toggleSi
           className="p-2 rounded-full hover:bg-gray-100 transition-all duration-300 group sidebar-button sidebar-toggle-hover"
         >
           <div className="relative">
-            <ChevronLeft 
-              className={`w-5 h-5 text-gray-600 transition-all duration-300 ${
-                sidebarOpen ? 'rotate-0 opacity-100' : 'rotate-180 opacity-0'
-              }`}
+            <ChevronLeft
+              className={`w-5 h-5 text-gray-600 transition-all duration-300 ${sidebarOpen ? 'rotate-0 opacity-100' : 'rotate-180 opacity-0'
+                }`}
             />
-            <ChevronRight 
-              className={`w-5 h-5 text-gray-600 absolute inset-0 transition-all duration-300 ${
-                sidebarOpen ? 'rotate-180 opacity-0' : 'rotate-0 opacity-100'
-              }`}
+            <ChevronRight
+              className={`w-5 h-5 text-gray-600 absolute inset-0 transition-all duration-300 ${sidebarOpen ? 'rotate-180 opacity-0' : 'rotate-0 opacity-100'
+                }`}
             />
           </div>
         </Button>
-        
+
         {/* Nombre de la empresa o Logo */}
         {empresaData?.logo_base64 ? (
           <div className="flex items-center">
-            <div 
+            <div
               className="logo-header-empresa"
               style={{
                 backgroundImage: `url(${empresaData.logo_base64})`
@@ -145,15 +131,15 @@ const Header = ({ sidebarOpen, toggleSidebar }: { sidebarOpen: boolean; toggleSi
           </div>
         )}
       </div>
-      
+
       {/* Logo CoreHuman del lado derecho */}
       <div className="flex items-center space-x-4">
         <div className="flex items-center space-x-3">
-           <img 
-             src={logo} 
-             alt="CoreHuman Logo" 
-             className="h-16 w-auto object-contain"
-           />
+          <img
+            src={logo}
+            alt="CoreHuman Logo"
+            className="h-16 w-auto object-contain"
+          />
           <div className="flex flex-col">
             <h2 className="text-lg font-bold text-gray-900">
               CoreHuman
@@ -164,7 +150,7 @@ const Header = ({ sidebarOpen, toggleSidebar }: { sidebarOpen: boolean; toggleSi
           </div>
         </div>
       </div>
-      
+
     </header>
   );
 };
@@ -184,21 +170,19 @@ const Layout = () => {
   return (
     <div className="flex h-screen bg-gray-50 relative">
       {/* Sidebar fijo que ocupa toda la altura */}
-      <div 
-        className={`sidebar-full-height sidebar-animation ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+      <div
+        className={`sidebar-full-height sidebar-animation ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
       >
         <DynamicSidebar onNavigate={handleNavigation} />
       </div>
 
       {/* Contenido principal adaptado al sidebar */}
-      <div className={`main-content-with-sidebar sidebar-animation ${
-        sidebarOpen ? 'ml-64' : 'ml-0 sidebar-hidden'
-      }`}>
+      <div className={`main-content-with-sidebar sidebar-animation ${sidebarOpen ? 'ml-64' : 'ml-0 sidebar-hidden'
+        }`}>
         {/* Header */}
         <Header sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-        
+
         {/* Contenido */}
         <main className="main-content p-4">
           <Outlet />

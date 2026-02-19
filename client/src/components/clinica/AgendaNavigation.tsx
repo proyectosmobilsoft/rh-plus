@@ -16,8 +16,6 @@ export const AgendaNavigation = ({ view, setView }: AgendaNavigationProps) => {
   // Ensure parent component gets notified when date changes
   useEffect(() => {
     // This would be where we'd dispatch an event or call a callback to update parent state
-    // For now, we're just logging it
-    console.log("Current date changed:", currentDate);
   }, [currentDate]);
   
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });

@@ -19,30 +19,84 @@ export interface UsuarioData {
 }
 
 export const usuariosService = {
-  // Listar todos los usuarios con sus roles y empresas
+  // Listar usuarios con sus roles y empresas (optimizado para evitar timeouts)
+  // Usa consultas separadas para evitar producto cartesiano grande
+  // NO incluye foto_base64 por defecto (es muy grande y causa timeouts)
   async listUsuarios() {
-    const { data, error } = await supabase
-      .from('gen_usuarios')
-      .select(`
-        id,
-        identificacion,
-        primer_nombre,
-        segundo_nombre,
-        primer_apellido,
-        segundo_apellido,
-        telefono,
-        email,
-        username,
-        activo,
-        password,
-        foto_base64,
-        created_at,
-        gen_usuario_roles ( id, rol_id, created_at, gen_roles ( id, nombre ) ),
-        gen_usuario_empresas ( id, empresa_id, created_at, empresas ( id, razon_social ) )
-      `)
-      .order('created_at', { ascending: false });
-    if (error) throw error;
-    return data;
+    try {
+      // Primero obtener solo los usuarios básicos (sin relaciones anidadas)
+      // Incluir foto_base64 (ahora es URL de Storage, no base64 completo, así que es seguro)
+      const selectFields = `id, identificacion, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, telefono, email, username, activo, password, created_at`;
+
+      const { data: usuarios, error: usuariosError } = await supabase
+        .from('gen_usuarios')
+        .select(selectFields)
+        .order('created_at', { ascending: false });
+      
+      if (usuariosError) throw usuariosError;
+      if (!usuarios || usuarios.length === 0) return [];
+
+      // Obtener IDs de usuarios
+      const usuarioIds = usuarios.map((u: any) => u.id);
+
+      // Obtener roles de usuarios en una consulta separada
+      const { data: usuarioRoles, error: rolesError } = await supabase
+        .from('gen_usuario_roles')
+        .select(`
+          id,
+          usuario_id,
+          rol_id,
+          created_at,
+          gen_roles ( id, nombre )
+        `)
+        .in('usuario_id', usuarioIds);
+
+      if (rolesError) {
+        console.error('Error al obtener roles de usuarios:', rolesError);
+      }
+
+      // Obtener empresas de usuarios en una consulta separada
+      const { data: usuarioEmpresas, error: empresasError } = await supabase
+        .from('gen_usuario_empresas')
+        .select(`
+          id,
+          usuario_id,
+          empresa_id,
+          created_at,
+          empresas ( id, razon_social )
+        `)
+        .in('usuario_id', usuarioIds);
+
+      if (empresasError) {
+        console.error('Error al obtener empresas de usuarios:', empresasError);
+      }
+
+      // Combinar los datos
+      const usuariosConRelaciones = usuarios.map((usuario: any) => ({
+        ...usuario,
+        gen_usuario_roles: (usuarioRoles || [])
+          .filter((ur: any) => ur.usuario_id === usuario.id)
+          .map((ur: any) => ({
+            id: ur.id,
+            rol_id: ur.rol_id,
+            created_at: ur.created_at,
+            gen_roles: ur.gen_roles
+          })),
+        gen_usuario_empresas: (usuarioEmpresas || [])
+          .filter((ue: any) => ue.usuario_id === usuario.id)
+          .map((ue: any) => ({
+            id: ue.id,
+            empresa_id: ue.empresa_id,
+            created_at: ue.created_at,
+            empresas: ue.empresas
+          }))
+      }));
+
+      return usuariosConRelaciones;
+    } catch (error) {
+      console.error('Error en listUsuarios:', error);
+      throw error;
+    }
   },
 
   // Crear un nuevo usuario y asignarle roles y empresas

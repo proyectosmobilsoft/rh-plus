@@ -1,11 +1,11 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Plus, Search, Users, Save, RefreshCw, Loader2, Lock, CheckCircle, User, ImagePlus, Eye, EyeOff } from "lucide-react";
+import { Edit, Trash2, Plus, Search, Users, Save, RefreshCw, Loader2, Lock, CheckCircle, User, ImagePlus, Eye, EyeOff, Upload } from "lucide-react";
 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Link } from "wouter";
@@ -40,6 +40,246 @@ import {
 } from '@/components/ui/select';
 import { useForm } from "react-hook-form";
 import { Can } from "@/contexts/PermissionsContext";
+import { supabase } from "@/services/supabaseClient";
+
+// Función helper para establecer sesión de Supabase Auth si es necesario
+const ensureSupabaseSession = async (): Promise<boolean> => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session && session.user) {
+      return true;
+    }
+
+    const userData = localStorage.getItem('userData');
+    const authToken = localStorage.getItem('authToken');
+    
+    if (!userData || !authToken) {
+      return false;
+    }
+
+    const parsedUserData = JSON.parse(userData);
+    const { data: { user }, error: getUserError } = await supabase.auth.getUser();
+    if (user && !getUserError) {
+      const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshedSession && !refreshError) {
+        return true;
+      }
+    }
+
+    const email = parsedUserData.email || `${parsedUserData.username}@compensamos.com`;
+    try {
+      const tempPassword = sessionStorage.getItem('temp_password');
+      if (tempPassword) {
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: email,
+          password: tempPassword
+        });
+        if (!signInError && signInData?.session) {
+          return true;
+        }
+      }
+    } catch (signInError) {
+      // Error silenciado
+    }
+
+    return false;
+  } catch (error) {
+    return false;
+  }
+};
+
+// Función para subir foto a Supabase Storage
+const uploadFotoToStorage = async (
+  file: File, 
+  folder: string, 
+  usuarioId?: number
+): Promise<string> => {
+  const userData = localStorage.getItem('userData');
+  const authToken = localStorage.getItem('authToken');
+  
+  if (!userData || !authToken) {
+    throw new Error('Debes estar autenticado para subir archivos');
+  }
+
+  // Intentar establecer sesión de Supabase Auth
+  const sessionEstablished = await ensureSupabaseSession();
+  
+  // Si no se pudo establecer sesión, intentar configurar el token manualmente
+  if (!sessionEstablished) {
+    console.warn('⚠️ No se pudo establecer sesión de Supabase Auth, intentando con token manual');
+    // Configurar el token de acceso manualmente si existe
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      // Intentar usar el authToken del localStorage como token de acceso
+      try {
+        const parsedUserData = JSON.parse(userData);
+        const email = parsedUserData.email || `${parsedUserData.username}@compensamos.com`;
+        // Intentar sign in con una contraseña temporal si está disponible
+        const tempPassword = sessionStorage.getItem('temp_password');
+        if (tempPassword) {
+          await supabase.auth.signInWithPassword({
+            email: email,
+            password: tempPassword
+          });
+        }
+      } catch (error) {
+        console.error('Error configurando sesión manual:', error);
+      }
+    }
+  }
+
+  const timestamp = Date.now();
+  const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+  const fileName = usuarioId 
+    ? `${usuarioId}_${timestamp}_${sanitizedName}`
+    : `temp_${timestamp}_${sanitizedName}`;
+  const filePath = `${folder}/${fileName}`;
+
+  const { data, error } = await supabase.storage
+    .from('usuarios-fotos')
+    .upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: false
+    });
+
+  if (error) {
+    console.error('Error subiendo foto a Storage:', error);
+    console.error('Detalles del error:', error.message, error.statusCode);
+    throw error;
+  }
+
+  const { data: urlData } = supabase.storage
+    .from('usuarios-fotos')
+    .getPublicUrl(filePath);
+
+  return urlData.publicUrl;
+};
+
+// Función para eliminar foto de Storage
+const deleteFotoFromStorage = async (url: string): Promise<void> => {
+  if (!url || typeof url !== 'string') {
+    return;
+  }
+
+  if (!url.startsWith('http') && !url.startsWith('https')) {
+    return;
+  }
+
+  try {
+    let filePath = '';
+    
+    if (url.includes('/storage/v1/object/public/usuarios-fotos/')) {
+      const urlParts = url.split('/storage/v1/object/public/usuarios-fotos/');
+      if (urlParts.length >= 2) {
+        filePath = urlParts[1].split('?')[0];
+        filePath = decodeURIComponent(filePath);
+        filePath = filePath.trim().replace(/\/+/g, '/');
+      }
+    } else if (url.includes('/storage/v1/object/sign/usuarios-fotos/')) {
+      const urlParts = url.split('/storage/v1/object/sign/usuarios-fotos/');
+      if (urlParts.length >= 2) {
+        filePath = urlParts[1].split('?')[0];
+        filePath = decodeURIComponent(filePath);
+        filePath = filePath.trim().replace(/\/+/g, '/');
+      }
+    } else if (url.includes('usuarios-fotos')) {
+      const match = url.match(/usuarios-fotos\/(.+?)(?:\?|$)/);
+      if (match && match[1]) {
+        filePath = match[1];
+        filePath = decodeURIComponent(filePath);
+        filePath = filePath.trim().replace(/\/+/g, '/');
+      }
+    }
+
+    if (!filePath) {
+      console.error('❌ No se pudo extraer la ruta del archivo de la URL:', url);
+      throw new Error(`No se pudo extraer el path de la URL: ${url}`);
+    }
+
+    if (filePath.startsWith('/')) {
+      filePath = filePath.substring(1);
+    }
+    
+    await ensureSupabaseSession();
+    
+    if (filePath.startsWith('usuarios-fotos/')) {
+      filePath = filePath.replace('usuarios-fotos/', '');
+    }
+    
+    const normalizedPath = filePath.trim().replace(/^\/+|\/+$/g, '');
+    
+    if (!normalizedPath || normalizedPath.length === 0) {
+      throw new Error('El path normalizado está vacío');
+    }
+    
+    const { data, error } = await supabase.storage
+      .from('usuarios-fotos')
+      .remove([normalizedPath]);
+
+    if (error) {
+      console.error('❌ Error eliminando foto de Storage:', error);
+      throw error;
+    }
+  } catch (error: any) {
+    console.error('❌ Error al procesar eliminación de foto:', error);
+    throw error;
+  }
+};
+
+// Función para comprimir imagen (similar a empresas)
+const compressImage = (file: File): Promise<File> => {
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    img.onload = () => {
+      const targetWidth = 400;
+      const targetHeight = 400;
+      
+      let { width, height } = img;
+      const aspectRatio = width / height;
+      
+      let finalWidth, finalHeight;
+      
+      if (width > height) {
+        finalWidth = targetWidth;
+        finalHeight = targetWidth / aspectRatio;
+      } else {
+        finalHeight = targetHeight;
+        finalWidth = targetHeight * aspectRatio;
+      }
+      
+      canvas.width = finalWidth;
+      canvas.height = finalHeight;
+      
+      if (ctx) {
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, finalWidth, finalHeight);
+        ctx.drawImage(img, 0, 0, finalWidth, finalHeight);
+      }
+      
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, '.png'), {
+              type: 'image/png',
+              lastModified: Date.now(),
+            });
+            resolve(compressedFile);
+          } else {
+            reject(new Error('Error al comprimir imagen'));
+          }
+        },
+        'image/png',
+        0.9
+      );
+    };
+    
+    img.onerror = () => reject(new Error('Error al cargar imagen'));
+    img.src = URL.createObjectURL(file);
+  });
+};
 
 // Esquema de validación para crear/editar usuario (usa isEditing para reglas de contraseña)
 const crearUsuarioSchema = z.object({
@@ -145,6 +385,9 @@ const UsuariosPage = () => {
   const [editingUser, setEditingUser] = useState<Usuario | null>(null);
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
+  const [fotoUrl, setFotoUrl] = useState<string>("");
+  const [fotoPreview, setFotoPreview] = useState<string | null>(null);
+  const [uploadingFoto, setUploadingFoto] = useState<boolean>(false);
   
   // Estados para el modal informativo de eliminación
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -152,6 +395,44 @@ const UsuariosPage = () => {
   const [candidatosRelacionados, setCandidatosRelacionados] = useState<any[]>([]);
   const { startLoading, stopLoading } = useLoading();
   const queryClient = useQueryClient();
+
+  // Efecto para cargar la foto cuando se edita un usuario
+  useEffect(() => {
+    if (editingUser && editingUser.foto_base64) {
+      const fotoUrlValue = editingUser.foto_base64;
+      console.log('🔄 [useEffect] Cargando foto para usuario editando:', editingUser.id);
+      console.log('🖼️ [useEffect] foto_base64:', fotoUrlValue);
+      
+      setFotoUrl(fotoUrlValue);
+      
+      // Detectar si es URL
+      const isUrl = fotoUrlValue && (
+        fotoUrlValue.startsWith('http://') || 
+        fotoUrlValue.startsWith('https://') ||
+        fotoUrlValue.includes('supabase.co/storage') ||
+        fotoUrlValue.includes('/storage/v1/object/')
+      );
+      
+      // Detectar si es base64
+      const isBase64 = fotoUrlValue && fotoUrlValue.startsWith('data:');
+      
+      if (isUrl) {
+        console.log('✅ [useEffect] Es URL, estableciendo preview');
+        setFotoPreview(fotoUrlValue);
+      } else if (isBase64) {
+        console.log('✅ [useEffect] Es base64, estableciendo preview');
+        setFotoPreview(fotoUrlValue);
+      } else {
+        console.log('❌ [useEffect] No se pudo detectar el tipo de foto');
+        setFotoPreview(null);
+      }
+    } else if (editingUser && !editingUser.foto_base64) {
+      // Si el usuario no tiene foto, limpiar estados
+      console.log('🔄 [useEffect] Usuario sin foto, limpiando estados');
+      setFotoUrl("");
+      setFotoPreview(null);
+    }
+  }, [editingUser]);
 
   // Función para asignar colores diferentes a cada perfil
   const getPerfilColor = (perfilId: number) => {
@@ -229,6 +510,8 @@ const UsuariosPage = () => {
       toast.success("El usuario ha sido creado exitosamente");
       queryClient.invalidateQueries({ queryKey: ["usuarios"] });
       form.reset();
+      setFotoUrl("");
+      setFotoPreview(null);
       setActiveTab("usuarios");
     },
     onError: (error: any) => {
@@ -256,6 +539,8 @@ const UsuariosPage = () => {
       toast.success("El usuario ha sido actualizado exitosamente");
       queryClient.invalidateQueries({ queryKey: ["usuarios"] });
       setEditingUser(null);
+      setFotoUrl("");
+      setFotoPreview(null);
       setActiveTab("usuarios");
     },
     onError: (error: any) => {
@@ -379,7 +664,7 @@ const UsuariosPage = () => {
     deactivateUserMutation.mutate(id);
   };
 
-  const handleCrearUsuario = (data: CrearUsuarioForm) => {
+  const handleCrearUsuario = async (data: CrearUsuarioForm) => {
     // Filtrar campos que no deben enviarse al backend
     const { confirmPassword, perfilIds, empresaIds, isEditing, ...userData } = data;
     const password = data.password;
@@ -388,23 +673,88 @@ const UsuariosPage = () => {
     if (editingUser) {
       console.log('🔄 Editando usuario existente, llamando updateUserMutation');
       // Estamos editando un usuario existente
+      // Usar fotoUrl si existe (puede ser nueva foto subida o URL existente), sino usar el valor del formulario
+      // Si fotoUrl está vacío pero había una foto antes, mantener la foto original
+      const fotoFinal = fotoUrl !== "" 
+        ? (fotoUrl || userData.foto_base64 || "") 
+        : (userData.foto_base64 || editingUser.foto_base64 || "");
+      
       const updateData = {
         ...userData,
         id: editingUser.id,
         password,
         perfilIds,
-        empresaIds
+        empresaIds,
+        foto_base64: fotoFinal
       };
       updateUserMutation.mutate(updateData);
     } else {
       console.log('➕ Creando nuevo usuario, llamando createUserMutation');
-      // Estamos creando un nuevo usuario
-    createUserMutation.mutate({
-      ...userData,
-      password,
-      perfilIds,
-      empresaIds
-    });
+      
+      // Si hay foto temporal, moverla a la carpeta del usuario después de crearlo
+      let finalFotoUrl = fotoUrl || userData.foto_base64 || "";
+      
+      try {
+        // Crear usuario primero usando mutateAsync para poder esperar el resultado
+        const newUser = await createUserMutation.mutateAsync({
+          ...userData,
+          password,
+          perfilIds,
+          empresaIds,
+          foto_base64: finalFotoUrl
+        });
+        
+        // Si hay foto temporal, moverla a la carpeta del usuario
+        if (fotoUrl && fotoUrl.includes('/usuarios/temp/')) {
+          try {
+            const urlParts = fotoUrl.split('/usuarios/temp/');
+            if (urlParts.length > 1) {
+              const fileName = urlParts[1].split('?')[0];
+              const oldPath = `usuarios/temp/${fileName}`;
+              const newPath = `usuarios/${newUser.id}/${fileName}`;
+
+              // Mover archivo de temp a la carpeta del usuario
+              const { error: moveError } = await supabase.storage
+                .from('usuarios-fotos')
+                .move(oldPath, newPath);
+
+              if (moveError) {
+                console.error('Error moviendo foto:', moveError);
+                // Intentar copiar si move no funciona
+                const { data: fileData } = await supabase.storage
+                  .from('usuarios-fotos')
+                  .download(oldPath);
+                
+                if (fileData) {
+                  await supabase.storage
+                    .from('usuarios-fotos')
+                    .upload(newPath, fileData);
+                  
+                  await supabase.storage
+                    .from('usuarios-fotos')
+                    .remove([oldPath]);
+                }
+              }
+              
+              // Obtener la nueva URL pública después de mover
+              const { data: urlData } = supabase.storage
+                .from('usuarios-fotos')
+                .getPublicUrl(newPath);
+              
+              // Actualizar la foto en la base de datos con la nueva URL
+              await supabase
+                .from('gen_usuarios')
+                .update({ foto_base64: urlData.publicUrl })
+                .eq('id', newUser.id);
+            }
+          } catch (error) {
+            console.error('Error procesando foto después de crear usuario:', error);
+          }
+        }
+      } catch (error) {
+        // El error ya se maneja en la mutación
+        console.error('Error al crear usuario:', error);
+      }
     }
   };
 
@@ -413,7 +763,51 @@ const UsuariosPage = () => {
   };
 
   const handleEditarUsuario = (usuario: Usuario) => {
+    console.log('🔄 [handleEditarUsuario] Usuario a editar:', usuario);
+    console.log('🖼️ [handleEditarUsuario] foto_base64 del usuario:', usuario.foto_base64);
+    
     setEditingUser(usuario);
+    
+    // Cargar foto desde URL o base64
+    const fotoUrlValue = usuario.foto_base64 || "";
+    console.log('📸 [handleEditarUsuario] fotoUrlValue:', fotoUrlValue);
+    console.log('📸 [handleEditarUsuario] Tipo de fotoUrlValue:', typeof fotoUrlValue);
+    console.log('📸 [handleEditarUsuario] Longitud:', fotoUrlValue?.length);
+    
+    setFotoUrl(fotoUrlValue);
+    
+    // Detectar si es URL (más flexible: cualquier string que contenga http o sea una URL válida)
+    const isUrl = fotoUrlValue && (
+      fotoUrlValue.startsWith('http://') || 
+      fotoUrlValue.startsWith('https://') ||
+      fotoUrlValue.includes('supabase.co/storage') ||
+      fotoUrlValue.includes('/storage/v1/object/')
+    );
+    
+    // Detectar si es base64
+    const isBase64 = fotoUrlValue && fotoUrlValue.startsWith('data:');
+    
+    console.log('🔍 [handleEditarUsuario] isUrl:', isUrl);
+    console.log('🔍 [handleEditarUsuario] isBase64:', isBase64);
+    
+    // Si es URL de Storage, usar directamente para preview
+    if (isUrl) {
+      console.log('✅ [handleEditarUsuario] Es URL, estableciendo preview con URL');
+      setFotoPreview(fotoUrlValue);
+    } 
+    // Si es base64, usar para preview
+    else if (isBase64) {
+      console.log('✅ [handleEditarUsuario] Es base64, estableciendo preview con base64');
+      setFotoPreview(fotoUrlValue);
+    } 
+    // Si no hay foto, limpiar preview
+    else {
+      console.log('❌ [handleEditarUsuario] No es URL ni base64, limpiando preview');
+      setFotoPreview(null);
+    }
+    
+    // Nota: fotoPreview se actualizará en el siguiente render, no podemos leerlo aquí
+    
     form.reset({
       id: usuario.id,
       identificacion: usuario.identificacion || "",
@@ -428,10 +822,157 @@ const UsuariosPage = () => {
       confirmPassword: usuario.password || "",
       perfilIds: usuario.gen_usuario_roles?.map(r => r.rol_id) || [],
       empresaIds: usuario.gen_usuario_empresas?.map(e => e.empresa_id) || [],
-      foto_base64: usuario.foto_base64 || "",
+      foto_base64: fotoUrlValue,
       isEditing: true,
     });
     setActiveTab("registro");
+  };
+
+  const handleEliminarFoto = async () => {
+    if (!editingUser) {
+      // Si no hay usuario editando, solo limpiar estados
+      setFotoUrl("");
+      setFotoPreview(null);
+      form.setValue('foto_base64', "");
+      return;
+    }
+
+    try {
+      startLoading();
+      
+      // Obtener la URL actual de la foto
+      const currentFotoUrl = fotoUrl || editingUser.foto_base64 || "";
+      
+      // Si hay una URL de Storage, eliminar el archivo
+      if (currentFotoUrl && (currentFotoUrl.startsWith('http://') || currentFotoUrl.startsWith('https://'))) {
+        try {
+          await deleteFotoFromStorage(currentFotoUrl);
+          toast.success("Foto eliminada de Storage");
+        } catch (deleteError) {
+          console.error('Error eliminando foto de Storage:', deleteError);
+          // Continuar de todas formas para limpiar la referencia en la BD
+        }
+      }
+      
+      // Actualizar la base de datos para eliminar la referencia a la foto
+      if (editingUser.id) {
+        const { error: updateError } = await supabase
+          .from('gen_usuarios')
+          .update({ foto_base64: null })
+          .eq('id', editingUser.id);
+        
+        if (updateError) {
+          console.error('Error actualizando usuario después de eliminar foto:', updateError);
+          toast.error("Error al actualizar la base de datos");
+        } else {
+          toast.success("Foto eliminada correctamente");
+        }
+      }
+      
+      // Limpiar estados locales
+      setFotoUrl("");
+      setFotoPreview(null);
+      form.setValue('foto_base64', "");
+      
+      // Actualizar el usuario en el estado local
+      if (editingUser) {
+        setEditingUser({
+          ...editingUser,
+          foto_base64: undefined
+        });
+      }
+      
+      // Invalidar queries para refrescar la lista de usuarios
+      queryClient.invalidateQueries({ queryKey: ["usuarios"] });
+    } catch (error) {
+      console.error('Error al eliminar foto:', error);
+      toast.error("Error al eliminar la foto");
+    } finally {
+      stopLoading();
+    }
+  };
+
+  const handleFotoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validar que sea una imagen
+    if (!file.type.startsWith('image/')) {
+      toast.error("Por favor selecciona un archivo de imagen válido.");
+      return;
+    }
+
+    // Validar tamaño (máximo 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("La foto debe ser menor a 5MB.");
+      return;
+    }
+
+    try {
+      startLoading();
+      setUploadingFoto(true);
+
+      // Eliminar foto anterior si existe
+      const oldFotoUrl = fotoUrl || editingUser?.foto_base64;
+      if (oldFotoUrl && (oldFotoUrl.startsWith('http') || oldFotoUrl.startsWith('https'))) {
+        try {
+          await deleteFotoFromStorage(oldFotoUrl);
+        } catch (deleteError) {
+          console.error('❌ Error al eliminar foto anterior:', deleteError);
+        }
+      }
+
+      // Comprimir la imagen
+      const compressedImage = await compressImage(file);
+      
+      // Subir imagen comprimida a Storage
+      const usuarioId = editingUser?.id;
+      const folder = usuarioId ? `usuarios/${usuarioId}` : 'usuarios/temp';
+      const fotoUrlValue = await uploadFotoToStorage(compressedImage, folder, usuarioId);
+
+      // Guardar la URL en el estado y en el formulario
+      setFotoUrl(fotoUrlValue);
+      form.setValue('foto_base64', fotoUrlValue);
+      
+      // También generar preview para visualización
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(compressedImage);
+      });
+      setFotoPreview(base64);
+
+      // Si el usuario ya existe, actualizar la URL en la base de datos inmediatamente
+      if (usuarioId) {
+        try {
+          const { error: updateError } = await supabase
+            .from('gen_usuarios')
+            .update({ foto_base64: fotoUrlValue })
+            .eq('id', usuarioId);
+          
+          if (updateError) {
+            console.error('Error actualizando foto en la base de datos:', updateError);
+            toast.error("Error al actualizar la foto en la base de datos");
+          } else {
+            toast.success("Foto procesada y guardada", { 
+              description: "Imagen optimizada, subida a Storage y URL actualizada en la base de datos." 
+            });
+          }
+        } catch (dbError) {
+          console.error('Error al actualizar la base de datos:', dbError);
+          toast.error("Error al actualizar la base de datos.");
+        }
+      } else {
+        toast.success("Foto procesada", { description: "Imagen optimizada y subida a Storage." });
+      }
+    } catch (error) {
+      console.error('Error al procesar foto:', error);
+      toast.error("No se pudo procesar la foto.");
+    } finally {
+      setUploadingFoto(false);
+      stopLoading();
+    }
   };
 
   return (
@@ -473,6 +1014,8 @@ const UsuariosPage = () => {
                 <Button
                   onClick={() => {
                     setEditingUser(null);
+                    setFotoUrl("");
+                    setFotoPreview(null);
                       // Vaciar completamente el formulario con valores por defecto
                       form.reset({
                         identificacion: "",
@@ -487,6 +1030,7 @@ const UsuariosPage = () => {
                         confirmPassword: "",
                         perfilIds: [],
                         empresaIds: [],
+                        foto_base64: "",
                         isEditing: false,
                       });
                     setActiveTab("registro");
@@ -786,32 +1330,82 @@ const UsuariosPage = () => {
                     </h3>
                     <div className="flex items-center gap-6">
                       <div className="w-24 h-24 rounded-full overflow-hidden border bg-gray-50 flex items-center justify-center">
-                        {form.watch('foto_base64') ? (
-                          <img src={form.watch('foto_base64') as unknown as string} alt="Foto" className="w-full h-full object-cover" />
-                        ) : (
-                          <User className="w-10 h-10 text-gray-400" />
-                        )}
+                        {(() => {
+                          const fotoParaMostrar = fotoPreview || form.watch('foto_base64') || fotoUrl;
+                          console.log('🖼️ [Render] fotoParaMostrar:', fotoParaMostrar);
+                          console.log('🖼️ [Render] fotoPreview:', fotoPreview);
+                          console.log('🖼️ [Render] form.watch foto_base64:', form.watch('foto_base64'));
+                          console.log('🖼️ [Render] fotoUrl:', fotoUrl);
+                          
+                          if (fotoParaMostrar) {
+                            return (
+                              <img 
+                                src={fotoParaMostrar as string} 
+                                alt="Foto de perfil" 
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  console.error('❌ Error cargando imagen:', e);
+                                  console.error('❌ URL de la imagen:', fotoParaMostrar);
+                                }}
+                                onLoad={() => {
+                                  console.log('✅ Imagen cargada correctamente');
+                                }}
+                              />
+                            );
+                          }
+                          return <User className="w-10 h-10 text-gray-400" />;
+                        })()}
                       </div>
                       <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => document.getElementById('foto-input')?.click()}
+                            disabled={uploadingFoto}
+                            className="flex items-center gap-2"
+                          >
+                            <Upload className="w-4 h-4" />
+                            {fotoPreview || form.watch('foto_base64') ? 'Cambiar foto' : 'Subir foto'}
+                          </Button>
+                          {(fotoPreview || form.watch('foto_base64')) && (
+                            <Button 
+                              type="button" 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={handleEliminarFoto}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              disabled={uploadingFoto}
+                            >
+                              <Trash2 className="w-4 h-4 mr-1" />
+                              {editingUser ? 'Eliminar' : 'Quitar'}
+                            </Button>
+                          )}
+                        </div>
                         <input
+                          id="foto-input"
                           type="file"
                           accept="image/*"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
-                            const reader = new FileReader();
-                            reader.onload = () => form.setValue('foto_base64', String(reader.result));
-                            reader.readAsDataURL(file);
-                          }}
-                          className="block text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100"
+                          onChange={handleFotoChange}
+                          disabled={uploadingFoto}
+                          className="hidden"
+                          onClick={(e) => (e.target as HTMLInputElement).value = ''}
                         />
-                        {form.watch('foto_base64') && (
-                          <Button type="button" variant="ghost" size="sm" onClick={() => form.setValue('foto_base64', "")} className="text-red-600 hover:text-red-700">
-                            Quitar foto
-                          </Button>
+                        {uploadingFoto && (
+                          <div className="flex items-center gap-2 text-xs text-blue-600">
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            <span>Procesando foto...</span>
+                          </div>
+                        )}
+                        {(fotoPreview || form.watch('foto_base64')) && !uploadingFoto && (
+                          <div className="text-xs text-green-600 bg-green-50 p-2 rounded">
+                            <CheckCircle className="w-3 h-3 inline mr-1" />
+                            {editingUser ? 'Foto cargada. Guarda los cambios para actualizar.' : 'Foto lista para subir'}
+                          </div>
                         )}
                         <input type="hidden" {...form.register('foto_base64')} />
-                        <p className="text-xs text-gray-500">Formatos recomendados: JPG, PNG. Tamaño sugerido: 400x400.</p>
+                        <p className="text-xs text-gray-500">Formatos: JPG, PNG. Tamaño sugerido: 400x400. Se optimizará automáticamente.</p>
                       </div>
                     </div>
                   </div>
@@ -1132,6 +1726,8 @@ const UsuariosPage = () => {
                       onClick={() => {
                         setActiveTab("usuarios");
                         setEditingUser(null);
+                        setFotoUrl("");
+                        setFotoPreview(null);
                         form.reset();
                       }}
                     >

@@ -109,7 +109,8 @@ export const candidatosService = {
       const copyProps: (keyof Candidato)[] = [
         'numero_documento', 'segundo_nombre',
         'segundo_apellido', 'email', 'telefono', 'direccion',
-        'ciudad', 'ciudad_id', 'empresa_id', 'tipo_candidato_id'
+        'ciudad', 'ciudad_id', 'empresa_id'
+        // Nota: tipo_candidato_id no existe en la tabla candidatos
       ];
       for (const k of copyProps) {
         const v = (candidato as any)[k];

@@ -115,7 +115,6 @@ export const AppointmentModal = ({ isOpen, onClose, date, time, especialistaId }
       };
       
       // Mock API call - replace with actual API when available
-      console.log("Saving appointment:", appointmentData);
       await new Promise(resolve => setTimeout(resolve, 500));
       
       toast.success("Cita médica guardada exitosamente");

@@ -269,12 +269,8 @@ export default function PlantillasSelector({
     setError(null);
     startLoading(); // Iniciar loading global
     try {
-      console.log('🚀 Iniciando carga de plantillas para empresa ID:', empresaId);
-
       // Primero verificamos la estructura de la base de datos
-      console.log('🔍 Verificando estructura de la base de datos...');
-      const estructuraDB = await verificarEstructuraDB();
-      console.log('📊 Estructura DB:', estructuraDB);
+      await verificarEstructuraDB();
 
       // Si hay empresaId, obtener solo plantillas de esa empresa
       // Si no hay empresaId, mostrar todas las plantillas activas (usuario sin empresa asociada)
@@ -282,12 +278,9 @@ export default function PlantillasSelector({
       if (empresaId) {
         data = await plantillasService.getByEmpresa(empresaId, true); // Skip global loading, lo manejamos aquí
       } else {
-        console.log('📋 No hay empresaId proporcionado, mostrando todas las plantillas activas');
         data = await plantillasService.getAllActivas();
       }
       
-      console.log('📦 Plantillas recibidas:', data);
-      console.log('📊 Cantidad de plantillas:', data?.length || 0);
       setPlantillas(data);
       setIsLoading(false);
       
@@ -305,8 +298,6 @@ export default function PlantillasSelector({
   };
 
   const loadSolicitudForEdit = async () => {
-    console.log('🔍 PlantillasSelector - Cargando solicitud para editar:', selectedSolicitud);
-
     if (!selectedSolicitud || !selectedSolicitud.plantilla_id) return;
 
     try {
@@ -314,17 +305,14 @@ export default function PlantillasSelector({
 
       // Obtener la plantilla utilizada en la solicitud
       const plantilla = await plantillasService.getById(selectedSolicitud.plantilla_id);
-      console.log('🔍 PlantillasSelector - Plantilla obtenida para edición:', plantilla);
 
       if (plantilla) {
         setSelectedPlantilla(plantilla);
         setEstructuraFormulario(plantilla.estructura_formulario);
 
         // Cargar los datos guardados de la solicitud
-        console.log('🔍 PlantillasSelector - Datos de estructura_datos:', selectedSolicitud.estructura_datos);
         if (selectedSolicitud.estructura_datos) {
           setInitialFormData(selectedSolicitud.estructura_datos);
-          console.log('🔍 PlantillasSelector - Datos iniciales establecidos:', selectedSolicitud.estructura_datos);
         }
 
         onPlantillaSelect(plantilla);
@@ -338,7 +326,6 @@ export default function PlantillasSelector({
   };
 
   const handlePlantillaSelect = async (plantilla: Plantilla) => {
-    console.log('🎯 Plantilla seleccionada:', plantilla);
     setSelectedPlantilla(plantilla);
     setIsLoadingEstructura(true);
 
@@ -347,11 +334,7 @@ export default function PlantillasSelector({
       const plantillaCompleta = await plantillasService.getById(plantilla.id);
 
       if (plantillaCompleta) {
-        console.log('📋 Plantilla completa obtenida:', plantillaCompleta);
-        console.log('🏗️ Estructura del formulario:', plantillaCompleta.estructura_formulario);
-
         if (plantillaCompleta.estructura_formulario) {
-          console.log('🔍 Estructura del formulario completa:', JSON.stringify(plantillaCompleta.estructura_formulario, null, 2));
           setEstructuraFormulario(plantillaCompleta.estructura_formulario);
           onPlantillaSelect(plantillaCompleta);
 
@@ -360,12 +343,10 @@ export default function PlantillasSelector({
             setInitialFormData({});
           }
         } else {
-          console.warn('⚠️ La plantilla no tiene estructura de formulario definida');
           setEstructuraFormulario(null);
           toast.warning("Esta plantilla no tiene estructura de formulario configurada");
         }
       } else {
-        console.error('❌ No se pudo obtener la plantilla completa');
         setEstructuraFormulario(null);
         toast.error("No se pudo obtener la información completa de la plantilla");
       }
@@ -379,10 +360,6 @@ export default function PlantillasSelector({
   };
 
   const handleFormSave = async (formData: Record<string, any>) => {
-    console.log('🔍 PlantillasSelector - Datos recibidos del formulario:', formData);
-    console.log('🔍 PlantillasSelector - Plantilla seleccionada:', selectedPlantilla);
-    console.log('🔍 PlantillasSelector - Solicitud existente:', selectedSolicitud);
-
     if (!selectedPlantilla) {
       toast.error('No hay plantilla seleccionada');
       return;
@@ -391,12 +368,8 @@ export default function PlantillasSelector({
     // Validar si el usuario puede crear solicitudes (tiene empresa asociada)
     const validation = canCreateSolicitud(user);
     if (!validation.canCreate) {
-      console.warn('❌ Usuario no puede crear solicitud:', validation.errorMessage);
-      console.log('🔍 Mostrando modal sin empresa, estado actual:', showModalSinEmpresa);
-      
       // Mostrar modal inmediatamente
       setShowModalSinEmpresa(true);
-      console.log('🔍 Estado del modal después de setShowModalSinEmpresa(true):', showModalSinEmpresa);
       
       // También mostrar toast como fallback
       toast.error('No puedes crear solicitudes sin tener una empresa asociada');
@@ -406,18 +379,14 @@ export default function PlantillasSelector({
 
     // Activar loading global
     startLoading();
-    console.log('🔍 PlantillasSelector - Loading global activado');
 
     try {
       if (selectedSolicitud?.id) {
         // Actualizar solicitud existente
-        console.log('🔍 PlantillasSelector - Actualizando solicitud ID:', selectedSolicitud.id);
         await solicitudesService.updateWithTemplate(selectedSolicitud.id, formData);
         toast.success('Solicitud actualizada correctamente');
-        console.log('🔍 PlantillasSelector - Solicitud actualizada exitosamente');
       } else {
         // Crear nueva solicitud
-        console.log('🔍 PlantillasSelector - Creando nueva solicitud');
         await solicitudesService.createWithTemplate(
           validation.empresaId || empresaId,
           selectedPlantilla.id,
@@ -425,7 +394,6 @@ export default function PlantillasSelector({
           formData
         );
         toast.success('Solicitud creada correctamente');
-        console.log('🔍 PlantillasSelector - Solicitud creada exitosamente');
       }
 
       // Llamar callback de éxito
@@ -438,7 +406,6 @@ export default function PlantillasSelector({
     } finally {
       // Detener loading global siempre
       stopLoading();
-      console.log('🔍 PlantillasSelector - Loading global detenido');
     }
   };
 
@@ -463,13 +430,6 @@ export default function PlantillasSelector({
     setShowModalSinEmpresa(false);
   };
 
-  // Debug: Monitorear cambios en el estado del modal
-  useEffect(() => {
-    console.log('🔍 useEffect ejecutado - Estado del modal cambió:', showModalSinEmpresa);
-    if (showModalSinEmpresa) {
-      console.log('🔍 MODAL DEBERÍA ESTAR VISIBLE AHORA');
-    }
-  }, [showModalSinEmpresa]);
 
   if (isLoading) {
     return (
@@ -731,10 +691,6 @@ export default function PlantillasSelector({
       </div>
 
       {/* Modal de advertencia para usuarios sin empresa */}
-      {console.log('🔍 Renderizando modal, showModalSinEmpresa:', showModalSinEmpresa)}
-      
-      {/* Modal de prueba simple */}
-      {showModalSinEmpresa && console.log('🔍 RENDERIZANDO MODAL DE PRUEBA')}
       {showModalSinEmpresa && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center" 

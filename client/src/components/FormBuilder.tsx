@@ -6,7 +6,7 @@ import { useLoading } from '@/contexts/LoadingContext';
 import { useTiposCandidatos } from '@/hooks/useTiposCandidatos';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { 
+import {
   Plus, Edit3, Trash2, Save, X, Eye, FileText, Download
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
@@ -71,6 +71,8 @@ const DATABASE_TABLES = [
   { value: 'gen_sucursales', label: 'Sucursales', displayField: 'nombre', valueField: 'id' },
   { value: 'centros_costo', label: 'Centros de Costo', displayField: 'nombre', valueField: 'id' },
   { value: 'ciudades', label: 'Ciudades', displayField: 'nombre', valueField: 'id' },
+  { value: 'gen_proyectos', label: 'Proyectos', displayField: 'nombre', valueField: 'nombre' },
+  { value: 'gen_areas_negocios', label: 'Áreas de Negocios', displayField: 'nombre', valueField: 'nombre' },
 ];
 
 const createDefaultField = (): FormField => ({
@@ -127,8 +129,8 @@ function reorder(list: any[], startIndex: number, endIndex: number) {
   return result.map((f: any, i: number) => ({ ...f, order: i + 1 }));
 }
 
-const FormBuilder: React.FC<{ 
-  precargados?: any[], 
+const FormBuilder: React.FC<{
+  precargados?: any[],
   readOnly?: boolean,
   onSave?: (data: { nombre: string, descripcion: string, estructura_formulario: any }) => Promise<void>,
   initialName?: string,
@@ -154,7 +156,7 @@ const FormBuilder: React.FC<{
   const [isInitialized, setIsInitialized] = useState(false);
   const [activeTab, setActiveTab] = useState("seccion");
   const { startLoading, stopLoading } = useLoading();
-  
+
   // Hook para obtener tipos de candidatos
   const { data: tiposCandidatos = [], isLoading: isLoadingTiposCandidatos } = useTiposCandidatos();
 
@@ -165,11 +167,11 @@ const FormBuilder: React.FC<{
     return campos.map((campo: any) => {
       const fieldName = campo.name || campo.nombre || '';
       const fieldLabel = campo.label || '';
-      
+
       // Detectar campos del sistema por nombre o label
-      const isSystemField = 
-        fieldName === 'documento' || 
-        fieldName === 'correo_electronico' || 
+      const isSystemField =
+        fieldName === 'documento' ||
+        fieldName === 'correo_electronico' ||
         fieldName === 'cargo' ||
         fieldName === 'temporalaingresar' ||
         fieldName === 'temporal' ||
@@ -177,7 +179,7 @@ const FormBuilder: React.FC<{
         fieldLabel.toLowerCase().includes('correo') ||
         fieldLabel.toLowerCase().includes('cargo') ||
         fieldLabel.toLowerCase().includes('temporal');
-      
+
       if (isSystemField && !campo.isSystemField) {
         return {
           ...campo,
@@ -186,7 +188,7 @@ const FormBuilder: React.FC<{
           allowOptionsEdit: (fieldName === 'temporalaingresar' || fieldName === 'temporal') ? true : campo.allowOptionsEdit
         };
       }
-      
+
       // Si ya es campo del sistema pero es temporal y no tiene allowOptionsEdit, agregarlo
       if (campo.isSystemField && (fieldName === 'temporalaingresar' || fieldName === 'temporal') && !campo.allowOptionsEdit) {
         return {
@@ -194,7 +196,7 @@ const FormBuilder: React.FC<{
           allowOptionsEdit: true
         };
       }
-      
+
       return campo;
     });
   };
@@ -204,7 +206,7 @@ const FormBuilder: React.FC<{
     return campos.map((campo: any) => {
       // Detectar campos "cargo" y asegurar que tengan la configuración correcta
       if (
-        campo.name === 'cargo' || campo.nombre === 'cargo' || 
+        campo.name === 'cargo' || campo.nombre === 'cargo' ||
         campo.label?.toLowerCase().includes('cargo')
       ) {
         // Si es de tipo texto, convertirlo a select
@@ -223,7 +225,7 @@ const FormBuilder: React.FC<{
             isSystemField: true // Campo del sistema - solo editable tamaño y orden
           };
         }
-        
+
         // Si ya es select pero no tiene configuración de base de datos, actualizarlo
         if (campo.type === 'select' || campo.tipo === 'select') {
           return {
@@ -246,13 +248,15 @@ const FormBuilder: React.FC<{
   // Inicializar campos precargados con IDs únicos
   useEffect(() => {
     if (isInitialized) return; // Evitar ejecución múltiple
-    
+
     let dataToProcess: any[] | null = null;
     if (Array.isArray(precargados)) {
       dataToProcess = precargados;
     } else if (precargados && typeof precargados === 'object' && (precargados as any).secciones) {
       dataToProcess = (precargados as any).secciones as any[];
     }
+
+
     if (dataToProcess && dataToProcess.length > 0) {
       // Si los datos precargados ya tienen estructura de secciones, usarlos directamente
       if (dataToProcess[0] && (dataToProcess[0] as any).campos) {
@@ -361,7 +365,7 @@ const FormBuilder: React.FC<{
       ];
       setSections([defaultSection]);
     }
-    
+
     setIsInitialized(true); // Marcar como inicializado
   }, [precargados, isInitialized]);
 
@@ -388,7 +392,7 @@ const FormBuilder: React.FC<{
   useEffect(() => {
     if (onFieldsChange && sections.length > 0 && isInitialized) {
       // Solo notificar cambios si hay secciones, no es la inicialización y ya se inicializó
-      const allFields = sections.flatMap(section => 
+      const allFields = sections.flatMap(section =>
         section.campos.filter(f => f.activo !== false)
       );
       onFieldsChange(allFields);
@@ -427,17 +431,17 @@ const FormBuilder: React.FC<{
   // Función para corregir nombres duplicados en una plantilla
   const fixDuplicateNames = (sections: FormSection[]): FormSection[] => {
     const usedNames = new Set<string>();
-    
+
     return sections.map(section => ({
       ...section,
       campos: section.campos.map(field => {
         let finalName = field.nombre || '';
-        
+
         // Si no tiene nombre o está vacío, generarlo del label
         if (!finalName && field.label) {
           finalName = generateFieldName(field.label);
         }
-        
+
         // Si el nombre ya está en uso, agregar un sufijo numérico
         let counter = 1;
         let uniqueName = finalName;
@@ -445,9 +449,9 @@ const FormBuilder: React.FC<{
           uniqueName = `${finalName}_${counter}`;
           counter++;
         }
-        
+
         usedNames.add(uniqueName);
-        
+
         return {
           ...field,
           nombre: uniqueName
@@ -462,7 +466,7 @@ const FormBuilder: React.FC<{
     if (type === 'checkbox') {
       newValue = (e.target as HTMLInputElement).checked;
     }
-    
+
     // Si se está cambiando el tipo de campo a 'number' y es un campo de documento, agregar minLength automáticamente
     if (name === 'type' && newValue === 'number') {
       const fieldName = currentField.nombre?.toLowerCase() || currentField.label?.toLowerCase() || '';
@@ -475,7 +479,7 @@ const FormBuilder: React.FC<{
         return;
       }
     }
-    
+
     // Si se está cambiando el nombre o label del campo y ya es tipo number, agregar minLength si es documento
     if ((name === 'nombre' || name === 'label') && currentField.type === 'number') {
       const newValueLower = String(newValue).toLowerCase();
@@ -518,8 +522,8 @@ const FormBuilder: React.FC<{
         // Para campos del sistema, preservar propiedades críticas
         if (f.isSystemField) {
           return {
-        ...f,
-        [name]: newValue,
+            ...f,
+            [name]: newValue,
             // Preservar propiedades críticas que no deben cambiar
             type: f.type,
             name: f.name,
@@ -553,7 +557,7 @@ const FormBuilder: React.FC<{
   // Función para exportar la vista previa como imagen
   const exportAsImage = async () => {
     if (!previewRef.current) return;
-    
+
     setIsExporting(true);
     try {
       const canvas = await html2canvas(previewRef.current, {
@@ -565,13 +569,13 @@ const FormBuilder: React.FC<{
         width: previewRef.current.scrollWidth,
         height: previewRef.current.scrollHeight
       });
-      
+
       // Crear un enlace de descarga
       const link = document.createElement('a');
       link.download = `plantilla-${formName || 'formulario'}-${new Date().toISOString().split('T')[0]}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
-      
+
     } catch (error) {
       console.error('Error al exportar como imagen:', error);
       // Aquí podrías mostrar un toast de error
@@ -582,8 +586,8 @@ const FormBuilder: React.FC<{
 
   const addSection = (e: React.FormEvent) => {
     e.preventDefault();
-    setSections(prev => [...prev, { 
-      ...currentSection, 
+    setSections(prev => [...prev, {
+      ...currentSection,
       id: uuidv4(),
       campos: []
     }]);
@@ -597,9 +601,9 @@ const FormBuilder: React.FC<{
         const updated = [...prev];
         updated[selectedSectionIdx] = {
           ...updated[selectedSectionIdx],
-          campos: [...updated[selectedSectionIdx].campos, { 
-            ...currentField, 
-            id: uuidv4(), 
+          campos: [...updated[selectedSectionIdx].campos, {
+            ...currentField,
+            id: uuidv4(),
             order: updated[selectedSectionIdx].campos.length + 1,
             activo: true
           }]
@@ -621,12 +625,12 @@ const FormBuilder: React.FC<{
     setSelectedSectionIdx(sectionIdx);
     setSelectedFieldIdx(fieldIdx);
     const field = { ...sections[sectionIdx].campos[fieldIdx] };
-    
+
     // Si el campo no tiene nombre o está vacío, generarlo automáticamente basado en el label
     if (!field.nombre && field.label) {
       field.nombre = generateFieldName(field.label);
     }
-    
+
     setCurrentField(field);
     setActiveTab("campo"); // Cambiar al tab de edición de campo
   };
@@ -636,7 +640,7 @@ const FormBuilder: React.FC<{
     if (selectedSectionIdx !== null) {
       setSections(prev => {
         const updated = [...prev];
-        updated[selectedSectionIdx] = { 
+        updated[selectedSectionIdx] = {
           ...currentSection,
           activo: currentSection.activo !== false
         };
@@ -654,8 +658,8 @@ const FormBuilder: React.FC<{
         const updated = [...prev];
         updated[selectedSectionIdx] = {
           ...updated[selectedSectionIdx],
-          campos: updated[selectedSectionIdx].campos.map((f, i) => 
-            i === selectedFieldIdx ? { 
+          campos: updated[selectedSectionIdx].campos.map((f, i) =>
+            i === selectedFieldIdx ? {
               ...currentField,
               activo: currentField.activo !== false,
               // Para campos del sistema, preservar propiedades críticas
@@ -698,18 +702,18 @@ const FormBuilder: React.FC<{
 
   const moveFieldToSection = (sourceSectionIdx: number, fieldIdx: number, targetSectionIdx: number) => {
     if (sourceSectionIdx === targetSectionIdx) return;
-    
+
     setSections(prev => {
       const updated = [...prev];
       const fieldToMove = updated[sourceSectionIdx].campos[fieldIdx];
-      
+
       // Remover el campo de la sección origen
       updated[sourceSectionIdx] = {
         ...updated[sourceSectionIdx],
         campos: updated[sourceSectionIdx].campos.filter((_, i) => i !== fieldIdx)
           .map((f, i) => ({ ...f, order: i + 1 }))
       };
-      
+
       // Agregar el campo a la sección destino
       updated[targetSectionIdx] = {
         ...updated[targetSectionIdx],
@@ -721,11 +725,11 @@ const FormBuilder: React.FC<{
           }
         ]
       };
-      
+
       // Actualizar la selección para mostrar el campo en la nueva sección
       setSelectedSectionIdx(targetSectionIdx);
       setSelectedFieldIdx(updated[targetSectionIdx].campos.length - 1);
-      
+
       return updated;
     });
   };
@@ -750,22 +754,22 @@ const FormBuilder: React.FC<{
   const calculateInsertPosition = (e: React.DragEvent, sectionIdx: number): number => {
     const gridContainer = e.currentTarget.closest('.grid-container');
     if (!gridContainer) return 0;
-    
+
     const rect = gridContainer.getBoundingClientRect();
     const mouseY = e.clientY - rect.top;
-    
+
     // Obtener todos los elementos de campo en el DOM actual
     const fieldElements = gridContainer.querySelectorAll('.field-draggable');
-    
+
     let insertPos = 0;
-    
+
     for (let i = 0; i < fieldElements.length; i++) {
       const fieldElement = fieldElements[i] as HTMLElement;
       const fieldRect = fieldElement.getBoundingClientRect();
       const fieldTop = fieldRect.top - rect.top;
       const fieldBottom = fieldRect.bottom - rect.top;
       const fieldCenter = fieldTop + (fieldRect.height / 2);
-      
+
       // Si el mouse está en la mitad superior del campo, insertar antes
       if (mouseY >= fieldTop && mouseY < fieldCenter) {
         insertPos = i;
@@ -781,7 +785,7 @@ const FormBuilder: React.FC<{
         insertPos = i + 1;
       }
     }
-    
+
     return Math.min(insertPos, fieldElements.length);
   };
 
@@ -790,36 +794,36 @@ const FormBuilder: React.FC<{
     const updated = [...sections];
     const sourceSection = updated[sourceSectionIdx];
     const targetSection = updated[targetSectionIdx];
-    
+
     // Obtener el campo a mover
     const fieldToMove = sourceSection.campos[sourceFieldIdx];
-    
+
     if (sourceSectionIdx === targetSectionIdx) {
       // Mover dentro de la misma sección - reorganizar en tiempo real
       const campos = [...sourceSection.campos];
-      
+
       // Remover el campo de su posición actual
       const [draggedField] = campos.splice(sourceFieldIdx, 1);
-      
+
       // Usar la posición exacta del mouse (targetFieldIdx ya viene calculada correctamente)
       let newPosition = targetFieldIdx || 0;
-      
+
       // Asegurar que la posición esté dentro de los límites válidos
       newPosition = Math.max(0, Math.min(newPosition, campos.length));
-      
+
       // Insertar en la nueva posición exacta
       campos.splice(newPosition, 0, {
         ...draggedField,
         isPreviewField: true, // Marcar como campo de preview
         isDragging: true // Marcar como campo siendo arrastrado
       });
-      
+
       // Actualizar el orden de todos los campos
       const reorderedCampos = campos.map((campo, index) => ({
         ...campo,
         order: index + 1
       }));
-      
+
       updated[sourceSectionIdx] = {
         ...sourceSection,
         campos: reorderedCampos
@@ -829,16 +833,16 @@ const FormBuilder: React.FC<{
       // Remover de la sección origen
       const newSourceCampos = sourceSection.campos.filter((_, i) => i !== sourceFieldIdx)
         .map((f, i) => ({ ...f, order: i + 1 }));
-      
+
       // Agregar a la sección destino
       let newTargetCampos = [...targetSection.campos];
       if (targetFieldIdx !== undefined) {
         // Calcular la nueva posición correcta
         let newPosition = targetFieldIdx;
-        
+
         // Asegurar que la posición esté dentro de los límites válidos
         newPosition = Math.max(0, Math.min(newPosition, newTargetCampos.length));
-        
+
         // Insertar en posición específica
         newTargetCampos.splice(newPosition, 0, {
           ...fieldToMove,
@@ -855,24 +859,24 @@ const FormBuilder: React.FC<{
           isDragging: true // Marcar como campo siendo arrastrado
         });
       }
-      
+
       // Actualizar el orden de todos los campos en la sección destino
       const reorderedTargetCampos = newTargetCampos.map((campo, index) => ({
         ...campo,
         order: index + 1
       }));
-      
+
       updated[sourceSectionIdx] = {
         ...sourceSection,
         campos: newSourceCampos
       };
-      
+
       updated[targetSectionIdx] = {
         ...targetSection,
         campos: reorderedTargetCampos
       };
     }
-    
+
     return updated;
   };
 
@@ -880,10 +884,10 @@ const FormBuilder: React.FC<{
     if (isSection) {
       setDraggedItem({ type: 'section', sectionIdx: idx });
     } else {
-      setDraggedItem({ 
-        type: 'field', 
-        sectionIdx: sectionIdx ?? selectedSectionIdx ?? 0, 
-        fieldIdx: idx 
+      setDraggedItem({
+        type: 'field',
+        sectionIdx: sectionIdx ?? selectedSectionIdx ?? 0,
+        fieldIdx: idx
       });
     }
   };
@@ -891,18 +895,18 @@ const FormBuilder: React.FC<{
   const onDragOver = (e: React.DragEvent, idx: number, isSection: boolean = false, sectionIdx?: number) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    
+
     // Actualizar posición del mouse
     setMousePosition({ x: e.clientX, y: e.clientY });
-    
+
     if (isSection) {
       setDragOverTarget({ type: 'section', sectionIdx: idx });
-      
+
       // Generar preview para campo moviéndose a sección
       if (draggedItem?.type === 'field') {
         const preview = generatePreview(
-          draggedItem.sectionIdx, 
-          draggedItem.fieldIdx!, 
+          draggedItem.sectionIdx,
+          draggedItem.fieldIdx!,
           idx
         );
         setPreviewSections(preview);
@@ -910,23 +914,23 @@ const FormBuilder: React.FC<{
       }
     } else {
       const targetSectionIdx = sectionIdx ?? selectedSectionIdx ?? 0;
-      
+
       // Calcular posición exacta basada en el mouse
       const exactPosition = calculateInsertPosition(e, targetSectionIdx);
       setInsertPosition(exactPosition);
-      
-      setDragOverTarget({ 
-        type: 'field', 
-        sectionIdx: targetSectionIdx, 
-        fieldIdx: exactPosition 
+
+      setDragOverTarget({
+        type: 'field',
+        sectionIdx: targetSectionIdx,
+        fieldIdx: exactPosition
       });
-      
+
       // Generar preview para campo moviéndose a posición específica
       if (draggedItem?.type === 'field') {
         const preview = generatePreview(
-          draggedItem.sectionIdx, 
-          draggedItem.fieldIdx!, 
-          targetSectionIdx, 
+          draggedItem.sectionIdx,
+          draggedItem.fieldIdx!,
+          targetSectionIdx,
           exactPosition
         );
         setPreviewSections(preview);
@@ -937,7 +941,7 @@ const FormBuilder: React.FC<{
 
   const onDrop = (e: React.DragEvent, idx: number, isSection: boolean = false, sectionIdx?: number) => {
     e.preventDefault();
-    
+
     if (!draggedItem) return;
 
     if (isSection) {
@@ -956,45 +960,45 @@ const FormBuilder: React.FC<{
         const sourceSectionIdx = draggedItem.sectionIdx;
         const sourceFieldIdx = draggedItem.fieldIdx!;
         const targetSectionIdx = idx;
-        
+
         if (sourceSectionIdx !== targetSectionIdx) {
           setSections(prev => {
             const updated = [...prev];
             const sourceSection = updated[sourceSectionIdx];
             const targetSection = updated[targetSectionIdx];
-            
+
             // Obtener el campo a mover
             const fieldToMove = sourceSection.campos[sourceFieldIdx];
-            
+
             // Remover de la sección origen
             const newSourceCampos = sourceSection.campos.filter((_, i) => i !== sourceFieldIdx)
               .map((f, i) => ({ ...f, order: i + 1 }));
-            
+
             // Agregar al final de la sección destino
             const newTargetCampos = [...targetSection.campos, {
               ...fieldToMove,
               order: targetSection.campos.length + 1
             }];
-            
+
             // Actualizar el orden de todos los campos en la sección destino
             const reorderedTargetCampos = newTargetCampos.map((campo, index) => ({
               ...campo,
               order: index + 1
             }));
-            
+
             updated[sourceSectionIdx] = {
               ...sourceSection,
               campos: newSourceCampos
             };
-            
+
             updated[targetSectionIdx] = {
               ...targetSection,
               campos: reorderedTargetCampos
             };
-            
+
             return updated;
           });
-          
+
           // Actualizar la selección para mostrar el campo en la nueva sección
           setSelectedSectionIdx(targetSectionIdx);
           // El campo se agrega al final, así que será el último campo
@@ -1004,52 +1008,52 @@ const FormBuilder: React.FC<{
     } else {
       // Mover campo a una posición específica usando la posición exacta del mouse
       const targetSectionIdx = sectionIdx ?? selectedSectionIdx ?? 0;
-      
+
       if (draggedItem.type === 'field') {
         const sourceSectionIdx = draggedItem.sectionIdx;
         const sourceFieldIdx = draggedItem.fieldIdx!;
-        
+
         // Usar la posición exacta calculada o la posición del campo si no hay posición exacta
         const targetFieldIdx = insertPosition !== null ? insertPosition : idx;
-        
+
         if (sourceSectionIdx === targetSectionIdx) {
           // Mover dentro de la misma sección
           if (sourceFieldIdx !== targetFieldIdx) {
-          setSections(prev => {
-            const updated = [...prev];
+            setSections(prev => {
+              const updated = [...prev];
               const section = updated[targetSectionIdx];
-            const campos = [...section.campos];
-            
-            // Remover el campo arrastrado
+              const campos = [...section.campos];
+
+              // Remover el campo arrastrado
               const [draggedField] = campos.splice(sourceFieldIdx, 1);
-              
+
               // Calcular la nueva posición correcta
               let newPosition = targetFieldIdx;
-              
+
               // Si el campo se movió hacia abajo, ajustar la posición porque ya removimos un elemento
               if (sourceFieldIdx < targetFieldIdx) {
                 newPosition = targetFieldIdx - 1;
               }
-              
+
               // Asegurar que la posición esté dentro de los límites válidos
               newPosition = Math.max(0, Math.min(newPosition, campos.length));
-            
-            // Insertar en la nueva posición
+
+              // Insertar en la nueva posición
               campos.splice(newPosition, 0, draggedField);
-            
-            // Actualizar el orden de todos los campos
-            const reorderedCampos = campos.map((campo, index) => ({
-              ...campo,
-              order: index + 1
-            }));
-            
+
+              // Actualizar el orden de todos los campos
+              const reorderedCampos = campos.map((campo, index) => ({
+                ...campo,
+                order: index + 1
+              }));
+
               updated[targetSectionIdx] = {
-              ...section,
-              campos: reorderedCampos
-            };
-            
-            return updated;
-          });
+                ...section,
+                campos: reorderedCampos
+              };
+
+              return updated;
+            });
           }
         } else {
           // Mover entre secciones a una posición específica
@@ -1057,47 +1061,47 @@ const FormBuilder: React.FC<{
             const updated = [...prev];
             const sourceSection = updated[sourceSectionIdx];
             const targetSection = updated[targetSectionIdx];
-            
+
             // Obtener el campo a mover
             const fieldToMove = sourceSection.campos[sourceFieldIdx];
-            
+
             // Remover de la sección origen
             const newSourceCampos = sourceSection.campos.filter((_, i) => i !== sourceFieldIdx)
               .map((f, i) => ({ ...f, order: i + 1 }));
-            
+
             // Agregar a la sección destino en la posición específica
             const newTargetCampos = [...targetSection.campos];
             newTargetCampos.splice(targetFieldIdx, 0, {
               ...fieldToMove,
               order: targetFieldIdx + 1
             });
-            
+
             // Actualizar el orden de todos los campos en la sección destino
             const reorderedTargetCampos = newTargetCampos.map((campo, index) => ({
               ...campo,
               order: index + 1
             }));
-            
+
             updated[sourceSectionIdx] = {
               ...sourceSection,
               campos: newSourceCampos
             };
-            
+
             updated[targetSectionIdx] = {
               ...targetSection,
               campos: reorderedTargetCampos
             };
-            
+
             return updated;
           });
-          
+
           // Actualizar la selección para mostrar el campo en la nueva sección
           setSelectedSectionIdx(targetSectionIdx);
           setSelectedFieldIdx(targetFieldIdx);
         }
       }
     }
-    
+
     // Limpiar estados de drag y selección
     setDraggedItem(null);
     setDragOverTarget(null);
@@ -1105,7 +1109,7 @@ const FormBuilder: React.FC<{
     setMousePosition(null);
     setPreviewMode(false);
     setPreviewSections([]);
-    
+
     // Limpiar toda la selección después de soltar el campo
     setSelectedFieldForMove(null);
     setSelectedSectionIdx(null);
@@ -1119,7 +1123,7 @@ const FormBuilder: React.FC<{
     setPreviewSections([]);
     setInsertPosition(null);
     setMousePosition(null);
-    
+
     // Limpiar toda la selección después de terminar el drag
     setSelectedFieldForMove(null);
     setSelectedSectionIdx(null);
@@ -1151,38 +1155,38 @@ const FormBuilder: React.FC<{
 
   const renderField = (f: FormField, i: number) => {
     const gridColumnSpan = `span ${f.dimension}`;
-    
-         // Crear el contenedor del campo con estado de redimensionamiento
-     const renderFieldContainer = (children: React.ReactNode) => (
-              <div 
-          key={f.id} 
-           className={`field-container ${resizingFieldId === f.id ? 'field-resizing' : ''} ${(f as any).isPreviewField ? 'preview-field' : ''} ${(f as any).isDragging ? 'field-dragging' : ''}`}
-                     style={{ 
-             gridColumn: gridColumnSpan, 
-             padding: 6,
-             minWidth: 0,
-             position: 'relative',
-             border: resizingFieldId === f.id ? '2px solid #3b82f6' : '1px solid transparent',
-             borderRadius: '6px',
-             backgroundColor: resizingFieldId === f.id ? '#eff6ff' : 'transparent',
-             boxShadow: resizingFieldId === f.id ? '0 4px 12px rgba(59, 130, 246, 0.2)' : 'none',
-             cursor: 'pointer',
-             transition: 'all 0.2s ease-in-out'
-           }}
-          
-                     onClick={(e) => {
-             e.preventDefault();
-             e.stopPropagation();
-             
-             // Si ya está seleccionado, deseleccionarlo
-             if (selectedFieldForMove === f.id) {
-               setSelectedFieldForMove(null);
-             } else {
-               // Seleccionar este campo y deseleccionar otros
-               setSelectedFieldForMove(f.id);
-             }
-           }}
-        >
+
+    // Crear el contenedor del campo con estado de redimensionamiento
+    const renderFieldContainer = (children: React.ReactNode) => (
+      <div
+        key={f.id}
+        className={`field-container ${resizingFieldId === f.id ? 'field-resizing' : ''} ${(f as any).isPreviewField ? 'preview-field' : ''} ${(f as any).isDragging ? 'field-dragging' : ''}`}
+        style={{
+          gridColumn: gridColumnSpan,
+          padding: 6,
+          minWidth: 0,
+          position: 'relative',
+          border: resizingFieldId === f.id ? '2px solid #3b82f6' : '1px solid transparent',
+          borderRadius: '6px',
+          backgroundColor: resizingFieldId === f.id ? '#eff6ff' : 'transparent',
+          boxShadow: resizingFieldId === f.id ? '0 4px 12px rgba(59, 130, 246, 0.2)' : 'none',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease-in-out'
+        }}
+
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+
+          // Si ya está seleccionado, deseleccionarlo
+          if (selectedFieldForMove === f.id) {
+            setSelectedFieldForMove(null);
+          } else {
+            // Seleccionar este campo y deseleccionar otros
+            setSelectedFieldForMove(f.id);
+          }
+        }}
+      >
         {/* Contenido del campo */}
         <div style={{ position: 'relative', zIndex: 1 }}>
           {children}
@@ -1204,190 +1208,190 @@ const FormBuilder: React.FC<{
             </div>
           )}
         </div>
-        
-                          {/* Icono de selección para mover (solo visible cuando se hace clic) */}
-         {selectedFieldForMove === f.id && (
-           <div 
-             className="move-handle"
-             draggable
-             onDragStart={(e) => {
-               e.dataTransfer.effectAllowed = 'move';
-               const fieldIdx = sections[selectedSectionIdx || 0]?.campos.findIndex(campo => campo.id === f.id);
-               if (fieldIdx !== -1) {
-                 onDragStart(fieldIdx, false, selectedSectionIdx || 0);
-               }
-             }}
-             onDragEnd={onDragEnd}
-             style={{
-               position: 'absolute',
-               top: '50%',
-               left: '50%',
-               transform: 'translate(-50%, -50%)',
-               width: '32px',
-               height: '32px',
-               backgroundColor: 'rgba(59, 130, 246, 0.95)',
-               borderRadius: '50%',
-               cursor: 'grab',
-               zIndex: 15,
-               display: 'flex',
-               alignItems: 'center',
-               justifyContent: 'center',
-               border: '3px solid white',
-               boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-               animation: 'pulse 2s infinite'
-             }}
-           >
-             {/* Icono de mover */}
-             <svg 
-               width="16" 
-               height="16" 
-               viewBox="0 0 24 24" 
-               fill="none" 
-               stroke="white" 
-               strokeWidth="2"
-             >
-               <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
-             </svg>
-           </div>
-         )}
 
-         {/* Handle de redimensionamiento izquierdo */}
-         <div 
-           className="resize-handle-left"
-           style={{
-             position: 'absolute',
-             top: '50%',
-             left: '2px',
-             transform: 'translateY(-50%)',
-             width: '16px',
-             height: '24px',
-             backgroundColor: 'rgba(239, 68, 68, 0.9)',
-             borderRadius: '4px 0 0 4px',
-             cursor: 'w-resize',
-             zIndex: 10,
-             opacity: selectedFieldForMove === f.id ? 1 : 0,
-             transition: 'all 0.2s ease-in-out',
-             display: 'flex',
-             alignItems: 'center',
-             justifyContent: 'center',
-             border: '2px solid white',
-             boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
-           }}
-           onMouseDown={(e) => {
-             e.preventDefault();
-             e.stopPropagation();
-             
-             setResizingFieldId(f.id);
-             
-             const startX = e.clientX;
-             const startDimension = f.dimension;
-             const gridWidth = 12;
-             const containerWidth = e.currentTarget.closest('.grid-container')?.clientWidth || 800;
-             const columnWidth = containerWidth / gridWidth;
-             
-             const handleMouseMove = (moveEvent: MouseEvent) => {
-               const deltaX = startX - moveEvent.clientX; // Invertido para el lado izquierdo
-               const deltaColumns = Math.round(deltaX / columnWidth);
-               const newDimension = Math.max(1, Math.min(12, startDimension + deltaColumns));
-               
-               if (newDimension !== f.dimension) {
-                 handleFieldResize(f.id, newDimension);
-               }
-             };
-             
-             const handleMouseUp = () => {
-               document.removeEventListener('mousemove', handleMouseMove);
-               document.removeEventListener('mouseup', handleMouseUp);
-               setResizingFieldId(null);
-             };
-             
-             document.addEventListener('mousemove', handleMouseMove);
-             document.addEventListener('mouseup', handleMouseUp);
-           }}
-         >
-           {/* Icono de redimensionar izquierdo */}
-           <svg 
-             width="8" 
-             height="8" 
-             viewBox="0 0 24 24" 
-             fill="none" 
-             stroke="white" 
-             strokeWidth="2"
-           >
-             <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
-           </svg>
-         </div>
+        {/* Icono de selección para mover (solo visible cuando se hace clic) */}
+        {selectedFieldForMove === f.id && (
+          <div
+            className="move-handle"
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.effectAllowed = 'move';
+              const fieldIdx = sections[selectedSectionIdx || 0]?.campos.findIndex(campo => campo.id === f.id);
+              if (fieldIdx !== -1) {
+                onDragStart(fieldIdx, false, selectedSectionIdx || 0);
+              }
+            }}
+            onDragEnd={onDragEnd}
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: '32px',
+              height: '32px',
+              backgroundColor: 'rgba(59, 130, 246, 0.95)',
+              borderRadius: '50%',
+              cursor: 'grab',
+              zIndex: 15,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: '3px solid white',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              animation: 'pulse 2s infinite'
+            }}
+          >
+            {/* Icono de mover */}
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="white"
+              strokeWidth="2"
+            >
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+            </svg>
+          </div>
+        )}
 
-         {/* Handle de redimensionamiento derecho */}
-         <div 
-           className="resize-handle-right"
-           style={{
-             position: 'absolute',
-             top: '50%',
-             right: '2px',
-             transform: 'translateY(-50%)',
-             width: '16px',
-             height: '24px',
-             backgroundColor: 'rgba(34, 197, 94, 0.9)',
-             borderRadius: '0 4px 4px 0',
-             cursor: 'e-resize',
-             zIndex: 10,
-             opacity: selectedFieldForMove === f.id ? 1 : 0,
-             transition: 'all 0.2s ease-in-out',
-             display: 'flex',
-             alignItems: 'center',
-             justifyContent: 'center',
-             border: '2px solid white',
-             boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
-           }}
-           onMouseDown={(e) => {
-             e.preventDefault();
-             e.stopPropagation();
-             
-             setResizingFieldId(f.id);
-             
-             const startX = e.clientX;
-             const startDimension = f.dimension;
-             const gridWidth = 12;
-             const containerWidth = e.currentTarget.closest('.grid-container')?.clientWidth || 800;
-             const columnWidth = containerWidth / gridWidth;
-             
-             const handleMouseMove = (moveEvent: MouseEvent) => {
-               const deltaX = moveEvent.clientX - startX;
-               const deltaColumns = Math.round(deltaX / columnWidth);
-               const newDimension = Math.max(1, Math.min(12, startDimension + deltaColumns));
-               
-               if (newDimension !== f.dimension) {
-                 handleFieldResize(f.id, newDimension);
-               }
-             };
-             
-             const handleMouseUp = () => {
-               document.removeEventListener('mousemove', handleMouseMove);
-               document.removeEventListener('mouseup', handleMouseUp);
-               setResizingFieldId(null);
-             };
-             
-             document.addEventListener('mousemove', handleMouseMove);
-             document.addEventListener('mouseup', handleMouseUp);
-           }}
-         >
-           {/* Icono de redimensionar derecho */}
-           <svg 
-             width="8" 
-             height="8" 
-             viewBox="0 0 24 24" 
-             fill="none" 
-             stroke="white" 
-             strokeWidth="2"
-           >
-             <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
-           </svg>
-         </div>
-          
+        {/* Handle de redimensionamiento izquierdo */}
+        <div
+          className="resize-handle-left"
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '2px',
+            transform: 'translateY(-50%)',
+            width: '16px',
+            height: '24px',
+            backgroundColor: 'rgba(239, 68, 68, 0.9)',
+            borderRadius: '4px 0 0 4px',
+            cursor: 'w-resize',
+            zIndex: 10,
+            opacity: selectedFieldForMove === f.id ? 1 : 0,
+            transition: 'all 0.2s ease-in-out',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: '2px solid white',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+          }}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
 
+            setResizingFieldId(f.id);
+
+            const startX = e.clientX;
+            const startDimension = f.dimension;
+            const gridWidth = 12;
+            const containerWidth = e.currentTarget.closest('.grid-container')?.clientWidth || 800;
+            const columnWidth = containerWidth / gridWidth;
+
+            const handleMouseMove = (moveEvent: MouseEvent) => {
+              const deltaX = startX - moveEvent.clientX; // Invertido para el lado izquierdo
+              const deltaColumns = Math.round(deltaX / columnWidth);
+              const newDimension = Math.max(1, Math.min(12, startDimension + deltaColumns));
+
+              if (newDimension !== f.dimension) {
+                handleFieldResize(f.id, newDimension);
+              }
+            };
+
+            const handleMouseUp = () => {
+              document.removeEventListener('mousemove', handleMouseMove);
+              document.removeEventListener('mouseup', handleMouseUp);
+              setResizingFieldId(null);
+            };
+
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+          }}
+        >
+          {/* Icono de redimensionar izquierdo */}
+          <svg
+            width="8"
+            height="8"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="white"
+            strokeWidth="2"
+          >
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+          </svg>
         </div>
-      );
+
+        {/* Handle de redimensionamiento derecho */}
+        <div
+          className="resize-handle-right"
+          style={{
+            position: 'absolute',
+            top: '50%',
+            right: '2px',
+            transform: 'translateY(-50%)',
+            width: '16px',
+            height: '24px',
+            backgroundColor: 'rgba(34, 197, 94, 0.9)',
+            borderRadius: '0 4px 4px 0',
+            cursor: 'e-resize',
+            zIndex: 10,
+            opacity: selectedFieldForMove === f.id ? 1 : 0,
+            transition: 'all 0.2s ease-in-out',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: '2px solid white',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+          }}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            setResizingFieldId(f.id);
+
+            const startX = e.clientX;
+            const startDimension = f.dimension;
+            const gridWidth = 12;
+            const containerWidth = e.currentTarget.closest('.grid-container')?.clientWidth || 800;
+            const columnWidth = containerWidth / gridWidth;
+
+            const handleMouseMove = (moveEvent: MouseEvent) => {
+              const deltaX = moveEvent.clientX - startX;
+              const deltaColumns = Math.round(deltaX / columnWidth);
+              const newDimension = Math.max(1, Math.min(12, startDimension + deltaColumns));
+
+              if (newDimension !== f.dimension) {
+                handleFieldResize(f.id, newDimension);
+              }
+            };
+
+            const handleMouseUp = () => {
+              document.removeEventListener('mousemove', handleMouseMove);
+              document.removeEventListener('mouseup', handleMouseUp);
+              setResizingFieldId(null);
+            };
+
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+          }}
+        >
+          {/* Icono de redimensionar derecho */}
+          <svg
+            width="8"
+            height="8"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="white"
+            strokeWidth="2"
+          >
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+          </svg>
+        </div>
+
+
+      </div>
+    );
 
     switch (f.type) {
       case 'text':
@@ -1397,16 +1401,16 @@ const FormBuilder: React.FC<{
         return renderFieldContainer(
           <>
             <label style={{ fontWeight: 500, fontSize: 13, marginBottom: 4, display: 'block' }}>{f.label}{f.required && ' *'}</label>
-            <input 
-              type={f.type} 
+            <input
+              type={f.type}
               className="form-builder-input"
-              style={{ 
-                width: '100%', 
-                padding: 6, 
-                borderRadius: 6, 
-                border: '1px solid #e0e7ef', 
+              style={{
+                width: '100%',
+                padding: 6,
+                borderRadius: 6,
+                border: '1px solid #e0e7ef',
                 fontSize: 13
-              }} 
+              }}
             />
           </>
         );
@@ -1414,16 +1418,16 @@ const FormBuilder: React.FC<{
         return renderFieldContainer(
           <>
             <label style={{ fontWeight: 500, fontSize: 13, marginBottom: 4, display: 'block' }}>{f.label}{f.required && ' *'}</label>
-            <textarea 
+            <textarea
               className="form-builder-input"
-              style={{ 
-                width: '100%', 
-                padding: 6, 
-                borderRadius: 6, 
-                border: '1px solid #e0e7ef', 
+              style={{
+                width: '100%',
+                padding: 6,
+                borderRadius: 6,
+                border: '1px solid #e0e7ef',
                 fontSize: 13,
                 minHeight: '60px'
-              }} 
+              }}
             />
           </>
         );
@@ -1437,15 +1441,15 @@ const FormBuilder: React.FC<{
           // Usar opciones estáticas
           selectOptions = toOptionsArray(f.options);
         }
-        
+
         return renderFieldContainer(
           <>
             <label style={{ fontWeight: 500, fontSize: 13, marginBottom: 4, display: 'block' }}>{f.label}{f.required && ' *'}</label>
-            <select name={f.name} style={{ 
-              width: '100%', 
-              padding: 6, 
-              borderRadius: 6, 
-              border: '1px solid #e0e7ef', 
+            <select name={f.name} style={{
+              width: '100%',
+              padding: 6,
+              borderRadius: 6,
+              border: '1px solid #e0e7ef',
               fontSize: 13,
               backgroundColor: f.disabled ? '#f5f5f5' : 'white',
               cursor: f.disabled ? 'not-allowed' : 'default'
@@ -1459,16 +1463,16 @@ const FormBuilder: React.FC<{
         );
       case 'checkbox':
         return renderFieldContainer(
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', width: '100%' }}>
-                  <input 
-                    type="checkbox" 
-                    name={f.name}
-                    checked={f.required || false}
-                  style={{ margin: 0 }}
-                />
-                <span style={{ fontWeight: 500, fontSize: 13 }}>{f.label}{f.required && ' *'}</span>
-              </label>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', width: '100%' }}>
+              <input
+                type="checkbox"
+                name={f.name}
+                checked={f.required || false}
+                style={{ margin: 0 }}
+              />
+              <span style={{ fontWeight: 500, fontSize: 13 }}>{f.label}{f.required && ' *'}</span>
+            </label>
           </div>
         );
       case 'radio':
@@ -1490,12 +1494,12 @@ const FormBuilder: React.FC<{
         return renderFieldContainer(
           <>
             <label style={{ fontWeight: 500, fontSize: 13, marginBottom: 4, display: 'block' }}>{f.label}{f.required && ' *'}</label>
-            <select name={f.name} style={{ 
-              width: '100%', 
-              padding: 6, 
-              borderRadius: 6, 
-              border: '1px solid #e0e7ef', 
-              fontSize: 13 
+            <select name={f.name} style={{
+              width: '100%',
+              padding: 6,
+              borderRadius: 6,
+              border: '1px solid #e0e7ef',
+              fontSize: 13
             }}>
               {toOptionsArray(f.options).map((opt: string, idx: number) => (
                 <option key={idx} value={opt}>{opt}</option>
@@ -1508,12 +1512,12 @@ const FormBuilder: React.FC<{
           <>
             <label style={{ fontWeight: 500, fontSize: 13, marginBottom: 4, display: 'block' }}>{f.label}{f.required && ' *'}</label>
             <div style={{ display: 'flex', alignItems: 'center' }}>
-              <input type="number" name={f.name} min={0} max={100} style={{ 
-                width: '100%', 
-                padding: 6, 
-                borderRadius: 6, 
-                border: '1px solid #e0e7ef', 
-                fontSize: 13 
+              <input type="number" name={f.name} min={0} max={100} style={{
+                width: '100%',
+                padding: 6,
+                borderRadius: 6,
+                border: '1px solid #e0e7ef',
+                fontSize: 13
               }} />
               <span style={{ marginLeft: 4, fontWeight: 600, color: '#000', fontSize: 13 }}>%</span>
             </div>
@@ -1753,305 +1757,305 @@ const FormBuilder: React.FC<{
           }
         `}
       </style>
-      <div style={{ 
-        background: '#f8fafc', 
-        display: 'flex', 
+      <div style={{
+        background: '#f8fafc',
+        display: 'flex',
         minHeight: '100vh',
         overflow: 'visible'
       }}>
-      {!readOnly && (
-        <div style={{ 
-          width: 260, 
-          background: '#fff', 
-          borderRight: '1px solid #e0e7ef', 
-          padding: '2rem 1rem', 
-          borderRadius: '0 24px 24px 0', 
-          boxShadow: '2px 0 12px 0 rgba(0,0,0,0.03)',
+        {!readOnly && (
+          <div style={{
+            width: 260,
+            background: '#fff',
+            borderRight: '1px solid #e0e7ef',
+            padding: '2rem 1rem',
+            borderRadius: '0 24px 24px 0',
+            boxShadow: '2px 0 12px 0 rgba(0,0,0,0.03)',
+            height: 'auto',
+            overflow: 'visible'
+          }}>
+            <h3 style={{ color: '#000', fontWeight: 700, fontSize: 20, marginBottom: 18 }}>Secciones</h3>
+
+            {/* Lista de secciones */}
+            <div style={{ marginBottom: 24 }}>
+              <h4 style={{ color: '#666', fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Secciones del Formulario</h4>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                {sections.filter(s => s.activo !== false).map((section, i) => (
+                  <li
+                    key={section.id}
+                    draggable
+                    onDragStart={() => onDragStart(i, true)}
+                    onDragOver={(e) => onDragOver(e, i, true)}
+                    onDrop={(e) => onDrop(e, i, true)}
+                    onDragEnd={onDragEnd}
+                    onClick={() => selectSection(i)}
+                    style={{
+                      background: selectedSectionIdx === i ? '#a5d8ff' : '#f0f4f8',
+                      color: '#2d3142',
+                      borderRadius: 10,
+                      padding: '10px 12px',
+                      marginBottom: 8,
+                      cursor: 'pointer',
+                      border: selectedSectionIdx === i ? '2px solid #339af0' : '1px solid #e0e7ef',
+                      fontWeight: 500,
+                      boxShadow: draggedItem?.type === 'section' && draggedItem?.sectionIdx === i ? '0 2px 8px 0 rgba(0,0,0,0.08)' : undefined,
+                      opacity: draggedItem?.type === 'section' && draggedItem?.sectionIdx === i ? 0.7 : 1,
+                      transition: 'all 0.15s',
+                      userSelect: 'none',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 16 }}>📋</span>
+                      <span>{section.titulo || '(Sin título)'}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+                      {section.campos.filter(f => f.activo !== false).length} campos
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Lista de campos de la sección seleccionada */}
+            {selectedSectionIdx !== null && (
+              <div>
+                <h4 style={{ color: '#666', fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Campos de "{sections[selectedSectionIdx]?.titulo}"</h4>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                  {sections[selectedSectionIdx]?.campos.filter(f => f.activo !== false).map((field, i) => (
+                    <li
+                      key={field.id}
+                      draggable
+                      onDragStart={() => onDragStart(i, false, selectedSectionIdx)}
+                      onDragOver={(e) => onDragOver(e, i, false, selectedSectionIdx)}
+                      onDrop={(e) => onDrop(e, i, false, selectedSectionIdx)}
+                      onDragEnd={onDragEnd}
+                      onClick={() => selectField(selectedSectionIdx, i)}
+                      style={{
+                        background: selectedFieldIdx === i ? '#e8f5e8' : '#f8f9fa',
+                        color: '#2d3142',
+                        borderRadius: 8,
+                        padding: '8px 10px',
+                        marginBottom: 6,
+                        cursor: 'pointer',
+                        border: selectedFieldIdx === i ? '2px solid #28a745' : '1px solid #dee2e6',
+                        fontWeight: 400,
+                        fontSize: 13,
+                        boxShadow: draggedItem?.type === 'field' && draggedItem?.sectionIdx === selectedSectionIdx && draggedItem?.fieldIdx === i ? '0 2px 8px 0 rgba(0,0,0,0.08)' : undefined,
+                        opacity: draggedItem?.type === 'field' && draggedItem?.sectionIdx === selectedSectionIdx && draggedItem?.fieldIdx === i ? 0.7 : 1,
+                        transition: 'all 0.15s',
+                        userSelect: 'none',
+                      }}
+                    >
+                      {field.label || '(Sin label)'} <span style={{ fontSize: 11, color: '#000' }}>({field.type})</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div style={{
+          flex: 1,
+          maxWidth: 900,
+          margin: '0 auto',
+          padding: '2rem',
           height: 'auto',
           overflow: 'visible'
         }}>
-          <h3 style={{ color: '#000', fontWeight: 700, fontSize: 20, marginBottom: 18 }}>Secciones</h3>
-          
-          {/* Lista de secciones */}
-          <div style={{ marginBottom: 24 }}>
-            <h4 style={{ color: '#666', fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Secciones del Formulario</h4>
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              {sections.filter(s => s.activo !== false).map((section, i) => (
-              <li
-                  key={section.id}
-                draggable
-                  onDragStart={() => onDragStart(i, true)}
-                  onDragOver={(e) => onDragOver(e, i, true)}
-                  onDrop={(e) => onDrop(e, i, true)}
-                onDragEnd={onDragEnd}
-                  onClick={() => selectSection(i)}
-                style={{
-                    background: selectedSectionIdx === i ? '#a5d8ff' : '#f0f4f8',
-                  color: '#2d3142',
-                  borderRadius: 10,
-                  padding: '10px 12px',
-                  marginBottom: 8,
-                  cursor: 'pointer',
-                    border: selectedSectionIdx === i ? '2px solid #339af0' : '1px solid #e0e7ef',
-                  fontWeight: 500,
-                    boxShadow: draggedItem?.type === 'section' && draggedItem?.sectionIdx === i ? '0 2px 8px 0 rgba(0,0,0,0.08)' : undefined,
-                    opacity: draggedItem?.type === 'section' && draggedItem?.sectionIdx === i ? 0.7 : 1,
-                    transition: 'all 0.15s',
-                    userSelect: 'none',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 16 }}>📋</span>
-                    <span>{section.titulo || '(Sin título)'}</span>
-                  </div>
-                  <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
-                    {section.campos.filter(f => f.activo !== false).length} campos
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Lista de campos de la sección seleccionada */}
-          {selectedSectionIdx !== null && (
-            <div>
-              <h4 style={{ color: '#666', fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Campos de "{sections[selectedSectionIdx]?.titulo}"</h4>
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                {sections[selectedSectionIdx]?.campos.filter(f => f.activo !== false).map((field, i) => (
-                  <li
-                    key={field.id}
-                    draggable
-                    onDragStart={() => onDragStart(i, false, selectedSectionIdx)}
-                    onDragOver={(e) => onDragOver(e, i, false, selectedSectionIdx)}
-                    onDrop={(e) => onDrop(e, i, false, selectedSectionIdx)}
-                    onDragEnd={onDragEnd}
-                    onClick={() => selectField(selectedSectionIdx, i)}
-                    style={{
-                      background: selectedFieldIdx === i ? '#e8f5e8' : '#f8f9fa',
-                      color: '#2d3142',
-                      borderRadius: 8,
-                      padding: '8px 10px',
-                      marginBottom: 6,
-                      cursor: 'pointer',
-                      border: selectedFieldIdx === i ? '2px solid #28a745' : '1px solid #dee2e6',
-                      fontWeight: 400,
-                      fontSize: 13,
-                      boxShadow: draggedItem?.type === 'field' && draggedItem?.sectionIdx === selectedSectionIdx && draggedItem?.fieldIdx === i ? '0 2px 8px 0 rgba(0,0,0,0.08)' : undefined,
-                      opacity: draggedItem?.type === 'field' && draggedItem?.sectionIdx === selectedSectionIdx && draggedItem?.fieldIdx === i ? 0.7 : 1,
-                  transition: 'all 0.15s',
-                  userSelect: 'none',
-                }}
-              >
-                    {field.label || '(Sin label)'} <span style={{ fontSize: 11, color: '#000' }}>({field.type})</span>
-              </li>
-            ))}
-          </ul>
-            </div>
-          )}
-        </div>
-      )}
-      
-      <div style={{ 
-        flex: 1, 
-        maxWidth: 900, 
-        margin: '0 auto', 
-        padding: '2rem',
-        height: 'auto',
-        overflow: 'visible'
-      }}>
-        {!readOnly && (
-          <>
-            {/* Tabs de navegación */}
-            <div className="mb-6">
-              <div className="grid w-full grid-cols-3 bg-cyan-100/60 p-1 rounded-lg">
-                <button
-                     onClick={() => {
-                       setActiveTab("seccion");
-                       setSelectedFieldForMove(null); // Limpiar selección al cambiar de tab
-                     }}
-                     className={`px-4 py-2 rounded-md transition-all duration-300 text-sm font-medium ${activeTab === "seccion"
-                      ? "bg-cyan-600 text-white shadow-md" 
-                      : "text-gray-600 hover:text-gray-800"
-                  }`}
-                >
-                  Agregar Sección
-                </button>
-                <button
-                     onClick={() => {
-                       setActiveTab("campo");
-                       setSelectedFieldForMove(null); // Limpiar selección al cambiar de tab
-                     }}
-                     className={`px-4 py-2 rounded-md transition-all duration-300 text-sm font-medium ${activeTab === "campo"
-                      ? "bg-cyan-600 text-white shadow-md" 
-                      : "text-gray-600 hover:text-gray-800"
-                  }`}
-                >
-                  Agregar Campo
-                </button>
-                <button
-                     onClick={() => {
-                       setActiveTab("vista");
-                       setSelectedFieldForMove(null); // Limpiar selección al cambiar de tab
-                     }}
-                     className={`px-4 py-2 rounded-md transition-all duration-300 text-sm font-medium ${activeTab === "vista"
-                      ? "bg-cyan-600 text-white shadow-md" 
-                      : "text-gray-600 hover:text-gray-800"
-                  }`}
-                >
-                  Vista Previa
-                </button>
-              </div>
-            </div>
-
-            {/* Tab: Agregar/Editar Sección */}
-            {activeTab === "seccion" && (
+          {!readOnly && (
+            <>
+              {/* Tabs de navegación */}
               <div className="mb-6">
-                <div className="bg-white rounded-lg border border-gray-200 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                    <span className="text-2xl mr-2">🏢</span>
-                    {selectedSectionIdx === null ? 'Agregar Nueva Sección' : 'Editar Sección'}
-                  </h3>
-                  
-                  {sections.length === 0 && (
-                    <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-blue-800 text-sm">
-                        💡 <strong>Primer paso:</strong> Crea una sección para organizar los campos de tu formulario
-                      </p>
-                      <p className="text-blue-700 text-xs mt-1">
-                        📐 <strong>Sistema de columnas:</strong> Cada sección usa un grid de 12 columnas. Configura el ancho de cada campo (1-12) para controlar su tamaño.
-                      </p>
-                    </div>
-                  )}
-                  
-                    <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Título de la Sección</label>
-                      <input 
-                        className="w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm" 
-                        name="titulo" 
-                        value={currentSection.titulo} 
-                        onChange={handleSectionChange} 
-                        autoComplete="off"
-                      />
-                    </div>
-                    
-                    <div className="flex gap-2 pt-3 justify-end">
-                      {selectedSectionIdx === null ? (
-                        <button 
-                          type="button"
-                          onClick={(e) => addSection(e as any)}
-                          className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 text-sm font-medium flex items-center gap-2"
-                        >
-                          <Plus className="h-3 w-3" />
-                          {sections.length === 0 ? 'Crear Primera Sección' : 'Agregar Sección'}
-                        </button>
-                      ) : (
-                        <>
-                          <button 
-                            type="button"
-                            onClick={saveSection} 
-                            className="px-3 py-1.5 bg-green-100 text-green-700 rounded-md hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 text-sm font-medium flex items-center gap-2"
-                          >
-                            <Save className="h-3 w-3" />
-                            Guardar Sección
-                          </button>
-                          <button 
-                            type="button" 
-                            onClick={() => removeSection(selectedSectionIdx)} 
-                            className="px-3 py-1.5 bg-red-100 text-red-700 rounded-md hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 text-sm font-medium flex items-center gap-2"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                            Eliminar Sección
-                          </button>
-                          <button 
-                            type="button" 
-                            onClick={() => { 
-                              setSelectedSectionIdx(null); 
-                              setCurrentSection(createDefaultSection()); 
-                            }} 
-                            className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 text-sm font-medium flex items-center gap-2"
-                          >
-                            <X className="h-3 w-3" />
-                            Cancelar
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </form>
+                <div className="grid w-full grid-cols-3 bg-cyan-100/60 p-1 rounded-lg">
+                  <button
+                    onClick={() => {
+                      setActiveTab("seccion");
+                      setSelectedFieldForMove(null); // Limpiar selección al cambiar de tab
+                    }}
+                    className={`px-4 py-2 rounded-md transition-all duration-300 text-sm font-medium ${activeTab === "seccion"
+                      ? "bg-cyan-600 text-white shadow-md"
+                      : "text-gray-600 hover:text-gray-800"
+                      }`}
+                  >
+                    Agregar Sección
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveTab("campo");
+                      setSelectedFieldForMove(null); // Limpiar selección al cambiar de tab
+                    }}
+                    className={`px-4 py-2 rounded-md transition-all duration-300 text-sm font-medium ${activeTab === "campo"
+                      ? "bg-cyan-600 text-white shadow-md"
+                      : "text-gray-600 hover:text-gray-800"
+                      }`}
+                  >
+                    Agregar Campo
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveTab("vista");
+                      setSelectedFieldForMove(null); // Limpiar selección al cambiar de tab
+                    }}
+                    className={`px-4 py-2 rounded-md transition-all duration-300 text-sm font-medium ${activeTab === "vista"
+                      ? "bg-cyan-600 text-white shadow-md"
+                      : "text-gray-600 hover:text-gray-800"
+                      }`}
+                  >
+                    Vista Previa
+                  </button>
                 </div>
               </div>
-            )}
 
-            {/* Tab: Agregar/Editar Campo */}
-            {activeTab === "campo" && (
-              <div className="mb-4">
-                <div className="bg-white rounded-lg border border-gray-200 p-3">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
-                    <span className="text-lg mr-2">📋</span>
-                    {selectedFieldIdx === null ? 'Agregar Nuevo Campo' : 'Editar Campo'}
-                  </h3>
-                  
-                  {selectedSectionIdx === null ? (
-                    <div className="text-center py-8">
-                      <div className="text-4xl mb-4">📋</div>
-                      <p className="text-gray-600 mb-2">No hay sección seleccionada</p>
-                      <p className="text-gray-500 text-sm">Selecciona una sección del panel izquierdo para agregar campos</p>
-                    </div>
-                  ) : (
-                    <form onSubmit={(e) => e.preventDefault()} className="space-y-3">
-                        {/* Fila: Tipo de Campo + Orden + Label + Requerido (12 cols) */}
-                      <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                        <div className="md:col-span-3">
-                          <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                            Tipo
-                            {currentField.isSystemField && <span className="text-xs text-orange-600 ml-1">(Lectura)</span>}
-                          </label>
-                          <Select 
-                            onValueChange={(value) => setCurrentField(f => ({ ...f, type: value }))} 
-                            value={currentField.type}
-                            disabled={currentField.isSystemField}
+              {/* Tab: Agregar/Editar Sección */}
+              {activeTab === "seccion" && (
+                <div className="mb-6">
+                  <div className="bg-white rounded-lg border border-gray-200 p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <span className="text-2xl mr-2">🏢</span>
+                      {selectedSectionIdx === null ? 'Agregar Nueva Sección' : 'Editar Sección'}
+                    </h3>
+
+                    {sections.length === 0 && (
+                      <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-blue-800 text-sm">
+                          💡 <strong>Primer paso:</strong> Crea una sección para organizar los campos de tu formulario
+                        </p>
+                        <p className="text-blue-700 text-xs mt-1">
+                          📐 <strong>Sistema de columnas:</strong> Cada sección usa un grid de 12 columnas. Configura el ancho de cada campo (1-12) para controlar su tamaño.
+                        </p>
+                      </div>
+                    )}
+
+                    <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Título de la Sección</label>
+                        <input
+                          className="w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
+                          name="titulo"
+                          value={currentSection.titulo}
+                          onChange={handleSectionChange}
+                          autoComplete="off"
+                        />
+                      </div>
+
+                      <div className="flex gap-2 pt-3 justify-end">
+                        {selectedSectionIdx === null ? (
+                          <button
+                            type="button"
+                            onClick={(e) => addSection(e as any)}
+                            className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 text-sm font-medium flex items-center gap-2"
                           >
-                            <SelectTrigger className={`w-full h-8 text-sm ${currentField.isSystemField ? 'bg-gray-100 cursor-not-allowed' : ''}`}>
-                              <SelectValue placeholder="" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {FIELD_TYPES.map(ft => (
-                                <SelectItem key={ft.value} value={ft.value} className="flex items-center gap-2 text-sm">
-                                  <span className="text-sm font-medium">{ft.label}</span>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="md:col-span-2">
-                          <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                            Orden
-                          </label>
-                          <input 
-                            className="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
-                            name="order" 
-                            type="number" 
-                            min={1} 
-                            max={99} 
-                            value={currentField.order} 
-                            onChange={handleFieldChange} 
-                            autoComplete="off"
-                          />
-                        </div>
+                            <Plus className="h-3 w-3" />
+                            {sections.length === 0 ? 'Crear Primera Sección' : 'Agregar Sección'}
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={saveSection}
+                              className="px-3 py-1.5 bg-green-100 text-green-700 rounded-md hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 text-sm font-medium flex items-center gap-2"
+                            >
+                              <Save className="h-3 w-3" />
+                              Guardar Sección
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeSection(selectedSectionIdx)}
+                              className="px-3 py-1.5 bg-red-100 text-red-700 rounded-md hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 text-sm font-medium flex items-center gap-2"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                              Eliminar Sección
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedSectionIdx(null);
+                                setCurrentSection(createDefaultSection());
+                              }}
+                              className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 text-sm font-medium flex items-center gap-2"
+                            >
+                              <X className="h-3 w-3" />
+                              Cancelar
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+
+              {/* Tab: Agregar/Editar Campo */}
+              {activeTab === "campo" && (
+                <div className="mb-4">
+                  <div className="bg-white rounded-lg border border-gray-200 p-3">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
+                      <span className="text-lg mr-2">📋</span>
+                      {selectedFieldIdx === null ? 'Agregar Nuevo Campo' : 'Editar Campo'}
+                    </h3>
+
+                    {selectedSectionIdx === null ? (
+                      <div className="text-center py-8">
+                        <div className="text-4xl mb-4">📋</div>
+                        <p className="text-gray-600 mb-2">No hay sección seleccionada</p>
+                        <p className="text-gray-500 text-sm">Selecciona una sección del panel izquierdo para agregar campos</p>
+                      </div>
+                    ) : (
+                      <form onSubmit={(e) => e.preventDefault()} className="space-y-3">
+                        {/* Fila: Tipo de Campo + Orden + Label + Requerido (12 cols) */}
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                          <div className="md:col-span-3">
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                              Tipo
+                              {currentField.isSystemField && <span className="text-xs text-orange-600 ml-1">(Lectura)</span>}
+                            </label>
+                            <Select
+                              onValueChange={(value) => setCurrentField(f => ({ ...f, type: value }))}
+                              value={currentField.type}
+                              disabled={currentField.isSystemField}
+                            >
+                              <SelectTrigger className={`w-full h-8 text-sm ${currentField.isSystemField ? 'bg-gray-100 cursor-not-allowed' : ''}`}>
+                                <SelectValue placeholder="" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {FIELD_TYPES.map(ft => (
+                                  <SelectItem key={ft.value} value={ft.value} className="flex items-center gap-2 text-sm">
+                                    <span className="text-sm font-medium">{ft.label}</span>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                              Orden
+                            </label>
+                            <input
+                              className="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
+                              name="order"
+                              type="number"
+                              min={1}
+                              max={99}
+                              value={currentField.order}
+                              onChange={handleFieldChange}
+                              autoComplete="off"
+                            />
+                          </div>
                           <div className="md:col-span-5">
-                          <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                            Label
-                            {currentField.isSystemField && <span className="text-xs text-orange-600 ml-1">(Lectura)</span>}
-                          </label>
-                          <input 
-                            className={`w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm ${currentField.isSystemField ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                            name="label" 
-                            value={currentField.label} 
-                            onChange={handleFieldChange} 
-                            autoComplete="off"
-                            disabled={currentField.isSystemField}
-                          />
-                        </div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                              Label
+                              {currentField.isSystemField && <span className="text-xs text-orange-600 ml-1">(Lectura)</span>}
+                            </label>
+                            <input
+                              className={`w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm ${currentField.isSystemField ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                              name="label"
+                              value={currentField.label}
+                              onChange={handleFieldChange}
+                              autoComplete="off"
+                              disabled={currentField.isSystemField}
+                            />
+                          </div>
                           <div className="md:col-span-2 flex items-end">
                             <div className="w-full space-y-2">
                               <label className="block text-sm font-medium text-gray-700">
@@ -2069,518 +2073,515 @@ const FormBuilder: React.FC<{
                                   }`} />
                               </button>
                             </div>
+                          </div>
                         </div>
-                      </div>
 
                         {/* Segunda fila: Placeholder/Opciones + Tamaño (12 cols) */}
-                      {currentField.type !== 'title' && (
+                        {currentField.type !== 'title' && (
                           <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
-                          <div className="md:col-span-5">
-                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                              {currentField.type === 'select' || currentField.type === 'radio' || currentField.type === 'foreignKey' ? 'Configuración de Opciones' : 
-                               currentField.type === 'date' ? 'Configuración de Fecha' : 'Placeholder'}
-                            </label>
-                            {currentField.type === 'date' ? (
-                              <div className="space-y-3">
-                                <div>
-                                  <label className="block text-xs text-gray-600 mb-1">Placeholder</label>
-                                  <input 
-                                    className={`w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm ${currentField.isSystemField ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                                    name="placeholder" 
-                                    placeholder="Seleccione una fecha" 
-                                    value={currentField.placeholder} 
-                                    onChange={handleFieldChange} 
-                                    autoComplete="off"
-                                    disabled={currentField.isSystemField}
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-xs text-gray-600 mb-1">
-                                    Días mínimos después de hoy
-                                    <span className="text-gray-400 ml-1">(opcional)</span>
-                                  </label>
-                                  <input 
-                                    className={`w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm ${currentField.isSystemField ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                                    name="diasMinimos" 
-                                    type="number"
-                                    min="0"
-                                    max="365"
-                                    placeholder="0" 
-                                    value={currentField.diasMinimos || ''} 
-                                    onChange={handleFieldChange} 
-                                    autoComplete="off"
-                                    disabled={currentField.isSystemField}
-                                  />
-                                  <p className="text-xs text-gray-500 mt-1">
-                                    Ejemplo: 3 = la fecha más próxima será dentro de 3 días
-                                  </p>
-                                </div>
-                              </div>
-                            ) : currentField.type === 'number' ? (
-                              <div className="space-y-3">
-                                <div>
-                                  <label className="block text-xs text-gray-600 mb-1">Placeholder</label>
-                                  <input 
-                                    className={`w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm ${currentField.isSystemField ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                                    name="placeholder" 
-                                    placeholder="Ingrese un número" 
-                                    value={currentField.placeholder} 
-                                    onChange={handleFieldChange} 
-                                    autoComplete="off"
-                                    disabled={currentField.isSystemField}
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-xs text-gray-600 mb-1">
-                                    Longitud mínima (dígitos)
-                                    <span className="text-gray-400 ml-1">(opcional)</span>
-                                  </label>
-                                  <input 
-                                    className={`w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm`}
-                                    name="minLength" 
-                                    type="number"
-                                    min="1"
-                                    max="20"
-                                    placeholder="10" 
-                                    value={(currentField as any).minLength || ''} 
-                                    onChange={handleFieldChange} 
-                                    autoComplete="off"
-                                  />
-                                  <p className="text-xs text-gray-500 mt-1">
-                                    Ejemplo: 10 = el número debe tener al menos 10 dígitos
-                                  </p>
-                                </div>
-                              </div>
-                            ) : currentField.type === 'select' || currentField.type === 'radio' || currentField.type === 'foreignKey' ? (
-                              <div className="space-y-2">
-                                {/* Selector de fuente de datos */}
-                                <Select 
-                                  onValueChange={(value: 'static' | 'database') => {
-                                    // Usar la misma lógica de actualización que handleFieldChange
-                                    setCurrentField(f => {
-                                      if (f.isSystemField && f.allowOptionsEdit) {
-                                        return { ...f, dataSource: value };
-                                      } else if (!f.isSystemField) {
-                                        return { ...f, dataSource: value };
-                                      }
-                                      return f; // No actualizar si es campo del sistema sin allowOptionsEdit
-                                    });
-                                  }} 
-                                  value={currentField.dataSource || 'static'}
-                                  disabled={(() => {
-                                    const isDisabled = currentField.isSystemField && !currentField.allowOptionsEdit;
-                                    return isDisabled;
-                                  })()}
-                                >
-                                  <SelectTrigger className="text-sm">
-                                    <SelectValue placeholder="Seleccionar fuente" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="static">Opciones estáticas</SelectItem>
-                                    <SelectItem value="database">Base de datos</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                
-                                {/* Opciones estáticas */}
-                                {(currentField.dataSource === 'static' || !currentField.dataSource) && (
-                              <input 
-                                  className={`w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm ${(currentField.isSystemField && !currentField.allowOptionsEdit) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                                name="options" 
-                                placeholder="Opciones (separadas por coma)" 
-                                value={currentField.options as any} 
-                                onChange={handleFieldChange} 
-                                autoComplete="off"
-                                disabled={(() => {
-                                  const isDisabled = currentField.isSystemField && !currentField.allowOptionsEdit;
-                                  return isDisabled;
-                                })()}
-                              />
-                                )}
-                                
-                                {/* Configuración de base de datos */}
-                                {currentField.dataSource === 'database' && (
-                                  <div className="space-y-2">
-                                    <Select 
-                                      onValueChange={(value) => {
-                                        const table = DATABASE_TABLES.find(t => t.value === value);
-                                        setCurrentField(f => ({ 
-                                          ...f, 
-                                          databaseTable: value,
-                                          databaseField: table?.displayField || 'nombre',
-                                          databaseValueField: table?.valueField || 'nombre'
-                                        }));
-                                      }} 
-                                      value={currentField.databaseTable || ''}
+                            <div className="md:col-span-5">
+                              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                {currentField.type === 'select' || currentField.type === 'radio' || currentField.type === 'foreignKey' ? 'Configuración de Opciones' :
+                                  currentField.type === 'date' ? 'Configuración de Fecha' : 'Placeholder'}
+                              </label>
+                              {currentField.type === 'date' ? (
+                                <div className="space-y-3">
+                                  <div>
+                                    <label className="block text-xs text-gray-600 mb-1">Placeholder</label>
+                                    <input
+                                      className={`w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm ${currentField.isSystemField ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                      name="placeholder"
+                                      placeholder="Seleccione una fecha"
+                                      value={currentField.placeholder}
+                                      onChange={handleFieldChange}
+                                      autoComplete="off"
                                       disabled={currentField.isSystemField}
-                                    >
-                                      <SelectTrigger className="text-sm">
-                                        <SelectValue placeholder="Seleccionar tabla" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {DATABASE_TABLES.map((table) => (
-                                          <SelectItem key={table.value} value={table.value}>
-                                            {table.label}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                    
-                                    <div className="grid grid-cols-2 gap-2">
-                                      <div>
-                                        <label className="block text-xs text-gray-600 mb-1">Campo a mostrar</label>
-                                        <input 
-                                          className={`w-full px-2 py-1 border border-gray-300 rounded text-xs ${currentField.isSystemField ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                                          name="databaseField" 
-                                          placeholder="nombre" 
-                                          value={currentField.databaseField || 'nombre'} 
-                                          onChange={handleFieldChange} 
-                                          disabled={currentField.isSystemField}
-                                        />
-                                      </div>
-                                      <div>
-                                        <label className="block text-xs text-gray-600 mb-1">Campo de valor</label>
-                                        <input 
-                                          className={`w-full px-2 py-1 border border-gray-300 rounded text-xs ${currentField.isSystemField ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                                          name="databaseValueField" 
-                                          placeholder="nombre" 
-                                          value={currentField.databaseValueField || 'nombre'} 
-                                          onChange={handleFieldChange} 
-                                          disabled={currentField.isSystemField}
-                                        />
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs text-gray-600 mb-1">
+                                      Días mínimos después de hoy
+                                      <span className="text-gray-400 ml-1">(opcional)</span>
+                                    </label>
+                                    <input
+                                      className={`w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm ${currentField.isSystemField ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                      name="diasMinimos"
+                                      type="number"
+                                      min="0"
+                                      max="365"
+                                      placeholder="0"
+                                      value={currentField.diasMinimos || ''}
+                                      onChange={handleFieldChange}
+                                      autoComplete="off"
+                                      disabled={currentField.isSystemField}
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">
+                                      Ejemplo: 3 = la fecha más próxima será dentro de 3 días
+                                    </p>
+                                  </div>
+                                </div>
+                              ) : currentField.type === 'number' ? (
+                                <div className="space-y-3">
+                                  <div>
+                                    <label className="block text-xs text-gray-600 mb-1">Placeholder</label>
+                                    <input
+                                      className={`w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm ${currentField.isSystemField ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                      name="placeholder"
+                                      placeholder="Ingrese un número"
+                                      value={currentField.placeholder}
+                                      onChange={handleFieldChange}
+                                      autoComplete="off"
+                                      disabled={currentField.isSystemField}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs text-gray-600 mb-1">
+                                      Longitud mínima (dígitos)
+                                      <span className="text-gray-400 ml-1">(opcional)</span>
+                                    </label>
+                                    <input
+                                      className={`w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm`}
+                                      name="minLength"
+                                      type="number"
+                                      min="1"
+                                      max="20"
+                                      placeholder="10"
+                                      value={(currentField as any).minLength || ''}
+                                      onChange={handleFieldChange}
+                                      autoComplete="off"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">
+                                      Ejemplo: 10 = el número debe tener al menos 10 dígitos
+                                    </p>
+                                  </div>
+                                </div>
+                              ) : currentField.type === 'select' || currentField.type === 'radio' || currentField.type === 'foreignKey' ? (
+                                <div className="space-y-2">
+                                  {/* Selector de fuente de datos */}
+                                  <Select
+                                    onValueChange={(value: 'static' | 'database') => {
+                                      // Usar la misma lógica de actualización que handleFieldChange
+                                      setCurrentField(f => {
+                                        if (f.isSystemField && f.allowOptionsEdit) {
+                                          return { ...f, dataSource: value };
+                                        } else if (!f.isSystemField) {
+                                          return { ...f, dataSource: value };
+                                        }
+                                        return f; // No actualizar si es campo del sistema sin allowOptionsEdit
+                                      });
+                                    }}
+                                    value={currentField.dataSource || 'static'}
+                                    disabled={(() => {
+                                      const isDisabled = currentField.isSystemField && !currentField.allowOptionsEdit;
+                                      return isDisabled;
+                                    })()}
+                                  >
+                                    <SelectTrigger className="text-sm">
+                                      <SelectValue placeholder="Seleccionar fuente" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="static">Opciones estáticas</SelectItem>
+                                      <SelectItem value="database">Base de datos</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+
+                                  {/* Opciones estáticas */}
+                                  {(currentField.dataSource === 'static' || !currentField.dataSource) && (
+                                    <input
+                                      className={`w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm ${(currentField.isSystemField && !currentField.allowOptionsEdit) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                      name="options"
+                                      placeholder="Opciones (separadas por coma)"
+                                      value={currentField.options as any}
+                                      onChange={handleFieldChange}
+                                      autoComplete="off"
+                                      disabled={(() => {
+                                        const isDisabled = currentField.isSystemField && !currentField.allowOptionsEdit;
+                                        return isDisabled;
+                                      })()}
+                                    />
+                                  )}
+
+                                  {/* Configuración de base de datos */}
+                                  {currentField.dataSource === 'database' && (
+                                    <div className="space-y-2">
+                                      <Select
+                                        onValueChange={(value) => {
+                                          const table = DATABASE_TABLES.find(t => t.value === value);
+                                          setCurrentField(f => ({
+                                            ...f,
+                                            databaseTable: value,
+                                            databaseField: table?.displayField || 'nombre',
+                                            databaseValueField: table?.valueField || 'nombre'
+                                          }));
+                                        }}
+                                        value={currentField.databaseTable || ''}
+                                        disabled={currentField.isSystemField}
+                                      >
+                                        <SelectTrigger className="text-sm">
+                                          <SelectValue placeholder="Seleccionar tabla" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {DATABASE_TABLES.map((table) => (
+                                            <SelectItem key={table.value} value={table.value}>
+                                              {table.label}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                          <label className="block text-xs text-gray-600 mb-1">Campo a mostrar</label>
+                                          <input
+                                            className={`w-full px-2 py-1 border border-gray-300 rounded text-xs ${currentField.isSystemField ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                            name="databaseField"
+                                            placeholder="nombre"
+                                            value={currentField.databaseField || 'nombre'}
+                                            onChange={handleFieldChange}
+                                            disabled={currentField.isSystemField}
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="block text-xs text-gray-600 mb-1">Campo de valor</label>
+                                          <input
+                                            className={`w-full px-2 py-1 border border-gray-300 rounded text-xs ${currentField.isSystemField ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                            name="databaseValueField"
+                                            placeholder="nombre"
+                                            value={currentField.databaseValueField || 'nombre'}
+                                            onChange={handleFieldChange}
+                                            disabled={currentField.isSystemField}
+                                          />
+                                        </div>
                                       </div>
                                     </div>
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              <input 
-                                className={`w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm ${currentField.isSystemField ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                                name="placeholder" 
-                                value={currentField.placeholder} 
-                                onChange={handleFieldChange} 
-                                autoComplete="off"
-                                disabled={currentField.isSystemField}
-                              />
-                            )}
-                          </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <input
+                                  className={`w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm ${currentField.isSystemField ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                  name="placeholder"
+                                  value={currentField.placeholder}
+                                  onChange={handleFieldChange}
+                                  autoComplete="off"
+                                  disabled={currentField.isSystemField}
+                                />
+                              )}
+                            </div>
                             <div className="md:col-span-7">
                               <label className="block text-sm font-medium text-gray-700 mb-1.5">
                                 Tamaño (1-12)
                               </label>
                               <div className="space-y-2">
-                            <input 
+                                <input
                                   className="w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm transition-colors duration-200"
-                              name="dimension" 
-                              type="number" 
-                              min={1} 
-                              max={12} 
-                              value={currentField.dimension} 
-                              onChange={handleFieldChange} 
-                              autoComplete="off" 
+                                  name="dimension"
+                                  type="number"
+                                  min={1}
+                                  max={12}
+                                  value={currentField.dimension}
+                                  onChange={handleFieldChange}
+                                  autoComplete="off"
                                   placeholder="1-12"
-                            />
+                                />
                                 <div className="flex items-center justify-between text-xs text-gray-500">
                                   <span>Mín: 1</span>
                                   <span className="text-cyan-600 font-medium">Actual: {currentField.dimension}</span>
                                   <span>Máx: 12</span>
-                          </div>
+                                </div>
                                 <p className="text-xs text-gray-500 leading-relaxed">
                                   Determina cuántas columnas ocupa el campo.
                                 </p>
                               </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Selector de Sección para Mover Campo */}
-                      {selectedFieldIdx !== null && (
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start pt-3 border-t border-gray-200">
-                          <div className="md:col-span-12">
-                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                              Mover Campo a Sección
-                            </label>
-                            <div className="flex items-center gap-3">
-                              <Select 
-                                onValueChange={(value) => {
-                                  const targetSectionIdx = parseInt(value);
-                                  if (targetSectionIdx !== selectedSectionIdx) {
-                                    moveFieldToSection(selectedSectionIdx, selectedFieldIdx, targetSectionIdx);
-                                  }
-                                }}
-                                value={selectedSectionIdx?.toString() || ''}
-                              >
-                                <SelectTrigger className="w-full h-8 text-sm">
-                                  <SelectValue placeholder="Seleccionar sección destino" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {sections.map((section, idx) => (
-                                    <SelectItem key={section.id} value={idx.toString()} className="flex items-center gap-2 text-sm">
-                                      <span className="text-sm font-medium">{section.titulo || `Sección ${idx + 1}`}</span>
-                                      {idx === selectedSectionIdx && <span className="text-xs text-cyan-600">(Actual)</span>}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <div className="text-xs text-gray-500 flex-shrink-0">
-                                Mover campo a otra sección
-                              </div>
-                              </div>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="flex items-center justify-end pt-3">
-                        {selectedFieldIdx === null ? (
-                          <button 
-                            type="button"
-                            onClick={(e) => addField(e as any)}
-                            className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 text-sm font-medium flex items-center gap-2"
-                          >
-                            <Plus className="h-3 w-3" />
-                            Agregar Campo
-                          </button>
-                        ) : (
-                          <div className="flex gap-2">
-                            <button 
-                              type="button"
-                              onClick={saveField} 
-                              className="px-3 py-1.5 bg-green-100 text-green-700 rounded-md hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 text-sm font-medium flex items-center gap-2"
-                            >
-                              <Save className="h-3 w-3" />
-                              Guardar
-                            </button>
-                            {/* Solo mostrar botón de eliminar si no es un campo del sistema */}
-                            {!currentField.isSystemField && (
-                              <button 
-                                type="button" 
-                                onClick={() => removeField(selectedSectionIdx, selectedFieldIdx)} 
-                                className="px-3 py-1.5 bg-red-100 text-red-700 rounded-md hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 text-sm font-medium flex items-center gap-2"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                                Eliminar
-                              </button>
-                            )}
-                            <button 
-                              type="button" 
-                              onClick={() => { 
-                                setSelectedFieldIdx(null); 
-                                setCurrentField(createDefaultField()); 
-                              }} 
-                              className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 text-sm font-medium flex items-center gap-2"
-                            >
-                              <X className="h-3 w-3" />
-                              Cancelar
-                            </button>
+                            </div>
                           </div>
                         )}
-                      </div>
-                    </form>
-                  )}
-                </div>
-              </div>
-            )}
 
-            {/* Tab: Vista Previa */}
-            {activeTab === "vista" && (
-              <div className="mb-6">
-                <div className="bg-white rounded-lg border border-gray-200 p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                    <span className="text-2xl mr-2">👁️</span>
-                    Vista Previa del Formulario
-                  </h3>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        try {
-                          setIsExporting(true);
-                          const element = document.getElementById('form-preview');
-                          if (element) {
-                            const canvas = await html2canvas(element, {
-                              backgroundColor: '#ffffff',
-                              scale: 2,
-                              useCORS: true,
-                              allowTaint: true
-                            });
-                            
-                            const link = document.createElement('a');
-                            link.download = `plantilla-${formName || 'formulario'}.png`;
-                            link.href = canvas.toDataURL();
-                            link.click();
-                          }
-                        } catch (error) {
-                          console.error('Error al exportar:', error);
-                          alert('Error al exportar la imagen');
-                        } finally {
-                          setIsExporting(false);
-                        }
-                      }}
-                      disabled={isExporting || sections.filter(s => s.activo !== false).length === 0}
-                      className="p-2 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Exportar como imagen"
-                    >
-                      {isExporting ? (
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-700"></div>
-                      ) : (
-                        <Download className="h-4 w-4" />
-                      )}
-                    </button>
-                  </div>
-                     
-                  {sections.filter(s => s.activo !== false).length === 0 ? (
-                    <div className="text-center py-8">
-                      <div className="text-4xl mb-4">📋</div>
-                      <h4 className="text-lg font-semibold text-gray-900 mb-2">
-                        No hay secciones configuradas
-                      </h4>
-                      <p className="text-gray-600">
-                        Crea tu primera sección para ver la vista previa del formulario
-                      </p>
-                    </div>
-                  ) : (
-                    <div ref={previewRef} className={`space-y-6 ${previewMode ? 'preview-mode' : ''}`}>
-                      {(previewMode ? previewSections : sections).filter(s => s.activo !== false).map((section, sectionIdx) => (
-                        <div 
-                          key={section.id} 
-                          className={`border border-gray-200 rounded-lg p-4 transition-all duration-200 ${
-                            dragOverTarget?.type === 'section' && 
-                            dragOverTarget?.sectionIdx === sectionIdx ? 'section-drag-over' : ''
-                          }`}
-                          onDragOver={(e) => onDragOver(e, sectionIdx, true)}
-                          onDrop={(e) => onDrop(e, sectionIdx, true)}
-                        >
-                          <div className="flex items-center gap-2 mb-4 p-3 bg-gray-50 rounded-lg">
-                            <span className="text-xl">📋</span>
-                            <h4 className="font-semibold text-gray-900">
-                              {section.titulo || 'Sección sin título'}
-                            </h4>
-                          </div>
-                          
-                          {section.campos.filter(f => f.activo !== false).length === 0 ? (
-                            <div className="text-center py-4 text-gray-500">
-                              Esta sección no tiene campos configurados
+                        {/* Selector de Sección para Mover Campo */}
+                        {selectedFieldIdx !== null && (
+                          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start pt-3 border-t border-gray-200">
+                            <div className="md:col-span-12">
+                              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                Mover Campo a Sección
+                              </label>
+                              <div className="flex items-center gap-3">
+                                <Select
+                                  onValueChange={(value) => {
+                                    const targetSectionIdx = parseInt(value);
+                                    if (targetSectionIdx !== selectedSectionIdx) {
+                                      moveFieldToSection(selectedSectionIdx, selectedFieldIdx, targetSectionIdx);
+                                    }
+                                  }}
+                                  value={selectedSectionIdx?.toString() || ''}
+                                >
+                                  <SelectTrigger className="w-full h-8 text-sm">
+                                    <SelectValue placeholder="Seleccionar sección destino" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {sections.map((section, idx) => (
+                                      <SelectItem key={section.id} value={idx.toString()} className="flex items-center gap-2 text-sm">
+                                        <span className="text-sm font-medium">{section.titulo || `Sección ${idx + 1}`}</span>
+                                        {idx === selectedSectionIdx && <span className="text-xs text-cyan-600">(Actual)</span>}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <div className="text-xs text-gray-500 flex-shrink-0">
+                                  Mover campo a otra sección
+                                </div>
+                              </div>
                             </div>
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-end pt-3">
+                          {selectedFieldIdx === null ? (
+                            <button
+                              type="button"
+                              onClick={(e) => addField(e as any)}
+                              className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 text-sm font-medium flex items-center gap-2"
+                            >
+                              <Plus className="h-3 w-3" />
+                              Agregar Campo
+                            </button>
                           ) : (
-                                  <div className="relative">
-                                   {/* Grid de fondo sin números, solo líneas visuales */}
-                                   <div className="absolute inset-0 grid grid-cols-12 gap-4 pointer-events-none z-0">
-                                     {Array.from({ length: 12 }, (_, colIndex) => (
-                                       <div
-                                         key={colIndex}
-                                         className="column-line"
-                                         style={{ gridColumn: `${colIndex + 1} / span 1` }}
-                                       />
-                                     ))}
-                                   </div>
-                                 
-                                 {/* Contenedor de campos con drag & drop */}
-                                 <div className="grid grid-cols-12 gap-4 relative z-10 grid-container">
-                              {(() => {
-                                const camposActivos = section.campos.filter(f => f.activo !== false).sort((a, b) => a.order - b.order);
-                                     return camposActivos.map((field, fieldIdx) => (
-                                       <div
-                                         key={field.id}
-                                         draggable
-                                         onDragStart={(e) => {
-                                           e.dataTransfer.effectAllowed = 'move';
-                                           onDragStart(fieldIdx, false, sectionIdx);
-                                         }}
-                                         onDragOver={(e) => onDragOver(e, fieldIdx, false, sectionIdx)}
-                                         onDrop={(e) => onDrop(e, fieldIdx, false, sectionIdx)}
-                                         onDragEnd={onDragEnd}
-                                         className={`field-draggable transition-all duration-200 ${
-                                           draggedItem?.type === 'field' && 
-                                           draggedItem?.sectionIdx === sectionIdx && 
-                                           draggedItem?.fieldIdx === fieldIdx ? 'field-dragging' : ''
-                                         } ${
-                                           dragOverTarget?.type === 'field' && 
-                                           dragOverTarget?.sectionIdx === sectionIdx && 
-                                           dragOverTarget?.fieldIdx === fieldIdx ? 'field-drag-over' : ''
-                                         } ${
-                                           (field as any).isPreviewField ? 'preview-field' : ''
-                                         }`}
-                                         style={{
-                                           gridColumn: `span ${field.dimension}`,
-                                           cursor: 'grab'
-                                         }}
-                                       >
-                                         {renderField(field, fieldIdx)}
-                                       </div>
-                                     ));
-                              })()}
-                                 </div>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={saveField}
+                                className="px-3 py-1.5 bg-green-100 text-green-700 rounded-md hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 text-sm font-medium flex items-center gap-2"
+                              >
+                                <Save className="h-3 w-3" />
+                                Guardar
+                              </button>
+                              {/* Solo mostrar botón de eliminar si no es un campo del sistema */}
+                              {!currentField.isSystemField && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeField(selectedSectionIdx, selectedFieldIdx)}
+                                  className="px-3 py-1.5 bg-red-100 text-red-700 rounded-md hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 text-sm font-medium flex items-center gap-2"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                  Eliminar
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedFieldIdx(null);
+                                  setCurrentField(createDefaultField());
+                                }}
+                                className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 text-sm font-medium flex items-center gap-2"
+                              >
+                                <X className="h-3 w-3" />
+                                Cancelar
+                              </button>
                             </div>
                           )}
                         </div>
-                      ))}
-                    </div>
-                  )}
+                      </form>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
-          </>
-        )}
+              )}
+
+              {/* Tab: Vista Previa */}
+              {activeTab === "vista" && (
+                <div className="mb-6">
+                  <div className="bg-white rounded-lg border border-gray-200 p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                        <span className="text-2xl mr-2">👁️</span>
+                        Vista Previa del Formulario
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            setIsExporting(true);
+                            const element = document.getElementById('form-preview');
+                            if (element) {
+                              const canvas = await html2canvas(element, {
+                                backgroundColor: '#ffffff',
+                                scale: 2,
+                                useCORS: true,
+                                allowTaint: true
+                              });
+
+                              const link = document.createElement('a');
+                              link.download = `plantilla-${formName || 'formulario'}.png`;
+                              link.href = canvas.toDataURL();
+                              link.click();
+                            }
+                          } catch (error) {
+                            console.error('Error al exportar:', error);
+                            alert('Error al exportar la imagen');
+                          } finally {
+                            setIsExporting(false);
+                          }
+                        }}
+                        disabled={isExporting || sections.filter(s => s.activo !== false).length === 0}
+                        className="p-2 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Exportar como imagen"
+                      >
+                        {isExporting ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-700"></div>
+                        ) : (
+                          <Download className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
 
 
-        {/* Botones de acción */}
-        {!hideInternalSaveButton && (
-          <div className="flex justify-end mb-6">
-            {/* Botón de guardar plantilla */}
-            <button
-              type="button"
-              onClick={async () => {
-                try {
-                  startLoading();
-                  
-                  if (formName.trim() && sections.length > 0) {
-                    if (onSave) {
-                      await onSave({
-                        nombre: formName,
-                        descripcion: formDesc,
-                        estructura_formulario: formJson
-                      });
-                    } else {
-                      await plantillasService.create({
-                        nombre: formName,
-                        descripcion: formDesc,
-                        estructura_formulario: formJson,
-                        es_default: false,
-                        activa: true,
-                      });
-                      if (navigate) {
-                        navigate("/maestro/plantillas");
+                    {sections.filter(s => s.activo !== false).length === 0 ? (
+                      <div className="text-center py-8">
+                        <div className="text-4xl mb-4">📋</div>
+                        <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                          No hay secciones configuradas
+                        </h4>
+                        <p className="text-gray-600">
+                          Crea tu primera sección para ver la vista previa del formulario
+                        </p>
+                      </div>
+                    ) : (
+                      <div ref={previewRef} className={`space-y-6 ${previewMode ? 'preview-mode' : ''}`}>
+                        {(previewMode ? previewSections : sections).filter(s => s.activo !== false).map((section, sectionIdx) => (
+                          <div
+                            key={section.id}
+                            className={`border border-gray-200 rounded-lg p-4 transition-all duration-200 ${dragOverTarget?.type === 'section' &&
+                              dragOverTarget?.sectionIdx === sectionIdx ? 'section-drag-over' : ''
+                              }`}
+                            onDragOver={(e) => onDragOver(e, sectionIdx, true)}
+                            onDrop={(e) => onDrop(e, sectionIdx, true)}
+                          >
+                            <div className="flex items-center gap-2 mb-4 p-3 bg-gray-50 rounded-lg">
+                              <span className="text-xl">📋</span>
+                              <h4 className="font-semibold text-gray-900">
+                                {section.titulo || 'Sección sin título'}
+                              </h4>
+                            </div>
+
+                            {section.campos.filter(f => f.activo !== false).length === 0 ? (
+                              <div className="text-center py-4 text-gray-500">
+                                Esta sección no tiene campos configurados
+                              </div>
+                            ) : (
+                              <div className="relative">
+                                {/* Grid de fondo sin números, solo líneas visuales */}
+                                <div className="absolute inset-0 grid grid-cols-12 gap-4 pointer-events-none z-0">
+                                  {Array.from({ length: 12 }, (_, colIndex) => (
+                                    <div
+                                      key={colIndex}
+                                      className="column-line"
+                                      style={{ gridColumn: `${colIndex + 1} / span 1` }}
+                                    />
+                                  ))}
+                                </div>
+
+                                {/* Contenedor de campos con drag & drop */}
+                                <div className="grid grid-cols-12 gap-4 relative z-10 grid-container">
+                                  {(() => {
+                                    const camposActivos = section.campos.filter(f => f.activo !== false).sort((a, b) => a.order - b.order);
+                                    return camposActivos.map((field, fieldIdx) => (
+                                      <div
+                                        key={field.id}
+                                        draggable
+                                        onDragStart={(e) => {
+                                          e.dataTransfer.effectAllowed = 'move';
+                                          onDragStart(fieldIdx, false, sectionIdx);
+                                        }}
+                                        onDragOver={(e) => onDragOver(e, fieldIdx, false, sectionIdx)}
+                                        onDrop={(e) => onDrop(e, fieldIdx, false, sectionIdx)}
+                                        onDragEnd={onDragEnd}
+                                        className={`field-draggable transition-all duration-200 ${draggedItem?.type === 'field' &&
+                                          draggedItem?.sectionIdx === sectionIdx &&
+                                          draggedItem?.fieldIdx === fieldIdx ? 'field-dragging' : ''
+                                          } ${dragOverTarget?.type === 'field' &&
+                                            dragOverTarget?.sectionIdx === sectionIdx &&
+                                            dragOverTarget?.fieldIdx === fieldIdx ? 'field-drag-over' : ''
+                                          } ${(field as any).isPreviewField ? 'preview-field' : ''
+                                          }`}
+                                        style={{
+                                          gridColumn: `span ${field.dimension}`,
+                                          cursor: 'grab'
+                                        }}
+                                      >
+                                        {renderField(field, fieldIdx)}
+                                      </div>
+                                    ));
+                                  })()}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+
+          {/* Botones de acción */}
+          {!hideInternalSaveButton && (
+            <div className="flex justify-end mb-6">
+              {/* Botón de guardar plantilla */}
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    startLoading();
+
+                    if (formName.trim() && sections.length > 0) {
+                      if (onSave) {
+                        await onSave({
+                          nombre: formName,
+                          descripcion: formDesc,
+                          estructura_formulario: formJson
+                        });
                       } else {
-                        alert('Plantilla guardada exitosamente');
+                        await plantillasService.create({
+                          nombre: formName,
+                          descripcion: formDesc,
+                          estructura_formulario: formJson,
+                          es_default: false,
+                          activa: true,
+                        });
+                        if (navigate) {
+                          navigate("/maestro/plantillas");
+                        } else {
+                          alert('Plantilla guardada exitosamente');
+                        }
+                      }
+                    } else {
+                      if (!formName.trim()) {
+                        alert('Por favor complete el nombre de la plantilla');
+                      } else if (sections.length === 0) {
+                        alert('Por favor agregue al menos una sección');
+                      } else {
+                        alert('Por favor complete el nombre de la plantilla y agregue al menos una sección');
                       }
                     }
-                  } else {
-                    if (!formName.trim()) {
-                      alert('Por favor complete el nombre de la plantilla');
-                    } else if (sections.length === 0) {
-                      alert('Por favor agregue al menos una sección');
-                    } else {
-                      alert('Por favor complete el nombre de la plantilla y agregue al menos una sección');
-                    }
+                  } catch (error) {
+                    console.error('Error al guardar la plantilla:', error);
+                    alert('Error al guardar la plantilla');
+                  } finally {
+                    stopLoading();
                   }
-                } catch (error) {
-                  console.error('Error al guardar la plantilla:', error);
-                  alert('Error al guardar la plantilla');
-                } finally {
-                  stopLoading();
-                }
-              }}
-              className="px-4 py-2 bg-cyan-100 text-cyan-700 rounded-md hover:bg-cyan-200 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 text-sm font-medium flex items-center gap-2"
-            >
-              <Save className="h-4 w-4" />
-              {isEditing ? 'Actualizar Plantilla' : 'Guardar Plantilla'}
-            </button>
-          </div>
-        )}
+                }}
+                className="px-4 py-2 bg-cyan-100 text-cyan-700 rounded-md hover:bg-cyan-200 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 text-sm font-medium flex items-center gap-2"
+              >
+                <Save className="h-4 w-4" />
+                {isEditing ? 'Actualizar Plantilla' : 'Guardar Plantilla'}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
     </>
   );
 };
 
-export default FormBuilder; 
+export default FormBuilder;
 

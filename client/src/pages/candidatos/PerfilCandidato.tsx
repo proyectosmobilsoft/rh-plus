@@ -7,15 +7,15 @@ import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/services/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
-import { 
-  User, 
-  Mail, 
-  Phone, 
-  Calendar, 
-  MapPin, 
-  Briefcase, 
-  GraduationCap, 
-  Upload, 
+import {
+  User,
+  Mail,
+  Phone,
+  Calendar,
+  MapPin,
+  Briefcase,
+  GraduationCap,
+  Upload,
   LogOut,
   Save,
   AlertCircle,
@@ -79,8 +79,10 @@ const ProgressStyles = () => (
 );
 
 const perfilSchema = z.object({
-  nombres: z.string().min(2, 'Los nombres son requeridos'),
-  apellidos: z.string().min(2, 'Los apellidos son requeridos'),
+  primer_nombre: z.string().min(2, 'El primer nombre es requerido'),
+  segundo_nombre: z.string().optional(),
+  primer_apellido: z.string().min(2, 'El primer apellido es requerido'),
+  segundo_apellido: z.string().optional(),
   fechaNacimiento: z.string().optional(),
   edad: z.union([
     z.number().min(18, 'Debe ser mayor de edad').max(100),
@@ -111,8 +113,10 @@ type PerfilForm = z.infer<typeof perfilSchema>;
 interface Candidato {
   id: number;
   email: string;
-  nombres: string;
-  apellidos: string;
+  primer_nombre: string;
+  segundo_nombre?: string;
+  primer_apellido: string;
+  segundo_apellido?: string;
   tipoDocumento: string;
   numeroDocumento: string;
   fechaNacimiento?: string;
@@ -171,19 +175,19 @@ export default function PerfilCandidato() {
   const [activeTab, setActiveTab] = useState("personal");
   const [experienciaLaboral, setExperienciaLaboral] = useState<ExperienciaLaboral[]>([]);
   const [educacion, setEducacion] = useState<Educacion[]>([]);
-  const [uploadedFiles, setUploadedFiles] = useState<{[key: string]: string}>({});
+  const [uploadedFiles, setUploadedFiles] = useState<{ [key: string]: string }>({});
   const [existingDocuments, setExistingDocuments] = useState<any[]>([]);
   const [tiposDocumentos, setTiposDocumentos] = useState<any[]>([]);
   const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
-  const [uploadingDocuments, setUploadingDocuments] = useState<{[key: string]: boolean}>({});
-  const [uploadProgress, setUploadProgress] = useState<{[key: string]: number}>({});
+  const [uploadingDocuments, setUploadingDocuments] = useState<{ [key: string]: boolean }>({});
+  const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
   // Eliminado: tipoCandidato y documentosRequeridos ligados al candidato.
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [progresoRefreshKey, setProgresoRefreshKey] = useState(0);
   const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState<number | null>(null);
-  const [modalDocumento, setModalDocumento] = useState<{isOpen: boolean, documento: any}>({isOpen: false, documento: null});
+  const [modalDocumento, setModalDocumento] = useState<{ isOpen: boolean, documento: any }>({ isOpen: false, documento: null });
   const [acordeonesAbiertos, setAcordeonesAbiertos] = useState<string[]>([]);
-  const [documentoACambiar, setDocumentoACambiar] = useState<{id: number, progressKey: string} | null>(null);
+  const [documentoACambiar, setDocumentoACambiar] = useState<{ id: number, progressKey: string } | null>(null);
   const [ciudadesDisponibles, setCiudadesDisponibles] = useState<any[]>([]);
   const [solicitudesCandidato, setSolicitudesCandidato] = useState<any[]>([]);
   const [isLoadingSolicitudes, setIsLoadingSolicitudes] = useState(false);
@@ -200,14 +204,14 @@ export default function PerfilCandidato() {
     form.setValue('departamento', cityData?.[departamentoId]?.nombre || '', { shouldDirty: true, shouldTouch: true });
     form.setValue('ciudad', '', { shouldDirty: true, shouldTouch: true });
     form.setValue('ciudad_id', undefined, { shouldDirty: true, shouldTouch: true });
-    
+
     // Filtrar ciudades del departamento seleccionado
     if (cityData?.[departamentoId]) {
       setCiudadesDisponibles(cityData[departamentoId].ciudades);
     } else {
       setCiudadesDisponibles([]);
     }
-    
+
     // Disparar auto-guardado
     triggerAutoSave();
   };
@@ -226,8 +230,10 @@ export default function PerfilCandidato() {
   const form = useForm<PerfilForm>({
     resolver: zodResolver(perfilSchema),
     defaultValues: {
-      nombres: '',
-      apellidos: '',
+      primer_nombre: '',
+      segundo_nombre: '',
+      primer_apellido: '',
+      segundo_apellido: '',
       fechaNacimiento: '',
       edad: undefined,
       sexo: '',
@@ -261,10 +267,10 @@ export default function PerfilCandidato() {
     if (candidato && candidato.ciudad_id && candidato.departamento && cityData && !isLoadingCityData) {
       // Buscar el departamento por nombre en los datos cargados
       const departamentos = Object.entries(cityData);
-      const departamentoEncontrado = departamentos.find(([id, dept]) => 
+      const departamentoEncontrado = departamentos.find(([id, dept]) =>
         dept.nombre.toLowerCase() === (candidato.departamento || '').toLowerCase()
       );
-      
+
       if (departamentoEncontrado) {
         const [departamentoId, departamentoData] = departamentoEncontrado;
         console.log('🔄 Reinicializando estados con cityData:', {
@@ -272,7 +278,7 @@ export default function PerfilCandidato() {
           departamentoNombre: departamentoData.nombre,
           ciudadesDisponibles: departamentoData.ciudades.length
         });
-        
+
         setDepartamentoSeleccionado(parseInt(departamentoId));
         setCiudadesDisponibles(departamentoData.ciudades);
       }
@@ -286,7 +292,7 @@ export default function PerfilCandidato() {
         // Actualizar el candidato con los nuevos valores del formulario
         setCandidato(prev => prev ? { ...prev, ...value } : prev);
       });
-      
+
       return () => subscription.unsubscribe();
     }
   }, [form, candidato]);
@@ -300,7 +306,7 @@ export default function PerfilCandidato() {
         console.log('🔍 Formulario - Estado de validación:', form.formState.isValid);
       }
     });
-    
+
     return () => subscription.unsubscribe();
   }, [form]);
 
@@ -362,7 +368,7 @@ export default function PerfilCandidato() {
   // Función de auto-guardado con debounce
   const autoSave = useCallback(async (data: any) => {
     if (!user || !candidato) return;
-    
+
     try {
       setIsAutoSaving(true);
       console.log('💾 Auto-guardando cambios...');
@@ -379,28 +385,30 @@ export default function PerfilCandidato() {
 
       // Validar que los registros mostrados coincidan con los de la BD
       console.log('✅ Validando sincronización entre UI y BD...');
-      
+
       // Comparar cantidad de registros de experiencia
       const expCountMatch = experienciaLaboral.length === currentDBRecords.experiencia.length;
       console.log(`📊 Experiencia - UI: ${experienciaLaboral.length}, BD: ${currentDBRecords.experiencia.length}, Coinciden: ${expCountMatch}`);
-      
+
       // Comparar cantidad de registros de educación
       const eduCountMatch = educacion.length === currentDBRecords.educacion.length;
       console.log(`📊 Educación - UI: ${educacion.length}, BD: ${currentDBRecords.educacion.length}, Coinciden: ${eduCountMatch}`);
-      
+
       if (!expCountMatch || !eduCountMatch) {
         console.warn('⚠️ ADVERTENCIA: Los registros en la UI no coinciden con los de la BD');
         console.log('🔄 Procediendo con sincronización...');
       } else {
         console.log('✅ Los registros en la UI coinciden con los de la BD');
       }
-      
+
       // Actualizar datos principales del candidato
       const { error: candidatoError } = await supabase
         .from('candidatos')
         .update({
-          primer_nombre: data.nombres,
-          primer_apellido: data.apellidos,
+          primer_nombre: data.primer_nombre,
+          segundo_nombre: data.segundo_nombre,
+          primer_apellido: data.primer_apellido,
+          segundo_apellido: data.segundo_apellido,
           fecha_nacimiento: data.fechaNacimiento,
           edad: data.edad,
           genero: data.sexo,
@@ -433,7 +441,7 @@ export default function PerfilCandidato() {
       console.log('💼 Procesando experiencia laboral...');
       console.log('📋 Cantidad de registros de experiencia:', experienciaLaboral.length);
       console.log('📋 Datos de experiencia a guardar:', experienciaLaboral);
-        
+
       // Eliminar registros existentes
       console.log('🗑️ Eliminando experiencia existente para candidato ID:', candidato.id);
       const { error: deleteExpError } = await supabase
@@ -479,7 +487,7 @@ export default function PerfilCandidato() {
       console.log('🎓 Procesando educación...');
       console.log('📚 Cantidad de registros de educación:', educacion.length);
       console.log('📚 Datos de educación a guardar:', educacion);
-      
+
       // Eliminar registros existentes
       console.log('🗑️ Eliminando educación existente para candidato ID:', candidato.id);
       const { error: deleteEduError } = await supabase
@@ -554,17 +562,17 @@ export default function PerfilCandidato() {
   // Función para activar el auto-guardado con debounce
   const triggerAutoSave = useCallback((immediate = false): Promise<void> => {
     console.log('🔄 triggerAutoSave() llamado', immediate ? '(inmediato)' : '(con debounce)');
-    
+
     return new Promise((resolve, reject) => {
       // Limpiar timeout anterior si existe
       if (autoSaveTimeoutRef.current) {
         clearTimeout(autoSaveTimeoutRef.current);
       }
-      
+
       if (immediate) {
         // Ejecutar inmediatamente para ediciones
         console.log('⚡ Ejecutando auto-guardado inmediato...');
-      const formData = form.getValues();
+        const formData = form.getValues();
         autoSave(formData)
           .then(() => resolve())
           .catch((error) => reject(error));
@@ -592,29 +600,29 @@ export default function PerfilCandidato() {
 
     const currentExperienciaLength = experienciaLaboral.length;
     const currentEducacionLength = educacion.length;
-    
+
     // Solo disparar si cambió la cantidad de elementos (agregar/quitar)
     const experienciaChanged = currentExperienciaLength !== prevExperienciaLength.current;
     const educacionChanged = currentEducacionLength !== prevEducacionLength.current;
-    
+
     // NO ejecutar auto-guardado durante la carga inicial
     if (isInitialLoad.current) {
       console.log('🔄 Carga inicial - NO ejecutando auto-guardado');
       console.log(`  - Experiencia laboral: ${prevExperienciaLength.current} → ${currentExperienciaLength}`);
       console.log(`  - Educación: ${prevEducacionLength.current} → ${currentEducacionLength}`);
-      
+
       // Actualizar las referencias y marcar que ya no es carga inicial
       prevExperienciaLength.current = currentExperienciaLength;
       prevEducacionLength.current = currentEducacionLength;
       isInitialLoad.current = false;
       return;
     }
-    
+
     if (experienciaChanged || educacionChanged) {
       console.log('🔄 Cambios en cantidad de registros detectados:');
       console.log(`  - Experiencia laboral: ${prevExperienciaLength.current} → ${currentExperienciaLength}`);
       console.log(`  - Educación: ${prevEducacionLength.current} → ${currentEducacionLength}`);
-      
+
       // Ejecutar auto-guardado y luego refrescar datos
       triggerAutoSave().then(() => {
         console.log('🔄 Refrescando datos desde la base de datos...');
@@ -625,7 +633,7 @@ export default function PerfilCandidato() {
         console.error('❌ Error en auto-guardado:', error);
       });
     }
-    
+
     // Actualizar las referencias para la próxima comparación
     prevExperienciaLength.current = currentExperienciaLength;
     prevEducacionLength.current = currentEducacionLength;
@@ -639,7 +647,7 @@ export default function PerfilCandidato() {
         .select('*')
         .eq('activo', true)
         .order('nombre');
-      
+
       if (error) throw error;
       setTiposDocumentos(data || []);
     } catch (error) {
@@ -684,8 +692,8 @@ export default function PerfilCandidato() {
 
         // Cargar documentos por tipo_candidato
         const { data: docs, error: docsError } = await supabase
-        .from('tipos_candidatos_documentos')
-        .select(`
+          .from('tipos_candidatos_documentos')
+          .select(`
             tipo_candidato_id,
             requerido,
             tipos_documentos ( id, nombre, descripcion )
@@ -759,20 +767,20 @@ export default function PerfilCandidato() {
         `)
         .eq('candidato_id', candidatoId)
         .order('created_at', { ascending: false });
-      
+
       if (error) throw error;
       setExistingDocuments(data || []);
-      
+
       // Actualizar uploadedFiles con los documentos existentes
-      const files: {[key: string]: string} = {};
+      const files: { [key: string]: string } = {};
       data?.forEach((doc: any) => {
         files[doc.tipos_documentos.nombre] = doc.nombre_archivo;
       });
       setUploadedFiles(files);
-      
+
       // Forzar actualización del progreso
       setProgresoRefreshKey(prev => prev + 1);
-      
+
     } catch (error) {
       console.error('Error cargando documentos:', error);
     } finally {
@@ -790,12 +798,12 @@ export default function PerfilCandidato() {
           .select('empresa_id')
           .eq('id', candidato.id)
           .single();
-        
+
         if (candidatoData?.empresa_id) {
           return candidatoData.empresa_id;
         }
       }
-      
+
       // Si no tiene empresa asignada, obtener la primera empresa disponible
       const { data: empresas } = await supabase
         .from('empresas')
@@ -803,22 +811,22 @@ export default function PerfilCandidato() {
         .eq('activo', true)
         .limit(1)
         .single();
-      
+
       if (empresas?.id) {
         return empresas.id;
       }
-      
+
       // Si no hay empresas activas, usar la primera empresa disponible
       const { data: primeraEmpresa } = await supabase
         .from('empresas')
         .select('id')
         .limit(1)
         .single();
-      
+
       if (primeraEmpresa?.id) {
         return primeraEmpresa.id;
       }
-      
+
       throw new Error('No se encontró ninguna empresa válida');
     } catch (error) {
       console.error('Error obteniendo empresa válida:', error);
@@ -829,10 +837,10 @@ export default function PerfilCandidato() {
   // Función para manejar la subida de archivos por empresa
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, tipoDocumentoId: number, nombreDocumento: string) => {
     console.log('🔄 handleFileChange llamado:', { tipoDocumentoId, nombreDocumento });
-    
+
     const file = e.target.files?.[0];
     console.log('📁 Archivo seleccionado:', file);
-    
+
     if (!file) {
       console.log('❌ No se seleccionó ningún archivo');
       return;
@@ -852,30 +860,30 @@ export default function PerfilCandidato() {
       setUploadingDocuments(prev => ({ ...prev, [tipoDocumentoId]: true }));
       setUploadProgress(prev => ({ ...prev, [tipoDocumentoId]: 0 }));
       console.log('⏳ Iniciando subida de archivo...');
-      
+
       // Obtener empresa válida
       const empresaId = await getValidEmpresaId();
       console.log('🏢 Empresa ID obtenida:', empresaId);
-      
+
       // Simular progreso de lectura del archivo
       setUploadProgress(prev => ({ ...prev, [tipoDocumentoId]: 25 }));
-      
+
       // Convertir archivo a base64
       const reader = new FileReader();
       reader.onload = async () => {
         const base64 = reader.result as string;
         const base64Data = base64.split(',')[1]; // Remover el prefijo data:application/pdf;base64,
-        
+
         // Simular progreso de procesamiento
         setUploadProgress(prev => ({ ...prev, [tipoDocumentoId]: 50 }));
-        
+
         if (!candidato?.id) {
           toast.error("No se puede subir documentos sin un perfil válido");
           return;
         }
 
         console.log('💾 Guardando documento en base de datos...');
-        
+
         // Simular progreso de guardado
         setUploadProgress(prev => ({ ...prev, [tipoDocumentoId]: 75 }));
 
@@ -899,13 +907,13 @@ export default function PerfilCandidato() {
 
         // Completar progreso
         setUploadProgress(prev => ({ ...prev, [tipoDocumentoId]: 100 }));
-        
+
         console.log('✅ Documento guardado exitosamente:', data);
         toast.success(`${file.name} ha sido subido correctamente.`);
 
         // Actualizar la lista de documentos
         await loadDocumentosCandidato(candidato.id);
-        
+
         // Limpiar progreso después de un momento
         setTimeout(() => {
           setUploadProgress(prev => {
@@ -915,7 +923,7 @@ export default function PerfilCandidato() {
           });
         }, 1000);
       };
-      
+
       reader.onerror = (error) => {
         console.error('❌ Error leyendo archivo:', error);
         toast.error("Error al procesar el archivo");
@@ -925,19 +933,19 @@ export default function PerfilCandidato() {
           return newProgress;
         });
       };
-      
+
       reader.readAsDataURL(file);
     } catch (error) {
       console.error('❌ Error subiendo archivo:', error);
       toast.error("Error al subir el archivo");
-      
+
       // Limpiar progreso inmediatamente en caso de error
       setUploadProgress(prev => {
         const newProgress = { ...prev };
         delete newProgress[tipoDocumentoId];
         return newProgress;
       });
-      
+
       // Limpiar estado de carga inmediatamente
       setUploadingDocuments(prev => ({ ...prev, [tipoDocumentoId]: false }));
     } finally {
@@ -964,10 +972,10 @@ export default function PerfilCandidato() {
 
   // Función para manejar la subida de archivos por solicitud y cargo
   const handleFileChangeSolicitud = async (
-    event: React.ChangeEvent<HTMLInputElement>, 
-    solicitudId: number, 
-    tipoCargoId: number, 
-    tipoDocumentoId: number, 
+    event: React.ChangeEvent<HTMLInputElement>,
+    solicitudId: number,
+    tipoCargoId: number,
+    tipoDocumentoId: number,
     nombreDocumento: string
   ) => {
     const file = event.target.files?.[0];
@@ -1072,14 +1080,14 @@ export default function PerfilCandidato() {
       console.error('❌ Error en handleFileChangeSolicitud:', error);
       toast.error('Error subiendo el archivo');
       const progressKey = `${solicitudId}_${tipoCargoId}_${tipoDocumentoId}`;
-      
+
       // Limpiar progreso inmediatamente en caso de error
       setUploadProgress(prev => {
         const newProgress = { ...prev };
         delete newProgress[progressKey];
         return newProgress;
       });
-      
+
       // Limpiar estado de carga inmediatamente
       setUploadingDocuments(prev => ({ ...prev, [progressKey]: false }));
     } finally {
@@ -1109,19 +1117,19 @@ export default function PerfilCandidato() {
       document.body.removeChild(link);
     } catch (error) {
       console.error('Error descargando documento:', error);
-              toast.error("Error al descargar el documento");
+      toast.error("Error al descargar el documento");
     }
   };
 
   // Función para visualizar documento (similar a empresa)
   // Función para visualizar documento en modal
   const handleViewDocument = (documento: any) => {
-    setModalDocumento({isOpen: true, documento});
+    setModalDocumento({ isOpen: true, documento });
   };
 
   // Función para cerrar modal
   const handleCloseModal = () => {
-    setModalDocumento({isOpen: false, documento: null});
+    setModalDocumento({ isOpen: false, documento: null });
   };
 
 
@@ -1137,7 +1145,7 @@ export default function PerfilCandidato() {
 
       const documentosRequeridos = cargo.documentos.filter(doc => doc.requerido);
       const documentosRequeridosIds = documentosRequeridos.map(doc => doc.tipos_documentos.id);
-      
+
       console.log('🔍 Documentos requeridos para el cargo:', documentosRequeridosIds);
 
       // Obtener documentos subidos directamente de la base de datos para esta solicitud y cargo
@@ -1156,7 +1164,7 @@ export default function PerfilCandidato() {
       console.log('🔍 Documentos subidos para la solicitud:', documentosSubidosIds);
 
       // Verificar si todos los documentos requeridos están subidos
-      const documentosRequeridosSubidos = documentosRequeridosIds.filter(id => 
+      const documentosRequeridosSubidos = documentosRequeridosIds.filter(id =>
         documentosSubidosIds.includes(id)
       );
 
@@ -1169,11 +1177,11 @@ export default function PerfilCandidato() {
       // Si no hay documentos requeridos, cambiar estado inmediatamente al subir cualquier documento
       if (documentosRequeridosIds.length === 0) {
         console.log('✅ No hay documentos requeridos para este cargo, actualizando estado...');
-        
+
         // Actualizar estado de la solicitud a "documentos entregados"
         const { error } = await supabase
           .from('hum_solicitudes')
-          .update({ 
+          .update({
             estado: 'documentos entregados',
             updated_at: new Date().toISOString()
           })
@@ -1187,11 +1195,11 @@ export default function PerfilCandidato() {
         }
       } else if (todosLosDocumentosRequeridosSubidos && documentosRequeridosIds.length > 0) {
         console.log('✅ Todos los documentos requeridos están subidos, actualizando estado...');
-        
+
         // Actualizar estado de la solicitud a "documentos entregados"
         const { error } = await supabase
           .from('hum_solicitudes')
-          .update({ 
+          .update({
             estado: 'documentos entregados',
             updated_at: new Date().toISOString()
           })
@@ -1287,13 +1295,15 @@ export default function PerfilCandidato() {
   const calcularProgresoPerfil = () => {
     // Usar progresoRefreshKey para forzar recálculo
     const _ = progresoRefreshKey;
-    
+
     if (!candidato) return 0;
-    
+
     // Campos del formulario con sus pesos (SOLO los que están implementados visualmente)
     const camposConPeso = [
-      { campo: 'nombres', peso: 8, requerido: true },
-      { campo: 'apellidos', peso: 8, requerido: true },
+      { campo: 'primer_nombre', peso: 4, requerido: true },
+      { campo: 'segundo_nombre', peso: 4, requerido: false },
+      { campo: 'primer_apellido', peso: 4, requerido: true },
+      { campo: 'segundo_apellido', peso: 4, requerido: false },
       { campo: 'fechaNacimiento', peso: 6, requerido: false },
       { campo: 'edad', peso: 4, requerido: false },
       { campo: 'sexo', peso: 4, requerido: false },
@@ -1310,20 +1320,20 @@ export default function PerfilCandidato() {
       { campo: 'tallaPantalon', peso: 3, requerido: false },
       { campo: 'tallaZapato', peso: 3, requerido: false }
     ];
-    
+
     let puntajeTotal = 0;
     let puntajeCompletado = 0;
-    
+
     // Calcular progreso de campos del formulario
     camposConPeso.forEach(({ campo, peso, requerido }) => {
       puntajeTotal += peso;
       const valor = candidato[campo as keyof Candidato];
-      
+
       if (valor && valor.toString().trim() !== '') {
         puntajeCompletado += peso;
       }
     });
-    
+
     // Calcular progreso de experiencia laboral (15 puntos obligatorios)
     puntajeTotal += 15; // Siempre sumar al total (obligatorio)
     if (experienciaLaboral.length > 0) {
@@ -1332,7 +1342,7 @@ export default function PerfilCandidato() {
     } else {
       console.log('🔍 calcularProgresoPerfil - Experiencia laboral: 0/15 puntos (FALTANTE)');
     }
-    
+
     // Calcular progreso de educación (15 puntos obligatorios)
     puntajeTotal += 15; // Siempre sumar al total (obligatorio)
     if (educacion.length > 0) {
@@ -1341,7 +1351,7 @@ export default function PerfilCandidato() {
     } else {
       console.log('🔍 calcularProgresoPerfil - Educación: 0/15 puntos (FALTANTE)');
     }
-    
+
     // Calcular progreso por documentos requeridos (20 puntos máximo)
     const documentosRequeridosIds = new Set<number>();
     Object.values(cargosMeta).forEach(cargo => {
@@ -1354,7 +1364,7 @@ export default function PerfilCandidato() {
 
     if (documentosRequeridosIds.size > 0) {
       // Contar cuántos documentos requeridos están subidos
-      const documentosRequeridosSubidos = existingDocuments.filter(doc => 
+      const documentosRequeridosSubidos = existingDocuments.filter(doc =>
         documentosRequeridosIds.has(doc.tipo_documento_id)
       ).length;
 
@@ -1363,35 +1373,35 @@ export default function PerfilCandidato() {
 
       puntajeTotal += pesoTotalDocumentos;
       puntajeCompletado += pesoDocumentosCompletados;
-      
+
       console.log('🔍 calcularProgresoPerfil - Documentos requeridos:', documentosRequeridosIds.size);
       console.log('🔍 calcularProgresoPerfil - Documentos requeridos subidos:', documentosRequeridosSubidos);
       console.log('🔍 calcularProgresoPerfil - Documentos requeridos: +', pesoDocumentosCompletados, '/', pesoTotalDocumentos, 'puntos');
     }
-    
+
     // Debug información detallada
     console.log('🔍 calcularProgresoPerfil - Experiencia laboral:', experienciaLaboral.length, 'registros');
     console.log('🔍 calcularProgresoPerfil - Educación:', educacion.length, 'registros');
     console.log('🔍 calcularProgresoPerfil - Documentos existentes totales:', existingDocuments.length);
     console.log('🔍 calcularProgresoPerfil - Cargos meta:', Object.keys(cargosMeta).length);
-    
+
     // Identificar campos faltantes
     const camposCompletados = camposConPeso.filter(({ campo }) => {
       const valor = candidato[campo as keyof Candidato];
       return valor && valor.toString().trim() !== '';
     });
-    
+
     const camposFaltantes = camposConPeso.filter(({ campo }) => {
       const valor = candidato[campo as keyof Candidato];
       return !valor || valor.toString().trim() === '';
     });
-    
+
     console.log('🔍 calcularProgresoPerfil - Campos del formulario completados:', camposCompletados.length, '/', camposConPeso.length);
     console.log('🔍 calcularProgresoPerfil - Campos FALTANTES:', camposFaltantes.map(({ campo, peso }) => `${campo} (${peso}pts)`));
     console.log('🔍 calcularProgresoPerfil - Puntaje total:', puntajeTotal);
     console.log('🔍 calcularProgresoPerfil - Puntaje completado:', puntajeCompletado);
     console.log('🔍 calcularProgresoPerfil - Progreso calculado:', puntajeTotal > 0 ? Math.round((puntajeCompletado / puntajeTotal) * 100) : 0);
-    
+
     return puntajeTotal > 0 ? Math.round((puntajeCompletado / puntajeTotal) * 100) : 0;
   };
 
@@ -1407,26 +1417,26 @@ export default function PerfilCandidato() {
   const calcularEstadoDocumentosCargo = (cargoId: number) => {
     // Usar progresoRefreshKey para forzar recálculo
     const _ = progresoRefreshKey;
-    
+
     if (!candidato || !cargosMeta[cargoId]) return { completado: false, total: 0, subidos: 0 };
-    
+
     const cargo = cargosMeta[cargoId];
     const documentosRequeridos = cargo.documentos.filter(doc => doc.requerido);
     const documentosNoRequeridos = cargo.documentos.filter(doc => !doc.requerido);
-    
+
     // Contar documentos requeridos subidos
-    const documentosRequeridosSubidos = documentosRequeridos.filter(doc => 
+    const documentosRequeridosSubidos = documentosRequeridos.filter(doc =>
       existingDocuments.some(existing => existing.tipo_documento_id === doc.tipos_documentos.id)
     ).length;
-    
+
     // Contar documentos no requeridos subidos
-    const documentosNoRequeridosSubidos = documentosNoRequeridos.filter(doc => 
+    const documentosNoRequeridosSubidos = documentosNoRequeridos.filter(doc =>
       existingDocuments.some(existing => existing.tipo_documento_id === doc.tipos_documentos.id)
     ).length;
-    
+
     const totalDocumentos = documentosRequeridos.length;
     const documentosSubidos = documentosRequeridosSubidos;
-    
+
     return {
       completado: documentosRequeridosSubidos === documentosRequeridos.length,
       total: totalDocumentos,
@@ -1440,9 +1450,9 @@ export default function PerfilCandidato() {
   const tieneDocumentosNoRequeridosPendientes = () => {
     // Usar progresoRefreshKey para forzar recálculo
     const _ = progresoRefreshKey;
-    
+
     if (!candidato || existingDocuments.length === 0) return false;
-    
+
     // Obtener IDs de documentos requeridos
     const documentosRequeridosIds = new Set<number>();
     Object.values(cargosMeta).forEach(cargo => {
@@ -1472,7 +1482,7 @@ export default function PerfilCandidato() {
     });
 
     // Verificar si hay documentos no requeridos que no están subidos
-    const documentosNoRequeridosSubidos = existingDocuments.filter(doc => 
+    const documentosNoRequeridosSubidos = existingDocuments.filter(doc =>
       documentosNoRequeridosIds.has(doc.tipo_documento_id)
     ).length;
 
@@ -1484,21 +1494,21 @@ export default function PerfilCandidato() {
     // Verificar si faltan experiencia o educación (obligatorios)
     const faltaExperiencia = experienciaLaboral.length === 0;
     const faltaEducacion = educacion.length === 0;
-    
+
     if (progreso < 30) return 'Incompleto';
     if (progreso < 60) return 'En progreso';
     if (progreso < 90) return 'Casi completo';
-    
+
     // Si está al 100% pero tiene documentos no requeridos pendientes, mostrar "En proceso"
     if (progreso === 100 && tieneDocumentosNoRequeridosPendientes()) {
       return 'En proceso';
     }
-    
+
     // Si falta experiencia o educación, no puede estar completado
     if (faltaExperiencia || faltaEducacion) {
       return 'Faltan datos obligatorios';
     }
-    
+
     return 'Completado';
   };
 
@@ -1508,7 +1518,7 @@ export default function PerfilCandidato() {
       console.log('🔍 calcularEdad - No hay fecha de nacimiento');
       return undefined;
     }
-    
+
     const hoy = new Date();
     const nacimiento = new Date(fechaNacimiento);
     let edad = hoy.getFullYear() - nacimiento.getFullYear();
@@ -1516,11 +1526,11 @@ export default function PerfilCandidato() {
     const diaActual = hoy.getDate();
     const mesNacimiento = nacimiento.getMonth();
     const diaNacimiento = nacimiento.getDate();
-    
+
     if (mesActual < mesNacimiento || (mesActual === mesNacimiento && diaActual < diaNacimiento)) {
       edad--;
     }
-    
+
     console.log('🔍 calcularEdad - Fecha:', fechaNacimiento, 'Edad calculada:', edad);
     return edad > 0 ? edad : undefined;
   };
@@ -1556,17 +1566,19 @@ export default function PerfilCandidato() {
 
       if (error) {
         console.error('Error cargando perfil:', error);
-        
+
         // Si no se encuentra el candidato, crear un perfil vacío para administradores
         if (error.code === 'PGRST116') {
           console.log('No se encontró candidato, creando perfil vacío para administrador');
-          
+
           // Crear un perfil vacío para administradores
           const perfilVacio = {
             id: 0,
             email: user.email,
-            nombres: user.primerNombre || '',
-            apellidos: user.primerApellido || '',
+            primer_nombre: user.primerNombre || '',
+            segundo_nombre: '',
+            primer_apellido: user.primerApellido || '',
+            segundo_apellido: '',
             tipoDocumento: '',
             numeroDocumento: '',
             fechaNacimiento: '',
@@ -1598,7 +1610,7 @@ export default function PerfilCandidato() {
           form.reset(perfilVacio);
           return;
         }
-        
+
         toast.error('Error al cargar el perfil');
         return;
       }
@@ -1611,13 +1623,15 @@ export default function PerfilCandidato() {
           departamento_id: candidatoData.ciudades?.departamento_id,
           relaciones: candidatoData.ciudades
         });
-        
+
         // Transformar los datos para que coincidan con la interfaz Candidato
         const candidatoTransformado = {
           id: candidatoData.id,
           email: candidatoData.email,
-          nombres: candidatoData.primer_nombre,
-          apellidos: candidatoData.primer_apellido,
+          primer_nombre: candidatoData.primer_nombre,
+          segundo_nombre: candidatoData.segundo_nombre,
+          primer_apellido: candidatoData.primer_apellido,
+          segundo_apellido: candidatoData.segundo_apellido,
           tipoDocumento: candidatoData.tipo_documento,
           numeroDocumento: candidatoData.numero_documento,
           fechaNacimiento: candidatoData.fecha_nacimiento,
@@ -1649,19 +1663,19 @@ export default function PerfilCandidato() {
 
         setCandidato(candidatoTransformado);
         form.reset(candidatoTransformado);
-        
+
         // Inicializar estados de departamento y ciudad si existen
         if (candidatoData.ciudad_id && candidatoData.ciudades?.departamento_id) {
           // Usar el departamento_id de la relación
           const departamentoId = candidatoData.ciudades.departamento_id;
           setDepartamentoSeleccionado(departamentoId);
-          
+
           console.log('🔍 Inicializando estados:', {
             departamentoId,
             cityDataDisponible: !!cityData,
             ciudadesDelDepartamento: cityData?.[departamentoId]?.ciudades?.length || 0
           });
-          
+
           // Cargar ciudades del departamento
           if (cityData?.[departamentoId]) {
             setCiudadesDisponibles(cityData[departamentoId].ciudades);
@@ -1670,16 +1684,16 @@ export default function PerfilCandidato() {
             console.log('❌ No se encontraron ciudades para el departamento:', departamentoId);
           }
         }
-        
+
         // Cargar tipo de candidato y sus documentos requeridos
         // Ya no se carga tipo_candidato desde candidatos. Los documentos se derivan de las solicitudes (cargo en estructura_datos)
-        
+
         // Cargar documentos del candidato
         await loadDocumentosCandidato(candidatoData.id);
-        
+
         // Cargar experiencias laborales del candidato
         await loadExperienciasLaborales(candidatoData.id);
-        
+
         // Cargar educaciones del candidato
         await loadEducaciones(candidatoData.id);
 
@@ -1705,9 +1719,9 @@ export default function PerfilCandidato() {
         .select('*')
         .eq('candidato_id', candidatoId)
         .order('fecha_inicio', { ascending: false });
-      
+
       if (error) throw error;
-      
+
       // Transformar los datos para que coincidan con el formato esperado
       const experienciasTransformadas = (data || []).map(exp => ({
         id: exp.id,
@@ -1719,7 +1733,7 @@ export default function PerfilCandidato() {
         salario: exp.salario || '',
         motivoRetiro: exp.motivo_retiro || ''
       }));
-      
+
       setExperienciaLaboral(experienciasTransformadas);
       console.log('✅ Experiencias laborales cargadas:', experienciasTransformadas.length);
     } catch (error) {
@@ -1736,9 +1750,9 @@ export default function PerfilCandidato() {
         .select('*')
         .eq('candidato_id', candidatoId)
         .order('fecha_inicio', { ascending: false });
-      
+
       if (error) throw error;
-      
+
       // Transformar los datos para que coincidan con el formato esperado
       const educacionesTransformadas = (data || []).map(edu => ({
         id: edu.id,
@@ -1749,7 +1763,7 @@ export default function PerfilCandidato() {
         fechaFin: edu.fecha_fin || '',
         ciudad: edu.ciudad || ''
       }));
-      
+
       setEducacion(educacionesTransformadas);
       console.log('✅ Educaciones cargadas:', educacionesTransformadas.length);
     } catch (error) {
@@ -1910,17 +1924,16 @@ export default function PerfilCandidato() {
                   {candidato ? `${candidato.nombres} ${candidato.apellidos} · ${candidato.email}` : 'Gestiona tu información personal y profesional'}
                 </p>
                 {candidato && (
-                  <Badge 
-                    variant="outline" 
-                    className={`text-xs px-2 py-0.5 ${
-                      getTextoProgreso(calcularProgresoPerfil()) === 'Completado' 
-                        ? 'bg-green-50 text-green-700 border-green-200' 
-                        : getTextoProgreso(calcularProgresoPerfil()) === 'En proceso'
+                  <Badge
+                    variant="outline"
+                    className={`text-xs px-2 py-0.5 ${getTextoProgreso(calcularProgresoPerfil()) === 'Completado'
+                      ? 'bg-green-50 text-green-700 border-green-200'
+                      : getTextoProgreso(calcularProgresoPerfil()) === 'En proceso'
                         ? 'bg-amber-50 text-amber-700 border-amber-200'
                         : getTextoProgreso(calcularProgresoPerfil()) === 'Faltan datos obligatorios'
-                        ? 'bg-red-50 text-red-700 border-red-200'
-                        : 'bg-gray-50 text-gray-700 border-gray-200'
-                    }`}
+                          ? 'bg-red-50 text-red-700 border-red-200'
+                          : 'bg-gray-50 text-gray-700 border-gray-200'
+                      }`}
                   >
                     {getTextoProgreso(calcularProgresoPerfil())}
                   </Badge>
@@ -1936,15 +1949,14 @@ export default function PerfilCandidato() {
               </div>
             )}
             {candidato && (
-              <Badge 
-                variant="outline" 
-                className={`flex items-center space-x-1 ${
-                  getTextoProgreso(calcularProgresoPerfil()) === 'Completado' 
-                    ? 'bg-green-50 text-green-700 border-green-200' 
-                    : getTextoProgreso(calcularProgresoPerfil()) === 'En proceso'
+              <Badge
+                variant="outline"
+                className={`flex items-center space-x-1 ${getTextoProgreso(calcularProgresoPerfil()) === 'Completado'
+                  ? 'bg-green-50 text-green-700 border-green-200'
+                  : getTextoProgreso(calcularProgresoPerfil()) === 'En proceso'
                     ? 'bg-amber-50 text-amber-700 border-amber-200'
                     : 'bg-gray-50 text-gray-700 border-gray-200'
-                }`}
+                  }`}
               >
                 {getTextoProgreso(calcularProgresoPerfil()) === 'Completado' ? (
                   <>
@@ -1980,7 +1992,7 @@ export default function PerfilCandidato() {
               </Badge>
             </div>
           </div>
-          
+
           {/* Advertencia para documentos no requeridos pendientes */}
           {calcularProgresoPerfil() === 100 && tieneDocumentosNoRequeridosPendientes() && (
             <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
@@ -1999,31 +2011,30 @@ export default function PerfilCandidato() {
               </div>
             </div>
           )}
-          
+
           {/* Barra de progreso compacta */}
           <div className="relative group">
             <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden transition-all duration-300 group-hover:bg-gray-300">
               {/* Progreso completado */}
-              <div 
-                className={`h-full transition-all duration-1000 ease-out rounded-full relative group-hover:shadow-lg ${
-                  calcularProgresoPerfil() >= 80 ? 'bg-gradient-to-r from-green-500 to-emerald-500 group-hover:from-green-600 group-hover:to-emerald-600' :
+              <div
+                className={`h-full transition-all duration-1000 ease-out rounded-full relative group-hover:shadow-lg ${calcularProgresoPerfil() >= 80 ? 'bg-gradient-to-r from-green-500 to-emerald-500 group-hover:from-green-600 group-hover:to-emerald-600' :
                   calcularProgresoPerfil() >= 60 ? 'bg-gradient-to-r from-cyan-500 to-teal-500 group-hover:from-cyan-600 group-hover:to-teal-600' :
-                  calcularProgresoPerfil() >= 40 ? 'bg-gradient-to-r from-yellow-500 to-orange-500 group-hover:from-yellow-600 group-hover:to-orange-600' :
-                  'bg-gradient-to-r from-red-400 to-pink-500 group-hover:from-red-500 group-hover:to-pink-600'
-                }`}
-                style={{ 
+                    calcularProgresoPerfil() >= 40 ? 'bg-gradient-to-r from-yellow-500 to-orange-500 group-hover:from-yellow-600 group-hover:to-orange-600' :
+                      'bg-gradient-to-r from-red-400 to-pink-500 group-hover:from-red-500 group-hover:to-pink-600'
+                  }`}
+                style={{
                   width: `${calcularProgresoPerfil()}%`
                 }}
               >
                 {/* Efecto de brillo sutil */}
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-20 animate-pulse group-hover:opacity-30"></div>
               </div>
-              
+
               {/* Progreso restante con animación sutil */}
               {calcularProgresoPerfil() < 100 && (
-                <div 
+                <div
                   className="absolute top-0 h-full bg-gradient-to-r from-gray-300 to-gray-400 rounded-full overflow-hidden group-hover:from-gray-400 group-hover:to-gray-500"
-                  style={{ 
+                  style={{
                     left: `${calcularProgresoPerfil()}%`,
                     width: `${100 - calcularProgresoPerfil()}%`
                   }}
@@ -2056,31 +2067,31 @@ export default function PerfilCandidato() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="grid w-full grid-cols-5 bg-cyan-100/60 p-1 rounded-lg">
-                  <TabsTrigger 
+                  <TabsTrigger
                     value="personal"
                     className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
                   >
                     Personal
                   </TabsTrigger>
-                  <TabsTrigger 
+                  <TabsTrigger
                     value="contacto"
                     className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
                   >
                     Contacto
                   </TabsTrigger>
-                  <TabsTrigger 
+                  <TabsTrigger
                     value="profesional"
                     className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
                   >
                     Experiencia Laboral
                   </TabsTrigger>
-                  <TabsTrigger 
+                  <TabsTrigger
                     value="educacion"
                     className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
                   >
                     Educación
                   </TabsTrigger>
-                  <TabsTrigger 
+                  <TabsTrigger
                     value="archivos"
                     className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
                   >
@@ -2088,341 +2099,367 @@ export default function PerfilCandidato() {
                   </TabsTrigger>
                 </TabsList>
 
-                  <TabsContent value="personal" className="space-y-4">
-                    {/* Primera fila */}
+                <TabsContent value="personal" className="space-y-4">
+                  {/* Nombres, Apellidos y Fecha de Nacimiento en una sola fila */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Primer Nombre *</label>
+                      <Input
+                        value={form.watch('primer_nombre') || ''}
+                        onChange={(e) => form.setValue('primer_nombre', e.target.value, { shouldDirty: true })}
+                        onBlur={() => triggerAutoSave()}
+                      />
+                      {form.formState.errors.primer_nombre && (
+                        <p className="text-sm text-red-500">{form.formState.errors.primer_nombre.message}</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Segundo Nombre</label>
+                      <Input
+                        value={form.watch('segundo_nombre') || ''}
+                        onChange={(e) => form.setValue('segundo_nombre', e.target.value, { shouldDirty: true })}
+                        onBlur={() => triggerAutoSave()}
+                      />
+                      {form.formState.errors.segundo_nombre && (
+                        <p className="text-sm text-red-500">{form.formState.errors.segundo_nombre.message}</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Primer Apellido *</label>
+                      <Input
+                        value={form.watch('primer_apellido') || ''}
+                        onChange={(e) => form.setValue('primer_apellido', e.target.value, { shouldDirty: true })}
+                        onBlur={() => triggerAutoSave()}
+                      />
+                      {form.formState.errors.primer_apellido && (
+                        <p className="text-sm text-red-500">{form.formState.errors.primer_apellido.message}</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Segundo Apellido</label>
+                      <Input
+                        value={form.watch('segundo_apellido') || ''}
+                        onChange={(e) => form.setValue('segundo_apellido', e.target.value, { shouldDirty: true })}
+                        onBlur={() => triggerAutoSave()}
+                      />
+                      {form.formState.errors.segundo_apellido && (
+                        <p className="text-sm text-red-500">{form.formState.errors.segundo_apellido.message}</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Fecha de Nacimiento *</label>
+                      <div
+                        onClick={() => console.log('🔍 Click en contenedor del DatePicker')}
+                        className="relative"
+                      >
+                        <CustomDatePicker
+                          value={form.watch('fechaNacimiento') ? (() => {
+                            const fechaString = form.watch('fechaNacimiento') || '';
+                            const fechaParsed = parseISO(fechaString);
+                            console.log('🔍 Campo fechaNacimiento - String original:', fechaString);
+                            console.log('🔍 Campo fechaNacimiento - Fecha parseada:', fechaParsed);
+                            return fechaParsed;
+                          })() : null}
+                          onChange={(date) => {
+                            const fechaString = date ? format(date, 'yyyy-MM-dd') : '';
+                            console.log('🔍 Campo fechaNacimiento - Fecha seleccionada:', date);
+                            console.log('🔍 Campo fechaNacimiento - Nuevo valor formateado:', fechaString);
+                            form.setValue('fechaNacimiento', fechaString, { shouldDirty: true, shouldTouch: true });
+                            const edad = calcularEdad(fechaString);
+                            console.log('🔍 Campo fechaNacimiento - Edad calculada para el formulario:', edad);
+                            form.setValue('edad', edad, { shouldDirty: true, shouldTouch: true });
+                            // Disparar auto-guardado manualmente
+                            triggerAutoSave();
+                          }}
+                          maxDate={new Date()} // No permitir fechas futuras
+                        />
+                      </div>
+                      {form.formState.errors.fechaNacimiento && (
+                        <p className="text-sm text-red-500">{form.formState.errors.fechaNacimiento.message}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Segunda fila */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Edad</label>
+                      <Input
+                        type="number"
+                        min="18"
+                        max="100"
+                        value={form.watch('edad') || ''}
+                        onChange={(e) => {
+                          const value = e.target.value === '' ? undefined : parseInt(e.target.value);
+                          console.log('🔍 Campo edad - Nuevo valor:', value, 'Tipo:', typeof value);
+                          form.setValue('edad', value);
+                        }}
+                        className="w-full"
+                      />
+                      {form.formState.errors.edad && (
+                        <p className="text-sm text-red-500">{form.formState.errors.edad.message}</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Grupo Sanguíneo</label>
+                      <Select
+                        value={form.watch('grupoSanguineo') || ''}
+                        onValueChange={(value) => {
+                          form.setValue('grupoSanguineo', value, { shouldDirty: true, shouldTouch: true });
+                          triggerAutoSave();
+                        }}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="O+">O+</SelectItem>
+                          <SelectItem value="O-">O-</SelectItem>
+                          <SelectItem value="A+">A+</SelectItem>
+                          <SelectItem value="A-">A-</SelectItem>
+                          <SelectItem value="B+">B+</SelectItem>
+                          <SelectItem value="B-">B-</SelectItem>
+                          <SelectItem value="AB+">AB+</SelectItem>
+                          <SelectItem value="AB-">AB-</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {form.formState.errors.grupoSanguineo && (
+                        <p className="text-sm text-red-500">{form.formState.errors.grupoSanguineo.message}</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Sexo</label>
+                      <Select
+                        value={form.watch('sexo') || ''}
+                        onValueChange={(value) => {
+                          console.log('🔍 Campo sexo - Valor seleccionado:', value);
+                          form.setValue('sexo', value, { shouldDirty: true, shouldTouch: true });
+                          console.log('🔍 Campo sexo - Valor en formulario después de setValue:', form.getValues('sexo'));
+                          triggerAutoSave();
+                          console.log('🔍 Campo sexo - triggerAutoSave() ejecutado');
+                        }}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Masculino">Masculino</SelectItem>
+                          <SelectItem value="Femenino">Femenino</SelectItem>
+                          <SelectItem value="Otro">Otro</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {form.formState.errors.sexo && (
+                        <p className="text-sm text-red-500">{form.formState.errors.sexo.message}</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Estado Civil</label>
+                      <Select
+                        value={form.watch('estadoCivil') || ''}
+                        onValueChange={(value) => {
+                          form.setValue('estadoCivil', value, { shouldDirty: true, shouldTouch: true });
+                          triggerAutoSave();
+                        }}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Soltero">Soltero</SelectItem>
+                          <SelectItem value="Casado">Casado</SelectItem>
+                          <SelectItem value="Divorciado">Divorciado</SelectItem>
+                          <SelectItem value="Viudo">Viudo</SelectItem>
+                          <SelectItem value="Unión Libre">Unión Libre</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {form.formState.errors.estadoCivil && (
+                        <p className="text-sm text-red-500">{form.formState.errors.estadoCivil.message}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Sección de Tallas - Separada visualmente */}
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <h4 className="font-medium text-blue-900 mb-3 flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      Información de Tallas
+                    </h4>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="space-y-2">
-                        <label className="text-sm font-medium">Nombres *</label>
-                        <Input 
-                          value={form.watch('nombres') || ''}
-                          onChange={(e) => form.setValue('nombres', e.target.value)}
+                        <label className="text-sm font-medium text-blue-800">Talla Camisa</label>
+                        <Input
+                          value={form.watch('tallaCamisa') || ''}
+                          onChange={(e) => {
+                            form.setValue('tallaCamisa', e.target.value, { shouldDirty: true, shouldTouch: true });
+                            triggerAutoSave();
+                          }}
+                          placeholder="Ej: M, L, XL"
                         />
-                        {form.formState.errors.nombres && (
-                          <p className="text-sm text-red-500">{form.formState.errors.nombres.message}</p>
+                        {form.formState.errors.tallaCamisa && (
+                          <p className="text-sm text-red-500">{form.formState.errors.tallaCamisa.message}</p>
                         )}
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-sm font-medium">Apellidos *</label>
-                              <Input 
-                          value={form.watch('apellidos') || ''}
-                          onChange={(e) => form.setValue('apellidos', e.target.value)}
+                        <label className="text-sm font-medium text-blue-800">Talla Pantalón</label>
+                        <Input
+                          value={form.watch('tallaPantalon') || ''}
+                          onChange={(e) => {
+                            form.setValue('tallaPantalon', e.target.value, { shouldDirty: true, shouldTouch: true });
+                            triggerAutoSave();
+                          }}
+                          placeholder="Ej: 32, 34, 36"
                         />
-                        {form.formState.errors.apellidos && (
-                          <p className="text-sm text-red-500">{form.formState.errors.apellidos.message}</p>
+                        {form.formState.errors.tallaPantalon && (
+                          <p className="text-sm text-red-500">{form.formState.errors.tallaPantalon.message}</p>
                         )}
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-sm font-medium">Fecha de Nacimiento *</label>
-                        <div 
-                          onClick={() => console.log('🔍 Click en contenedor del DatePicker')}
-                          className="relative"
-                        >
-                          <CustomDatePicker
-                            value={form.watch('fechaNacimiento') ? (() => {
-                              const fechaString = form.watch('fechaNacimiento') || '';
-                              const fechaParsed = parseISO(fechaString);
-                              console.log('🔍 Campo fechaNacimiento - String original:', fechaString);
-                              console.log('🔍 Campo fechaNacimiento - Fecha parseada:', fechaParsed);
-                              return fechaParsed;
-                            })() : null}
-                            onChange={(date) => {
-                              const fechaString = date ? format(date, 'yyyy-MM-dd') : '';
-                              console.log('🔍 Campo fechaNacimiento - Fecha seleccionada:', date);
-                              console.log('🔍 Campo fechaNacimiento - Nuevo valor formateado:', fechaString);
-                              form.setValue('fechaNacimiento', fechaString, { shouldDirty: true, shouldTouch: true });
-                              const edad = calcularEdad(fechaString);
-                                  console.log('🔍 Campo fechaNacimiento - Edad calculada para el formulario:', edad);
-                              form.setValue('edad', edad, { shouldDirty: true, shouldTouch: true });
-                              // Disparar auto-guardado manualmente
-                              triggerAutoSave();
-                            }}
-                            maxDate={new Date()} // No permitir fechas futuras
-                          />
-                        </div>
-                        {form.formState.errors.fechaNacimiento && (
-                          <p className="text-sm text-red-500">{form.formState.errors.fechaNacimiento.message}</p>
+                        <label className="text-sm font-medium text-blue-800">Talla Zapato</label>
+                        <Input
+                          value={form.watch('tallaZapato') || ''}
+                          onChange={(e) => {
+                            form.setValue('tallaZapato', e.target.value, { shouldDirty: true, shouldTouch: true });
+                            triggerAutoSave();
+                          }}
+                          placeholder="Ej: 40, 42, 44"
+                        />
+                        {form.formState.errors.tallaZapato && (
+                          <p className="text-sm text-red-500">{form.formState.errors.tallaZapato.message}</p>
                         )}
                       </div>
                     </div>
+                  </div>
+                </TabsContent>
 
-                    {/* Segunda fila */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Edad</label>
-                                <Input 
-                                  type="number" 
-                                  min="18" 
-                                  max="100" 
-                          value={form.watch('edad') || ''}
-                                  onChange={(e) => {
-                                    const value = e.target.value === '' ? undefined : parseInt(e.target.value);
-                                    console.log('🔍 Campo edad - Nuevo valor:', value, 'Tipo:', typeof value);
-                            form.setValue('edad', value);
-                          }}
-                          className="w-full"
-                        />
-                        {form.formState.errors.edad && (
-                          <p className="text-sm text-red-500">{form.formState.errors.edad.message}</p>
-                        )}
-                      </div>
+                <TabsContent value="contacto" className="space-y-4">
+                  {/* Primera fila - Información básica */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="telefono"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Teléfono *</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                              <Input {...field} className="pl-10" />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Grupo Sanguíneo</label>
-                        <Select 
-                          value={form.watch('grupoSanguineo') || ''} 
-                          onValueChange={(value) => {
-                            form.setValue('grupoSanguineo', value, { shouldDirty: true, shouldTouch: true });
-                            triggerAutoSave();
-                          }}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue  />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="O+">O+</SelectItem>
-                            <SelectItem value="O-">O-</SelectItem>
-                            <SelectItem value="A+">A+</SelectItem>
-                            <SelectItem value="A-">A-</SelectItem>
-                            <SelectItem value="B+">B+</SelectItem>
-                            <SelectItem value="B-">B-</SelectItem>
-                            <SelectItem value="AB+">AB+</SelectItem>
-                            <SelectItem value="AB-">AB-</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        {form.formState.errors.grupoSanguineo && (
-                          <p className="text-sm text-red-500">{form.formState.errors.grupoSanguineo.message}</p>
-                        )}
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Sexo</label>
-                        <Select 
-                          value={form.watch('sexo') || ''} 
-                          onValueChange={(value) => {
-                            console.log('🔍 Campo sexo - Valor seleccionado:', value);
-                            form.setValue('sexo', value, { shouldDirty: true, shouldTouch: true });
-                            console.log('🔍 Campo sexo - Valor en formulario después de setValue:', form.getValues('sexo'));
-                            triggerAutoSave();
-                            console.log('🔍 Campo sexo - triggerAutoSave() ejecutado');
-                          }}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue  />
+                    <FormField
+                      control={form.control}
+                      name="departamento"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Departamento</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <Building className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                              <Select
+                                value={departamentoSeleccionado?.toString() || ''}
+                                onValueChange={(value) => handleDepartamentoChange(parseInt(value))}
+                              >
+                                <SelectTrigger className="pl-10">
+                                  <SelectValue />
                                 </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="Masculino">Masculino</SelectItem>
-                                <SelectItem value="Femenino">Femenino</SelectItem>
-                                <SelectItem value="Otro">Otro</SelectItem>
-                              </SelectContent>
-                            </Select>
-                        {form.formState.errors.sexo && (
-                          <p className="text-sm text-red-500">{form.formState.errors.sexo.message}</p>
-                        )}
-                      </div>
+                                <SelectContent>
+                                  {cityData && Object.entries(cityData).map(([id, dept]) => (
+                                    <SelectItem key={id} value={id}>
+                                      {dept.nombre}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Estado Civil</label>
-                        <Select 
-                          value={form.watch('estadoCivil') || ''} 
-                          onValueChange={(value) => {
-                            form.setValue('estadoCivil', value, { shouldDirty: true, shouldTouch: true });
-                            triggerAutoSave();
-                          }}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue  />
+                    <FormField
+                      control={form.control}
+                      name="ciudad"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Ciudad</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                              <Select
+                                value={form.watch('ciudad_id')?.toString() || ''}
+                                onValueChange={(value) => handleCiudadChange(parseInt(value))}
+                                disabled={!departamentoSeleccionado}
+                              >
+                                <SelectTrigger className="pl-10">
+                                  <SelectValue />
                                 </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="Soltero">Soltero</SelectItem>
-                                <SelectItem value="Casado">Casado</SelectItem>
-                                <SelectItem value="Divorciado">Divorciado</SelectItem>
-                                <SelectItem value="Viudo">Viudo</SelectItem>
-                                <SelectItem value="Unión Libre">Unión Libre</SelectItem>
-                              </SelectContent>
-                            </Select>
-                        {form.formState.errors.estadoCivil && (
-                          <p className="text-sm text-red-500">{form.formState.errors.estadoCivil.message}</p>
-                        )}
-                      </div>
+                                <SelectContent>
+                                  {ciudadesDisponibles.map((ciudad) => (
+                                    <SelectItem key={ciudad.id} value={ciudad.id.toString()}>
+                                      {ciudad.nombre}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="direccion"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Dirección</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <Home className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                              <Input {...field} className="pl-10" />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {/* Segunda fila - Contacto de emergencia */}
+                  <div className="space-y-4 bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <div className="flex items-center space-x-2 mb-4">
+                      <UserCheck className="h-4 w-4 text-blue-600" />
+                      <h3 className="text-lg font-semibold text-blue-900">Contacto de Emergencia</h3>
                     </div>
 
-                    {/* Sección de Tallas - Separada visualmente */}
-                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                      <h4 className="font-medium text-blue-900 mb-3 flex items-center gap-2">
-                        <User className="h-4 w-4" />
-                        Información de Tallas
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium text-blue-800">Talla Camisa</label>
-                          <Input 
-                            value={form.watch('tallaCamisa') || ''}
-                            onChange={(e) => {
-                              form.setValue('tallaCamisa', e.target.value, { shouldDirty: true, shouldTouch: true });
-                              triggerAutoSave();
-                            }}
-                            placeholder="Ej: M, L, XL"
-                          />
-                          {form.formState.errors.tallaCamisa && (
-                            <p className="text-sm text-red-500">{form.formState.errors.tallaCamisa.message}</p>
-                          )}
-                        </div>
-
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium text-blue-800">Talla Pantalón</label>
-                          <Input 
-                            value={form.watch('tallaPantalon') || ''}
-                            onChange={(e) => {
-                              form.setValue('tallaPantalon', e.target.value, { shouldDirty: true, shouldTouch: true });
-                              triggerAutoSave();
-                            }}
-                            placeholder="Ej: 32, 34, 36"
-                          />
-                          {form.formState.errors.tallaPantalon && (
-                            <p className="text-sm text-red-500">{form.formState.errors.tallaPantalon.message}</p>
-                          )}
-                        </div>
-
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium text-blue-800">Talla Zapato</label>
-                          <Input 
-                            value={form.watch('tallaZapato') || ''}
-                            onChange={(e) => {
-                              form.setValue('tallaZapato', e.target.value, { shouldDirty: true, shouldTouch: true });
-                              triggerAutoSave();
-                            }}
-                            placeholder="Ej: 40, 42, 44"
-                          />
-                          {form.formState.errors.tallaZapato && (
-                            <p className="text-sm text-red-500">{form.formState.errors.tallaZapato.message}</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="contacto" className="space-y-4">
-                    {/* Primera fila - Información básica */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="telefono"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Teléfono *</FormLabel>
-                              <FormControl>
-                              <div className="relative">
-                                <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                                <Input {...field} className="pl-10" />
-                              </div>
-                              </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="departamento"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Departamento</FormLabel>
-                            <FormControl>
-                              <div className="relative">
-                                <Building className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                                <Select
-                                  value={departamentoSeleccionado?.toString() || ''}
-                                  onValueChange={(value) => handleDepartamentoChange(parseInt(value))}
-                                >
-                                  <SelectTrigger className="pl-10">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {cityData && Object.entries(cityData).map(([id, dept]) => (
-                                      <SelectItem key={id} value={id}>
-                                        {dept.nombre}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="ciudad"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Ciudad</FormLabel>
-                            <FormControl>
-                              <div className="relative">
-                                <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                                <Select
-                                  value={form.watch('ciudad_id')?.toString() || ''}
-                                  onValueChange={(value) => handleCiudadChange(parseInt(value))}
-                                  disabled={!departamentoSeleccionado}
-                                >
-                                  <SelectTrigger className="pl-10">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {ciudadesDisponibles.map((ciudad) => (
-                                      <SelectItem key={ciudad.id} value={ciudad.id.toString()}>
-                                        {ciudad.nombre}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                        <FormField
-                          control={form.control}
-                          name="direccion"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Dirección</FormLabel>
-                              <FormControl>
-                              <div className="relative">
-                                <Home className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                                <Input {...field} className="pl-10" />
-                              </div>
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-
-                    {/* Segunda fila - Contacto de emergencia */}
-                    <div className="space-y-4 bg-blue-50 p-4 rounded-lg border border-blue-200">
-                      <div className="flex items-center space-x-2 mb-4">
-                        <UserCheck className="h-4 w-4 text-blue-600" />
-                        <h3 className="text-lg font-semibold text-blue-900">Contacto de Emergencia</h3>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <FormField
                         control={form.control}
                         name="contactoEmergenciaNombre"
                         render={({ field }) => (
                           <FormItem>
-                              <FormLabel>Nombre</FormLabel>
+                            <FormLabel>Nombre</FormLabel>
                             <FormControl>
-                                <div className="relative">
-                                  <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                                  <Input {...field} className="pl-10" />
-                                </div>
+                              <div className="relative">
+                                <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                                <Input {...field} className="pl-10" />
+                              </div>
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -2434,12 +2471,12 @@ export default function PerfilCandidato() {
                         name="contactoEmergenciaTelefono"
                         render={({ field }) => (
                           <FormItem>
-                              <FormLabel>Teléfono</FormLabel>
+                            <FormLabel>Teléfono</FormLabel>
                             <FormControl>
-                                <div className="relative">
-                                  <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                                  <Input {...field} className="pl-10" />
-                                </div>
+                              <div className="relative">
+                                <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                                <Input {...field} className="pl-10" />
+                              </div>
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -2451,317 +2488,314 @@ export default function PerfilCandidato() {
                         name="contactoEmergenciaRelacion"
                         render={({ field }) => (
                           <FormItem>
-                              <FormLabel>Relación</FormLabel>
+                            <FormLabel>Relación</FormLabel>
                             <FormControl>
-                                <div className="relative">
-                                  <UserCheck className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                                  <Input {...field} className="pl-10" />
-                                </div>
+                              <div className="relative">
+                                <UserCheck className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                                <Input {...field} className="pl-10" />
+                              </div>
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="profesional" className="space-y-4">
+                  <ExperienciaLaboralTab
+                    experienciaLaboral={experienciaLaboral}
+                    onChange={setExperienciaLaboral}
+                    triggerAutoSave={triggerAutoSave}
+                    candidatoId={candidato?.id}
+                  />
+                </TabsContent>
+
+                <TabsContent value="educacion" className="space-y-4">
+                  <EducacionTab
+                    educacion={educacion}
+                    onChange={setEducacion}
+                    triggerAutoSave={triggerAutoSave}
+                    candidatoId={candidato?.id}
+                  />
+                </TabsContent>
+
+                <TabsContent value="archivos" className="space-y-4">
+                  <div className="space-y-6">
+                    {/* Header con icono */}
+                    <div className="flex items-center space-x-3 mb-6">
+                      <div className="p-2 bg-blue-100 rounded-lg">
+                        <FileUp className="w-6 h-6 text-blue-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-900">Documentos</h3>
+                        <p className="text-sm text-gray-600">Archivos asociados a sus solicitudes y cargos</p>
                       </div>
                     </div>
-                  </TabsContent>
 
-                  <TabsContent value="profesional" className="space-y-4">
-                    <ExperienciaLaboralTab 
-                      experienciaLaboral={experienciaLaboral}
-                      onChange={setExperienciaLaboral}
-                  triggerAutoSave={triggerAutoSave}
-                  candidatoId={candidato?.id}
-                    />
-                  </TabsContent>
-
-                  <TabsContent value="educacion" className="space-y-4">
-                    <EducacionTab 
-                      educacion={educacion}
-                      onChange={setEducacion}
-                      triggerAutoSave={triggerAutoSave}
-                      candidatoId={candidato?.id}
-                    />
-                  </TabsContent>
-
-                  <TabsContent value="archivos" className="space-y-4">
-                    <div className="space-y-6">
-                      {/* Header con icono */}
-                      <div className="flex items-center space-x-3 mb-6">
-                        <div className="p-2 bg-blue-100 rounded-lg">
-                          <FileUp className="w-6 h-6 text-blue-600" />
-                        </div>
-                        <div>
-                          <h3 className="text-xl font-bold text-gray-900">Documentos</h3>
-                          <p className="text-sm text-gray-600">Archivos asociados a sus solicitudes y cargos</p>
-                        </div>
+                    {isLoadingDocuments ? (
+                      <div className="flex justify-center py-12">
+                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
                       </div>
-                      
-                      {isLoadingDocuments ? (
-                        <div className="flex justify-center py-12">
-                          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
-                        </div>
-                      ) : (
-                        <div className="space-y-6">
-                          {/* Documentos por solicitudes del candidato */}
-                            <div className="space-y-4">
-                              <h4 className="text-lg font-semibold text-gray-800 flex items-center">
-                              <Folder className="w-5 h-5 text-blue-600 mr-2" />
-                              Documentos por Solicitud (agrupado por Empresa y Cargo)
-                              </h4>
+                    ) : (
+                      <div className="space-y-6">
+                        {/* Documentos por solicitudes del candidato */}
+                        <div className="space-y-4">
+                          <h4 className="text-lg font-semibold text-gray-800 flex items-center">
+                            <Folder className="w-5 h-5 text-blue-600 mr-2" />
+                            Documentos por Solicitud (agrupado por Empresa y Cargo)
+                          </h4>
 
-                            {isLoadingSolicitudes ? (
-                              <div className="flex justify-center py-8">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                              </div>
-                            ) : solicitudesCandidato.length === 0 ? (
-                              <p className="text-sm text-gray-500">No hay solicitudes asociadas al candidato.</p>
-                            ) : (
-                              <Accordion 
-                                type="multiple" 
-                                className="w-full"
-                                value={acordeonesAbiertos}
-                                onValueChange={setAcordeonesAbiertos}
-                              >
-                                {(() => {
-                                  const grupos: Record<string, any[]> = {};
-                                  solicitudesCandidato.forEach((sol) => {
-                                    const empresa = sol.empresas?.razon_social || 'Empresa no especificada';
-                                    const cargoId = (sol.estructura_datos && (sol.estructura_datos.cargo || sol.estructura_datos?.datos?.cargo)) || sol.cargo;
-                                    const cargo = cargoId && cargosMeta[Number(cargoId)] ? `${cargosMeta[Number(cargoId)].nombre} (#${cargoId})` : 'Cargo no especificado';
-                                    const clave = `${empresa}__${cargo}`;
-                                    if (!grupos[clave]) grupos[clave] = [];
-                                    grupos[clave].push(sol);
-                                  });
-
-                                  return Object.entries(grupos).map(([clave, solicitudes], idx) => {
-                                    const [empresa, cargo] = clave.split('__');
-                                    return (
-                                      <AccordionItem key={clave} value={`grupo-${idx}`} className="border border-gray-200 rounded-lg mb-2 data-[state=closed]:bg-gray-50 data-[state=open]:bg-white transition-colors duration-200">
-                                        <AccordionTrigger className="px-4 py-3 hover:bg-gray-100 data-[state=closed]:bg-gray-50 data-[state=open]:bg-white transition-colors duration-200">
-                                          <div className="flex items-center justify-between w-full">
-                                            <div className="flex flex-col text-left">
-                                              <span className="text-sm font-semibold text-gray-900">{empresa}</span>
-                                              <div className="flex items-center space-x-2">
-                                                <span className="text-xs text-gray-600">Cargo:</span>
-                                                <span className="text-sm font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded-md">
-                                                  {cargo}
-                                                </span>
-                                              </div>
-                                            </div>
-                                            {(() => {
-                                              const cargoIdTexto = (cargo.match(/#(\d+)/) || [])[1];
-                                              const cargoIdNum = cargoIdTexto ? Number(cargoIdTexto) : undefined;
-                                              if (!cargoIdNum) return null;
-                                              
-                                              const estado = calcularEstadoDocumentosCargo(cargoIdNum);
-                                              return (
-                                                <Badge 
-                                                  variant="outline" 
-                                                  className={`text-xs px-2 py-1 ${
-                                                    estado.completado 
-                                                      ? 'bg-green-50 text-green-700 border-green-200' 
-                                                      : 'bg-amber-50 text-amber-700 border-amber-200'
-                                                  }`}
-                                                >
-                                                  {estado.completado ? (
-                                                    <>
-                                                      <CheckCircle className="w-3 h-3 mr-1" />
-                                                      <span>Completo</span>
-                                                    </>
-                                                  ) : (
-                                                    <>
-                                                      <Clock className="w-3 h-3 mr-1" />
-                                                      <span>{estado.subidos}/{estado.total}</span>
-                                                    </>
-                                                  )}
-                                                </Badge>
-                                              );
-                                            })()}
-                                          </div>
-                                        </AccordionTrigger>
-                                        <AccordionContent className="px-4 pb-4">
-                                          <div className="space-y-4">
-                                            {/* Lista de documentos requeridos por cargo */}
-                                            {(() => {
-                                              const cargoIdTexto = (cargo.match(/#(\d+)/) || [])[1];
-                                              const cargoIdNum = cargoIdTexto ? Number(cargoIdTexto) : undefined;
-                                              const documentosCargo = cargoIdNum ? cargosMeta[cargoIdNum]?.documentos || [] : [];
-                                              
-                                              if (documentosCargo.length === 0) {
-                                                return (
-                                                  <div className="text-center py-4 text-gray-500">
-                                                    No hay documentos requeridos para este cargo
-                                                  </div>
-                                                );
-                                              }
-
-                                              return (
-                                                <div className="space-y-4">
-                                                  <div className="text-sm font-medium text-gray-700 mb-3">
-                                                    Documentos requeridos para este cargo:
-                                                  </div>
-                                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                    {documentosCargo.map((dc: any, i: number) => {
-                                                      const solicitud = solicitudes[0]; // Usar la primera solicitud del grupo
-                                                      const key = `${solicitud.id}_${cargoIdNum}`;
-                                                      const documentosExistentes = documentosPorSolicitud[key] || [];
-                                                      const documentoExistente = documentosExistentes.find(
-                                                        doc => doc.tipo_documento_id === dc.tipos_documentos.id
-                                                      );
-                                                      const progressKey = `${solicitud.id}_${cargoIdNum}_${dc.tipos_documentos.id}`;
-                                                      const isUploading = uploadingDocuments[progressKey];
-                                                      const uploadProgressValue = uploadProgress[progressKey] || 0;
-                                  
-                                  return (
-                                                        <Card key={i} className={`border-2 transition-all duration-200 hover:shadow-md ${
-                                                          documentoExistente 
-                                                            ? 'border-green-200 bg-green-50' 
-                                        : 'border-gray-200 bg-white hover:border-blue-300'
-                                    }`}>
-                                      <CardHeader className="pb-3 pt-4">
-                                        <CardTitle className="flex items-center justify-between text-sm">
-                                          <div className="flex items-center">
-                                            <div className={`p-2 rounded-lg mr-3 ${
-                                                                  documentoExistente ? 'bg-green-100' : 'bg-blue-100'
-                                            }`}>
-                                                                  <FileText className="w-4 h-4 text-blue-600" />
-                                            </div>
-                                            <div>
-                                                <span className="font-semibold text-gray-800">
-                                                                    {dc.tipos_documentos.nombre}
-                                                </span>
-                                                                  {dc.requerido && (
-                                                                    <Badge variant="destructive" className="text-xs px-2 py-0.5 ml-2">
-                                                                      Obligatorio
-                                                                    </Badge>
-                                                                  )}
-                                              </div>
-                                            </div>
-                                                              {documentoExistente && (
-                                                                <div className="flex items-center gap-1 text-green-600">
-                                               <CheckCircle2 className="h-3 w-3" />
-                                               <span className="text-xs font-medium">Subido</span>
-                                             </div>
-                                           )}
-                                        </CardTitle>
-                                      </CardHeader>
-                                                                             <CardContent className="pt-0 pb-4">
-                                         <div className="space-y-3">
-                                           {/* Progress Bar for Upload */}
-                                                              {uploadProgressValue > 0 && (
-                                             <div className="space-y-2">
-                                               <div className="flex items-center justify-between text-xs text-gray-600">
-                                                 <span>Subiendo documento...</span>
-                                                                    <span>{uploadProgressValue}%</span>
-                                               </div>
-                                               <Progress 
-                                                                    value={uploadProgressValue} 
-                                                 className="h-2 bg-gray-200"
-                                               />
-                                             </div>
-                                           )}
-                                           
-                                           <div className="flex items-center gap-3">
-                                                                {documentoExistente ? (
-                                                                  <div className="flex items-center gap-2">
-                                                   <Button
-                                                     type="button"
-                                                     variant="ghost"
-                                                     size="sm"
-                                                     onClick={() => handleViewDocument(documentoExistente)}
-                                                     className="h-7 w-7 p-0 hover:bg-blue-50 rounded-full"
-                                                     title="Ver documento"
-                                                   >
-                                                     <Eye className="h-4 w-4 text-blue-600" />
-                                                   </Button>
-                                                   <Button
-                                                     type="button"
-                                                     variant="ghost"
-                                                     size="sm"
-                                                     onClick={() => setDocumentoACambiar({id: documentoExistente.id, progressKey})}
-                                                     className="h-7 w-7 p-0 hover:bg-gray-50 rounded-full"
-                                                     title="Cambiar documento"
-                                                   >
-                                                     <Upload className="h-4 w-4 text-gray-600" />
-                                                   </Button>
-                                               </div>
-                                             ) : (
-                                               <Button
-                                                 type="button"
-                                                 variant="outline"
-                                                 size="sm"
-                                                                    onClick={() => document.getElementById(`file-${progressKey}`)?.click()}
-                                                 className="h-7 px-3 text-xs font-medium"
-                                                                    disabled={isUploading}
-                                               >
-                                                                    {isUploading ? (
-                                                   <>
-                                                     <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-1"></div>
-                                                     Subiendo...
-                                                   </>
-                                                 ) : (
-                                                   <>
-                                                     <Upload className="h-3 w-3 mr-1" />
-                                                     Subir
-                                                   </>
-                                                 )}
-                                               </Button>
-                                             )}
-                                           </div>
-                                         </div>
-                                         <input
-                                           type="file"
-                                           accept=".pdf"
-                                           className="hidden"
-                                                              id={`file-${progressKey}`}
-                                           onChange={(e) => {
-                                                                handleFileChangeSolicitud(
-                                                                  e, 
-                                                                  solicitud.id, 
-                                                                  cargoIdNum!, 
-                                                                  dc.tipos_documentos.id, 
-                                                                  dc.tipos_documentos.nombre
-                                                                );
-                                           }}
-                                           onClick={(e) => (e.target as HTMLInputElement).value = ''}
-                                                                                  />
-                                                            {documentoExistente && (
-                                           <div className="text-xs mt-2 p-2 bg-gray-50 rounded">
-                                             <div className="text-gray-700 mb-1">
-                                                                  <span className="font-medium">Archivo:</span> {documentoExistente.nombre_archivo}
-                                             </div>
-                                                                <div className="text-green-600">
-                                               <span className="font-medium">Estado:</span> Documento subido
-                                             </div>
-                                           </div>
-                                         )}
-                                       </CardContent>
-                                     </Card>
-                                   );
-                                 })}
-                              </div>
+                          {isLoadingSolicitudes ? (
+                            <div className="flex justify-center py-8">
+                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                             </div>
-                                              );
-                                            })()}
+                          ) : solicitudesCandidato.length === 0 ? (
+                            <p className="text-sm text-gray-500">No hay solicitudes asociadas al candidato.</p>
+                          ) : (
+                            <Accordion
+                              type="multiple"
+                              className="w-full"
+                              value={acordeonesAbiertos}
+                              onValueChange={setAcordeonesAbiertos}
+                            >
+                              {(() => {
+                                const grupos: Record<string, any[]> = {};
+                                solicitudesCandidato.forEach((sol) => {
+                                  const empresa = sol.empresas?.razon_social || 'Empresa no especificada';
+                                  const cargoId = (sol.estructura_datos && (sol.estructura_datos.cargo || sol.estructura_datos?.datos?.cargo)) || sol.cargo;
+                                  const cargo = cargoId && cargosMeta[Number(cargoId)] ? `${cargosMeta[Number(cargoId)].nombre} (#${cargoId})` : 'Cargo no especificado';
+                                  const clave = `${empresa}__${cargo}`;
+                                  if (!grupos[clave]) grupos[clave] = [];
+                                  grupos[clave].push(sol);
+                                });
 
+                                return Object.entries(grupos).map(([clave, solicitudes], idx) => {
+                                  const [empresa, cargo] = clave.split('__');
+                                  return (
+                                    <AccordionItem key={clave} value={`grupo-${idx}`} className="border border-gray-200 rounded-lg mb-2 data-[state=closed]:bg-gray-50 data-[state=open]:bg-white transition-colors duration-200">
+                                      <AccordionTrigger className="px-4 py-3 hover:bg-gray-100 data-[state=closed]:bg-gray-50 data-[state=open]:bg-white transition-colors duration-200">
+                                        <div className="flex items-center justify-between w-full">
+                                          <div className="flex flex-col text-left">
+                                            <span className="text-sm font-semibold text-gray-900">{empresa}</span>
+                                            <div className="flex items-center space-x-2">
+                                              <span className="text-xs text-gray-600">Cargo:</span>
+                                              <span className="text-sm font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded-md">
+                                                {cargo}
+                                              </span>
+                                            </div>
                                           </div>
-                                        </AccordionContent>
-                                      </AccordionItem>
-                                    );
-                                  });
-                                })()}
-                              </Accordion>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </TabsContent>
-                </Tabs>
+                                          {(() => {
+                                            const cargoIdTexto = (cargo.match(/#(\d+)/) || [])[1];
+                                            const cargoIdNum = cargoIdTexto ? Number(cargoIdTexto) : undefined;
+                                            if (!cargoIdNum) return null;
 
-              </form>
-            </Form>
+                                            const estado = calcularEstadoDocumentosCargo(cargoIdNum);
+                                            return (
+                                              <Badge
+                                                variant="outline"
+                                                className={`text-xs px-2 py-1 ${estado.completado
+                                                  ? 'bg-green-50 text-green-700 border-green-200'
+                                                  : 'bg-amber-50 text-amber-700 border-amber-200'
+                                                  }`}
+                                              >
+                                                {estado.completado ? (
+                                                  <>
+                                                    <CheckCircle className="w-3 h-3 mr-1" />
+                                                    <span>Completo</span>
+                                                  </>
+                                                ) : (
+                                                  <>
+                                                    <Clock className="w-3 h-3 mr-1" />
+                                                    <span>{estado.subidos}/{estado.total}</span>
+                                                  </>
+                                                )}
+                                              </Badge>
+                                            );
+                                          })()}
+                                        </div>
+                                      </AccordionTrigger>
+                                      <AccordionContent className="px-4 pb-4">
+                                        <div className="space-y-4">
+                                          {/* Lista de documentos requeridos por cargo */}
+                                          {(() => {
+                                            const cargoIdTexto = (cargo.match(/#(\d+)/) || [])[1];
+                                            const cargoIdNum = cargoIdTexto ? Number(cargoIdTexto) : undefined;
+                                            const documentosCargo = cargoIdNum ? cargosMeta[cargoIdNum]?.documentos || [] : [];
+
+                                            if (documentosCargo.length === 0) {
+                                              return (
+                                                <div className="text-center py-4 text-gray-500">
+                                                  No hay documentos requeridos para este cargo
+                                                </div>
+                                              );
+                                            }
+
+                                            return (
+                                              <div className="space-y-4">
+                                                <div className="text-sm font-medium text-gray-700 mb-3">
+                                                  Documentos requeridos para este cargo:
+                                                </div>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                  {documentosCargo.map((dc: any, i: number) => {
+                                                    const solicitud = solicitudes[0]; // Usar la primera solicitud del grupo
+                                                    const key = `${solicitud.id}_${cargoIdNum}`;
+                                                    const documentosExistentes = documentosPorSolicitud[key] || [];
+                                                    const documentoExistente = documentosExistentes.find(
+                                                      doc => doc.tipo_documento_id === dc.tipos_documentos.id
+                                                    );
+                                                    const progressKey = `${solicitud.id}_${cargoIdNum}_${dc.tipos_documentos.id}`;
+                                                    const isUploading = uploadingDocuments[progressKey];
+                                                    const uploadProgressValue = uploadProgress[progressKey] || 0;
+
+                                                    return (
+                                                      <Card key={i} className={`border-2 transition-all duration-200 hover:shadow-md ${documentoExistente
+                                                        ? 'border-green-200 bg-green-50'
+                                                        : 'border-gray-200 bg-white hover:border-blue-300'
+                                                        }`}>
+                                                        <CardHeader className="pb-3 pt-4">
+                                                          <CardTitle className="flex items-center justify-between text-sm">
+                                                            <div className="flex items-center">
+                                                              <div className={`p-2 rounded-lg mr-3 ${documentoExistente ? 'bg-green-100' : 'bg-blue-100'
+                                                                }`}>
+                                                                <FileText className="w-4 h-4 text-blue-600" />
+                                                              </div>
+                                                              <div>
+                                                                <span className="font-semibold text-gray-800">
+                                                                  {dc.tipos_documentos.nombre}
+                                                                </span>
+                                                                {dc.requerido && (
+                                                                  <Badge variant="destructive" className="text-xs px-2 py-0.5 ml-2">
+                                                                    Obligatorio
+                                                                  </Badge>
+                                                                )}
+                                                              </div>
+                                                            </div>
+                                                            {documentoExistente && (
+                                                              <div className="flex items-center gap-1 text-green-600">
+                                                                <CheckCircle2 className="h-3 w-3" />
+                                                                <span className="text-xs font-medium">Subido</span>
+                                                              </div>
+                                                            )}
+                                                          </CardTitle>
+                                                        </CardHeader>
+                                                        <CardContent className="pt-0 pb-4">
+                                                          <div className="space-y-3">
+                                                            {/* Progress Bar for Upload */}
+                                                            {uploadProgressValue > 0 && (
+                                                              <div className="space-y-2">
+                                                                <div className="flex items-center justify-between text-xs text-gray-600">
+                                                                  <span>Subiendo documento...</span>
+                                                                  <span>{uploadProgressValue}%</span>
+                                                                </div>
+                                                                <Progress
+                                                                  value={uploadProgressValue}
+                                                                  className="h-2 bg-gray-200"
+                                                                />
+                                                              </div>
+                                                            )}
+
+                                                            <div className="flex items-center gap-3">
+                                                              {documentoExistente ? (
+                                                                <div className="flex items-center gap-2">
+                                                                  <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={() => handleViewDocument(documentoExistente)}
+                                                                    className="h-7 w-7 p-0 hover:bg-blue-50 rounded-full"
+                                                                    title="Ver documento"
+                                                                  >
+                                                                    <Eye className="h-4 w-4 text-blue-600" />
+                                                                  </Button>
+                                                                  <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={() => setDocumentoACambiar({ id: documentoExistente.id, progressKey })}
+                                                                    className="h-7 w-7 p-0 hover:bg-gray-50 rounded-full"
+                                                                    title="Cambiar documento"
+                                                                  >
+                                                                    <Upload className="h-4 w-4 text-gray-600" />
+                                                                  </Button>
+                                                                </div>
+                                                              ) : (
+                                                                <Button
+                                                                  type="button"
+                                                                  variant="outline"
+                                                                  size="sm"
+                                                                  onClick={() => document.getElementById(`file-${progressKey}`)?.click()}
+                                                                  className="h-7 px-3 text-xs font-medium"
+                                                                  disabled={isUploading}
+                                                                >
+                                                                  {isUploading ? (
+                                                                    <>
+                                                                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-1"></div>
+                                                                      Subiendo...
+                                                                    </>
+                                                                  ) : (
+                                                                    <>
+                                                                      <Upload className="h-3 w-3 mr-1" />
+                                                                      Subir
+                                                                    </>
+                                                                  )}
+                                                                </Button>
+                                                              )}
+                                                            </div>
+                                                          </div>
+                                                          <input
+                                                            type="file"
+                                                            accept=".pdf"
+                                                            className="hidden"
+                                                            id={`file-${progressKey}`}
+                                                            onChange={(e) => {
+                                                              handleFileChangeSolicitud(
+                                                                e,
+                                                                solicitud.id,
+                                                                cargoIdNum!,
+                                                                dc.tipos_documentos.id,
+                                                                dc.tipos_documentos.nombre
+                                                              );
+                                                            }}
+                                                            onClick={(e) => (e.target as HTMLInputElement).value = ''}
+                                                          />
+                                                          {documentoExistente && (
+                                                            <div className="text-xs mt-2 p-2 bg-gray-50 rounded">
+                                                              <div className="text-gray-700 mb-1">
+                                                                <span className="font-medium">Archivo:</span> {documentoExistente.nombre_archivo}
+                                                              </div>
+                                                              <div className="text-green-600">
+                                                                <span className="font-medium">Estado:</span> Documento subido
+                                                              </div>
+                                                            </div>
+                                                          )}
+                                                        </CardContent>
+                                                      </Card>
+                                                    );
+                                                  })}
+                                                </div>
+                                              </div>
+                                            );
+                                          })()}
+
+                                        </div>
+                                      </AccordionContent>
+                                    </AccordionItem>
+                                  );
+                                });
+                              })()}
+                            </Accordion>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+              </Tabs>
+
+            </form>
+          </Form>
         </div>
       </div>
 
