@@ -92,6 +92,7 @@ import NovedadesPage from './pages/novedades/NovedadesPage';
 
 // Páginas de maestro
 import TiposCandidatosPage from './pages/maestro/TiposCandidatosPage';
+import MotivosPage from './pages/maestro/MotivosPage';
 import TiposDocumentosPage from './pages/maestro/TiposDocumentosPage';
 
 // Páginas de admin
@@ -526,9 +527,16 @@ function App() {
                 <TiposCandidatosPage />
               </ProtectedRoute>
             } />
+
             <Route path="/maestro/tipos-candidatos" element={
               <ProtectedRoute>
                 <TiposCandidatosPage />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/maestro/motivos" element={
+              <ProtectedRoute>
+                <MotivosPage />
               </ProtectedRoute>
             } />
 
