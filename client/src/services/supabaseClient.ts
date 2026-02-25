@@ -8,6 +8,9 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 let finalSupabaseUrl = supabaseUrl;
 let finalSupabaseAnonKey = supabaseAnonKey;
 
+console.log("supabaseUrl", supabaseUrl);
+
+
 if (typeof window !== 'undefined' && import.meta.env) {
   finalSupabaseUrl = import.meta.env.VITE_SUPABASE_URL || supabaseUrl;
   finalSupabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || supabaseAnonKey;
