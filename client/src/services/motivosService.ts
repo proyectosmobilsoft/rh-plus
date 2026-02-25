@@ -11,7 +11,7 @@ export const motivosService = {
   async getAll(): Promise<Motivo[]> {
     const { data, error } = await supabase
       .from('novedades_motivos')
-      .select('id, codigo, nombre, descripcion, activo, created_at')
+      .select('id, codigo, nombre, descripcion, tipo, empresa_id, requiere_adjunto, adjunto_obligatorio, requiere_observacion, requiere_comite, activo, created_at')
       .order('nombre');
 
     if (error) {
@@ -26,7 +26,7 @@ export const motivosService = {
   async getActive(): Promise<Motivo[]> {
     const { data, error } = await supabase
       .from('novedades_motivos')
-      .select('id, codigo, nombre, descripcion, activo, created_at')
+      .select('id, codigo, nombre, descripcion, tipo, empresa_id, requiere_adjunto, adjunto_obligatorio, requiere_observacion, requiere_comite, activo, created_at')
       .eq('activo', true)
       .order('nombre');
 
@@ -42,7 +42,7 @@ export const motivosService = {
   async getById(id: number): Promise<Motivo | null> {
     const { data, error } = await supabase
       .from('novedades_motivos')
-      .select('id, codigo, nombre, descripcion, activo, created_at')
+      .select('id, codigo, nombre, descripcion, tipo, empresa_id, requiere_adjunto, adjunto_obligatorio, requiere_observacion, requiere_comite, activo, created_at')
       .eq('id', id)
       .single();
 

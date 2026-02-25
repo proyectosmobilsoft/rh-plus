@@ -16,9 +16,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 
 import { useMotivosCrud } from '@/hooks/useMotivosCrud';
 import { Motivo, MotivoForm } from '@/types/maestro';
+import { useEmpresas } from '@/hooks/useDatabaseData';
 import { useLoading } from '@/contexts/LoadingContext';
 import { Can } from "@/contexts/PermissionsContext";
 import { toast } from 'sonner';
@@ -27,6 +29,15 @@ const motivoSchema = z.object({
     codigo: z.string().min(1, 'Código requerido'),
     nombre: z.string().min(2, 'Nombre requerido'),
     descripcion: z.string().optional(),
+    tipo: z.string().min(1, 'Tipo requerido'),
+    empresa_id: z.number({
+        required_error: 'Empresa requerida',
+        invalid_type_error: 'Empresa requerida',
+    }).int().positive('Empresa requerida'),
+    requiere_adjunto: z.boolean().default(false),
+    adjunto_obligatorio: z.boolean().default(false),
+    requiere_observacion: z.boolean().default(false),
+    requiere_comite: z.boolean().default(false),
 });
 
 export default function MotivosPage() {
@@ -53,10 +64,22 @@ export default function MotivosPage() {
         isUpdating,
     } = useMotivosCrud();
 
+    const { data: empresas = [], isLoading: loadingEmpresas } = useEmpresas();
+
     // Forms
     const motivoForm = useForm<MotivoForm>({
         resolver: zodResolver(motivoSchema),
-        defaultValues: { codigo: '', nombre: '', descripcion: '' },
+        defaultValues: { 
+            codigo: '', 
+            nombre: '', 
+            descripcion: '',
+            tipo: '',
+            empresa_id: undefined,
+            requiere_adjunto: false,
+            adjunto_obligatorio: false,
+            requiere_observacion: false,
+            requiere_comite: false,
+        },
     });
 
     // Filtrar motivos
@@ -86,6 +109,12 @@ export default function MotivosPage() {
             codigo: motivo.codigo || '',
             nombre: motivo.nombre || '',
             descripcion: motivo.descripcion || '',
+            tipo: motivo.tipo || '',
+            empresa_id: motivo.empresa_id,
+            requiere_adjunto: motivo.requiere_adjunto ?? false,
+            adjunto_obligatorio: motivo.adjunto_obligatorio ?? false,
+            requiere_observacion: motivo.requiere_observacion ?? false,
+            requiere_comite: motivo.requiere_comite ?? false,
         });
         setActiveTab("registro");
     };
@@ -146,7 +175,17 @@ export default function MotivosPage() {
 
     const handleNewMotivo = () => {
         setEditingMotivo(null);
-        motivoForm.reset({ codigo: '', nombre: '', descripcion: '' });
+        motivoForm.reset({ 
+            codigo: '', 
+            nombre: '', 
+            descripcion: '',
+            tipo: '',
+            empresa_id: undefined,
+            requiere_adjunto: false,
+            adjunto_obligatorio: false,
+            requiere_observacion: false,
+            requiere_comite: false,
+        });
         setActiveTab("registro");
     };
 
@@ -158,7 +197,17 @@ export default function MotivosPage() {
             } else {
                 await createMotivo(data);
             }
-            motivoForm.reset({ codigo: '', nombre: '', descripcion: '' });
+            motivoForm.reset({ 
+                codigo: '', 
+                nombre: '', 
+                descripcion: '',
+                tipo: '',
+                empresa_id: undefined,
+                requiere_adjunto: false,
+                adjunto_obligatorio: false,
+                requiere_observacion: false,
+                requiere_comite: false,
+            });
             setEditingMotivo(null);
             setActiveTab("listado");
         } finally {
@@ -258,7 +307,9 @@ export default function MotivosPage() {
                                     <TableRow className="text-left font-semibold text-gray-700">
                                         <TableHead className="px-2 py-1 text-teal-600 w-32">Acciones</TableHead>
                                         <TableHead className="px-4 py-3 w-24">Código</TableHead>
-                                        <TableHead className="px-4 py-3 w-1/3">Nombre</TableHead>
+                                        <TableHead className="px-4 py-3 w-32">Tipo</TableHead>
+                                        <TableHead className="px-4 py-3 w-1/4">Empresa</TableHead>
+                                        <TableHead className="px-4 py-3 w-1/4">Nombre</TableHead>
                                         <TableHead className="px-4 py-3 w-1/3">Descripción</TableHead>
                                         <TableHead className="px-4 py-3 w-24">Estado</TableHead>
                                     </TableRow>
@@ -367,6 +418,13 @@ export default function MotivosPage() {
                                                         </div>
                                                     </TableCell>
                                                     <TableCell className="px-4 py-3 text-sm text-gray-900">{motivo.codigo}</TableCell>
+                                                    <TableCell className="px-4 py-3 text-sm text-gray-900">{motivo.tipo || '-'}</TableCell>
+                                                    <TableCell className="px-4 py-3 text-sm text-gray-900">
+                                                        {motivo.empresa_id 
+                                                            ? (empresas.find((e: any) => e.id === motivo.empresa_id)?.razon_social || motivo.empresa_id)
+                                                            : '-'
+                                                        }
+                                                    </TableCell>
                                                     <TableCell className="px-4 py-3 text-sm text-gray-900 font-medium">{motivo.nombre}</TableCell>
                                                     <TableCell className="px-4 py-3 text-sm text-gray-500">{motivo.descripcion || '-'}</TableCell>
                                                     <TableCell className="px-4 py-3">
@@ -436,9 +494,64 @@ export default function MotivosPage() {
                                         />
                                         <FormField
                                             control={motivoForm.control}
-                                            name="descripcion"
+                                            name="tipo"
                                             render={({ field }) => (
                                                 <FormItem>
+                                                    <FormLabel>Tipo de Motivo</FormLabel>
+                                                    <Select
+                                                        value={field.value}
+                                                        onValueChange={field.onChange}
+                                                    >
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Seleccione un tipo" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="retiro">Retiro</SelectItem>
+                                                            <SelectItem value="licencia">Licencia</SelectItem>
+                                                            <SelectItem value="vacaciones">Vacaciones</SelectItem>
+                                                            <SelectItem value="incapacidad">Incapacidad</SelectItem>
+                                                            <SelectItem value="aumento_plaza">Aumento de plaza</SelectItem>
+                                                            <SelectItem value="cambio_centro_costo">Cambio centro de costo</SelectItem>
+                                                            <SelectItem value="renuncia">Renuncia</SelectItem>
+                                                            <SelectItem value="postulacion_interna">Postulación interna</SelectItem>
+                                                            <SelectItem value="otro">Otro</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={motivoForm.control}
+                                            name="empresa_id"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Empresa</FormLabel>
+                                                    <Select
+                                                        value={field.value ? String(field.value) : ''}
+                                                        onValueChange={(value) => field.onChange(value ? parseInt(value, 10) : undefined)}
+                                                        disabled={loadingEmpresas}
+                                                    >
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder={loadingEmpresas ? "Cargando empresas..." : "Seleccione una empresa"} />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {empresas.map((empresa: any) => (
+                                                                <SelectItem key={empresa.id} value={String(empresa.id)}>
+                                                                    {empresa.razon_social || empresa.nombre}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={motivoForm.control}
+                                            name="descripcion"
+                                            render={({ field }) => (
+                                                <FormItem className="md:col-span-2">
                                                     <FormLabel>Descripción</FormLabel>
                                                     <FormControl>
                                                         <Textarea
@@ -447,6 +560,88 @@ export default function MotivosPage() {
                                                         />
                                                     </FormControl>
                                                     <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <FormField
+                                            control={motivoForm.control}
+                                            name="requiere_adjunto"
+                                            render={({ field }) => (
+                                                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-3">
+                                                    <FormControl>
+                                                        <Checkbox
+                                                            checked={field.value}
+                                                            onCheckedChange={(checked) => field.onChange(checked === true)}
+                                                        />
+                                                    </FormControl>
+                                                    <div className="space-y-1 leading-none">
+                                                        <FormLabel>Requiere adjunto</FormLabel>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            Indica si la novedad debe permitir adjuntar archivos.
+                                                        </p>
+                                                    </div>
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={motivoForm.control}
+                                            name="adjunto_obligatorio"
+                                            render={({ field }) => (
+                                                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-3">
+                                                    <FormControl>
+                                                        <Checkbox
+                                                            checked={field.value}
+                                                            onCheckedChange={(checked) => field.onChange(checked === true)}
+                                                        />
+                                                    </FormControl>
+                                                    <div className="space-y-1 leading-none">
+                                                        <FormLabel>Adjunto obligatorio</FormLabel>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            El adjunto será obligatorio al crear la solicitud.
+                                                        </p>
+                                                    </div>
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={motivoForm.control}
+                                            name="requiere_observacion"
+                                            render={({ field }) => (
+                                                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-3">
+                                                    <FormControl>
+                                                        <Checkbox
+                                                            checked={field.value}
+                                                            onCheckedChange={(checked) => field.onChange(checked === true)}
+                                                        />
+                                                    </FormControl>
+                                                    <div className="space-y-1 leading-none">
+                                                        <FormLabel>Requiere observación</FormLabel>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            Obliga a diligenciar observaciones en la solicitud.
+                                                        </p>
+                                                    </div>
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={motivoForm.control}
+                                            name="requiere_comite"
+                                            render={({ field }) => (
+                                                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-3">
+                                                    <FormControl>
+                                                        <Checkbox
+                                                            checked={field.value}
+                                                            onCheckedChange={(checked) => field.onChange(checked === true)}
+                                                        />
+                                                    </FormControl>
+                                                    <div className="space-y-1 leading-none">
+                                                        <FormLabel>Requiere comité</FormLabel>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            Marca las solicitudes de este motivo como sujetas a aprobación de comité.
+                                                        </p>
+                                                    </div>
                                                 </FormItem>
                                             )}
                                         />
