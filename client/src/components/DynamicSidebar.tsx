@@ -97,10 +97,12 @@ const menuItems = [
     subItems: [],
   },
   {
-    title: "Novedades",
+    title: "Novedades Contratacion Y selección",
     icon: <ClipboardCheck className="h-5 w-5" />,
-    path: "/novedades",
-    subItems: [],
+    subItems: [
+      { title: "Novedades", path: "/novedades", icon: <ClipboardList className="h-4 w-4" /> },
+      { title: "Entrevistas", path: "/novedades/entrevista", icon: <FolderKanban className="h-4 w-4" /> },
+    ],
   },
   {
     title: "Información Personal",
@@ -208,6 +210,7 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
 
     // Novedades
     '/novedades': ['vista-novedades'],
+    '/novedades/entrevista': ['vista-novedades'],
 
     // Información Personal
     '/perfil-candidato': ['vista-informacion-personal'],

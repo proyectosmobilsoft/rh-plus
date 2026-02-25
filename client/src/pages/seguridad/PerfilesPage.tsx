@@ -50,226 +50,21 @@ interface Perfil {
   modulos_count: number;
 }
 
-// Mock data de las vistas del sistema (Mantengo el mock por si lo necesitas para referencia, aunque ya no se usa directamente)
-interface ViewAction {
-  id: number;
-  nombre: string;
-  displayName: string;
-  descripcion: string;
-  tipo: string;
-  orden: number;
-  activo: boolean;
-}
-
-interface SystemView {
-  id: number;
-  nombre: string;
-  displayName: string;
-  descripcion: string;
-  ruta: string;
-  modulo: string;
-  icono: string;
-  orden: number;
-  activo: boolean;
-  acciones: ViewAction[];
-}
-
-const mockSystemViews: SystemView[] = [
-  {
-    id: 1,
-    nombre: "dashboard",
-    displayName: "Dashboard General",
-    descripcion: "Panel principal del sistema con métricas y estadísticas",
-    ruta: "/admin/dashboard",
-    modulo: "GENERAL",
-    icono: "LayoutDashboard",
-    orden: 1,
-    activo: true,
-    acciones: [
-      { id: 1, nombre: "ver_dashboard", displayName: "Ver Dashboard", descripcion: "Acceso al panel principal", tipo: "visualizacion", orden: 1, activo: true },
-      { id: 2, nombre: "ver_estadisticas", displayName: "Ver Estadísticas", descripcion: "Visualizar métricas del sistema", tipo: "visualizacion", orden: 2, activo: true },
-      { id: 3, nombre: "exportar_dashboard", displayName: "Exportar Dashboard", descripcion: "Exportar datos del dashboard", tipo: "exportacion", orden: 3, activo: true }
-    ]
-  },
-  {
-    id: 2,
-    nombre: "usuarios",
-    displayName: "Gestión de Usuarios",
-    descripcion: "Administración completa de usuarios del sistema",
-    ruta: "/admin/usuarios",
-    modulo: "SEGURIDAD",
-    icono: "Users",
-    orden: 1,
-    activo: true,
-    acciones: [
-      { id: 4, nombre: "ver_usuarios", displayName: "Ver Usuarios", descripcion: "Listar todos los usuarios", tipo: "visualizacion", orden: 1, activo: true },
-      { id: 5, nombre: "crear_usuario", displayName: "Crear Usuario", descripcion: "Registrar nuevos usuarios", tipo: "creacion", orden: 2, activo: true },
-      { id: 6, nombre: "editar_usuario", displayName: "Editar Usuario", descripcion: "Modificar datos de usuarios", tipo: "edicion", orden: 3, activo: true },
-      { id: 7, nombre: "eliminar_usuario", displayName: "Eliminar Usuario", descripcion: "Desactivar o eliminar usuarios", tipo: "eliminacion", orden: 4, activo: true },
-      { id: 8, nombre: "resetear_password", displayName: "Resetear Contraseña", descripcion: "Restablecer contraseñas de usuario", tipo: "especial", orden: 5, activo: true }
-    ]
-  },
-  {
-    id: 3,
-    nombre: "perfiles",
-    displayName: "Perfiles de Usuario",
-    descripcion: "Gestión de perfiles y roles del sistema",
-    ruta: "/admin/perfiles",
-    modulo: "SEGURIDAD",
-    icono: "UserCircle",
-    orden: 2,
-    activo: true,
-    acciones: [
-      { id: 9, nombre: "ver_perfiles", displayName: "Ver Perfiles", descripcion: "Listar perfiles de usuario", tipo: "visualizacion", orden: 1, activo: true },
-      { id: 10, nombre: "crear_perfil", displayName: "Crear Perfil", descripcion: "Crear nuevos perfiles", tipo: "creacion", orden: 2, activo: true },
-      { id: 11, nombre: "editar_perfil", displayName: "Editar Perfil", descripcion: "Modificar perfiles existentes", tipo: "edicion", orden: 3, activo: true },
-      { id: 12, nombre: "eliminar_perfil", displayName: "Eliminar Perfil", descripcion: "Eliminar perfiles de usuario", tipo: "eliminacion", orden: 4, activo: true }
-    ]
-  },
-  {
-    id: 4,
-    nombre: "candidatos",
-    displayName: "Gestión de Candidatos",
-    descripcion: "Administración de candidatos y postulantes",
-    ruta: "/admin/candidatos",
-    modulo: "REGISTROS",
-    icono: "UserPlus",
-    orden: 1,
-    activo: true,
-    acciones: [
-      { id: 13, nombre: "ver_candidatos", displayName: "Ver Candidatos", descripcion: "Listar candidatos", tipo: "visualizacion", orden: 1, activo: true },
-      { id: 14, nombre: "crear_candidato", displayName: "Crear Candidato", descripcion: "Registrar nuevos candidatos", tipo: "creacion", orden: 2, activo: true },
-      { id: 15, nombre: "editar_candidato", displayName: "Editar Candidato", descripcion: "Modificar datos de candidatos", tipo: "edicion", orden: 3, activo: true },
-      { id: 16, nombre: "eliminar_candidato", displayName: "Eliminar Candidato", descripcion: "Eliminar candidatos", tipo: "eliminacion", orden: 4, activo: true },
-      { id: 17, nombre: "aprobar_candidato", displayName: "Aprobar Candidato", descripcion: "Aprobar solicitudes de candidatos", tipo: "aprobacion", orden: 5, activo: true }
-    ]
-  },
-  {
-    id: 5,
-    nombre: "empresas",
-    displayName: "Empresas Afiliadas",
-    descripcion: "Gestión de empresas cliente y afiliadas",
-    ruta: "/admin/empresas",
-    modulo: "EMPRESA",
-    icono: "Building",
-    orden: 1,
-    activo: true,
-    acciones: [
-      { id: 18, nombre: "ver_empresas", displayName: "Ver Empresas", descripcion: "Listar empresas afiliadas", tipo: "visualizacion", orden: 1, activo: true },
-      { id: 19, nombre: "crear_empresa", displayName: "Crear Empresa", descripcion: "Registrar nuevas empresas", tipo: "creacion", orden: 2, activo: true },
-      { id: 20, nombre: "editar_empresa", displayName: "Editar Empresa", descripcion: "Modificar datos de empresas", tipo: "edicion", orden: 3, activo: true },
-      { id: 21, nombre: "eliminar_empresa", displayName: "Eliminar Empresa", descripcion: "Desactivar empresas", tipo: "eliminacion", orden: 4, activo: true }
-    ]
-  },
-  {
-    id: 6,
-    nombre: "qr",
-    displayName: "Códigos QR",
-    descripcion: "Gestión y generación de códigos QR",
-    ruta: "/admin/qr",
-    modulo: "RECURSOS",
-    icono: "QrCode",
-    orden: 1,
-    activo: true,
-    acciones: [
-      { id: 22, nombre: "ver_qr", displayName: "Ver Códigos QR", descripcion: "Visualizar códigos QR", tipo: "visualizacion", orden: 1, activo: true },
-      { id: 23, nombre: "generar_qr", displayName: "Generar QR", descripcion: "Crear nuevos códigos QR", tipo: "creacion", orden: 2, activo: true },
-      { id: 24, nombre: "eliminar_qr", displayName: "Eliminar QR", descripcion: "Eliminar códigos QR", tipo: "eliminacion", orden: 3, activo: true }
-    ]
-  },
-  {
-    id: 7,
-    nombre: "analistas",
-    displayName: "Gestión de Analistas",
-    descripcion: "Administración de analistas y especialistas",
-    ruta: "/admin/analistas",
-    modulo: "RECURSOS",
-    icono: "UserCheck",
-    orden: 2,
-    activo: true,
-    acciones: [
-      { id: 25, nombre: "ver_analistas", displayName: "Ver Analistas", descripcion: "Listar analistas", tipo: "visualizacion", orden: 1, activo: true },
-      { id: 26, nombre: "crear_analista", displayName: "Crear Analista", descripcion: "Registrar nuevos analistas", tipo: "creacion", orden: 2, activo: true },
-      { id: 27, nombre: "editar_analista", displayName: "Editar Analista", descripcion: "Modificar datos de analistas", tipo: "edicion", orden: 3, activo: true },
-      { id: 28, nombre: "eliminar_analista", displayName: "Eliminar Analista", descripcion: "Eliminar analistas", tipo: "eliminacion", orden: 4, activo: true },
-      { id: 29, nombre: "asignar_casos", displayName: "Asignar Casos", descripcion: "Asignar casos a analistas", tipo: "especial", orden: 5, activo: true }
-    ]
-  },
-  {
-    id: 8,
-    nombre: "ordenes",
-    displayName: "Expedición de Órdenes",
-    descripcion: "Gestión de órdenes médicas y laboratoriales",
-    ruta: "/admin/ordenes",
-    modulo: "ORDENES",
-    icono: "FileText",
-    orden: 1,
-    activo: true,
-    acciones: [
-      { id: 30, nombre: "ver_ordenes", displayName: "Ver Órdenes", descripcion: "Listar órdenes médicas", tipo: "visualizacion", orden: 1, activo: true },
-      { id: 31, nombre: "crear_orden", displayName: "Crear Orden", descripcion: "Generar nuevas órdenes", tipo: "creacion", orden: 2, activo: true },
-      { id: 32, nombre: "editar_orden", displayName: "Editar Orden", descripcion: "Modificar órdenes existentes", tipo: "edicion", orden: 3, activo: true },
-      { id: 33, nombre: "eliminar_orden", displayName: "Anular Orden", descripcion: "Cancelar órdenes", tipo: "eliminacion", orden: 4, activo: true },
-      { id: 34, nombre: "firmar_orden", displayName: "Firmar Orden", descripcion: "Firmar órdenes médicas", tipo: "aprobacion", orden: 5, activo: true }
-    ]
-  },
-  {
-    id: 9,
-    nombre: "certificados",
-    displayName: "Expedición de Certificados",
-    descripcion: "Gestión de certificados médicos y laboratoriales",
-    ruta: "/admin/certificados",
-    modulo: "CERTIFICADOS",
-    icono: "Award",
-    orden: 1,
-    activo: true,
-    acciones: [
-      { id: 35, nombre: "ver_certificados", displayName: "Ver Certificados", descripcion: "Listar certificados", tipo: "visualizacion", orden: 1, activo: true },
-      { id: 36, nombre: "crear_certificado", displayName: "Crear Certificado", descripcion: "Generar certificados", tipo: "creacion", orden: 2, activo: true },
-      { id: 37, nombre: "editar_certificado", displayName: "Editar Certificado", descripcion: "Modificar certificados", tipo: "edicion", orden: 3, activo: true },
-      { id: 38, nombre: "eliminar_certificado", displayName: "Eliminar Certificado", descripcion: "Anular certificados", tipo: "eliminacion", orden: 4, activo: true },
-      { id: 39, nombre: "firmar_certificado", displayName: "Firmar Certificado", descripcion: "Firmar certificados médicos", tipo: "aprobacion", orden: 5, activo: true }
-    ]
-  },
-  {
-    id: 10,
-    nombre: "maestro",
-    displayName: "Configuración Maestro",
-    descripcion: "Gestión de datos maestros y configuraciones",
-    ruta: "/admin/maestro",
-    modulo: "CONFIGURACION",
-    icono: "Settings",
-    orden: 1,
-    activo: true,
-    acciones: [
-      { id: 40, nombre: "ver_maestro", displayName: "Ver Configuración", descripcion: "Visualizar configuraciones", tipo: "visualizacion", orden: 1, activo: true },
-      { id: 41, nombre: "editar_maestro", displayName: "Editar Configuración", descripcion: "Modificar configuraciones", tipo: "edicion", orden: 2, activo: true },
-      { id: 42, nombre: "exportar_maestro", displayName: "Exportar Configuración", descripcion: "Exportar datos maestros", tipo: "exportacion", orden: 3, activo: true }
-    ]
-  },
-  {
-    id: 11,
-    nombre: "reportes",
-    displayName: "Reportes y Análisis",
-    descripcion: "Generación de reportes y análisis estadísticos",
-    ruta: "/admin/reportes",
-    modulo: "REPORTES",
-    icono: "BarChart",
-    orden: 1,
-    activo: true,
-    acciones: [
-      { id: 43, nombre: "ver_reportes", displayName: "Ver Reportes", descripcion: "Visualizar reportes", tipo: "visualizacion", orden: 1, activo: true },
-      { id: 44, nombre: "generar_reporte", displayName: "Generar Reporte", descripcion: "Crear nuevos reportes", tipo: "creacion", orden: 2, activo: true },
-      { id: 45, nombre: "exportar_reporte", displayName: "Exportar Reporte", descripcion: "Exportar reportes en diferentes formatos", tipo: "exportacion", orden: 3, activo: true },
-      { id: 46, nombre: "programar_reporte", displayName: "Programar Reporte", descripcion: "Programar generación automática", tipo: "especial", orden: 4, activo: true }
-    ]
-  }
-];
+// Hook para traer vistas reales
+const useSystemViews = () => {
+  return useQuery({
+    queryKey: ["systemViews"],
+    queryFn: async () => await api.get("vistas-sistema"),
+    refetchOnWindowFocus: false
+  });
+};
 
 const PerfilesPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAdvancedModalOpen, setIsAdvancedModalOpen] = useState(false);
   const [editingPerfil, setEditingPerfil] = useState<any>(null);
+    // Traer vistas reales
+    const { data: systemViewsData = [], isLoading: viewsLoading, error: viewsError } = useSystemViews();
   const [activeTab, setActiveTab] = useState("perfiles");
   const [isModulesModalOpen, setIsModulesModalOpen] = useState(false);
   const [viewingModules, setViewingModules] = useState<{ modulo_nombre: string }[] | null>(null);
@@ -1092,24 +887,32 @@ const PerfilesPage = () => {
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="text-center p-3 bg-gray-50 rounded-lg">
-                  <div className="text-2xl font-bold text-gray-900">{mockSystemViews.length}</div>
+                  <div className="text-2xl font-bold text-gray-900">
+                    {Array.isArray(systemViewsData) ? systemViewsData.length : 0}
+                  </div>
                   <div className="text-sm text-gray-600">Vistas Totales</div>
                 </div>
-                            <div className="text-center p-3 bg-cyan-50 rounded-lg">
-              <div className="text-2xl font-bold text-cyan-600">
-                    {mockSystemViews.reduce((sum, v) => sum + v.acciones.filter(a => a.tipo === 'visualizacion').length, 0)}
+                <div className="text-center p-3 bg-cyan-50 rounded-lg">
+                  <div className="text-2xl font-bold text-cyan-600">
+                    {Array.isArray(systemViewsData)
+                      ? systemViewsData.reduce((sum, v) => sum + (v.acciones ? v.acciones.filter(a => a.tipo === 'visualizacion').length : 0), 0)
+                      : 0}
                   </div>
                   <div className="text-sm text-gray-600">Acciones de Vista</div>
                 </div>
                 <div className="text-center p-3 bg-brand-lime/10 rounded-lg">
                   <div className="text-2xl font-bold text-brand-lime">
-                    {mockSystemViews.reduce((sum, v) => sum + v.acciones.filter(a => a.tipo === 'creacion').length, 0)}
+                    {Array.isArray(systemViewsData)
+                      ? systemViewsData.reduce((sum, v) => sum + (v.acciones ? v.acciones.filter(a => a.tipo === 'creacion').length : 0), 0)
+                      : 0}
                   </div>
                   <div className="text-sm text-gray-600">Acciones de Creación</div>
                 </div>
                 <div className="text-center p-3 bg-yellow-50 rounded-lg">
                   <div className="text-2xl font-bold text-yellow-600">
-                    {mockSystemViews.reduce((sum, v) => sum + v.acciones.filter(a => a.tipo === 'edicion').length, 0)}
+                    {Array.isArray(systemViewsData)
+                      ? systemViewsData.reduce((sum, v) => sum + (v.acciones ? v.acciones.filter(a => a.tipo === 'edicion').length : 0), 0)
+                      : 0}
                   </div>
                   <div className="text-sm text-gray-600">Acciones de Edición</div>
                 </div>

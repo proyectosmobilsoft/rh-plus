@@ -89,6 +89,7 @@ import EditarAnalistaPage from './pages/analistas/EditarAnalistaPage';
 
 // Páginas de novedades
 import NovedadesPage from './pages/novedades/NovedadesPage';
+import EntrevistasPage from './pages/novedades/EntrevistasPage';
 
 // Páginas de maestro
 import TiposCandidatosPage from './pages/maestro/TiposCandidatosPage';
@@ -517,6 +518,11 @@ function App() {
             <Route path="/novedades" element={
               <ProtectedRoute>
                 <NovedadesPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/novedades/entrevista" element={
+              <ProtectedRoute>
+                <EntrevistasPage />
               </ProtectedRoute>
             } />
 
