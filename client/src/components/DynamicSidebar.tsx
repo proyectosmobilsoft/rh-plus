@@ -34,7 +34,10 @@ import {
   Database,
   Lock,
   FolderKanban,
+  HelpCircle,
 } from 'lucide-react';
+import * as LucideIcons from 'lucide-react';
+import { vistasService, VistaSistema } from '@/services/vistasService';
 
 const menuItems = [
   {
@@ -66,6 +69,7 @@ const menuItems = [
       { title: "Proyectos", path: "/maestro/proyectos", icon: <FolderKanban className="h-4 w-4" /> },
       { title: "Áreas de Negocios", path: "/maestro/areas-negocios", icon: <Briefcase className="h-4 w-4" /> },
       { title: "Correos Masivos", path: "/maestro/correos-masivos", icon: <Mail className="h-4 w-4" /> },
+      { title: "Motivos", path: "/maestro/motivos", icon: <Mail className="h-4 w-4" /> },
     ],
   },
   {
@@ -142,7 +146,22 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
   const [empresaData, setEmpresaData] = useState<any>(null);
   const [showUserOverlay, setShowUserOverlay] = useState(false);
   const [userData, setUserData] = useState<any>(null);
+  const [vistasDinamicas, setVistasDinamicas] = useState<VistaSistema[]>([]);
   const sidebarRef = React.useRef<HTMLDivElement>(null);
+
+  // Helper para renderizar iconos dinámicos
+  const renderDynamicIcon = (iconName?: string) => {
+    if (!iconName) return <Activity className="h-5 w-5" />;
+
+    // Convertir kebab-case a PascalCase (ej: shield-check -> ShieldCheck)
+    const componentName = iconName
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join('');
+
+    const IconComponent = (LucideIcons as any)[componentName] || HelpCircle;
+    return <IconComponent className="h-5 w-5" />;
+  };
 
   // Cargar userData de localStorage
   useEffect(() => {
@@ -164,6 +183,18 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
   }, []);
+
+  // Cargar vistas dinámicas según perfil
+  useEffect(() => {
+    const loadVistas = async () => {
+      const perfilIds = userData?.roles?.map((r: any) => r.id).filter(Boolean) || [];
+      if (perfilIds.length > 0) {
+        const vistas = await vistasService.getVistasPorPerfil(perfilIds);
+        setVistasDinamicas(vistas);
+      }
+    };
+    if (userData) loadVistas();
+  }, [userData]);
 
   const accionesSet = React.useMemo(() => new Set<string>(Array.isArray(userData?.acciones) ? userData.acciones : []), [userData]);
 
@@ -188,6 +219,7 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
     '/maestro/proyectos': ['vista-proyectos'],
     '/maestro/areas-negocios': ['vista-areas-negocios'],
     '/maestro/correos-masivos': ['vista-correos-masivos'],
+    '/maestro/motivos': ['vista-motivos'],
 
     // Registros
     '/registros/candidatos': ['vista-candidatos'],
@@ -211,6 +243,7 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
     // Novedades
     '/novedades': ['vista-novedades'],
     '/novedades/entrevista': ['vista-novedades'],
+    '/comite_aprob': ['vista-novedades'],
 
     // Información Personal
     '/perfil-candidato': ['vista-informacion-personal'],
@@ -261,9 +294,9 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
     return !!matchPath({ path, end: true }, location.pathname);
   };
 
-  // Filtrado por permisos de acciones
+  // Filtrado por permisos de acciones + Vistas Dinámicas
   const filteredMenus = React.useMemo(() => {
-    return menuItems
+    const staticMenus = menuItems
       .map((menu) => {
         const hasChildren = menu.subItems && menu.subItems.length > 0;
         if (hasChildren) {
@@ -275,7 +308,19 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
         return isAllowedPath(menu.path) ? menu : null;
       })
       .filter(Boolean) as typeof menuItems;
-  }, [accionesSet]);
+
+    // Agregar vistas dinámicas que no estén ya en el menú estático
+    const dynamicMenusFormatted = vistasDinamicas
+      .filter(v => !menuItems.some(mi => mi.path === v.ruta)) // Evitar duplicados
+      .map(v => ({
+        title: v.nombre,
+        path: v.ruta,
+        icon: renderDynamicIcon(v.icono),
+        subItems: []
+      }));
+
+    return [...staticMenus, ...dynamicMenusFormatted];
+  }, [accionesSet, vistasDinamicas]);
 
   const getRoleColor = (role: string) => {
     switch (role) {

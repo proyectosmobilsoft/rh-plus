@@ -8,6 +8,7 @@ export interface NovedadEmpleado {
     id?: number;
     nombre: string;
     apellido?: string;
+    email?: string;
     numero_documento?: string;
     tipo_documento?: string;
     cargo?: string;
@@ -46,6 +47,11 @@ export interface NovedadMotivo {
     permite_seleccion_multiple: boolean;
     activo: boolean;
     orden: number;
+    tipo?: string;
+    empresa_id?: number;
+    requiere_adjunto: boolean;
+    adjunto_obligatorio: boolean;
+    requiere_observacion: boolean;
 }
 
 export interface NovedadSolicitud {
@@ -71,6 +77,7 @@ export interface NovedadSolicitud {
     // Joins
     empleado?: NovedadEmpleado;
     motivo?: NovedadMotivo;
+    empresa?: { id: number; razon_social: string };
     creador?: { id: number; primer_nombre: string; primer_apellido: string; username: string };
 }
 
@@ -128,18 +135,35 @@ export const ESTADO_COLORS: Record<string, string> = {
     cancelada: 'bg-orange-100 text-orange-800',
 };
 
-// Transiciones válidas de estado
+export interface NovedadAprobador {
+    id: number;
+    usuario_id: number;
+    activo: boolean;
+    created_at?: string;
+    updated_at?: string;
+    // Joins
+    usuario?: { id: number; primer_nombre: string; primer_apellido: string; username: string };
+    cargos?: string[]; // Homologación de cargos
+}
+
+export interface NovedadAprobadorCargo {
+    id: number;
+    aprobador_id: number;
+    cargo_nombre: string;
+}
+
+// Transiciones válidas de estado (Refinadas según requerimiento)
 export const TRANSICIONES_VALIDAS: Record<string, string[]> = {
     solicitada: ['aprobado_comite', 'en_proceso', 'rechazada', 'congelada', 'cancelada'],
     aprobado_comite: ['en_proceso', 'rechazada', 'congelada'],
-    en_proceso: ['en_reclutamiento', 'ejecutada', 'congelada'],
-    en_reclutamiento: ['entrevista_cliente', 'seleccionado', 'congelada'],
-    entrevista_cliente: ['seleccionado', 'rechazada', 'congelada'],
-    seleccionado: ['ejecutada'],
+    en_proceso: ['en_reclutamiento', 'congelada', 'cancelada'],
+    en_reclutamiento: ['entrevista_cliente', 'congelada', 'cancelada'],
+    entrevista_cliente: ['seleccionado', 'en_reclutamiento', 'congelada'],
+    seleccionado: ['ejecutada', 'cancelada'],
+    congelada: ['solicitada', 'en_proceso', 'en_reclutamiento'],
     rechazada: [],
-    congelada: ['solicitada', 'en_proceso'],
     ejecutada: [],
-    cancelada: [],
+    cancelada: []
 };
 
 // ============================================================
@@ -344,8 +368,9 @@ export const novedadesService = {
                 .from('novedades_solicitudes')
                 .select(`
           *,
-          empleado:novedades_empleados(id, nombre, apellido, numero_documento, cargo, sucursal),
-          motivo:novedades_motivos(id, nombre, codigo, requiere_comite),
+          empleado:novedades_empleados(*, lider:gen_usuarios(id, email, primer_nombre, primer_apellido)),
+          motivo:novedades_motivos(id, nombre, codigo, requiere_comite, tipo),
+          empresa:empresas(id, razon_social),
           creador:gen_usuarios!novedades_solicitudes_created_by_fkey(id, primer_nombre, primer_apellido, username)
         `);
 
@@ -392,6 +417,7 @@ export const novedadesService = {
           *,
           empleado:novedades_empleados(*),
           motivo:novedades_motivos(*),
+          empresa:empresas(id, razon_social),
           creador:gen_usuarios!novedades_solicitudes_created_by_fkey(id, primer_nombre, primer_apellido, username, email)
         `)
                 .eq('id', id)
@@ -780,4 +806,90 @@ export const novedadesLogsService = {
             return [];
         }
     },
+
+    // ============================================================
+    // MÉTODOS DE APROBADORES (MAESTRO)
+    // ============================================================
+    getAprobadores: async (): Promise<NovedadAprobador[]> => {
+        try {
+            const { data, error } = await supabase
+                .from('novedades_aprobadores')
+                .select(`
+                    *,
+                    usuario:gen_usuarios(id, primer_nombre, primer_apellido, username),
+                    novedades_aprobadores_cargos(cargo_nombre)
+                `)
+                .eq('activo', true);
+
+            if (error) throw error;
+
+            return (data || []).map(a => ({
+                ...a,
+                cargos: a.novedades_aprobadores_cargos?.map((c: any) => c.cargo_nombre) || []
+            }));
+        } catch (error) {
+            console.error('Error getAprobadores:', error);
+            return [];
+        }
+    },
+
+    addAprobador: async (usuarioId: number, cargos: string[]): Promise<boolean> => {
+        try {
+            const { data, error } = await supabase
+                .from('novedades_aprobadores')
+                .insert({ usuario_id: usuarioId })
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            if (cargos.length > 0) {
+                const cargosInsert = cargos.map(c => ({
+                    aprobador_id: data.id,
+                    cargo_nombre: c
+                }));
+                await supabase.from('novedades_aprobadores_cargos').insert(cargosInsert);
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Error addAprobador:', error);
+            return false;
+        }
+    },
+
+    removeAprobador: async (id: number): Promise<boolean> => {
+        try {
+            const { error } = await supabase
+                .from('novedades_aprobadores')
+                .update({ activo: false })
+                .eq('id', id);
+
+            if (error) throw error;
+            return true;
+        } catch (error) {
+            console.error('Error removeAprobador:', error);
+            return false;
+        }
+    },
+
+    updateAprobadorCargos: async (aprobadorId: number, cargos: string[]): Promise<boolean> => {
+        try {
+            // Eliminar cargos actuales
+            await supabase.from('novedades_aprobadores_cargos').delete().eq('aprobador_id', aprobadorId);
+
+            // Insertar nuevos
+            if (cargos.length > 0) {
+                const cargosInsert = cargos.map(c => ({
+                    aprobador_id: aprobadorId,
+                    cargo_nombre: c
+                }));
+                await supabase.from('novedades_aprobadores_cargos').insert(cargosInsert);
+            }
+            return true;
+        } catch (error) {
+            console.error('Error updateAprobadorCargos:', error);
+            return false;
+        }
+    }
 };
