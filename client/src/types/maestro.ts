@@ -97,3 +97,58 @@ export interface DocumentoTipoForm {
   fecha_vigencia?: string;
 } 
 
+// Motivos
+export interface Motivo {
+  id: number;
+  codigo: string;
+  nombre: string;
+  descripcion?: string;
+  tipo?: string;
+  empresa_id?: number;
+  requiere_adjunto?: boolean;
+  adjunto_obligatorio?: boolean;
+  requiere_observacion?: boolean;
+  requiere_comite?: boolean;
+  activo: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateMotivoData {
+  codigo: string;
+  nombre: string;
+  descripcion?: string;
+  tipo?: string;
+  empresa_id?: number;
+  requiere_adjunto?: boolean;
+  adjunto_obligatorio?: boolean;
+  requiere_observacion?: boolean;
+  requiere_comite?: boolean;
+  activo?: boolean;
+}
+
+export interface UpdateMotivoData {
+  codigo?: string;
+  nombre?: string;
+  descripcion?: string;
+   tipo?: string;
+   empresa_id?: number;
+   requiere_adjunto?: boolean;
+   adjunto_obligatorio?: boolean;
+   requiere_observacion?: boolean;
+   requiere_comite?: boolean;
+  activo?: boolean;
+}
+
+export interface MotivoForm {
+  codigo: string;
+  nombre: string;
+  descripcion?: string;
+  tipo: string;
+  empresa_id?: number;
+  requiere_adjunto: boolean;
+  adjunto_obligatorio: boolean;
+  requiere_observacion: boolean;
+  requiere_comite: boolean;
+}
+

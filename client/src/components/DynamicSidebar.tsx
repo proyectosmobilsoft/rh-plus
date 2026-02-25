@@ -69,6 +69,7 @@ const menuItems = [
       { title: "Proyectos", path: "/maestro/proyectos", icon: <FolderKanban className="h-4 w-4" /> },
       { title: "Áreas de Negocios", path: "/maestro/areas-negocios", icon: <Briefcase className="h-4 w-4" /> },
       { title: "Correos Masivos", path: "/maestro/correos-masivos", icon: <Mail className="h-4 w-4" /> },
+      { title: "Motivos", path: "/maestro/motivos", icon: <Mail className="h-4 w-4" /> },
     ],
   },
   {
@@ -216,6 +217,7 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
     '/maestro/proyectos': ['vista-proyectos'],
     '/maestro/areas-negocios': ['vista-areas-negocios'],
     '/maestro/correos-masivos': ['vista-correos-masivos'],
+    '/maestro/motivos': ['vista-motivos'],
 
     // Registros
     '/registros/candidatos': ['vista-candidatos'],
