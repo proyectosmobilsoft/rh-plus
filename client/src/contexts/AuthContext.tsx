@@ -241,7 +241,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       if (!token) {
-        const expMs = Date.now() + 1000 * 60 * 60 * 8;
+        const configuredHours = parseInt(localStorage.getItem('app_session_timeout_hours') || '8', 10);
+        const hours = Number.isFinite(configuredHours) && configuredHours > 0 ? configuredHours : 8;
+        const expMs = Date.now() + 1000 * 60 * 60 * hours;
         token = `simulated.${expMs}.${userData.id}`;
       }
 
