@@ -157,6 +157,10 @@ const NovedadesPage: React.FC = () => {
     // Selección múltiple (vacaciones)
     const [selectedEmpleados, setSelectedEmpleados] = useState<number[]>([]);
 
+    // Flags del motivo seleccionado
+    const [adjuntoFile, setAdjuntoFile] = useState<File | null>(null);
+    const [cedulaAprobador, setCedulaAprobador] = useState('');
+
     // Expanded rows
     const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
 
@@ -237,15 +241,17 @@ const NovedadesPage: React.FC = () => {
         setFormData({});
         setObservaciones('');
         setSelectedEmpleados([]);
+        setAdjuntoFile(null);
+        setCedulaAprobador('');
     };
 
-    const handleSubmitForm = () => {
+    const handleSubmitForm = async () => {
         if (!selectedMotivo) {
             toast.error('Selecciona un motivo de novedad');
             return;
         }
 
-        // Validar campos requeridos
+        // Validar campos requeridos del formulario dinámico
         const fields = FORM_FIELDS_BY_MOTIVO[selectedMotivo.codigo] || [];
         for (const field of fields) {
             if (field.required && !formData[field.name] && field.type !== 'checkbox') {
@@ -265,6 +271,24 @@ const NovedadesPage: React.FC = () => {
             }
         }
 
+        // Validar observación obligatoria
+        if (selectedMotivo.requiere_observacion && !observaciones.trim()) {
+            toast.error('Las observaciones son obligatorias para este motivo');
+            return;
+        }
+
+        // Validar adjunto obligatorio
+        if (selectedMotivo.adjunto_obligatorio && !adjuntoFile) {
+            toast.error('Debe adjuntar un documento obligatorio para este motivo');
+            return;
+        }
+
+        // Validar cédula aprobador cuando requiere comité
+        if (selectedMotivo.requiere_comite && !cedulaAprobador.trim()) {
+            toast.error('Debe ingresar la cédula de la persona aprobadora');
+            return;
+        }
+
         // Para vacaciones con selección múltiple
         if (selectedMotivo.permite_seleccion_multiple && selectedEmpleados.length === 0 && !selectedEmpleado) {
             toast.error('Selecciona al menos un empleado');
@@ -282,13 +306,62 @@ const NovedadesPage: React.FC = () => {
             empleado_id: selectedEmpleado?.id,
             empresa_id: selectedEmpleado?.empresa_id || filtros.empresa_id,
             sucursal: selectedEmpleado?.sucursal,
-            datos_formulario: formData,
+            datos_formulario: {
+                ...formData,
+                ...(adjuntoFile ? { adjunto_nombre: adjuntoFile.name, adjunto_tipo: adjuntoFile.type } : {}),
+                ...(cedulaAprobador ? { cedula_aprobador: cedulaAprobador } : {}),
+            },
             observaciones,
             requiere_reemplazo: formData.requiere_reemplazo || formData.genera_reemplazo || false,
             empleados_ids: selectedMotivo.permite_seleccion_multiple ? selectedEmpleados : [],
         };
 
-        createMutation.mutate(solicitudData);
+        createMutation.mutate(solicitudData, {
+            onSuccess: async (nuevaSolicitud) => {
+                // Si requiere comité, buscar aprobador y enviar correo
+                if (selectedMotivo.requiere_comite && cedulaAprobador.trim()) {
+                    try {
+                        const { supabase } = await import('@/services/supabaseClient');
+                        const { data: aprobador } = await supabase
+                            .from('gen_usuarios')
+                            .select('email, primer_nombre, primer_apellido')
+                            .eq('identificacion', cedulaAprobador.trim())
+                            .eq('activo', true)
+                            .single();
+
+                        if (aprobador?.email) {
+                            const { emailService } = await import('@/services/emailService');
+                            const empleadoNombre = selectedEmpleado
+                                ? `${selectedEmpleado.nombre} ${selectedEmpleado.apellido || ''}`.trim()
+                                : 'Empleado';
+                            await emailService.sendEmail({
+                                to: aprobador.email,
+                                from: (import.meta as any).env?.VITE_GMAIL_USER || 'noreply@rhplus.co',
+                                subject: `Solicitud de comité: ${selectedMotivo.nombre}`,
+                                html: `
+                                    <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
+                                        <h2 style="color:#0e7490">Solicitud requiere su aprobación de comité</h2>
+                                        <p>Estimado/a <strong>${aprobador.primer_nombre} ${aprobador.primer_apellido}</strong>,</p>
+                                        <p>Se ha creado una solicitud de novedad que requiere su aprobación:</p>
+                                        <table style="border-collapse:collapse;width:100%;margin:16px 0">
+                                            <tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:600;background:#f9fafb">Motivo</td><td style="padding:8px;border:1px solid #e5e7eb">${selectedMotivo.nombre}</td></tr>
+                                            <tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:600;background:#f9fafb">Empleado</td><td style="padding:8px;border:1px solid #e5e7eb">${empleadoNombre}</td></tr>
+                                            ${observaciones ? `<tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:600;background:#f9fafb">Observaciones</td><td style="padding:8px;border:1px solid #e5e7eb">${observaciones}</td></tr>` : ''}
+                                        </table>
+                                        <p>Ingrese al sistema para <strong>aprobar o rechazar</strong> esta solicitud en el módulo de Comité de Aprobación.</p>
+                                    </div>
+                                `,
+                            });
+                            toast.info(`Notificación enviada al aprobador ${aprobador.primer_nombre}`);
+                        } else {
+                            toast.warning('Solicitud creada, pero no se encontró el aprobador con esa cédula');
+                        }
+                    } catch (_) {
+                        toast.warning('Solicitud creada, pero no se pudo enviar el correo al aprobador');
+                    }
+                }
+            },
+        });
     };
 
     const handleViewDetail = async (solicitud: NovedadSolicitud) => {
@@ -904,16 +977,85 @@ const NovedadesPage: React.FC = () => {
                                     ))}
                                 </div>
 
-                                <div>
-                                    <Label className="text-sm">Observaciones</Label>
-                                    <Textarea
-                                        value={observaciones}
-                                        onChange={e => setObservaciones(e.target.value)}
-                                        className="mt-1"
-                                        placeholder="Comentarios adicionales..."
-                                        rows={2}
-                                    />
-                                </div>
+                                {/* Observaciones — solo si el motivo lo requiere */}
+                                {selectedMotivo.requiere_observacion && (
+                                    <div>
+                                        <Label className="text-sm">
+                                            Observaciones <span className="text-red-500">*</span>
+                                        </Label>
+                                        <Textarea
+                                            value={observaciones}
+                                            onChange={e => setObservaciones(e.target.value)}
+                                            className="mt-1 border-amber-300 focus:border-amber-500"
+                                            placeholder="Observaciones obligatorias para este motivo..."
+                                            rows={3}
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Observaciones opcionales cuando el motivo NO las requiere */}
+                                {!selectedMotivo.requiere_observacion && (
+                                    <div>
+                                        <Label className="text-sm text-gray-500">Observaciones (opcional)</Label>
+                                        <Textarea
+                                            value={observaciones}
+                                            onChange={e => setObservaciones(e.target.value)}
+                                            className="mt-1"
+                                            placeholder="Comentarios adicionales..."
+                                            rows={2}
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Adjunto — solo si el motivo requiere adjunto */}
+                                {selectedMotivo.requiere_adjunto && (
+                                    <div>
+                                        <Label className="text-sm">
+                                            Documento adjunto{' '}
+                                            {selectedMotivo.adjunto_obligatorio
+                                                ? <span className="text-red-500">* (obligatorio)</span>
+                                                : <span className="text-gray-400">(opcional)</span>}
+                                        </Label>
+                                        <div className="mt-1 flex items-center gap-2">
+                                            <input
+                                                type="file"
+                                                className="block w-full text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100 border rounded-md p-1 cursor-pointer"
+                                                onChange={e => setAdjuntoFile(e.target.files?.[0] ?? null)}
+                                            />
+                                            {adjuntoFile && (
+                                                <span className="text-xs text-green-600 flex items-center gap-1 shrink-0">
+                                                    <CheckCircle className="w-3.5 h-3.5" />
+                                                    {adjuntoFile.name}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Cédula aprobador — solo si requiere comité */}
+                                {selectedMotivo.requiere_comite && (
+                                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2">
+                                        <div className="flex items-center gap-2 text-amber-700">
+                                            <AlertCircle className="w-4 h-4 shrink-0" />
+                                            <span className="text-sm font-semibold">Esta novedad requiere aprobación de comité</span>
+                                        </div>
+                                        <p className="text-xs text-amber-600">
+                                            Se enviará una notificación por correo al aprobador para que gestione la solicitud.
+                                        </p>
+                                        <div>
+                                            <Label className="text-sm text-amber-800">
+                                                Cédula de la persona aprobadora <span className="text-red-500">*</span>
+                                            </Label>
+                                            <input
+                                                type="text"
+                                                value={cedulaAprobador}
+                                                onChange={e => setCedulaAprobador(e.target.value)}
+                                                placeholder="Número de identificación del aprobador"
+                                                className="mt-1 w-full rounded-md border border-amber-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
                             </>
                         )}
                     </div>
@@ -925,11 +1067,13 @@ const NovedadesPage: React.FC = () => {
                         <Button
                             onClick={handleSubmitForm}
                             disabled={createMutation.isPending || !selectedMotivo}
-                            className="bg-gradient-to-r from-cyan-500 to-teal-600 hover:from-cyan-600 hover:to-teal-700 text-white shadow-md shadow-cyan-500/20"
+                            className={selectedMotivo?.requiere_comite
+                                ? "bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-md"
+                                : "bg-gradient-to-r from-cyan-500 to-teal-600 hover:from-cyan-600 hover:to-teal-700 text-white shadow-md shadow-cyan-500/20"}
                         >
                             {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                             <CheckCircle className="h-4 w-4 mr-1.5" />
-                            Crear Solicitud
+                            {selectedMotivo?.requiere_comite ? 'Enviar a Comité' : 'Crear Solicitud'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

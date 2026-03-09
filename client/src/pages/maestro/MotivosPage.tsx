@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Edit, Trash2, Search, Filter, MessageSquare, CheckCircle, Lock, Save } from 'lucide-react';
+import { Edit, Trash2, Search, Filter, MessageSquare, CheckCircle, Lock, Save, Paperclip, Eye, Users, Check, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,6 +46,7 @@ export default function MotivosPage() {
     const [editingMotivo, setEditingMotivo] = useState<Motivo | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState<string>("active");
+    const [empresaFilter, setEmpresaFilter] = useState<string>("all");
     const [showInactivateModal, setShowInactivateModal] = useState(false);
     const [showActivateModal, setShowActivateModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -91,7 +92,10 @@ export default function MotivosPage() {
         const matchesStatus = statusFilter === "all" ? true :
             statusFilter === "active" ? motivo.activo : !motivo.activo;
 
-        return matchesSearch && matchesStatus;
+        const matchesEmpresa = empresaFilter === "all" ? true :
+            String(motivo.empresa_id ?? '') === empresaFilter;
+
+        return matchesSearch && matchesStatus && matchesEmpresa;
     }) || [])
         .sort((a, b) => {
             // Mostrar activos primero
@@ -264,7 +268,7 @@ export default function MotivosPage() {
 
                         {/* Filtros */}
                         <div className="p-4 border-b bg-gray-50">
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                                 <div className="relative md:col-span-2">
                                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                                     <Input
@@ -286,11 +290,26 @@ export default function MotivosPage() {
                                     </SelectContent>
                                 </Select>
 
+                                <Select value={empresaFilter} onValueChange={setEmpresaFilter}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Filtrar por empresa" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Todas las empresas</SelectItem>
+                                        {empresas.map((e: any) => (
+                                            <SelectItem key={e.id} value={String(e.id)}>
+                                                {e.razon_social || e.nombre}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
                                 <Button
                                     variant="outline"
                                     onClick={() => {
                                         setSearchTerm("");
                                         setStatusFilter("active");
+                                        setEmpresaFilter("all");
                                     }}
                                     className="flex items-center gap-2"
                                 >
@@ -311,6 +330,9 @@ export default function MotivosPage() {
                                         <TableHead className="px-4 py-3 w-1/4">Empresa</TableHead>
                                         <TableHead className="px-4 py-3 w-1/4">Nombre</TableHead>
                                         <TableHead className="px-4 py-3 w-1/3">Descripción</TableHead>
+                                        <TableHead className="px-4 py-3 text-center w-14" title="Adjunto obligatorio"><Paperclip className="w-3.5 h-3.5 inline" /></TableHead>
+                                        <TableHead className="px-4 py-3 text-center w-14" title="Observación requerida"><Eye className="w-3.5 h-3.5 inline" /></TableHead>
+                                        <TableHead className="px-4 py-3 text-center w-14" title="Requiere comité"><Users className="w-3.5 h-3.5 inline" /></TableHead>
                                         <TableHead className="px-4 py-3 w-24">Estado</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -427,6 +449,23 @@ export default function MotivosPage() {
                                                     </TableCell>
                                                     <TableCell className="px-4 py-3 text-sm text-gray-900 font-medium">{motivo.nombre}</TableCell>
                                                     <TableCell className="px-4 py-3 text-sm text-gray-500">{motivo.descripcion || '-'}</TableCell>
+                                                    <TableCell className="px-4 py-3 text-center">
+                                                        {motivo.adjunto_obligatorio
+                                                            ? <Check className="w-4 h-4 text-green-600 inline" />
+                                                            : motivo.requiere_adjunto
+                                                                ? <span className="text-xs text-gray-400">Opc.</span>
+                                                                : <X className="w-3.5 h-3.5 text-gray-300 inline" />}
+                                                    </TableCell>
+                                                    <TableCell className="px-4 py-3 text-center">
+                                                        {motivo.requiere_observacion
+                                                            ? <Check className="w-4 h-4 text-green-600 inline" />
+                                                            : <X className="w-3.5 h-3.5 text-gray-300 inline" />}
+                                                    </TableCell>
+                                                    <TableCell className="px-4 py-3 text-center">
+                                                        {motivo.requiere_comite
+                                                            ? <Check className="w-4 h-4 text-amber-600 inline" />
+                                                            : <X className="w-3.5 h-3.5 text-gray-300 inline" />}
+                                                    </TableCell>
                                                     <TableCell className="px-4 py-3">
                                                         <Badge variant={motivo.activo ? "default" : "secondary"} className={motivo.activo ? "bg-brand-lime/10 text-brand-lime border-brand-lime/20" : "bg-gray-200 text-gray-600 border-gray-300"}>
                                                             {motivo.activo ? "Activo" : "Inactivo"}
@@ -588,22 +627,26 @@ export default function MotivosPage() {
                                         <FormField
                                             control={motivoForm.control}
                                             name="adjunto_obligatorio"
-                                            render={({ field }) => (
-                                                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-3">
-                                                    <FormControl>
-                                                        <Checkbox
-                                                            checked={field.value}
-                                                            onCheckedChange={(checked) => field.onChange(checked === true)}
-                                                        />
-                                                    </FormControl>
-                                                    <div className="space-y-1 leading-none">
-                                                        <FormLabel>Adjunto obligatorio</FormLabel>
-                                                        <p className="text-xs text-muted-foreground">
-                                                            El adjunto será obligatorio al crear la solicitud.
-                                                        </p>
-                                                    </div>
-                                                </FormItem>
-                                            )}
+                                            render={({ field }) => {
+                                                const requiereAdjunto = motivoForm.watch('requiere_adjunto');
+                                                return (
+                                                    <FormItem className={`flex flex-row items-start space-x-3 space-y-0 rounded-md border p-3 ${!requiereAdjunto ? 'opacity-40 pointer-events-none' : ''}`}>
+                                                        <FormControl>
+                                                            <Checkbox
+                                                                checked={field.value}
+                                                                onCheckedChange={(checked) => field.onChange(checked === true)}
+                                                                disabled={!requiereAdjunto}
+                                                            />
+                                                        </FormControl>
+                                                        <div className="space-y-1 leading-none">
+                                                            <FormLabel>Adjunto obligatorio</FormLabel>
+                                                            <p className="text-xs text-muted-foreground">
+                                                                El adjunto será obligatorio al crear la solicitud. Solo disponible si "Requiere adjunto" está activo.
+                                                            </p>
+                                                        </div>
+                                                    </FormItem>
+                                                );
+                                            }}
                                         />
                                         <FormField
                                             control={motivoForm.control}
