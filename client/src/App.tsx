@@ -538,6 +538,17 @@ function App() {
                 <SeleccionPage />
               </ProtectedRoute>
             } />
+            {/* Analista Gestión Humana — redirigen a páginas existentes */}
+            <Route path="/analista/novedades" element={
+              <ProtectedRoute>
+                <NovedadesPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/analista/solicitudes" element={
+              <ProtectedRoute>
+                <SeleccionPage />
+              </ProtectedRoute>
+            } />
 
             {/* Rutas de maestro */}
             <Route path="/tipos-candidatos" element={

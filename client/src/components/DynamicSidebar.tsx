@@ -95,20 +95,33 @@ const menuItems = [
     subItems: [],
   },
   {
-    title: "Analistas",
-    icon: <UserCheck className="h-5 w-5" />,
-    path: "/analistas",
-    subItems: [],
-  },
-  {
-    title: "Novedades Contratacion Y selección",
+    title: "Novedades Contratación y Selección",
     icon: <ClipboardCheck className="h-5 w-5" />,
     subItems: [
       { title: "Novedades", path: "/novedades", icon: <ClipboardList className="h-4 w-4" /> },
-      { title: "Selección", path: "/seleccion", icon: <FolderKanban className="h-4 w-4" /> },
-      { title: "Comité de Aprobación", path: "/comite_aprob", icon: <ClipboardCheck className="h-4 w-4" /> },
-      { title: "Entrevistas", path: "/novedades/entrevista", icon: <FolderKanban className="h-4 w-4" /> },
+      { title: "Entrevistas", path: "/novedades/entrevista", icon: <UserCheck className="h-4 w-4" /> },
     ],
+  },
+  {
+    title: "Comité de Aprobación",
+    icon: <ClipboardCheck className="h-5 w-5" />,
+    path: "/comite_aprob",
+    subItems: [],
+  },
+  {
+    title: "Analista Gestión Humana",
+    icon: <UserCheck className="h-5 w-5" />,
+    subItems: [
+      { title: "Gestión de Novedades", path: "/analista/novedades", icon: <ClipboardList className="h-4 w-4" /> },
+      { title: "Solicitudes", path: "/analista/solicitudes", icon: <FileCheck className="h-4 w-4" /> },
+      { title: "Candidatos", path: "/registros/candidatos", icon: <User className="h-4 w-4" /> },
+    ],
+  },
+  {
+    title: "Novedades Selección",
+    icon: <FolderKanban className="h-5 w-5" />,
+    path: "/seleccion",
+    subItems: [],
   },
   {
     title: "Información Personal",
@@ -239,14 +252,19 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
     '/expedicion-certificados': ['vista-certificados'],
     '/certificados-medicos': ['vista-certificados'],
 
-    // Analistas
-    '/analistas': ['vista-analistas'],
-
-    // Novedades
+    // Novedades Contratación y Selección (módulo líder/coordinador)
     '/novedades': ['vista-novedades'],
-    '/seleccion': ['vista-seleccion'],
-    '/novedades/entrevista': ['vista-novedades'],
+    '/novedades/entrevista': ['vista-novedades', 'vista-entrevistas'],
+
+    // Comité de Aprobación (módulo independiente)
     '/comite_aprob': ['vista-comite'],
+
+    // Analista Gestión Humana
+    '/analista/novedades': ['vista-analista-novedades', 'vista-novedades'],
+    '/analista/solicitudes': ['vista-analista-solicitudes', 'vista-solicitudes-analista'],
+
+    // Novedades Selección (módulo analista selección)
+    '/seleccion': ['vista-seleccion'],
 
     // Información Personal
     '/perfil-candidato': ['vista-informacion-personal'],

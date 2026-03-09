@@ -1,4 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import {
+    BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+    PieChart, Pie, Cell, Legend,
+} from 'recharts';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,6 +28,8 @@ import {
     Search,
     Download,
     Filter,
+    ArrowUp,
+    ArrowDown,
     Users,
     FileText,
     Clock,
@@ -41,13 +47,6 @@ import {
     ChevronUp,
     AlertCircle,
     Upload,
-    TrendingUp,
-    Send,
-    RotateCcw,
-    ThumbsUp,
-    ThumbsDown,
-    Sparkles,
-    UserPlus,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -64,6 +63,8 @@ import {
     type NovedadFiltros,
     type NovedadLog,
 } from '@/services/novedadesService';
+import { supabase } from '@/services/supabaseClient';
+import { emailService } from '@/services/emailService';
 
 // ============================================================
 // TIPOS DE FORMULARIO POR MOTIVO
@@ -127,6 +128,18 @@ const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type:
     ],
 };
 
+// Motivos que solo se pueden registrar los viernes
+const MOTIVOS_SOLO_VIERNES = ['retiros', 'renuncias', 'aumento_plaza'];
+
+// Días sin gestión antes de notificar al coordinador
+const DIAS_LIMITE_NOTIFICACION = 15;
+
+// Estados que se consideran finales (no generan alerta)
+const ESTADOS_FINALES = [ESTADOS_NOVEDAD.EJECUTADA, ESTADOS_NOVEDAD.RECHAZADA, ESTADOS_NOVEDAD.CANCELADA];
+
+const escapeHtml = (str: string) =>
+    str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
 // ============================================================
 // COMPONENTE PRINCIPAL
 // ============================================================
@@ -173,6 +186,7 @@ const NovedadesPage: React.FC = () => {
 
     // Expanded rows
     const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+    const [sortFecha, setSortFecha] = useState<'asc' | 'desc'>('desc');
 
     // ============================================================
     // QUERIES
@@ -206,6 +220,82 @@ const NovedadesPage: React.FC = () => {
         queryFn: () => timelineSolicitudId ? novedadesLogsService.getLogsBySolicitud(timelineSolicitudId) : Promise.resolve([]),
         enabled: !!timelineSolicitudId,
     });
+
+    // Notificación automática al coordinador cuando una novedad supera el límite de días
+    const notificacionEnviadaRef = useRef(false);
+    useEffect(() => {
+        if (!solicitudes.length || notificacionEnviadaRef.current) return;
+
+        // Calcular días una sola vez por solicitud (map → filter)
+        const ahora = Date.now();
+        const vencidas = solicitudes
+            .filter(s => s.created_at && !ESTADOS_FINALES.includes(s.estado || ''))
+            .map(s => ({
+                ...s,
+                diasSinGestion: Math.floor((ahora - new Date(s.created_at!).getTime()) / (1000 * 60 * 60 * 24)),
+            }))
+            .filter(s => s.diasSinGestion >= DIAS_LIMITE_NOTIFICACION);
+
+        if (!vencidas.length) return;
+        notificacionEnviadaRef.current = true;
+
+        (async () => {
+            try {
+                const { data: coordinadores } = await supabase
+                    .from('gen_usuarios')
+                    .select('email, primer_nombre, primer_apellido')
+                    .eq('role', 'coordinador')
+                    .eq('activo', true);
+
+                if (!coordinadores?.length) return;
+
+                const from = (import.meta as any).env?.VITE_GMAIL_USER || 'noreply@rhplus.co';
+                const subject = `⚠️ Alerta: ${vencidas.length} novedad(es) superaron ${DIAS_LIMITE_NOTIFICACION} días sin gestión`;
+
+                const filas = vencidas.map(s => {
+                    const nombre = s.empleado
+                        ? escapeHtml(`${s.empleado.nombre} ${s.empleado.apellido || ''}`.trim())
+                        : `ID ${s.empleado_id}`;
+                    return `<tr>
+                        <td style="padding:6px 10px;border:1px solid #e5e7eb">${s.id}</td>
+                        <td style="padding:6px 10px;border:1px solid #e5e7eb">${escapeHtml(s.motivo?.nombre || String(s.motivo_id))}</td>
+                        <td style="padding:6px 10px;border:1px solid #e5e7eb">${nombre}</td>
+                        <td style="padding:6px 10px;border:1px solid #e5e7eb;color:#dc2626;font-weight:600">${s.diasSinGestion} días</td>
+                        <td style="padding:6px 10px;border:1px solid #e5e7eb">${s.estado || 'solicitada'}</td>
+                    </tr>`;
+                }).join('');
+
+                // Enviar a todos los coordinadores en paralelo
+                await Promise.all(coordinadores.map(coord => emailService.sendEmail({
+                    to: coord.email,
+                    from,
+                    subject,
+                    html: `
+                        <div style="font-family:sans-serif;max-width:680px;margin:0 auto">
+                            <h2 style="color:#b45309">⚠️ Novedades sin gestión — Alerta de tiempo</h2>
+                            <p>Estimado/a <strong>${escapeHtml(coord.primer_nombre)} ${escapeHtml(coord.primer_apellido)}</strong>,</p>
+                            <p>Las siguientes solicitudes llevan más de <strong>${DIAS_LIMITE_NOTIFICACION} días</strong> sin ser gestionadas:</p>
+                            <table style="border-collapse:collapse;width:100%;margin:16px 0;font-size:14px">
+                                <thead>
+                                    <tr style="background:#fef3c7">
+                                        <th style="padding:8px 10px;border:1px solid #e5e7eb;text-align:left">#</th>
+                                        <th style="padding:8px 10px;border:1px solid #e5e7eb;text-align:left">Motivo</th>
+                                        <th style="padding:8px 10px;border:1px solid #e5e7eb;text-align:left">Empleado</th>
+                                        <th style="padding:8px 10px;border:1px solid #e5e7eb;text-align:left">Días</th>
+                                        <th style="padding:8px 10px;border:1px solid #e5e7eb;text-align:left">Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${filas}</tbody>
+                            </table>
+                            <p>Por favor gestione estas solicitudes a la brevedad.</p>
+                        </div>
+                    `,
+                })));
+            } catch (_) {
+                // No bloquear la UI si el email falla
+            }
+        })();
+    }, [solicitudes.length]);
 
     // ============================================================
     // MUTATIONS
@@ -266,6 +356,18 @@ const NovedadesPage: React.FC = () => {
         for (const field of fields) {
             if (field.required && !formData[field.name] && field.type !== 'checkbox') {
                 toast.error(`El campo "${field.label}" es requerido`);
+                return;
+            }
+        }
+
+        // Regla de viernes: retiros, renuncias y aumento de plaza solo se registran los viernes
+        if (MOTIVOS_SOLO_VIERNES.includes(selectedMotivo.codigo)) {
+            const diaSemana = new Date().getDay(); // 0=Dom, 5=Vie
+            if (diaSemana !== 5) {
+                toast.error(
+                    'Las solicitudes de Retiros, Renuncias y Aumento de Plaza solo pueden registrarse los viernes',
+                    { description: 'Esta es una restricción de política interna.' }
+                );
                 return;
             }
         }
@@ -331,7 +433,6 @@ const NovedadesPage: React.FC = () => {
                 // Si requiere comité, buscar aprobador y enviar correo
                 if (selectedMotivo.requiere_comite && cedulaAprobador.trim()) {
                     try {
-                        const { supabase } = await import('@/services/supabaseClient');
                         const { data: aprobador } = await supabase
                             .from('gen_usuarios')
                             .select('email, primer_nombre, primer_apellido')
@@ -340,9 +441,8 @@ const NovedadesPage: React.FC = () => {
                             .single();
 
                         if (aprobador?.email) {
-                            const { emailService } = await import('@/services/emailService');
                             const empleadoNombre = selectedEmpleado
-                                ? `${selectedEmpleado.nombre} ${selectedEmpleado.apellido || ''}`.trim()
+                                ? escapeHtml(`${selectedEmpleado.nombre} ${selectedEmpleado.apellido || ''}`.trim())
                                 : 'Empleado';
                             await emailService.sendEmail({
                                 to: aprobador.email,
@@ -351,12 +451,12 @@ const NovedadesPage: React.FC = () => {
                                 html: `
                                     <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
                                         <h2 style="color:#0e7490">Solicitud requiere su aprobación de comité</h2>
-                                        <p>Estimado/a <strong>${aprobador.primer_nombre} ${aprobador.primer_apellido}</strong>,</p>
+                                        <p>Estimado/a <strong>${escapeHtml(aprobador.primer_nombre)} ${escapeHtml(aprobador.primer_apellido)}</strong>,</p>
                                         <p>Se ha creado una solicitud de novedad que requiere su aprobación:</p>
                                         <table style="border-collapse:collapse;width:100%;margin:16px 0">
-                                            <tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:600;background:#f9fafb">Motivo</td><td style="padding:8px;border:1px solid #e5e7eb">${selectedMotivo.nombre}</td></tr>
+                                            <tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:600;background:#f9fafb">Motivo</td><td style="padding:8px;border:1px solid #e5e7eb">${escapeHtml(selectedMotivo.nombre)}</td></tr>
                                             <tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:600;background:#f9fafb">Empleado</td><td style="padding:8px;border:1px solid #e5e7eb">${empleadoNombre}</td></tr>
-                                            ${observaciones ? `<tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:600;background:#f9fafb">Observaciones</td><td style="padding:8px;border:1px solid #e5e7eb">${observaciones}</td></tr>` : ''}
+                                            ${observaciones ? `<tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:600;background:#f9fafb">Observaciones</td><td style="padding:8px;border:1px solid #e5e7eb">${escapeHtml(observaciones)}</td></tr>` : ''}
                                         </table>
                                         <p>Ingrese al sistema para <strong>aprobar o rechazar</strong> esta solicitud en el módulo de Comité de Aprobación.</p>
                                     </div>
@@ -412,6 +512,39 @@ const NovedadesPage: React.FC = () => {
         return s;
     }, [solicitudes]);
 
+    const chartMotivos = useMemo(() => {
+        const m: Record<string, number> = {};
+        solicitudes.forEach(s => {
+            const nombre = s.motivo?.nombre || 'Sin motivo';
+            m[nombre] = (m[nombre] || 0) + 1;
+        });
+        return Object.entries(m)
+            .map(([nombre, total]) => ({ nombre: nombre.length > 14 ? nombre.slice(0, 13) + '…' : nombre, total }))
+            .sort((a, b) => b.total - a.total)
+            .slice(0, 7);
+    }, [solicitudes]);
+
+    const ESTADO_CHART_COLORS: Record<string, string> = {
+        solicitada: '#38bdf8',
+        en_proceso: '#fb923c',
+        aprobado_comite: '#34d399',
+        rechazada: '#f87171',
+        congelada: '#a78bfa',
+        ejecutada: '#6b7280',
+        cancelada: '#d1d5db',
+    };
+
+    const chartEstados = useMemo(() =>
+        Object.entries(stats)
+            .filter(([, v]) => v > 0)
+            .map(([estado, value]) => ({
+                name: ESTADO_LABELS[estado] || estado,
+                value,
+                color: ESTADO_CHART_COLORS[estado] || '#94a3b8',
+            })),
+        [stats]
+    );
+
     // ============================================================
     // RENDER
     // ============================================================
@@ -424,98 +557,9 @@ const NovedadesPage: React.FC = () => {
     };
 
     return (
-        <div className="space-y-6 p-6">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                    <div className="relative">
-                        <div className="p-3 rounded-2xl bg-gradient-to-br from-cyan-500 to-teal-600 shadow-lg shadow-cyan-500/25">
-                            <ClipboardCheck className="h-7 w-7 text-white" />
-                        </div>
-                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white animate-pulse" />
-                    </div>
-                    <div>
-                        <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">Solicitud de Novedades</h1>
-                        <p className="text-sm text-gray-500 flex items-center gap-1.5 mt-0.5">
-                            <Sparkles className="h-3.5 w-3.5 text-cyan-500" />
-                            Gestión de novedades de recurso humano
-                        </p>
-                    </div>
-                </div>
-                <div className="flex gap-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                            if (!solicitudes.length) {
-                                toast.error('No hay datos para exportar');
-                                return;
-                            }
-
-                            const dataToExport = solicitudes.map(s => ({
-                                ID: s.id,
-                                Empleado: s.empleado ? `${s.empleado.nombre} ${s.empleado.apellido || ''}`.trim() : 'N/A',
-                                Documento: s.empleado?.documento || 'N/A',
-                                Cargo: s.empleado?.cargo || 'N/A',
-                                Motivo: s.motivo?.nombre || 'N/A',
-                                Estado: ESTADO_LABELS[s.estado || 'solicitada'] || s.estado,
-                                'Fecha Solicitud': formatDate(s.created_at),
-                                Sucursal: s.sucursal || 'N/A',
-                                'Creado Por': s.creador ? `${s.creador.primer_nombre} ${s.creador.primer_apellido}`.trim() : 'Sistema',
-                                Observaciones: s.observaciones || '',
-                                'Requiere Reemplazo': s.requiere_reemplazo ? 'Sí' : 'No'
-                            }));
-
-                            import('@/utils/exportUtils').then(({ exportToExcel }) => {
-                                exportToExcel(dataToExport, `Solicitudes_Novedades_${new Date().toISOString().split('T')[0]}`, 'Solicitudes');
-                                toast.success('Exportación generada exitosamente');
-                            }).catch(err => {
-                                console.error('Error al exportar:', err);
-                                toast.error('Error al generar el archivo Excel');
-                            });
-                        }}
-                        className="gap-2 border-gray-200 hover:border-cyan-300 hover:bg-cyan-50 transition-all duration-200"
-                    >
-                        <Download className="h-4 w-4" />
-                        Exportar
-                    </Button>
-                    <Button
-                        size="sm"
-                        onClick={() => setShowFormModal(true)}
-                        className="gap-2 bg-gradient-to-r from-cyan-500 to-teal-600 hover:from-cyan-600 hover:to-teal-700 text-white shadow-md shadow-cyan-500/20 hover:shadow-lg hover:shadow-cyan-500/30 transition-all duration-200"
-                    >
-                        <Plus className="h-4 w-4" />
-                        Nueva Novedad
-                    </Button>
-                </div>
-            </div>
-
-            {/* Stats Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                {[
-                    { label: 'Total', value: solicitudes.length, icon: TrendingUp, gradient: 'from-blue-500 to-indigo-600', bg: 'bg-blue-50', shadow: 'shadow-blue-500/15' },
-                    { label: 'Solicitadas', value: stats.solicitada || 0, icon: Send, gradient: 'from-sky-500 to-cyan-600', bg: 'bg-sky-50', shadow: 'shadow-sky-500/15' },
-                    { label: 'En Proceso', value: stats.en_proceso || 0, icon: RotateCcw, gradient: 'from-amber-500 to-orange-600', bg: 'bg-amber-50', shadow: 'shadow-amber-500/15' },
-                    { label: 'Aprobadas', value: stats.aprobado_comite || 0, icon: ThumbsUp, gradient: 'from-emerald-500 to-green-600', bg: 'bg-emerald-50', shadow: 'shadow-emerald-500/15' },
-                    { label: 'Rechazadas', value: stats.rechazada || 0, icon: ThumbsDown, gradient: 'from-rose-500 to-red-600', bg: 'bg-rose-50', shadow: 'shadow-rose-500/15' },
-                ].map(stat => (
-                    <Card key={stat.label} className={`border-0 ${stat.bg} shadow-md ${stat.shadow} hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5 overflow-hidden relative group`}>
-                        <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-3xl font-extrabold tracking-tight text-gray-800">{stat.value}</p>
-                                    <p className="text-xs font-semibold text-gray-500 mt-0.5 uppercase tracking-wider">{stat.label}</p>
-                                </div>
-                                <div className={`p-2.5 rounded-xl bg-gradient-to-br ${stat.gradient} shadow-sm group-hover:scale-110 transition-transform duration-300`}>
-                                    <stat.icon className="h-5 w-5 text-white" />
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                ))}
-            </div>
-
-            {/* Filtros */}
+        <div className="space-y-5 p-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+            {/* Filtros + acciones en la misma fila */}
             <Card className="border-0 shadow-sm bg-white/80 backdrop-blur-sm">
                 <CardContent className="p-4">
                     <div className="flex flex-wrap items-center gap-3">
@@ -574,24 +618,58 @@ const NovedadesPage: React.FC = () => {
                                 Limpiar
                             </Button>
                         )}
+
+                        <TabsList className="bg-gray-100/80 p-1 h-auto ml-auto">
+                            <TabsTrigger value="solicitudes" className="gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-cyan-700 py-1.5 px-3 transition-all duration-200 text-sm">
+                                <FileText className="h-3.5 w-3.5" />
+                                Solicitudes
+                                <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px] font-bold">{solicitudes.length}</Badge>
+                            </TabsTrigger>
+                            <TabsTrigger value="empleados" className="gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-cyan-700 py-1.5 px-3 transition-all duration-200 text-sm">
+                                <Users className="h-3.5 w-3.5" />
+                                Empleados
+                                <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px] font-bold">{empleados.length}</Badge>
+                            </TabsTrigger>
+                        </TabsList>
+
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                    if (!solicitudes.length) { toast.error('No hay datos para exportar'); return; }
+                                    const dataToExport = solicitudes.map(s => ({
+                                        ID: s.id,
+                                        Empleado: s.empleado ? `${s.empleado.nombre} ${s.empleado.apellido || ''}`.trim() : 'N/A',
+                                        Documento: s.empleado?.documento || 'N/A',
+                                        Cargo: s.empleado?.cargo || 'N/A',
+                                        Motivo: s.motivo?.nombre || 'N/A',
+                                        Estado: ESTADO_LABELS[s.estado || 'solicitada'] || s.estado,
+                                        'Fecha Solicitud': formatDate(s.created_at),
+                                        Sucursal: s.sucursal || 'N/A',
+                                        'Creado Por': s.creador ? `${s.creador.primer_nombre} ${s.creador.primer_apellido}`.trim() : 'Sistema',
+                                        Observaciones: s.observaciones || '',
+                                        'Requiere Reemplazo': s.requiere_reemplazo ? 'Sí' : 'No',
+                                    }));
+                                    import('@/utils/exportUtils').then(({ exportToExcel }) => {
+                                        exportToExcel(dataToExport, `Solicitudes_Novedades_${new Date().toISOString().split('T')[0]}`, 'Solicitudes');
+                                        toast.success('Exportación generada exitosamente');
+                                    }).catch(() => toast.error('Error al generar el archivo Excel'));
+                                }}
+                                className="gap-2 text-gray-600"
+                            >
+                                <Download className="h-4 w-4" />
+                                Exportar
+                            </Button>
+                            <Button size="sm" onClick={() => setShowFormModal(true)} className="gap-2">
+                                <Plus className="h-4 w-4" />
+                                Nueva Novedad
+                            </Button>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
 
-            {/* Tabs: Solicitudes / Empleados */}
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-                <TabsList className="bg-gray-100/80 p-1 h-auto">
-                    <TabsTrigger value="solicitudes" className="gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-cyan-700 py-2.5 px-4 transition-all duration-200">
-                        <FileText className="h-4 w-4" />
-                        Solicitudes
-                        <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px] font-bold">{solicitudes.length}</Badge>
-                    </TabsTrigger>
-                    <TabsTrigger value="empleados" className="gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-cyan-700 py-2.5 px-4 transition-all duration-200">
-                        <Users className="h-4 w-4" />
-                        Empleados
-                        <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px] font-bold">{empleados.length}</Badge>
-                    </TabsTrigger>
-                </TabsList>
 
                 {/* TAB: SOLICITUDES */}
                 <TabsContent value="solicitudes">
@@ -623,19 +701,34 @@ const NovedadesPage: React.FC = () => {
                             ) : (
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-sm">
-                                        <thead className="bg-gradient-to-r from-gray-50 to-gray-100/80 border-b border-gray-200">
+                                        <thead className="border-b border-gray-200">
                                             <tr>
-                                                <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">ID</th>
-                                                <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Empleado</th>
-                                                <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Motivo</th>
-                                                <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Estado</th>
-                                                <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Fecha</th>
-                                                <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Sucursal</th>
-                                                <th className="px-4 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Acciones</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">ID</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider pl-[58px]">Empleado</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Motivo</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Estado</th>
+                                                <th
+                                                    className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer select-none"
+                                                    onClick={() => setSortFecha(d => d === 'desc' ? 'asc' : 'desc')}
+                                                >
+                                                    <span className="flex items-center gap-1">
+                                                        Fecha
+                                                        {sortFecha === 'desc'
+                                                            ? <ArrowDown className="h-3 w-3" />
+                                                            : <ArrowUp className="h-3 w-3" />
+                                                        }
+                                                    </span>
+                                                </th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Sucursal</th>
+                                                <th className="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Acciones</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {solicitudes.map(sol => (
+                                            {[...solicitudes].sort((a, b) => {
+                                                const ta = new Date(a.created_at || 0).getTime();
+                                                const tb = new Date(b.created_at || 0).getTime();
+                                                return sortFecha === 'desc' ? tb - ta : ta - tb;
+                                            }).map(sol => (
                                                 <React.Fragment key={sol.id}>
                                                     <tr
                                                         className="border-b border-gray-100 hover:bg-cyan-50/30 cursor-pointer transition-all duration-150 group"
@@ -813,7 +906,55 @@ const NovedadesPage: React.FC = () => {
                         </CardContent>
                     </Card>
                 </TabsContent>
-            </Tabs>
+            {/* Stats + Gráficas — debajo de las tablas */}
+            {solicitudes.length > 0 && (<>
+                {/* Stats ancho completo */}
+                <div className="grid grid-cols-5 divide-x divide-gray-100 bg-white border border-gray-100 rounded-xl overflow-hidden">
+                    {[
+                        { label: 'Total', value: solicitudes.length, color: 'text-gray-900' },
+                        { label: 'Solicitadas', value: stats.solicitada || 0, color: 'text-sky-600' },
+                        { label: 'En proceso', value: stats.en_proceso || 0, color: 'text-amber-600' },
+                        { label: 'Aprobadas', value: stats.aprobado_comite || 0, color: 'text-emerald-600' },
+                        { label: 'Rechazadas', value: stats.rechazada || 0, color: 'text-rose-500' },
+                    ].map(stat => (
+                        <div key={stat.label} className="flex flex-col items-center justify-center py-5">
+                            <span className={`text-3xl font-bold ${stat.color}`}>{stat.value}</span>
+                            <span className="text-xs text-gray-400 mt-1">{stat.label}</span>
+                        </div>
+                    ))}
+                </div>
+            </>)}
+
+            {solicitudes.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-white border border-gray-100 rounded-xl p-4">
+                        <p className="text-sm font-medium text-gray-700 mb-3">Solicitudes por motivo</p>
+                        <ResponsiveContainer width="100%" height={180}>
+                            <BarChart data={chartMotivos} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                                <XAxis dataKey="nombre" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #f3f4f6', boxShadow: '0 2px 8px #0001' }} cursor={{ fill: '#f9fafb' }} />
+                                <Bar dataKey="total" fill="#38bdf8" radius={[4, 4, 0, 0]} maxBarSize={32} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+
+                    <div className="bg-white border border-gray-100 rounded-xl p-4">
+                        <p className="text-sm font-medium text-gray-700 mb-3">Distribución por estado</p>
+                        <ResponsiveContainer width="100%" height={180}>
+                            <PieChart>
+                                <Pie data={chartEstados} cx="50%" cy="50%" innerRadius={45} outerRadius={72} paddingAngle={3} dataKey="value">
+                                    {chartEstados.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                                </Pie>
+                                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #f3f4f6', boxShadow: '0 2px 8px #0001' }} />
+                                <Legend iconType="circle" iconSize={8} formatter={(value) => <span style={{ fontSize: 11, color: '#6b7280' }}>{value}</span>} />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+            )}
+
+        </Tabs>
 
             {/* ================================================================ */}
             {/* MODAL: Nueva Solicitud de Novedad */}
