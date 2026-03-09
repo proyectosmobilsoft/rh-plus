@@ -525,6 +525,8 @@ function App() {
             <Route path="/novedades/entrevista" element={
               <ProtectedRoute>
                 <EntrevistasPage />
+              </ProtectedRoute>
+            } />
             <Route path="/comite_aprob" element={
               <ProtectedRoute>
                 <ComiteAprobacionPage />
@@ -675,13 +677,6 @@ function App() {
             } />
 
           </Route>
-
-          {/* Rutas de novedades */}
-          <Route path="/novedades" element={
-            <ProtectedRoute>
-              <NovedadesPage />
-            </ProtectedRoute>
-          } />
 
           {/* Ruta 404 */}
           <Route path="*" element={<NotFound />} />
