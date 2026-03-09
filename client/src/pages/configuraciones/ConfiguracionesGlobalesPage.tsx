@@ -31,6 +31,7 @@ import {
 import { supabase } from '@/services/supabaseClient';
 import { toast } from "sonner";
 import ConfiguracionColores from '@/components/configuracion/ConfiguracionColores';
+import { Can } from '@/contexts/PermissionsContext';
 
 interface ConfigEmpresa {
   id: number;
@@ -325,13 +326,15 @@ export default function ConfiguracionesGlobalesPage() {
             <Palette className="w-4 h-4 mr-2" />
             Configuración de Colores
           </TabsTrigger>
-          <TabsTrigger
-            value="seguridad"
-            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
-          >
-            <Shield className="w-4 h-4 mr-2" />
-            Seguridad
-          </TabsTrigger>
+          <Can action="accion-config-seguridad">
+            <TabsTrigger
+              value="seguridad"
+              className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+            >
+              <Shield className="w-4 h-4 mr-2" />
+              Seguridad
+            </TabsTrigger>
+          </Can>
         </TabsList>
 
         <TabsContent value="configuracion" className="mt-6">
@@ -663,6 +666,7 @@ export default function ConfiguracionesGlobalesPage() {
           </div>
         </TabsContent>
 
+        <Can action="accion-config-seguridad">
         <TabsContent value="seguridad" className="mt-6">
           <div className="bg-white rounded-lg border">
             <div className="flex items-center gap-3 p-4 border-b">
@@ -714,6 +718,7 @@ export default function ConfiguracionesGlobalesPage() {
             </div>
           </div>
         </TabsContent>
+        </Can>
       </Tabs>
     </div>
   );
