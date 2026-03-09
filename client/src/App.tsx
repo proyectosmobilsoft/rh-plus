@@ -91,6 +91,7 @@ import EditarAnalistaPage from './pages/analistas/EditarAnalistaPage';
 import NovedadesPage from './pages/novedades/NovedadesPage';
 import EntrevistasPage from './pages/novedades/EntrevistasPage';
 import ComiteAprobacionPage from './pages/novedades/ComiteAprobacionPage';
+import SeleccionPage from './pages/novedades/SeleccionPage';
 
 // Páginas de maestro
 import TiposCandidatosPage from './pages/maestro/TiposCandidatosPage';
@@ -530,6 +531,11 @@ function App() {
             <Route path="/comite_aprob" element={
               <ProtectedRoute>
                 <ComiteAprobacionPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/seleccion" element={
+              <ProtectedRoute>
+                <SeleccionPage />
               </ProtectedRoute>
             } />
 

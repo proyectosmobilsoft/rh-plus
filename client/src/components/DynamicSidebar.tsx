@@ -105,6 +105,8 @@ const menuItems = [
     icon: <ClipboardCheck className="h-5 w-5" />,
     subItems: [
       { title: "Novedades", path: "/novedades", icon: <ClipboardList className="h-4 w-4" /> },
+      { title: "Selección", path: "/seleccion", icon: <FolderKanban className="h-4 w-4" /> },
+      { title: "Comité de Aprobación", path: "/comite_aprob", icon: <ClipboardCheck className="h-4 w-4" /> },
       { title: "Entrevistas", path: "/novedades/entrevista", icon: <FolderKanban className="h-4 w-4" /> },
     ],
   },
@@ -242,8 +244,9 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
 
     // Novedades
     '/novedades': ['vista-novedades'],
+    '/seleccion': ['vista-seleccion'],
     '/novedades/entrevista': ['vista-novedades'],
-    '/comite_aprob': ['vista-novedades'],
+    '/comite_aprob': ['vista-comite'],
 
     // Información Personal
     '/perfil-candidato': ['vista-informacion-personal'],
