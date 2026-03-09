@@ -26,7 +26,7 @@ export const usuariosService = {
     try {
       // Primero obtener solo los usuarios básicos (sin relaciones anidadas)
       // Incluir foto_base64 (ahora es URL de Storage, no base64 completo, así que es seguro)
-      const selectFields = `id, identificacion, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, telefono, email, username, activo, password, created_at`;
+      const selectFields = `id, identificacion, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, telefono, email, username, activo, created_at`;
 
       const { data: usuarios, error: usuariosError } = await supabase
         .from('gen_usuarios')
@@ -133,18 +133,19 @@ export const usuariosService = {
       throw new Error(`El email '${usuarioData.email}' ya está en uso por: ${existingEmails[0].primer_nombre} ${existingEmails[0].primer_apellido} (ID: ${existingEmails[0].id})`);
     }
     
-    // 1. Guardar la contraseña como texto plano
-    const userDataWithPassword = {
-      ...usuarioData,
-      password: password
-    };
-      
-      const { data: newUser, error: userError } = await supabase
-        .from('gen_usuarios')
-        .insert(userDataWithPassword)
-        .select()
-        .single();
-      if (userError) throw userError;
+    // 1. Insertar usuario sin contraseña
+    const { data: newUser, error: userError } = await supabase
+      .from('gen_usuarios')
+      .insert(usuarioData)
+      .select()
+      .single();
+    if (userError) throw userError;
+
+    // 2. Hashear y guardar contraseña via RPC (nunca en texto plano)
+    await supabase.rpc('update_user_password_by_id', {
+      p_id: newUser.id,
+      p_new_password: password
+    });
 
       // 2. Asignar roles
       if (rolesIds.length > 0) {
@@ -201,11 +202,16 @@ export const usuariosService = {
       }
     }
     
-    let finalUsuarioData = { ...usuarioData };
+    // Excluir password del update normal, se maneja por RPC
+    const { password: _pw, ...restData } = usuarioData as any;
+    let finalUsuarioData = { ...restData };
     
-    // Si se proporciona una nueva contraseña, guardarla como texto plano
+    // Si se proporciona una nueva contraseña, hashearla via RPC
     if (password && password.trim() !== '') {
-      finalUsuarioData.password = password;
+      await supabase.rpc('update_user_password_by_id', {
+        p_id: id,
+        p_new_password: password
+      });
     }
     
     // 1. Actualizar datos del usuario

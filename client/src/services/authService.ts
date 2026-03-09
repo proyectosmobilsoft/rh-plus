@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { emailService } from './emailService';
+import bcryptjs from 'bcryptjs';
 
 export interface LoginCredentials {
   username: string;
@@ -221,8 +222,10 @@ export const authService: AuthService = {
         .filter((id: any) => Number.isFinite(id));
       const roleIdsUnique = Array.from(new Set<number>([...roleIdsFromJoin, ...roleIdsFromRoles] as number[]));
 
-      // Comparar contraseña como texto plano
-      const isMatch = password === safeUserData.password;
+      // Verificar contraseña usando bcryptjs en el frontend
+      const isMatch = safeUserData.password
+        ? await bcryptjs.compare(password, safeUserData.password)
+        : false;
       
       if (isMatch) {
         // Actualizar último acceso del usuario
@@ -252,7 +255,7 @@ export const authService: AuthService = {
             acciones,
             ultimoAcceso: new Date().toISOString(), // Incluir último acceso
             // Información adicional del usuario
-            password: safeUserData.password // Solo para debug
+            // password omitido intencionalmente por seguridad
           }
         };
       }
@@ -401,11 +404,11 @@ export const authService: AuthService = {
         return verificacion;
       }
       
-      // Guardar la nueva contraseña como texto plano
+      // Hashear y guardar la nueva contraseña usando pgcrypto
       const { error: updateError } = await supabase
-        .from('gen_usuarios')
-        .update({ password: nuevaContraseña })
-        .eq('email', email);
+        .rpc('update_user_password', { p_email: email, p_new_password: nuevaContraseña })
+        .single()
+        .then(({ error }) => ({ error }));
       
       if (updateError) throw updateError;
       
