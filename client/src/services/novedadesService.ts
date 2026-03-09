@@ -193,13 +193,20 @@ export const novedadesService = {
     // MOTIVOS
     // ----------------------------------------------------------
 
-    getMotivos: async (): Promise<NovedadMotivo[]> => {
+    getMotivos: async (empresa_id?: number): Promise<NovedadMotivo[]> => {
         try {
-            const { data, error } = await supabase
+            let query = supabase
                 .from('novedades_motivos')
                 .select('*')
                 .eq('activo', true)
-                .order('orden', { ascending: true });
+                .order('nombre', { ascending: true });
+
+            // Filtrar por empresa: mostrar los que son de esa empresa O los que no tienen empresa asignada (globales)
+            if (empresa_id) {
+                query = query.or(`empresa_id.eq.${empresa_id},empresa_id.is.null`);
+            }
+
+            const { data, error } = await query;
 
             if (error) {
                 console.error('Error obteniendo motivos:', error);

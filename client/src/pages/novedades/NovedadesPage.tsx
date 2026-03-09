@@ -134,6 +134,16 @@ const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type:
 const NovedadesPage: React.FC = () => {
     const queryClient = useQueryClient();
 
+    // Empresa del usuario actual
+    const empresaId: number | undefined = (() => {
+        try {
+            const raw = localStorage.getItem('empresaData') || localStorage.getItem('userData');
+            if (!raw) return undefined;
+            const parsed = JSON.parse(raw);
+            return parsed?.empresa?.id ?? parsed?.empresas?.[0]?.id ?? undefined;
+        } catch { return undefined; }
+    })();
+
     // Estado de filtros
     const [filtros, setFiltros] = useState<NovedadFiltros>({});
     const [busquedaEmpleado, setBusquedaEmpleado] = useState('');
@@ -169,8 +179,8 @@ const NovedadesPage: React.FC = () => {
     // ============================================================
 
     const { data: motivos = [], isLoading: motivosLoading } = useQuery<NovedadMotivo[]>({
-        queryKey: ['novedades-motivos'],
-        queryFn: () => novedadesService.getMotivos(),
+        queryKey: ['novedades-motivos', empresaId],
+        queryFn: () => novedadesService.getMotivos(empresaId),
     });
 
     const { data: solicitudes = [], isLoading: solicitudesLoading, refetch: refetchSolicitudes } = useQuery<NovedadSolicitud[]>({

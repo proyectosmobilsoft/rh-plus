@@ -68,10 +68,19 @@ const ComiteAprobacionPage: React.FC = () => {
     // ============================================================
     // CONEXIONES A LA DB
     // ============================================================
+    const empresaId: number | undefined = (() => {
+        try {
+            const raw = localStorage.getItem('empresaData') || localStorage.getItem('userData');
+            if (!raw) return undefined;
+            const parsed = JSON.parse(raw);
+            return parsed?.empresa?.id ?? parsed?.empresas?.[0]?.id ?? undefined;
+        } catch { return undefined; }
+    })();
+
     const { data: motivos = [] } = useQuery<NovedadMotivo[]>({
-        queryKey: ['novedades-motivos'],
+        queryKey: ['novedades-motivos', empresaId],
         queryFn: async () => {
-            const allMotivos = await novedadesService.getMotivos();
+            const allMotivos = await novedadesService.getMotivos(empresaId);
             return allMotivos.filter(m => m.requiere_comite);
         },
     });
