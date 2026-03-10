@@ -53,6 +53,9 @@ import {
 } from '@/services/novedadesService';
 import { emailService } from '@/services/emailService';
 
+// La aprobación de novedades solo está permitida los viernes
+const esViernes = () => new Date().getDay() === 5;
+
 const ComiteAprobacionPage: React.FC = () => {
     const queryClient = useQueryClient();
 
@@ -144,7 +147,7 @@ const ComiteAprobacionPage: React.FC = () => {
                 });
             }
         },
-        onError: () => toast.error('Error al procesar la decisión'),
+        onError: (err: Error) => toast.error(err?.message || 'Error al procesar la decisión'),
     });
 
     // ============================================================
@@ -347,7 +350,9 @@ const ComiteAprobacionPage: React.FC = () => {
                                                                         variant="outline"
                                                                         size="sm"
                                                                         onClick={() => { setSelectedSolicitud(sol); setShowActionModal('aprobar'); }}
-                                                                        className="h-7 rounded-md border-green-200 text-green-600 hover:bg-green-500 hover:text-white text-[10px] font-bold px-2.5 shadow-sm transition-all"
+                                                                        disabled={!esViernes()}
+                                                                        title={!esViernes() ? 'La aprobación solo está permitida los viernes' : undefined}
+                                                                        className="h-7 rounded-md border-green-200 text-green-600 hover:bg-green-500 hover:text-white text-[10px] font-bold px-2.5 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                                                     >
                                                                         Aceptar
                                                                     </Button>
@@ -531,7 +536,12 @@ const ComiteAprobacionPage: React.FC = () => {
                                     Cerrar
                                 </Button>
                                 {selectedSolicitud.estado === 'solicitada' && (
-                                    <div className="flex gap-2">
+                                    <div className="flex gap-2 items-center">
+                                        {!esViernes() && (
+                                            <span className="text-[10px] text-amber-600 font-bold italic mr-1">
+                                                Aprobación solo los viernes
+                                            </span>
+                                        )}
                                         <Button
                                             onClick={() => setShowActionModal('rechazar')}
                                             className="bg-red-50 text-red-600 hover:bg-red-100 border-red-100 font-bold rounded-xl h-10 px-4 text-xs border"
@@ -540,7 +550,9 @@ const ComiteAprobacionPage: React.FC = () => {
                                         </Button>
                                         <Button
                                             onClick={() => setShowActionModal('aprobar')}
-                                            className="bg-indigo-600 text-white hover:bg-indigo-700 font-bold rounded-xl h-10 px-6 text-xs shadow-md shadow-indigo-200"
+                                            disabled={!esViernes()}
+                                            title={!esViernes() ? 'La aprobación solo está permitida los viernes' : undefined}
+                                            className="bg-indigo-600 text-white hover:bg-indigo-700 font-bold rounded-xl h-10 px-6 text-xs shadow-md shadow-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             Aprobar Solicitud
                                         </Button>
@@ -580,8 +592,9 @@ const ComiteAprobacionPage: React.FC = () => {
                             <Button variant="ghost" onClick={() => setShowActionModal(null)} className="flex-1 rounded-2xl font-bold text-gray-400 h-12">Cancelar</Button>
                             <Button
                                 onClick={() => decisionMutation.mutate({ id: selectedSolicitud!.id!, aprobado: showActionModal === 'aprobar', obs: observacion })}
-                                disabled={decisionMutation.isPending || (showActionModal === 'rechazar' && !observacion.trim())}
-                                className={`flex-1 rounded-2xl font-bold shadow-lg h-12 ${showActionModal === 'aprobar' ? 'bg-green-500 hover:bg-green-600 text-white shadow-green-500/25' : 'bg-red-500 hover:bg-red-600 text-white shadow-red-500/25'}`}
+                                disabled={decisionMutation.isPending || (showActionModal === 'rechazar' && !observacion.trim()) || (showActionModal === 'aprobar' && !esViernes())}
+                                title={showActionModal === 'aprobar' && !esViernes() ? 'La aprobación solo está permitida los viernes' : undefined}
+                                className={`flex-1 rounded-2xl font-bold shadow-lg h-12 disabled:opacity-50 disabled:cursor-not-allowed ${showActionModal === 'aprobar' ? 'bg-green-500 hover:bg-green-600 text-white shadow-green-500/25' : 'bg-red-500 hover:bg-red-600 text-white shadow-red-500/25'}`}
                             >
                                 {decisionMutation.isPending ? 'Procesando...' : 'Confirmar Decision'}
                             </Button>

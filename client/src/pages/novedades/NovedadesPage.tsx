@@ -128,8 +128,8 @@ const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type:
     ],
 };
 
-// Motivos que solo se pueden registrar los viernes
-const MOTIVOS_SOLO_VIERNES = ['retiros', 'renuncias', 'aumento_plaza'];
+// La aprobación de novedades solo está permitida los viernes
+const esViernes = () => new Date().getDay() === 5;
 
 // Días sin gestión antes de notificar al coordinador
 const DIAS_LIMITE_NOTIFICACION = 15;
@@ -318,7 +318,7 @@ const NovedadesPage: React.FC = () => {
             toast.success('Estado actualizado correctamente');
             queryClient.invalidateQueries({ queryKey: ['novedades-solicitudes'] });
         },
-        onError: () => toast.error('Error al cambiar el estado'),
+        onError: (err: Error) => toast.error(err?.message || 'Error al cambiar el estado'),
     });
 
     const cancelMutation = useMutation({
@@ -356,18 +356,6 @@ const NovedadesPage: React.FC = () => {
         for (const field of fields) {
             if (field.required && !formData[field.name] && field.type !== 'checkbox') {
                 toast.error(`El campo "${field.label}" es requerido`);
-                return;
-            }
-        }
-
-        // Regla de viernes: retiros, renuncias y aumento de plaza solo se registran los viernes
-        if (MOTIVOS_SOLO_VIERNES.includes(selectedMotivo.codigo)) {
-            const diaSemana = new Date().getDay(); // 0=Dom, 5=Vie
-            if (diaSemana !== 5) {
-                toast.error(
-                    'Las solicitudes de Retiros, Renuncias y Aumento de Plaza solo pueden registrarse los viernes',
-                    { description: 'Esta es una restricción de política interna.' }
-                );
                 return;
             }
         }
@@ -801,17 +789,22 @@ const NovedadesPage: React.FC = () => {
                                                                         <p className="mt-0.5 line-clamp-2">{sol.observaciones || 'Sin observaciones'}</p>
                                                                     </div>
                                                                     <div className="flex gap-2">
-                                                                        {(TRANSICIONES_VALIDAS[sol.estado || ''] || []).slice(0, 3).map(nextEstado => (
-                                                                            <Button
-                                                                                key={nextEstado}
-                                                                                variant="outline"
-                                                                                size="sm"
-                                                                                className="text-xs"
-                                                                                onClick={() => cambiarEstadoMutation.mutate({ id: sol.id!, estado: nextEstado })}
-                                                                            >
-                                                                                {ESTADO_LABELS[nextEstado]}
-                                                                            </Button>
-                                                                        ))}
+                                                                        {(TRANSICIONES_VALIDAS[sol.estado || ''] || []).slice(0, 3).map(nextEstado => {
+                                                                            const soloViernes = nextEstado === 'aprobado_comite' && !esViernes();
+                                                                            return (
+                                                                                <Button
+                                                                                    key={nextEstado}
+                                                                                    variant="outline"
+                                                                                    size="sm"
+                                                                                    className="text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                                    disabled={soloViernes}
+                                                                                    title={soloViernes ? 'La aprobación solo está permitida los viernes' : undefined}
+                                                                                    onClick={() => cambiarEstadoMutation.mutate({ id: sol.id!, estado: nextEstado })}
+                                                                                >
+                                                                                    {ESTADO_LABELS[nextEstado]}
+                                                                                </Button>
+                                                                            );
+                                                                        })}
                                                                     </div>
                                                                 </div>
                                                             </td>
@@ -1312,23 +1305,28 @@ const NovedadesPage: React.FC = () => {
                             {/* Botones de acción según estado */}
                             <Separator />
                             <div className="flex flex-wrap gap-2">
-                                {(TRANSICIONES_VALIDAS[selectedSolicitud.estado || ''] || []).map(nextEstado => (
-                                    <Button
-                                        key={nextEstado}
-                                        variant="outline"
-                                        size="sm"
-                                        className="text-xs"
-                                        onClick={() => {
-                                            cambiarEstadoMutation.mutate({ id: selectedSolicitud.id!, estado: nextEstado });
-                                            setShowDetailModal(false);
-                                        }}
-                                    >
-                                        {nextEstado === 'rechazada' && <XCircle className="h-3 w-3 mr-1 text-red-500" />}
-                                        {nextEstado === 'aprobado_comite' && <CheckCircle className="h-3 w-3 mr-1 text-green-500" />}
-                                        {nextEstado === 'congelada' && <Pause className="h-3 w-3 mr-1 text-gray-500" />}
-                                        {ESTADO_LABELS[nextEstado]}
-                                    </Button>
-                                ))}
+                                {(TRANSICIONES_VALIDAS[selectedSolicitud.estado || ''] || []).map(nextEstado => {
+                                    const soloViernes = nextEstado === 'aprobado_comite' && !esViernes();
+                                    return (
+                                        <Button
+                                            key={nextEstado}
+                                            variant="outline"
+                                            size="sm"
+                                            className="text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                                            disabled={soloViernes}
+                                            title={soloViernes ? 'La aprobación solo está permitida los viernes' : undefined}
+                                            onClick={() => {
+                                                cambiarEstadoMutation.mutate({ id: selectedSolicitud.id!, estado: nextEstado });
+                                                setShowDetailModal(false);
+                                            }}
+                                        >
+                                            {nextEstado === 'rechazada' && <XCircle className="h-3 w-3 mr-1 text-red-500" />}
+                                            {nextEstado === 'aprobado_comite' && <CheckCircle className="h-3 w-3 mr-1 text-green-500" />}
+                                            {nextEstado === 'congelada' && <Pause className="h-3 w-3 mr-1 text-gray-500" />}
+                                            {ESTADO_LABELS[nextEstado]}
+                                        </Button>
+                                    );
+                                })}
                                 <Button variant="ghost" size="sm" onClick={() => handleViewTimeline(selectedSolicitud.id!)}>
                                     <Clock className="h-3 w-3 mr-1" /> Ver Timeline
                                 </Button>

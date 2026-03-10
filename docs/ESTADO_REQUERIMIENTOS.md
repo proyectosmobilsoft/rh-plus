@@ -220,7 +220,7 @@
 - Asignación automática de novedades (`analistaAsignacionService` existe, integración incompleta)
 
 ### ✅ Implementado recientemente
-- Regla de aprobación los viernes: Retiros, Renuncias y Aumento de Plaza solo se pueden registrar los viernes (validación en `handleSubmitForm`)
+- Regla de aprobación los viernes: las novedades se pueden **crear cualquier día**; la **aprobación** (estado Aprobado Comité) solo está permitida los **viernes** (validación en `novedadesService.cambiarEstado` y en Comité/Novedades UI)
 - Notificación automática al coordinador: al cargar NovedadesPage, detecta solicitudes con +15 días sin gestión en estados no finales y envía email a todos los usuarios con `role = 'coordinador'`
 
 ---
