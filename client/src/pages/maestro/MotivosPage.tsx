@@ -373,68 +373,62 @@ export default function MotivosPage() {
                                                             )}
 
                                                             {motivo.activo ? (
-                                                                <Can action="accion-inactivar-motivo">
+                                                                <TooltipProvider>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="icon"
+                                                                                onClick={() => handleInactivate(motivo)}
+                                                                                aria-label="Inactivar motivo"
+                                                                                className="h-8 w-8"
+                                                                            >
+                                                                                <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
+                                                                            </Button>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>
+                                                                            <p>Inactivar</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                </TooltipProvider>
+                                                            ) : (
+                                                                <>
                                                                     <TooltipProvider>
                                                                         <Tooltip>
                                                                             <TooltipTrigger asChild>
                                                                                 <Button
                                                                                     variant="ghost"
                                                                                     size="icon"
-                                                                                    onClick={() => handleInactivate(motivo)}
-                                                                                    aria-label="Inactivar motivo"
+                                                                                    onClick={() => handleDelete(motivo)}
+                                                                                    aria-label="Eliminar motivo"
                                                                                     className="h-8 w-8"
                                                                                 >
-                                                                                    <Lock className="h-4 w-4 text-yellow-600 hover:text-yellow-800 transition-colors" />
+                                                                                    <Trash2 className="h-4 w-4 text-red-600 hover:text-red-800 transition-colors" />
                                                                                 </Button>
                                                                             </TooltipTrigger>
                                                                             <TooltipContent>
-                                                                                <p>Inactivar</p>
+                                                                                <p>Eliminar</p>
                                                                             </TooltipContent>
                                                                         </Tooltip>
                                                                     </TooltipProvider>
-                                                                </Can>
-                                                            ) : (
-                                                                <>
-                                                                    <Can action="accion-eliminar-motivo">
-                                                                        <TooltipProvider>
-                                                                            <Tooltip>
-                                                                                <TooltipTrigger asChild>
-                                                                                    <Button
-                                                                                        variant="ghost"
-                                                                                        size="icon"
-                                                                                        onClick={() => handleDelete(motivo)}
-                                                                                        aria-label="Eliminar motivo"
-                                                                                        className="h-8 w-8"
-                                                                                    >
-                                                                                        <Trash2 className="h-4 w-4 text-red-600 hover:text-red-800 transition-colors" />
-                                                                                    </Button>
-                                                                                </TooltipTrigger>
-                                                                                <TooltipContent>
-                                                                                    <p>Eliminar</p>
-                                                                                </TooltipContent>
-                                                                            </Tooltip>
-                                                                        </TooltipProvider>
-                                                                    </Can>
-                                                                    <Can action="accion-activar-motivo">
-                                                                        <TooltipProvider>
-                                                                            <Tooltip>
-                                                                                <TooltipTrigger asChild>
-                                                                                    <Button
-                                                                                        variant="ghost"
-                                                                                        size="icon"
-                                                                                        onClick={() => handleActivate(motivo)}
-                                                                                        aria-label="Activar motivo"
-                                                                                        className="h-8 w-8"
-                                                                                    >
-                                                                                        <CheckCircle className="h-4 w-4 text-green-600 hover:text-green-800 transition-colors" />
-                                                                                    </Button>
-                                                                                </TooltipTrigger>
-                                                                                <TooltipContent>
-                                                                                    <p>Activar</p>
-                                                                                </TooltipContent>
-                                                                            </Tooltip>
-                                                                        </TooltipProvider>
-                                                                    </Can>
+                                                                    <TooltipProvider>
+                                                                        <Tooltip>
+                                                                            <TooltipTrigger asChild>
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="icon"
+                                                                                    onClick={() => handleActivate(motivo)}
+                                                                                    aria-label="Activar motivo"
+                                                                                    className="h-8 w-8"
+                                                                                >
+                                                                                    <CheckCircle className="h-4 w-4 text-green-600 hover:text-green-800 transition-colors" />
+                                                                                </Button>
+                                                                            </TooltipTrigger>
+                                                                            <TooltipContent>
+                                                                                <p>Activar</p>
+                                                                            </TooltipContent>
+                                                                        </Tooltip>
+                                                                    </TooltipProvider>
                                                                 </>
                                                             )}
                                                         </div>

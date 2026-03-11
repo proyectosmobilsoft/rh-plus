@@ -70,7 +70,7 @@ import { emailService } from '@/services/emailService';
 // TIPOS DE FORMULARIO POR MOTIVO
 // ============================================================
 
-const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type: string; required?: boolean; options?: string[]; helperText?: string }[]> = {
+const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type: string; required?: boolean; options?: string[]; helperText?: string; readOnly?: boolean }[]> = {
     incapacidades: [
         { label: 'Fecha de inicio', name: 'fecha_inicio', type: 'date', required: true },
         { label: 'Fecha final', name: 'fecha_fin', type: 'date', required: true },
@@ -113,7 +113,7 @@ const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type:
         { label: 'Observaciones', name: 'observaciones', type: 'textarea' },
     ],
     renuncias: [
-        { label: 'Fecha de renuncia', name: 'fecha_renuncia', type: 'date', required: true },
+        { label: 'Fecha de renuncia', name: 'fecha_renuncia', type: 'date', required: true, readOnly: true, helperText: 'Se registra automáticamente con la fecha de hoy' },
         { label: 'Último día de trabajo', name: 'fecha_finalizacion', type: 'date', required: true },
         { label: 'Motivo de la renuncia', name: 'motivo_renuncia', type: 'textarea', required: true },
         { label: '¿Requiere reemplazo?', name: 'requiere_reemplazo', type: 'checkbox' },
@@ -127,6 +127,10 @@ const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type:
         { label: 'Documento adjunto', name: 'documento_adjunto', type: 'file' },
     ],
 };
+
+// Aprobador de comité (quemado por ahora; luego se hará la relación con usuario/aprobador)
+const CEDULA_APROBADOR_COMITE = '123456789';
+const NOMBRE_APROBADOR_COMITE = 'Aprobador Comité';
 
 // La aprobación de novedades solo está permitida los viernes
 const esViernes = () => new Date().getDay() === 5;
@@ -182,7 +186,6 @@ const NovedadesPage: React.FC = () => {
 
     // Flags del motivo seleccionado
     const [adjuntoFile, setAdjuntoFile] = useState<File | null>(null);
-    const [cedulaAprobador, setCedulaAprobador] = useState('');
 
     // Expanded rows
     const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
@@ -342,7 +345,6 @@ const NovedadesPage: React.FC = () => {
         setObservaciones('');
         setSelectedEmpleados([]);
         setAdjuntoFile(null);
-        setCedulaAprobador('');
     };
 
     const handleSubmitForm = async () => {
@@ -383,11 +385,7 @@ const NovedadesPage: React.FC = () => {
             return;
         }
 
-        // Validar cédula aprobador cuando requiere comité
-        if (selectedMotivo.requiere_comite && !cedulaAprobador.trim()) {
-            toast.error('Debe ingresar la cédula de la persona aprobadora');
-            return;
-        }
+        // Cuando requiere comité se usa la cédula aprobador asignada automáticamente (quemada por ahora)
 
         // Para vacaciones con selección múltiple
         if (selectedMotivo.permite_seleccion_multiple && selectedEmpleados.length === 0 && !selectedEmpleado) {
@@ -401,15 +399,19 @@ const NovedadesPage: React.FC = () => {
             return;
         }
 
+        const datosForm = { ...formData };
+        if (selectedMotivo.codigo === 'renuncias') {
+            datosForm.fecha_renuncia = new Date().toISOString().split('T')[0];
+        }
         const solicitudData = {
             motivo_id: selectedMotivo.id,
             empleado_id: selectedEmpleado?.id,
             empresa_id: selectedEmpleado?.empresa_id || filtros.empresa_id,
             sucursal: selectedEmpleado?.sucursal,
             datos_formulario: {
-                ...formData,
+                ...datosForm,
                 ...(adjuntoFile ? { adjunto_nombre: adjuntoFile.name, adjunto_tipo: adjuntoFile.type } : {}),
-                ...(cedulaAprobador ? { cedula_aprobador: cedulaAprobador } : {}),
+                ...(selectedMotivo.requiere_comite ? { cedula_aprobador: CEDULA_APROBADOR_COMITE, nombre_aprobador: NOMBRE_APROBADOR_COMITE } : {}),
             },
             observaciones,
             requiere_reemplazo: formData.requiere_reemplazo || formData.genera_reemplazo || false,
@@ -418,13 +420,13 @@ const NovedadesPage: React.FC = () => {
 
         createMutation.mutate(solicitudData, {
             onSuccess: async (nuevaSolicitud) => {
-                // Si requiere comité, buscar aprobador y enviar correo
-                if (selectedMotivo.requiere_comite && cedulaAprobador.trim()) {
+                // Si requiere comité, buscar aprobador y enviar correo (cédula asignada automáticamente)
+                if (selectedMotivo.requiere_comite) {
                     try {
                         const { data: aprobador } = await supabase
                             .from('gen_usuarios')
                             .select('email, primer_nombre, primer_apellido')
-                            .eq('identificacion', cedulaAprobador.trim())
+                            .eq('identificacion', CEDULA_APROBADOR_COMITE)
                             .eq('activo', true)
                             .single();
 
@@ -975,7 +977,12 @@ const NovedadesPage: React.FC = () => {
                                 onValueChange={(v) => {
                                     const motivo = motivos.find(m => m.id === parseInt(v));
                                     setSelectedMotivo(motivo || null);
-                                    setFormData({});
+                                    if (motivo?.codigo === 'renuncias') {
+                                        const hoy = new Date().toISOString().split('T')[0];
+                                        setFormData({ fecha_renuncia: hoy });
+                                    } else {
+                                        setFormData({});
+                                    }
                                 }}
                             >
                                 <SelectTrigger className="mt-1">
@@ -1071,9 +1078,18 @@ const NovedadesPage: React.FC = () => {
                                             {field.type === 'date' && (
                                                 <Input
                                                     type="date"
-                                                    value={formData[field.name] || ''}
-                                                    onChange={e => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
+                                                    value={
+                                                        selectedMotivo?.codigo === 'renuncias' && field.name === 'fecha_renuncia'
+                                                            ? (formData[field.name] || new Date().toISOString().split('T')[0])
+                                                            : (formData[field.name] || '')
+                                                    }
+                                                    onChange={e => {
+                                                        if (selectedMotivo?.codigo === 'renuncias' && field.name === 'fecha_renuncia') return;
+                                                        setFormData(prev => ({ ...prev, [field.name]: e.target.value }));
+                                                    }}
+                                                    disabled={selectedMotivo?.codigo === 'renuncias' && field.name === 'fecha_renuncia'}
                                                     className="mt-1"
+                                                    title={selectedMotivo?.codigo === 'renuncias' && field.name === 'fecha_renuncia' ? 'La fecha de renuncia es siempre la fecha de hoy' : undefined}
                                                 />
                                             )}
                                             {field.type === 'textarea' && (
@@ -1176,7 +1192,7 @@ const NovedadesPage: React.FC = () => {
                                     </div>
                                 )}
 
-                                {/* Cédula aprobador — solo si requiere comité */}
+                                {/* Aprobador de comité — asignado automáticamente (quemado por ahora) */}
                                 {selectedMotivo.requiere_comite && (
                                     <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2">
                                         <div className="flex items-center gap-2 text-amber-700">
@@ -1187,16 +1203,12 @@ const NovedadesPage: React.FC = () => {
                                             Se enviará una notificación por correo al aprobador para que gestione la solicitud.
                                         </p>
                                         <div>
-                                            <Label className="text-sm text-amber-800">
-                                                Cédula de la persona aprobadora <span className="text-red-500">*</span>
-                                            </Label>
-                                            <input
-                                                type="text"
-                                                value={cedulaAprobador}
-                                                onChange={e => setCedulaAprobador(e.target.value)}
-                                                placeholder="Número de identificación del aprobador"
-                                                className="mt-1 w-full rounded-md border border-amber-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                                            />
+                                            <Label className="text-sm text-amber-800">Aprobador asignado</Label>
+                                            <div className="mt-1 text-sm bg-amber-100/80 border border-amber-200 rounded-md px-3 py-2 text-amber-800 space-y-0.5">
+                                                <p><span className="font-medium">Nombre:</span> {NOMBRE_APROBADOR_COMITE}</p>
+                                                <p><span className="font-medium">Cédula:</span> {CEDULA_APROBADOR_COMITE}</p>
+                                            </div>
+                                            <p className="text-xs text-amber-600 mt-1">(Asignado automáticamente por el sistema)</p>
                                         </div>
                                     </div>
                                 )}
