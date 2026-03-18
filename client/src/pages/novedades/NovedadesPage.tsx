@@ -10,13 +10,13 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
     Dialog,
     DialogContent,
     DialogHeader,
     DialogTitle,
-    DialogFooter,
-    DialogDescription,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -30,23 +30,16 @@ import {
     Filter,
     ArrowUp,
     ArrowDown,
+    ArrowLeft,
     Users,
     FileText,
     Clock,
     Eye,
-    Edit,
     XCircle,
     CheckCircle,
     Pause,
-    Play,
     Loader2,
-    Calendar,
-    Building,
-    MapPin,
-    ChevronDown,
-    ChevronUp,
     AlertCircle,
-    Upload,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -70,7 +63,11 @@ import { emailService } from '@/services/emailService';
 // TIPOS DE FORMULARIO POR MOTIVO
 // ============================================================
 
+<<<<<<< HEAD
 const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type: string; required?: boolean; options?: string[]; helperText?: string; readOnly?: boolean }[]> = {
+=======
+const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type: string; required?: boolean; options?: string[]; helperText?: string; defaultToday?: boolean; rowSpan?: boolean }[]> = {
+>>>>>>> 35fd7af (feat: revision)
     incapacidades: [
         { label: 'Fecha de inicio', name: 'fecha_inicio', type: 'date', required: true },
         { label: 'Fecha final', name: 'fecha_fin', type: 'date', required: true },
@@ -113,9 +110,13 @@ const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type:
         { label: 'Observaciones', name: 'observaciones', type: 'textarea' },
     ],
     renuncias: [
+<<<<<<< HEAD
         { label: 'Fecha de renuncia', name: 'fecha_renuncia', type: 'date', required: true, readOnly: true, helperText: 'Se registra automáticamente con la fecha de hoy' },
+=======
+        { label: 'Fecha de solicitud', name: 'fecha_renuncia', type: 'date', required: true, defaultToday: true },
+        { label: 'Motivo de la renuncia', name: 'motivo_renuncia', type: 'textarea', required: true, rowSpan: true },
+>>>>>>> 35fd7af (feat: revision)
         { label: 'Último día de trabajo', name: 'fecha_finalizacion', type: 'date', required: true },
-        { label: 'Motivo de la renuncia', name: 'motivo_renuncia', type: 'textarea', required: true },
         { label: '¿Requiere reemplazo?', name: 'requiere_reemplazo', type: 'checkbox' },
         { label: 'Documento de soporte', name: 'documento_soporte', type: 'file' },
     ],
@@ -128,9 +129,18 @@ const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type:
     ],
 };
 
+<<<<<<< HEAD
 // Aprobador de comité (quemado por ahora; luego se hará la relación con usuario/aprobador)
 const CEDULA_APROBADOR_COMITE = '123456789';
 const NOMBRE_APROBADOR_COMITE = 'Aprobador Comité';
+=======
+// Aliases en singular para compatibilidad con códigos de BD
+FORM_FIELDS_BY_MOTIVO.incapacidad = FORM_FIELDS_BY_MOTIVO.incapacidades;
+FORM_FIELDS_BY_MOTIVO.retiro = FORM_FIELDS_BY_MOTIVO.retiros;
+FORM_FIELDS_BY_MOTIVO.renuncia = FORM_FIELDS_BY_MOTIVO.renuncias;
+FORM_FIELDS_BY_MOTIVO.licencia = FORM_FIELDS_BY_MOTIVO.licencias;
+FORM_FIELDS_BY_MOTIVO.postulacion_interna = FORM_FIELDS_BY_MOTIVO.postulaciones_internas;
+>>>>>>> 35fd7af (feat: revision)
 
 // La aprobación de novedades solo está permitida los viernes
 const esViernes = () => new Date().getDay() === 5;
@@ -165,9 +175,9 @@ const NovedadesPage: React.FC = () => {
     const [filtros, setFiltros] = useState<NovedadFiltros>({});
     const [busquedaEmpleado, setBusquedaEmpleado] = useState('');
     const [activeTab, setActiveTab] = useState('solicitudes');
+    const [prevTab, setPrevTab] = useState('solicitudes');
 
-    // Modal de nueva solicitud
-    const [showFormModal, setShowFormModal] = useState(false);
+    // Formulario de nueva solicitud
     const [selectedMotivo, setSelectedMotivo] = useState<NovedadMotivo | null>(null);
     const [selectedEmpleado, setSelectedEmpleado] = useState<NovedadEmpleado | null>(null);
     const [formData, setFormData] = useState<Record<string, any>>({});
@@ -337,14 +347,41 @@ const NovedadesPage: React.FC = () => {
     // HANDLERS
     // ============================================================
 
-    const resetForm = () => {
-        setShowFormModal(false);
+    const buildDefaultFormData = (motivo: NovedadMotivo | null) => {
+        if (!motivo) return {};
+        const fields = FORM_FIELDS_BY_MOTIVO[motivo.codigo] || [];
+        const defaults: Record<string, any> = {};
+        const today = new Date().toISOString().split('T')[0];
+        for (const f of fields) {
+            if (f.defaultToday && f.type === 'date') defaults[f.name] = today;
+        }
+        return defaults;
+    };
+
+    const goToRegistro = () => {
+        setPrevTab(activeTab);
         setSelectedMotivo(null);
         setSelectedEmpleado(null);
         setFormData({});
         setObservaciones('');
         setSelectedEmpleados([]);
         setAdjuntoFile(null);
+<<<<<<< HEAD
+=======
+        setCedulaAprobador('');
+        setActiveTab('nueva_novedad');
+    };
+
+    const resetForm = () => {
+        setSelectedMotivo(null);
+        setSelectedEmpleado(null);
+        setFormData({});
+        setObservaciones('');
+        setSelectedEmpleados([]);
+        setAdjuntoFile(null);
+        setCedulaAprobador('');
+        setActiveTab(prevTab);
+>>>>>>> 35fd7af (feat: revision)
     };
 
     const handleSubmitForm = async () => {
@@ -547,132 +584,162 @@ const NovedadesPage: React.FC = () => {
     };
 
     return (
-        <div className="space-y-5 p-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-            {/* Filtros + acciones en la misma fila */}
-            <Card className="border-0 shadow-sm bg-white/80 backdrop-blur-sm">
-                <CardContent className="p-4">
-                    <div className="flex flex-wrap items-center gap-3">
-                        <div className="flex items-center gap-2 text-sm font-semibold text-gray-600 bg-gray-100 px-3 py-1.5 rounded-full">
-                            <Filter className="h-3.5 w-3.5" />
-                            Filtros
-                        </div>
-                        <Select
-                            value={filtros.motivo_id?.toString() || 'all'}
-                            onValueChange={(v) => setFiltros(prev => ({ ...prev, motivo_id: v === 'all' ? undefined : parseInt(v) }))}
+        <div className="p-4 max-w-full mx-auto">
+            {activeTab !== 'nueva_novedad' && (
+                <div className="flex items-center justify-between mb-4">
+                    <h1 className="text-3xl font-extrabold text-cyan-800 flex items-center gap-2 mb-2">
+                        <ClipboardCheck className="w-8 h-8 text-cyan-600" />
+                        Gestión de Novedades
+                    </h1>
+                </div>
+            )}
+
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                {activeTab !== 'nueva_novedad' && (
+                    <TabsList className="grid w-full grid-cols-2 bg-cyan-100/60 p-1 rounded-lg">
+                        <TabsTrigger
+                            value="solicitudes"
+                            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
                         >
-                            <SelectTrigger className="w-48 border-gray-200 hover:border-cyan-300 transition-colors">
-                                <SelectValue placeholder="Motivo de novedad" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todos los motivos</SelectItem>
-                                {motivos.map(m => (
-                                    <SelectItem key={m.id} value={m.id.toString()}>{m.nombre}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-
-                        <Select
-                            value={filtros.sucursal || 'all'}
-                            onValueChange={(v) => setFiltros(prev => ({ ...prev, sucursal: v === 'all' ? undefined : v }))}
+                            Listado de Solicitudes
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="empleados"
+                            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
                         >
-                            <SelectTrigger className="w-44 border-gray-200 hover:border-cyan-300 transition-colors">
-                                <SelectValue placeholder="Sucursal" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todas las sucursales</SelectItem>
-                                {sucursales.map(s => (
-                                    <SelectItem key={s} value={s}>{s}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-
-                        <Select
-                            value={filtros.estado || 'all'}
-                            onValueChange={(v) => setFiltros(prev => ({ ...prev, estado: v === 'all' ? undefined : v }))}
-                        >
-                            <SelectTrigger className="w-44 border-gray-200 hover:border-cyan-300 transition-colors">
-                                <SelectValue placeholder="Estado" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todos los estados</SelectItem>
-                                {Object.entries(ESTADO_LABELS).map(([key, label]) => (
-                                    <SelectItem key={key} value={key}>{label}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-
-                        {Object.values(filtros).some(v => v !== undefined) && (
-                            <Button variant="ghost" size="sm" onClick={() => setFiltros({})} className="text-red-500 hover:text-red-600 hover:bg-red-50">
-                                <XCircle className="h-3.5 w-3.5 mr-1" />
-                                Limpiar
-                            </Button>
-                        )}
-
-                        <TabsList className="bg-gray-100/80 p-1 h-auto ml-auto">
-                            <TabsTrigger value="solicitudes" className="gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-cyan-700 py-1.5 px-3 transition-all duration-200 text-sm">
-                                <FileText className="h-3.5 w-3.5" />
-                                Solicitudes
-                                <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px] font-bold">{solicitudes.length}</Badge>
-                            </TabsTrigger>
-                            <TabsTrigger value="empleados" className="gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-cyan-700 py-1.5 px-3 transition-all duration-200 text-sm">
-                                <Users className="h-3.5 w-3.5" />
-                                Empleados
-                                <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px] font-bold">{empleados.length}</Badge>
-                            </TabsTrigger>
-                        </TabsList>
-
-                        <div className="flex gap-2">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                    if (!solicitudes.length) { toast.error('No hay datos para exportar'); return; }
-                                    const dataToExport = solicitudes.map(s => ({
-                                        ID: s.id,
-                                        Empleado: s.empleado ? `${s.empleado.nombre} ${s.empleado.apellido || ''}`.trim() : 'N/A',
-                                        Documento: s.empleado?.documento || 'N/A',
-                                        Cargo: s.empleado?.cargo || 'N/A',
-                                        Motivo: s.motivo?.nombre || 'N/A',
-                                        Estado: ESTADO_LABELS[s.estado || 'solicitada'] || s.estado,
-                                        'Fecha Solicitud': formatDate(s.created_at),
-                                        Sucursal: s.sucursal || 'N/A',
-                                        'Creado Por': s.creador ? `${s.creador.primer_nombre} ${s.creador.primer_apellido}`.trim() : 'Sistema',
-                                        Observaciones: s.observaciones || '',
-                                        'Requiere Reemplazo': s.requiere_reemplazo ? 'Sí' : 'No',
-                                    }));
-                                    import('@/utils/exportUtils').then(({ exportToExcel }) => {
-                                        exportToExcel(dataToExport, `Solicitudes_Novedades_${new Date().toISOString().split('T')[0]}`, 'Solicitudes');
-                                        toast.success('Exportación generada exitosamente');
-                                    }).catch(() => toast.error('Error al generar el archivo Excel'));
-                                }}
-                                className="gap-2 text-gray-600"
-                            >
-                                <Download className="h-4 w-4" />
-                                Exportar
-                            </Button>
-                            <Button size="sm" onClick={() => setShowFormModal(true)} className="gap-2">
-                                <Plus className="h-4 w-4" />
-                                Nueva Novedad
-                            </Button>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-
+                            Empleados
+                        </TabsTrigger>
+                    </TabsList>
+                )}
 
                 {/* TAB: SOLICITUDES */}
-                <TabsContent value="solicitudes">
-                    <Card className="border-0 shadow-sm">
-                        <CardContent className="p-0">
-                            {solicitudesLoading ? (
-                                <div className="flex flex-col items-center justify-center py-20">
-                                    <div className="relative">
-                                        <div className="h-12 w-12 rounded-full border-4 border-gray-100" />
-                                        <div className="absolute inset-0 h-12 w-12 rounded-full border-4 border-transparent border-t-cyan-500 animate-spin" />
-                                    </div>
-                                    <span className="mt-4 text-sm text-gray-500 font-medium">Cargando solicitudes...</span>
+                <TabsContent value="solicitudes" className="mt-6">
+                    <div className="bg-white rounded-lg border">
+                        {/* Header */}
+                        <div className="flex items-center justify-between p-4 border-b">
+                            <div className="flex items-center space-x-3">
+                                <div className="w-8 h-8 bg-orange-100 rounded flex items-center justify-center">
+                                    <FileText className="w-5 h-5 text-orange-600" />
                                 </div>
+                                <span className="text-lg font-semibold text-gray-700">SOLICITUDES</span>
+                                <Badge variant="secondary" className="ml-1">{solicitudes.length}</Badge>
+                            </div>
+                            <div className="flex space-x-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                        if (!solicitudes.length) { toast.error('No hay datos para exportar'); return; }
+                                        const dataToExport = solicitudes.map(s => ({
+                                            ID: s.id,
+                                            Empleado: s.empleado ? `${s.empleado.nombre} ${s.empleado.apellido || ''}`.trim() : 'N/A',
+                                            Documento: s.empleado?.documento || 'N/A',
+                                            Cargo: s.empleado?.cargo || 'N/A',
+                                            Motivo: s.motivo?.nombre || 'N/A',
+                                            Estado: ESTADO_LABELS[s.estado || 'solicitada'] || s.estado,
+                                            'Fecha Solicitud': formatDate(s.created_at),
+                                            Sucursal: s.sucursal || 'N/A',
+                                            'Creado Por': s.creador ? `${s.creador.primer_nombre} ${s.creador.primer_apellido}`.trim() : 'Sistema',
+                                            Observaciones: s.observaciones || '',
+                                            'Requiere Reemplazo': s.requiere_reemplazo ? 'Sí' : 'No',
+                                        }));
+                                        import('@/utils/exportUtils').then(({ exportToExcel }) => {
+                                            exportToExcel(dataToExport, `Solicitudes_Novedades_${new Date().toISOString().split('T')[0]}`, 'Solicitudes');
+                                            toast.success('Exportación generada exitosamente');
+                                        }).catch(() => toast.error('Error al generar el archivo Excel'));
+                                    }}
+                                    className="flex items-center gap-2"
+                                >
+                                    <Download className="h-4 w-4" />
+                                    Exportar
+                                </Button>
+                                <Button
+                                    onClick={goToRegistro}
+                                    className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
+                                    size="sm"
+                                >
+                                    Adicionar Registro
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* Filtros */}
+                        <div className="p-4 border-b bg-gray-50">
+                            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                                <Select
+                                    value={filtros.motivo_id?.toString() || 'all'}
+                                    onValueChange={(v) => setFiltros(prev => ({ ...prev, motivo_id: v === 'all' ? undefined : parseInt(v) }))}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Motivo de novedad" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Todos los motivos</SelectItem>
+                                        {motivos.map(m => (
+                                            <SelectItem key={m.id} value={m.id.toString()}>{m.nombre}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
+                                <Select
+                                    value={filtros.sucursal || 'all'}
+                                    onValueChange={(v) => setFiltros(prev => ({ ...prev, sucursal: v === 'all' ? undefined : v }))}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Sucursal" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Todas las sucursales</SelectItem>
+                                        {sucursales.map(s => (
+                                            <SelectItem key={s} value={s}>{s}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
+                                <Select
+                                    value={filtros.estado || 'all'}
+                                    onValueChange={(v) => setFiltros(prev => ({ ...prev, estado: v === 'all' ? undefined : v }))}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Estado" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Todos los estados</SelectItem>
+                                        {Object.entries(ESTADO_LABELS).map(([key, label]) => (
+                                            <SelectItem key={key} value={key}>{label}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
+                                <div className="relative md:col-span-1">
+                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                    <Input
+                                        placeholder="Buscar empleado..."
+                                        value={busquedaEmpleado}
+                                        onChange={e => setBusquedaEmpleado(e.target.value)}
+                                        className="pl-10"
+                                    />
+                                </div>
+
+                                <Button
+                                    variant="outline"
+                                    onClick={() => { setFiltros({}); setBusquedaEmpleado(''); }}
+                                    className="flex items-center gap-2"
+                                >
+                                    <Filter className="w-4 h-4" />
+                                    Limpiar filtros
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* Tabla */}
+                        <div className="overflow-x-auto rounded-lg shadow-sm">
+                            {solicitudesLoading ? (
+                                <TableRow>
+                                    <TableCell colSpan={7} className="h-24 text-center">
+                                        Cargando solicitudes...
+                                    </TableCell>
+                                </TableRow>
                             ) : solicitudes.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center py-20">
                                     <div className="p-4 rounded-full bg-gray-50 mb-4">
@@ -682,174 +749,537 @@ const NovedadesPage: React.FC = () => {
                                     <p className="text-sm text-gray-400 mt-1">Crea una nueva novedad para comenzar</p>
                                     <Button
                                         size="sm"
-                                        onClick={() => setShowFormModal(true)}
-                                        className="mt-4 gap-2 bg-gradient-to-r from-cyan-500 to-teal-600 text-white shadow-sm"
+                                        onClick={goToRegistro}
+                                        className="mt-4 bg-teal-400 hover:bg-teal-500 text-white"
                                     >
-                                        <Plus className="h-4 w-4" /> Crear primera solicitud
+                                        Crear primera solicitud
                                     </Button>
                                 </div>
                             ) : (
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm">
-                                        <thead className="border-b border-gray-200">
-                                            <tr>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">ID</th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider pl-[58px]">Empleado</th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Motivo</th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Estado</th>
-                                                <th
-                                                    className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer select-none"
-                                                    onClick={() => setSortFecha(d => d === 'desc' ? 'asc' : 'desc')}
-                                                >
-                                                    <span className="flex items-center gap-1">
-                                                        Fecha
-                                                        {sortFecha === 'desc'
-                                                            ? <ArrowDown className="h-3 w-3" />
-                                                            : <ArrowUp className="h-3 w-3" />
-                                                        }
-                                                    </span>
-                                                </th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Sucursal</th>
-                                                <th className="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Acciones</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {[...solicitudes].sort((a, b) => {
-                                                const ta = new Date(a.created_at || 0).getTime();
-                                                const tb = new Date(b.created_at || 0).getTime();
-                                                return sortFecha === 'desc' ? tb - ta : ta - tb;
-                                            }).map(sol => (
-                                                <React.Fragment key={sol.id}>
-                                                    <tr
-                                                        className="border-b border-gray-100 hover:bg-cyan-50/30 cursor-pointer transition-all duration-150 group"
-                                                        onClick={() => toggleRow(sol.id!)}
-                                                    >
-                                                        <td className="px-4 py-3.5">
-                                                            <span className="inline-flex items-center justify-center h-6 w-10 rounded-md bg-gray-100 font-mono text-[11px] font-semibold text-gray-500 group-hover:bg-cyan-100 group-hover:text-cyan-700 transition-colors">#{sol.id}</span>
-                                                        </td>
-                                                        <td className="px-4 py-3.5">
-                                                            <div className="flex items-center gap-2.5">
-                                                                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-cyan-400 to-teal-500 flex items-center justify-center text-white text-xs font-bold shadow-sm">
-                                                                    {sol.empleado ? sol.empleado.nombre.charAt(0).toUpperCase() : '?'}
+                                <Table className="min-w-[900px] w-full text-xs">
+                                    <TableHeader className="bg-cyan-50">
+                                        <TableRow className="text-left font-semibold text-gray-700">
+                                            <TableHead className="px-2 py-1 text-teal-600 w-28">Acciones</TableHead>
+                                            <TableHead className="px-4 py-3 w-16">ID</TableHead>
+                                            <TableHead className="px-4 py-3 w-1/4">Empleado</TableHead>
+                                            <TableHead className="px-4 py-3">Motivo</TableHead>
+                                            <TableHead className="px-4 py-3">Estado</TableHead>
+                                            <TableHead
+                                                className="px-4 py-3 cursor-pointer select-none"
+                                                onClick={() => setSortFecha(d => d === 'desc' ? 'asc' : 'desc')}
+                                            >
+                                                <span className="flex items-center gap-1">
+                                                    Fecha
+                                                    {sortFecha === 'desc'
+                                                        ? <ArrowDown className="h-3 w-3" />
+                                                        : <ArrowUp className="h-3 w-3" />
+                                                    }
+                                                </span>
+                                            </TableHead>
+                                            <TableHead className="px-4 py-3">Sucursal</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {[...solicitudes].sort((a, b) => {
+                                            const ta = new Date(a.created_at || 0).getTime();
+                                            const tb = new Date(b.created_at || 0).getTime();
+                                            return sortFecha === 'desc' ? tb - ta : ta - tb;
+                                        }).map(sol => (
+                                            <React.Fragment key={sol.id}>
+                                                <TableRow className="hover:bg-gray-50 cursor-pointer" onClick={() => toggleRow(sol.id!)}>
+                                                    <TableCell className="px-2 py-1">
+                                                        <div className="flex flex-row gap-1 items-center">
+                                                            <TooltipProvider>
+                                                                <UITooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            onClick={(e) => { e.stopPropagation(); handleViewDetail(sol); }}
+                                                                            className="h-8 w-8"
+                                                                        >
+                                                                            <Eye className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
+                                                                        </Button>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent><p>Ver detalle</p></TooltipContent>
+                                                                </UITooltip>
+                                                            </TooltipProvider>
+                                                            <TooltipProvider>
+                                                                <UITooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            onClick={(e) => { e.stopPropagation(); handleViewTimeline(sol.id!); }}
+                                                                            className="h-8 w-8"
+                                                                        >
+                                                                            <Clock className="h-4 w-4 text-indigo-600 hover:text-indigo-800 transition-colors" />
+                                                                        </Button>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent><p>Ver timeline</p></TooltipContent>
+                                                                </UITooltip>
+                                                            </TooltipProvider>
+                                                            {sol.estado === 'solicitada' && (
+                                                                <TooltipProvider>
+                                                                    <UITooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="icon"
+                                                                                onClick={(e) => { e.stopPropagation(); cancelMutation.mutate(sol.id!); }}
+                                                                                className="h-8 w-8"
+                                                                            >
+                                                                                <XCircle className="h-4 w-4 text-red-600 hover:text-red-800 transition-colors" />
+                                                                            </Button>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent><p>Cancelar</p></TooltipContent>
+                                                                    </UITooltip>
+                                                                </TooltipProvider>
+                                                            )}
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="px-4 py-3 text-sm text-gray-900 font-mono">#{sol.id}</TableCell>
+                                                    <TableCell className="px-4 py-3 text-sm text-gray-900 font-medium">
+                                                        {sol.empleado ? `${sol.empleado.nombre} ${sol.empleado.apellido || ''}` : '-'}
+                                                    </TableCell>
+                                                    <TableCell className="px-4 py-3">
+                                                        <Badge variant="outline" className="text-xs font-medium border-gray-200 bg-white">
+                                                            {sol.motivo?.nombre || '-'}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell className="px-4 py-3">
+                                                        <Badge className={`text-xs font-semibold ${ESTADO_COLORS[sol.estado || 'solicitada']}`}>
+                                                            {ESTADO_LABELS[sol.estado || 'solicitada']}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell className="px-4 py-3 text-sm text-gray-500">{formatDate(sol.created_at)}</TableCell>
+                                                    <TableCell className="px-4 py-3 text-sm text-gray-500">{sol.sucursal || '-'}</TableCell>
+                                                </TableRow>
+                                                {expandedRows.has(sol.id!) && (
+                                                    <TableRow className="bg-gray-50/80">
+                                                        <TableCell colSpan={7} className="px-6 py-4">
+                                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                                                                <div>
+                                                                    <span className="text-gray-500 font-medium">Creado por:</span>
+                                                                    <p className="mt-0.5">{sol.creador ? `${sol.creador.primer_nombre} ${sol.creador.primer_apellido}` : '-'}</p>
                                                                 </div>
-                                                                <span className="font-medium text-gray-800">{sol.empleado ? `${sol.empleado.nombre} ${sol.empleado.apellido || ''}` : '-'}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-4 py-3.5">
-                                                            <Badge variant="outline" className="text-xs font-medium border-gray-200 bg-white">
-                                                                {sol.motivo?.nombre || '-'}
-                                                            </Badge>
-                                                        </td>
-                                                        <td className="px-4 py-3.5">
-                                                            <Badge className={`text-xs font-semibold ${ESTADO_COLORS[sol.estado || 'solicitada']}`}>
-                                                                {ESTADO_LABELS[sol.estado || 'solicitada']}
-                                                            </Badge>
-                                                        </td>
-                                                        <td className="px-4 py-3.5 text-gray-500 text-xs font-medium">{formatDate(sol.created_at)}</td>
-                                                        <td className="px-4 py-3.5 text-gray-500 text-xs">{sol.sucursal || '-'}</td>
-                                                        <td className="px-4 py-3.5 text-right">
-                                                            <div className="flex items-center justify-end gap-0.5">
-                                                                <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleViewDetail(sol); }}
-                                                                    title="Ver detalle"
-                                                                    className="text-gray-400 hover:text-cyan-600 hover:bg-cyan-50 transition-colors h-8 w-8 p-0"
-                                                                >
-                                                                    <Eye className="h-4 w-4" />
-                                                                </Button>
-                                                                <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleViewTimeline(sol.id!); }}
-                                                                    title="Ver timeline"
-                                                                    className="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors h-8 w-8 p-0"
-                                                                >
-                                                                    <Clock className="h-4 w-4" />
-                                                                </Button>
-                                                                {sol.estado === 'solicitada' && (
-                                                                    <Button variant="ghost" size="sm"
-                                                                        onClick={(e) => { e.stopPropagation(); cancelMutation.mutate(sol.id!); }}
-                                                                        title="Cancelar"
-                                                                        className="text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors h-8 w-8 p-0"
-                                                                    >
-                                                                        <XCircle className="h-4 w-4" />
-                                                                    </Button>
-                                                                )}
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                    {/* Row expansion */}
-                                                    {expandedRows.has(sol.id!) && (
-                                                        <tr className="bg-gray-50/80">
-                                                            <td colSpan={7} className="px-6 py-4">
-                                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-                                                                    <div>
-                                                                        <span className="text-gray-500 font-medium">Creado por:</span>
-                                                                        <p className="mt-0.5">{sol.creador ? `${sol.creador.primer_nombre} ${sol.creador.primer_apellido}` : '-'}</p>
-                                                                    </div>
-                                                                    <div>
-                                                                        <span className="text-gray-500 font-medium">Reemplazo:</span>
-                                                                        <p className="mt-0.5">{sol.requiere_reemplazo ? 'Sí' : 'No'}</p>
-                                                                    </div>
-                                                                    <div>
-                                                                        <span className="text-gray-500 font-medium">Observaciones:</span>
-                                                                        <p className="mt-0.5 line-clamp-2">{sol.observaciones || 'Sin observaciones'}</p>
-                                                                    </div>
-                                                                    <div className="flex gap-2">
-                                                                        {(TRANSICIONES_VALIDAS[sol.estado || ''] || []).slice(0, 3).map(nextEstado => {
-                                                                            const soloViernes = nextEstado === 'aprobado_comite' && !esViernes();
-                                                                            return (
-                                                                                <Button
-                                                                                    key={nextEstado}
-                                                                                    variant="outline"
-                                                                                    size="sm"
-                                                                                    className="text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                                                                                    disabled={soloViernes}
-                                                                                    title={soloViernes ? 'La aprobación solo está permitida los viernes' : undefined}
-                                                                                    onClick={() => cambiarEstadoMutation.mutate({ id: sol.id!, estado: nextEstado })}
-                                                                                >
-                                                                                    {ESTADO_LABELS[nextEstado]}
-                                                                                </Button>
-                                                                            );
-                                                                        })}
-                                                                    </div>
+                                                                <div>
+                                                                    <span className="text-gray-500 font-medium">Reemplazo:</span>
+                                                                    <p className="mt-0.5">{sol.requiere_reemplazo ? 'Sí' : 'No'}</p>
                                                                 </div>
-                                                            </td>
-                                                        </tr>
-                                                    )}
-                                                </React.Fragment>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                                                <div>
+                                                                    <span className="text-gray-500 font-medium">Observaciones:</span>
+                                                                    <p className="mt-0.5 line-clamp-2">{sol.observaciones || 'Sin observaciones'}</p>
+                                                                </div>
+                                                                <div className="flex gap-2 flex-wrap">
+                                                                    {(TRANSICIONES_VALIDAS[sol.estado || ''] || []).slice(0, 3).map(nextEstado => {
+                                                                        const soloViernes = nextEstado === 'aprobado_comite' && !esViernes();
+                                                                        return (
+                                                                            <Button
+                                                                                key={nextEstado}
+                                                                                variant="outline"
+                                                                                size="sm"
+                                                                                className="text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                                disabled={soloViernes}
+                                                                                title={soloViernes ? 'La aprobación solo está permitida los viernes' : undefined}
+                                                                                onClick={() => cambiarEstadoMutation.mutate({ id: sol.id!, estado: nextEstado })}
+                                                                            >
+                                                                                {ESTADO_LABELS[nextEstado]}
+                                                                            </Button>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </div>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                )}
+                                            </React.Fragment>
+                                        ))}
+                                    </TableBody>
+                                </Table>
                             )}
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </div>
+
+                    {/* Stats + Gráficas */}
+                    {solicitudes.length > 0 && (
+                        <div className="mt-4 space-y-4">
+                            <div className="grid grid-cols-5 divide-x divide-gray-100 bg-white border border-gray-100 rounded-xl overflow-hidden">
+                                {[
+                                    { label: 'Total', value: solicitudes.length, color: 'text-gray-900' },
+                                    { label: 'Solicitadas', value: stats.solicitada || 0, color: 'text-sky-600' },
+                                    { label: 'En proceso', value: stats.en_proceso || 0, color: 'text-amber-600' },
+                                    { label: 'Aprobadas', value: stats.aprobado_comite || 0, color: 'text-emerald-600' },
+                                    { label: 'Rechazadas', value: stats.rechazada || 0, color: 'text-rose-500' },
+                                ].map(stat => (
+                                    <div key={stat.label} className="flex flex-col items-center justify-center py-5">
+                                        <span className={`text-3xl font-bold ${stat.color}`}>{stat.value}</span>
+                                        <span className="text-xs text-gray-400 mt-1">{stat.label}</span>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="bg-white border border-gray-100 rounded-xl p-4">
+                                    <p className="text-sm font-medium text-gray-700 mb-3">Solicitudes por motivo</p>
+                                    <ResponsiveContainer width="100%" height={180}>
+                                        <BarChart data={chartMotivos} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                                            <XAxis dataKey="nombre" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                                            <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                                            <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #f3f4f6', boxShadow: '0 2px 8px #0001' }} cursor={{ fill: '#f9fafb' }} />
+                                            <Bar dataKey="total" fill="#38bdf8" radius={[4, 4, 0, 0]} maxBarSize={32} />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+
+                                <div className="bg-white border border-gray-100 rounded-xl p-4">
+                                    <p className="text-sm font-medium text-gray-700 mb-3">Distribución por estado</p>
+                                    <ResponsiveContainer width="100%" height={180}>
+                                        <PieChart>
+                                            <Pie data={chartEstados} cx="50%" cy="50%" innerRadius={45} outerRadius={72} paddingAngle={3} dataKey="value">
+                                                {chartEstados.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                                            </Pie>
+                                            <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #f3f4f6', boxShadow: '0 2px 8px #0001' }} />
+                                            <Legend iconType="circle" iconSize={8} formatter={(value) => <span style={{ fontSize: 11, color: '#6b7280' }}>{value}</span>} />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </TabsContent>
+
+                {/* TAB: NUEVA NOVEDAD */}
+                <TabsContent value="nueva_novedad" className="mt-6">
+                    <div className="bg-white rounded-lg border">
+                        {/* Header */}
+                        <div className="flex items-center justify-between p-4 border-b">
+                            <div className="flex items-center space-x-3">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={resetForm}
+                                    className="h-8 w-8 rounded-full hover:bg-cyan-100"
+                                >
+                                    <ArrowLeft className="h-5 w-5 text-cyan-700" />
+                                </Button>
+                                <div className="w-8 h-8 bg-cyan-100 rounded flex items-center justify-center">
+                                    <ClipboardCheck className="w-5 h-5 text-cyan-600" />
+                                </div>
+                                <span className="text-lg font-semibold text-gray-700">NUEVA SOLICITUD DE NOVEDAD</span>
+                            </div>
+                        </div>
+
+                        {/* Paso 1: Motivo — siempre visible */}
+                        <div className="p-4 border-b bg-gray-50">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Motivo de Novedad *</Label>
+                                    <Select
+                                        value={selectedMotivo?.id?.toString() || ''}
+                                        onValueChange={(v) => {
+                                            const motivo = motivos.find(m => m.id === parseInt(v)) || null;
+                                            setSelectedMotivo(motivo);
+                                            setFormData(buildDefaultFormData(motivo));
+                                            setSelectedEmpleado(null);
+                                            setSelectedEmpleados([]);
+                                        }}
+                                    >
+                                        <SelectTrigger className="mt-1.5 bg-white">
+                                            <SelectValue placeholder="Seleccionar motivo..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {motivos.map(m => (
+                                                <SelectItem key={m.id} value={m.id.toString()}>
+                                                    {m.nombre}
+                                                    {m.requiere_comite && ' (Requiere Comité)'}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    {selectedMotivo?.requiere_comite && (
+                                        <p className="text-xs text-amber-600 mt-1.5 flex items-center gap-1">
+                                            <AlertCircle className="h-3 w-3" />
+                                            Esta novedad requiere evaluación del comité
+                                        </p>
+                                    )}
+                                </div>
+
+                                {selectedMotivo && (
+                                    <div>
+                                        <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                            {selectedMotivo.permite_seleccion_multiple ? 'Empleados *' : 'Empleado *'}
+                                        </Label>
+                                        {selectedMotivo.permite_seleccion_multiple ? (
+                                            <div className="mt-1.5 border rounded-md max-h-40 overflow-y-auto p-2 space-y-1 bg-white">
+                                                {empleados.map(emp => (
+                                                    <label key={emp.id} className="flex items-center gap-2 py-1 px-2 rounded hover:bg-gray-50 cursor-pointer text-sm">
+                                                        <Checkbox
+                                                            checked={selectedEmpleados.includes(emp.id!)}
+                                                            onCheckedChange={() => toggleEmpleadoSelection(emp.id!)}
+                                                        />
+                                                        {emp.nombre} {emp.apellido} — {emp.cargo || 'Sin cargo'}
+                                                    </label>
+                                                ))}
+                                                {empleados.length === 0 && <p className="text-xs text-gray-400 py-2">No hay empleados disponibles</p>}
+                                            </div>
+                                        ) : (
+                                            <Select
+                                                value={selectedEmpleado?.id?.toString() || ''}
+                                                onValueChange={(v) => {
+                                                    const emp = empleados.find(e => e.id === parseInt(v));
+                                                    setSelectedEmpleado(emp || null);
+                                                }}
+                                            >
+                                                <SelectTrigger className="mt-1.5 bg-white">
+                                                    <SelectValue placeholder="Seleccionar empleado..." />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {empleados.map(emp => (
+                                                        <SelectItem key={emp.id} value={emp.id!.toString()}>
+                                                            {emp.nombre} {emp.apellido} — {emp.cargo || 'Sin cargo'}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Paso 2: Formulario dinámico — solo cuando hay motivo + empleado */}
+                        {selectedMotivo && (selectedEmpleado || selectedEmpleados.length > 0) && (
+                            <div className="p-5 space-y-5">
+                                {/* Sección: Datos del motivo */}
+                                {(FORM_FIELDS_BY_MOTIVO[selectedMotivo.codigo] || []).length > 0 && (
+                                    <div className="rounded-lg border border-gray-200 overflow-hidden">
+                                        <div className="bg-gray-50 px-4 py-2.5 border-b border-gray-200">
+                                            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                                Datos de {selectedMotivo.nombre}
+                                            </span>
+                                        </div>
+                                        <div className="p-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                                                {(FORM_FIELDS_BY_MOTIVO[selectedMotivo.codigo] || []).map(field => (
+                                                    <div key={field.name} className={[
+                                                        field.rowSpan ? 'md:row-span-2 flex flex-col' : '',
+                                                        !field.rowSpan && field.type === 'textarea' ? 'md:col-span-2' : '',
+                                                    ].join(' ').trim()}>
+                                                        <Label className="text-xs font-medium text-gray-600">
+                                                            {field.label} {field.required && <span className="text-red-500">*</span>}
+                                                        </Label>
+                                                        {field.type === 'text' && (
+                                                            <Input
+                                                                value={formData[field.name] || ''}
+                                                                onChange={e => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
+                                                                className="mt-1"
+                                                                placeholder={field.label}
+                                                            />
+                                                        )}
+                                                        {field.type === 'number' && (
+                                                            <Input
+                                                                type="number"
+                                                                value={formData[field.name] || ''}
+                                                                onChange={e => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
+                                                                className="mt-1"
+                                                                placeholder="0"
+                                                            />
+                                                        )}
+                                                        {field.type === 'date' && (
+                                                            <Input
+                                                                type="date"
+                                                                value={formData[field.name] || ''}
+                                                                onChange={e => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
+                                                                className="mt-1"
+                                                            />
+                                                        )}
+                                                        {field.type === 'textarea' && (
+                                                            <Textarea
+                                                                value={formData[field.name] || ''}
+                                                                onChange={e => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
+                                                                className={field.rowSpan ? 'mt-1 flex-1 min-h-[100px]' : 'mt-1'}
+                                                                rows={field.rowSpan ? undefined : 3}
+                                                                placeholder={field.label}
+                                                            />
+                                                        )}
+                                                        {field.type === 'select' && (
+                                                            <Select
+                                                                value={formData[field.name] || ''}
+                                                                onValueChange={v => setFormData(prev => ({ ...prev, [field.name]: v }))}
+                                                            >
+                                                                <SelectTrigger className="mt-1">
+                                                                    <SelectValue placeholder={`Seleccionar...`} />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {(field.options || []).map(opt => (
+                                                                        <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        )}
+                                                        {field.type === 'checkbox' && (
+                                                            <div className="flex items-center gap-2 mt-2 rounded-md border p-3">
+                                                                <Checkbox
+                                                                    checked={!!formData[field.name]}
+                                                                    onCheckedChange={checked => setFormData(prev => ({ ...prev, [field.name]: checked }))}
+                                                                />
+                                                                <span className="text-sm text-gray-700">{field.label}</span>
+                                                            </div>
+                                                        )}
+                                                        {field.type === 'file' && (
+                                                            <Input type="file" className="mt-1" onChange={e => {
+                                                                const file = e.target.files?.[0];
+                                                                if (file) setFormData(prev => ({ ...prev, [field.name]: file.name }));
+                                                            }} />
+                                                        )}
+                                                        {field.helperText && (
+                                                            <p className="text-xs text-gray-400 mt-1">{field.helperText}</p>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Sección: Observaciones */}
+                                <div className="rounded-lg border border-gray-200 overflow-hidden">
+                                    <div className="bg-gray-50 px-4 py-2.5 border-b border-gray-200">
+                                        <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                            Observaciones {selectedMotivo.requiere_observacion && <span className="text-red-500">*</span>}
+                                        </span>
+                                    </div>
+                                    <div className="p-4">
+                                        <Textarea
+                                            value={observaciones}
+                                            onChange={e => setObservaciones(e.target.value)}
+                                            className={selectedMotivo.requiere_observacion ? 'border-amber-300 focus:border-amber-500' : ''}
+                                            placeholder={selectedMotivo.requiere_observacion
+                                                ? 'Observaciones obligatorias para este motivo...'
+                                                : 'Comentarios adicionales (opcional)...'}
+                                            rows={3}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Sección: Adjunto */}
+                                {selectedMotivo.requiere_adjunto && (
+                                    <div className="rounded-lg border border-gray-200 overflow-hidden">
+                                        <div className="bg-gray-50 px-4 py-2.5 border-b border-gray-200">
+                                            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                                Documento adjunto{' '}
+                                                {selectedMotivo.adjunto_obligatorio
+                                                    ? <span className="text-red-500">* (obligatorio)</span>
+                                                    : <span className="text-gray-400">(opcional)</span>}
+                                            </span>
+                                        </div>
+                                        <div className="p-4">
+                                            <div className="flex items-center gap-3">
+                                                <input
+                                                    type="file"
+                                                    className="block w-full text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100 border rounded-md p-1.5 cursor-pointer"
+                                                    onChange={e => setAdjuntoFile(e.target.files?.[0] ?? null)}
+                                                />
+                                                {adjuntoFile && (
+                                                    <span className="text-xs text-green-600 flex items-center gap-1 shrink-0">
+                                                        <CheckCircle className="w-3.5 h-3.5" />
+                                                        {adjuntoFile.name}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Sección: Comité */}
+                                {selectedMotivo.requiere_comite && (
+                                    <div className="rounded-lg border border-amber-200 bg-amber-50/50 overflow-hidden">
+                                        <div className="bg-amber-100/60 px-4 py-2.5 border-b border-amber-200 flex items-center gap-2">
+                                            <AlertCircle className="w-4 h-4 text-amber-600" />
+                                            <span className="text-xs font-semibold text-amber-700 uppercase tracking-wider">
+                                                Aprobación de Comité
+                                            </span>
+                                        </div>
+                                        <div className="p-4 space-y-3">
+                                            <p className="text-sm text-amber-700">
+                                                Al guardar se creará la solicitud y se enviará una notificación por correo electrónico al aprobador para que gestione su aprobación.
+                                            </p>
+                                            <div>
+                                                <Label className="text-xs font-medium text-amber-800">
+                                                    Cédula de la persona aprobadora <span className="text-red-500">*</span>
+                                                </Label>
+                                                <Input
+                                                    type="text"
+                                                    value={cedulaAprobador}
+                                                    onChange={e => setCedulaAprobador(e.target.value)}
+                                                    placeholder="Número de identificación del aprobador"
+                                                    className="mt-1 border-amber-300 focus-visible:ring-amber-400 bg-white"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Botones */}
+                                <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
+                                    <Button variant="outline" onClick={resetForm}>
+                                        Cancelar
+                                    </Button>
+                                    <Button
+                                        onClick={handleSubmitForm}
+                                        disabled={createMutation.isPending || !selectedMotivo}
+                                        className="bg-cyan-600 hover:bg-cyan-700 text-white"
+                                    >
+                                        {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                                        <CheckCircle className="h-4 w-4 mr-2" />
+                                        {selectedMotivo?.requiere_comite ? 'Enviar a Comité' : 'Guardar'}
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </TabsContent>
 
                 {/* TAB: EMPLEADOS */}
-                <TabsContent value="empleados">
-                    <Card className="border-0 shadow-sm">
-                        <CardHeader className="pb-3">
-                            <div className="flex items-center justify-between">
-                                <CardTitle className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                                    <Users className="h-5 w-5 text-cyan-600" />
-                                    Empleados Activos
-                                </CardTitle>
-                                <div className="relative w-72">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <TabsContent value="empleados" className="mt-6">
+                    <div className="bg-white rounded-lg border">
+                        <div className="flex items-center justify-between p-4 border-b">
+                            <div className="flex items-center space-x-3">
+                                <div className="w-8 h-8 bg-violet-100 rounded flex items-center justify-center">
+                                    <Users className="w-5 h-5 text-violet-600" />
+                                </div>
+                                <span className="text-lg font-semibold text-gray-700">EMPLEADOS</span>
+                                <Badge variant="secondary" className="ml-1">{empleados.length}</Badge>
+                            </div>
+                        </div>
+
+                        <div className="p-4 border-b bg-gray-50">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="relative md:col-span-2">
+                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                                     <Input
                                         placeholder="Buscar por nombre o cargo..."
                                         value={busquedaEmpleado}
                                         onChange={e => setBusquedaEmpleado(e.target.value)}
-                                        className="pl-9 border-gray-200 focus:border-cyan-400 focus:ring-cyan-400/20 transition-all"
+                                        className="pl-10"
                                     />
                                 </div>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setBusquedaEmpleado('')}
+                                    className="flex items-center gap-2"
+                                >
+                                    <Filter className="w-4 h-4" />
+                                    Limpiar filtros
+                                </Button>
                             </div>
-                        </CardHeader>
-                        <CardContent className="p-0">
+                        </div>
+
+                        <div className="overflow-x-auto rounded-lg shadow-sm">
                             {empleadosLoading ? (
-                                <div className="flex flex-col items-center justify-center py-20">
-                                    <div className="relative">
-                                        <div className="h-12 w-12 rounded-full border-4 border-gray-100" />
-                                        <div className="absolute inset-0 h-12 w-12 rounded-full border-4 border-transparent border-t-cyan-500 animate-spin" />
-                                    </div>
-                                    <span className="mt-4 text-sm text-gray-500 font-medium">Cargando empleados...</span>
+                                <div className="flex items-center justify-center py-20">
+                                    <span className="text-sm text-gray-500">Cargando empleados...</span>
                                 </div>
                             ) : empleados.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center py-20">
@@ -860,98 +1290,45 @@ const NovedadesPage: React.FC = () => {
                                     <p className="text-sm text-gray-400 mt-1">Los empleados aparecerán aquí cuando se registren</p>
                                 </div>
                             ) : (
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm">
-                                        <thead className="bg-gradient-to-r from-gray-50 to-gray-100/80 border-b border-gray-200">
-                                            <tr>
-                                                <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Nombre</th>
-                                                <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Cargo</th>
-                                                <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Empresa</th>
-                                                <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Sucursal</th>
-                                                <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Fecha Ingreso</th>
-                                                <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Estado</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {empleados.map(emp => (
-                                                <tr key={emp.id} className="border-b border-gray-100 hover:bg-cyan-50/30 transition-all duration-150">
-                                                    <td className="px-4 py-3.5">
-                                                        <div className="flex items-center gap-2.5">
-                                                            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center text-white text-xs font-bold shadow-sm">
-                                                                {emp.nombre.charAt(0).toUpperCase()}
-                                                            </div>
-                                                            <span className="font-medium text-gray-800">{emp.nombre} {emp.apellido || ''}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-4 py-3.5 text-gray-600">{emp.cargo || '-'}</td>
-                                                    <td className="px-4 py-3.5 text-gray-600">{emp.empresa?.razon_social || '-'}</td>
-                                                    <td className="px-4 py-3.5 text-gray-500 text-xs">{emp.sucursal || '-'}</td>
-                                                    <td className="px-4 py-3.5 text-gray-500 text-xs font-medium">{formatDate(emp.fecha_ingreso)}</td>
-                                                    <td className="px-4 py-3.5">
-                                                        <Badge variant="outline" className="text-xs font-semibold bg-emerald-50 text-emerald-700 border-emerald-200">
-                                                            {emp.estado || 'Activo'}
-                                                        </Badge>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                <Table className="min-w-[800px] w-full text-xs">
+                                    <TableHeader className="bg-cyan-50">
+                                        <TableRow className="text-left font-semibold text-gray-700">
+                                            <TableHead className="px-4 py-3">Nombre</TableHead>
+                                            <TableHead className="px-4 py-3">Cargo</TableHead>
+                                            <TableHead className="px-4 py-3">Empresa</TableHead>
+                                            <TableHead className="px-4 py-3">Sucursal</TableHead>
+                                            <TableHead className="px-4 py-3">Fecha Ingreso</TableHead>
+                                            <TableHead className="px-4 py-3">Estado</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {empleados.map(emp => (
+                                            <TableRow key={emp.id} className="hover:bg-gray-50">
+                                                <TableCell className="px-4 py-3 text-sm text-gray-900 font-medium">
+                                                    {emp.nombre} {emp.apellido || ''}
+                                                </TableCell>
+                                                <TableCell className="px-4 py-3 text-sm text-gray-600">{emp.cargo || '-'}</TableCell>
+                                                <TableCell className="px-4 py-3 text-sm text-gray-600">{emp.empresa?.razon_social || '-'}</TableCell>
+                                                <TableCell className="px-4 py-3 text-sm text-gray-500">{emp.sucursal || '-'}</TableCell>
+                                                <TableCell className="px-4 py-3 text-sm text-gray-500">{formatDate(emp.fecha_ingreso)}</TableCell>
+                                                <TableCell className="px-4 py-3">
+                                                    <Badge variant="default" className="bg-brand-lime/10 text-brand-lime border-brand-lime/20">
+                                                        {emp.estado || 'Activo'}
+                                                    </Badge>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
                             )}
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-            {/* Stats + Gráficas — debajo de las tablas */}
-            {solicitudes.length > 0 && (<>
-                {/* Stats ancho completo */}
-                <div className="grid grid-cols-5 divide-x divide-gray-100 bg-white border border-gray-100 rounded-xl overflow-hidden">
-                    {[
-                        { label: 'Total', value: solicitudes.length, color: 'text-gray-900' },
-                        { label: 'Solicitadas', value: stats.solicitada || 0, color: 'text-sky-600' },
-                        { label: 'En proceso', value: stats.en_proceso || 0, color: 'text-amber-600' },
-                        { label: 'Aprobadas', value: stats.aprobado_comite || 0, color: 'text-emerald-600' },
-                        { label: 'Rechazadas', value: stats.rechazada || 0, color: 'text-rose-500' },
-                    ].map(stat => (
-                        <div key={stat.label} className="flex flex-col items-center justify-center py-5">
-                            <span className={`text-3xl font-bold ${stat.color}`}>{stat.value}</span>
-                            <span className="text-xs text-gray-400 mt-1">{stat.label}</span>
                         </div>
-                    ))}
-                </div>
-            </>)}
-
-            {solicitudes.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-white border border-gray-100 rounded-xl p-4">
-                        <p className="text-sm font-medium text-gray-700 mb-3">Solicitudes por motivo</p>
-                        <ResponsiveContainer width="100%" height={180}>
-                            <BarChart data={chartMotivos} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                                <XAxis dataKey="nombre" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #f3f4f6', boxShadow: '0 2px 8px #0001' }} cursor={{ fill: '#f9fafb' }} />
-                                <Bar dataKey="total" fill="#38bdf8" radius={[4, 4, 0, 0]} maxBarSize={32} />
-                            </BarChart>
-                        </ResponsiveContainer>
                     </div>
-
-                    <div className="bg-white border border-gray-100 rounded-xl p-4">
-                        <p className="text-sm font-medium text-gray-700 mb-3">Distribución por estado</p>
-                        <ResponsiveContainer width="100%" height={180}>
-                            <PieChart>
-                                <Pie data={chartEstados} cx="50%" cy="50%" innerRadius={45} outerRadius={72} paddingAngle={3} dataKey="value">
-                                    {chartEstados.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                                </Pie>
-                                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #f3f4f6', boxShadow: '0 2px 8px #0001' }} />
-                                <Legend iconType="circle" iconSize={8} formatter={(value) => <span style={{ fontSize: 11, color: '#6b7280' }}>{value}</span>} />
-                            </PieChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-            )}
+                </TabsContent>
 
         </Tabs>
 
             {/* ================================================================ */}
+<<<<<<< HEAD
             {/* MODAL: Nueva Solicitud de Novedad */}
             {/* ================================================================ */}
             <Dialog open={showFormModal} onOpenChange={(open) => { if (!open) resetForm(); }}>
@@ -1236,6 +1613,8 @@ const NovedadesPage: React.FC = () => {
             </Dialog>
 
             {/* ================================================================ */}
+=======
+>>>>>>> 35fd7af (feat: revision)
             {/* MODAL: Detalle de Solicitud */}
             {/* ================================================================ */}
             <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
