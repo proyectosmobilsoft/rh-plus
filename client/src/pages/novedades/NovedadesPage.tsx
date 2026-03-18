@@ -644,8 +644,9 @@ const NovedadesPage: React.FC = () => {
                                             'Requiere Reemplazo': s.requiere_reemplazo ? 'Sí' : 'No',
                                         }));
                                         import('@/utils/exportUtils').then(({ exportToExcel }) => {
-                                            exportToExcel(dataToExport, `Solicitudes_Novedades_${new Date().toISOString().split('T')[0]}`, 'Solicitudes');
-                                            toast.success('Exportación generada exitosamente');
+                                            exportToExcel(dataToExport, `Solicitudes_Novedades_${new Date().toISOString().split('T')[0]}`, 'Solicitudes')
+                                                .then(() => toast.success('Exportación generada exitosamente'))
+                                                .catch(() => toast.error('Error al generar el archivo Excel'));
                                         }).catch(() => toast.error('Error al generar el archivo Excel'));
                                     }}
                                     className="flex items-center gap-2"

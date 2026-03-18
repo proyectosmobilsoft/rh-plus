@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { FileText, Plus, Filter, Users, Building, DollarSign, CheckCircle, Clock, AlertCircle, Loader2, Download, Calendar, Info, Check } from "lucide-react";
 import { toast } from 'sonner';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogDescription } from "@/components/ui/dialog";
@@ -940,7 +940,7 @@ const ExpedicionOrdenPage = () => {
       }));
 
       // Crear el libro de trabajo
-      const wb = XLSX.utils.book_new();
+      const workbook = new ExcelJS.Workbook();
 
       // Primero, obtener el orden de las columnas que queremos
       const columnHeadersOrdenados: string[] = [];

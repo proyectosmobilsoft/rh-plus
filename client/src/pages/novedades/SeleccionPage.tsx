@@ -20,7 +20,7 @@ import {
   ClipboardList, FileUp, RefreshCw, Star, ArrowRight, UserCheck,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import {
   novedadesService, novedadesLogsService,
   ESTADOS_NOVEDAD, ESTADO_LABELS, ESTADO_COLORS, TRANSICIONES_VALIDAS,
@@ -241,12 +241,25 @@ export default function SeleccionPage() {
     if (!file) return;
     setCargandoExcel(true);
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       try {
-        const data = new Uint8Array(ev.target?.result as ArrayBuffer);
-        const wb = XLSX.read(data, { type: 'array' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const rows: any[] = XLSX.utils.sheet_to_json(ws);
+        const buffer = ev.target?.result as ArrayBuffer;
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(buffer);
+        const worksheet = workbook.worksheets[0];
+        const headers: string[] = [];
+        worksheet.getRow(1).eachCell((cell, colNumber) => {
+          headers[colNumber - 1] = String(cell.value || '');
+        });
+        const rows: any[] = [];
+        worksheet.eachRow((row, rowNumber) => {
+          if (rowNumber === 1) return;
+          const rowData: Record<string, any> = {};
+          row.eachCell((cell, colNumber) => {
+            rowData[headers[colNumber - 1]] = cell.value;
+          });
+          rows.push(rowData);
+        });
         setDatosCargaMasiva(rows);
         setCargandoExcel(false);
       } catch {
@@ -258,7 +271,7 @@ export default function SeleccionPage() {
     e.target.value = '';
   };
 
-  const handleDescargarPlantilla = () => {
+  const handleDescargarPlantilla = async () => {
     const headers = [
       'empresa', 'sucursal', 'cargo', 'cantidad', 'salario',
       'horas', 'jornada', 'aux_no_prestacional', 'categoria', 'observaciones'
@@ -267,10 +280,20 @@ export default function SeleccionPage() {
       'Empresa ABC', 'Bogotá Norte', 'Auxiliar Administrativo', 1,
       2500000, 8, 'Diurna', 0, 'ordinario', 'Reemplazo por retiro'
     ];
-    const ws = XLSX.utils.aoa_to_sheet([headers, ejemplo]);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Solicitudes');
-    XLSX.writeFile(wb, 'plantilla_solicitudes_seleccion.xlsx');
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Solicitudes');
+    worksheet.addRow(headers);
+    worksheet.addRow(ejemplo);
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'plantilla_solicitudes_seleccion.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const handleProcesarCargaMasiva = async () => {
