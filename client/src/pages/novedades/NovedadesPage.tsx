@@ -63,11 +63,7 @@ import { emailService } from '@/services/emailService';
 // TIPOS DE FORMULARIO POR MOTIVO
 // ============================================================
 
-<<<<<<< HEAD
-const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type: string; required?: boolean; options?: string[]; helperText?: string; readOnly?: boolean }[]> = {
-=======
 const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type: string; required?: boolean; options?: string[]; helperText?: string; defaultToday?: boolean; rowSpan?: boolean }[]> = {
->>>>>>> 35fd7af (feat: revision)
     incapacidades: [
         { label: 'Fecha de inicio', name: 'fecha_inicio', type: 'date', required: true },
         { label: 'Fecha final', name: 'fecha_fin', type: 'date', required: true },
@@ -110,12 +106,8 @@ const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type:
         { label: 'Observaciones', name: 'observaciones', type: 'textarea' },
     ],
     renuncias: [
-<<<<<<< HEAD
-        { label: 'Fecha de renuncia', name: 'fecha_renuncia', type: 'date', required: true, readOnly: true, helperText: 'Se registra automáticamente con la fecha de hoy' },
-=======
         { label: 'Fecha de solicitud', name: 'fecha_renuncia', type: 'date', required: true, defaultToday: true },
         { label: 'Motivo de la renuncia', name: 'motivo_renuncia', type: 'textarea', required: true, rowSpan: true },
->>>>>>> 35fd7af (feat: revision)
         { label: 'Último día de trabajo', name: 'fecha_finalizacion', type: 'date', required: true },
         { label: '¿Requiere reemplazo?', name: 'requiere_reemplazo', type: 'checkbox' },
         { label: 'Documento de soporte', name: 'documento_soporte', type: 'file' },
@@ -129,18 +121,16 @@ const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type:
     ],
 };
 
-<<<<<<< HEAD
 // Aprobador de comité (quemado por ahora; luego se hará la relación con usuario/aprobador)
 const CEDULA_APROBADOR_COMITE = '123456789';
 const NOMBRE_APROBADOR_COMITE = 'Aprobador Comité';
-=======
+
 // Aliases en singular para compatibilidad con códigos de BD
 FORM_FIELDS_BY_MOTIVO.incapacidad = FORM_FIELDS_BY_MOTIVO.incapacidades;
 FORM_FIELDS_BY_MOTIVO.retiro = FORM_FIELDS_BY_MOTIVO.retiros;
 FORM_FIELDS_BY_MOTIVO.renuncia = FORM_FIELDS_BY_MOTIVO.renuncias;
 FORM_FIELDS_BY_MOTIVO.licencia = FORM_FIELDS_BY_MOTIVO.licencias;
 FORM_FIELDS_BY_MOTIVO.postulacion_interna = FORM_FIELDS_BY_MOTIVO.postulaciones_internas;
->>>>>>> 35fd7af (feat: revision)
 
 // La aprobación de novedades solo está permitida los viernes
 const esViernes = () => new Date().getDay() === 5;
@@ -196,6 +186,7 @@ const NovedadesPage: React.FC = () => {
 
     // Flags del motivo seleccionado
     const [adjuntoFile, setAdjuntoFile] = useState<File | null>(null);
+    const [cedulaAprobador, setCedulaAprobador] = useState('');
 
     // Expanded rows
     const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
@@ -366,8 +357,6 @@ const NovedadesPage: React.FC = () => {
         setObservaciones('');
         setSelectedEmpleados([]);
         setAdjuntoFile(null);
-<<<<<<< HEAD
-=======
         setCedulaAprobador('');
         setActiveTab('nueva_novedad');
     };
@@ -381,7 +370,6 @@ const NovedadesPage: React.FC = () => {
         setAdjuntoFile(null);
         setCedulaAprobador('');
         setActiveTab(prevTab);
->>>>>>> 35fd7af (feat: revision)
     };
 
     const handleSubmitForm = async () => {
@@ -1329,293 +1317,6 @@ const NovedadesPage: React.FC = () => {
         </Tabs>
 
             {/* ================================================================ */}
-<<<<<<< HEAD
-            {/* MODAL: Nueva Solicitud de Novedad */}
-            {/* ================================================================ */}
-            <Dialog open={showFormModal} onOpenChange={(open) => { if (!open) resetForm(); }}>
-                <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-500 to-teal-600 shadow-sm">
-                                <ClipboardCheck className="h-4 w-4 text-white" />
-                            </div>
-                            <div>
-                                <span className="text-lg">Nueva Solicitud de Novedad</span>
-                                <p className="text-xs font-normal text-gray-500 mt-0.5">Selecciona el motivo y completa el formulario</p>
-                            </div>
-                        </DialogTitle>
-                    </DialogHeader>
-
-                    <div className="space-y-4">
-                        {/* Paso 1: Seleccionar Motivo */}
-                        <div>
-                            <Label className="text-sm font-semibold">Motivo de Novedad *</Label>
-                            <Select
-                                value={selectedMotivo?.id?.toString() || ''}
-                                onValueChange={(v) => {
-                                    const motivo = motivos.find(m => m.id === parseInt(v));
-                                    setSelectedMotivo(motivo || null);
-                                    if (motivo?.codigo === 'renuncias') {
-                                        const hoy = new Date().toISOString().split('T')[0];
-                                        setFormData({ fecha_renuncia: hoy });
-                                    } else {
-                                        setFormData({});
-                                    }
-                                }}
-                            >
-                                <SelectTrigger className="mt-1">
-                                    <SelectValue placeholder="Seleccionar motivo..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {motivos.map(m => (
-                                        <SelectItem key={m.id} value={m.id.toString()}>
-                                            {m.nombre}
-                                            {m.requiere_comite && ' (Requiere Comité)'}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            {selectedMotivo?.requiere_comite && (
-                                <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
-                                    <AlertCircle className="h-3 w-3" />
-                                    Esta novedad requiere evaluación del comité
-                                </p>
-                            )}
-                        </div>
-
-                        {/* Paso 2: Seleccionar Empleado(s) */}
-                        {selectedMotivo && (
-                            <div>
-                                <Label className="text-sm font-semibold">
-                                    {selectedMotivo.permite_seleccion_multiple ? 'Empleados *' : 'Empleado *'}
-                                </Label>
-                                {selectedMotivo.permite_seleccion_multiple ? (
-                                    <div className="mt-1 border rounded-md max-h-40 overflow-y-auto p-2 space-y-1">
-                                        {empleados.map(emp => (
-                                            <label key={emp.id} className="flex items-center gap-2 py-1 px-2 rounded hover:bg-gray-50 cursor-pointer text-sm">
-                                                <Checkbox
-                                                    checked={selectedEmpleados.includes(emp.id!)}
-                                                    onCheckedChange={() => toggleEmpleadoSelection(emp.id!)}
-                                                />
-                                                {emp.nombre} {emp.apellido} — {emp.cargo || 'Sin cargo'}
-                                            </label>
-                                        ))}
-                                        {empleados.length === 0 && <p className="text-xs text-gray-400 py-2">No hay empleados disponibles</p>}
-                                    </div>
-                                ) : (
-                                    <Select
-                                        value={selectedEmpleado?.id?.toString() || ''}
-                                        onValueChange={(v) => {
-                                            const emp = empleados.find(e => e.id === parseInt(v));
-                                            setSelectedEmpleado(emp || null);
-                                        }}
-                                    >
-                                        <SelectTrigger className="mt-1">
-                                            <SelectValue placeholder="Seleccionar empleado..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {empleados.map(emp => (
-                                                <SelectItem key={emp.id} value={emp.id!.toString()}>
-                                                    {emp.nombre} {emp.apellido} — {emp.cargo || 'Sin cargo'}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                )}
-                            </div>
-                        )}
-
-                        {/* Paso 3: Formulario dinámico según motivo */}
-                        {selectedMotivo && (selectedEmpleado || selectedEmpleados.length > 0) && (
-                            <>
-                                <Separator />
-                                <div className="space-y-3">
-                                    <h3 className="text-sm font-semibold text-gray-700">
-                                        Datos de {selectedMotivo.nombre}
-                                    </h3>
-                                    {(FORM_FIELDS_BY_MOTIVO[selectedMotivo.codigo] || []).map(field => (
-                                        <div key={field.name}>
-                                            <Label className="text-sm">
-                                                {field.label} {field.required && <span className="text-red-500">*</span>}
-                                            </Label>
-                                            {field.type === 'text' && (
-                                                <Input
-                                                    value={formData[field.name] || ''}
-                                                    onChange={e => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
-                                                    className="mt-1"
-                                                />
-                                            )}
-                                            {field.type === 'number' && (
-                                                <Input
-                                                    type="number"
-                                                    value={formData[field.name] || ''}
-                                                    onChange={e => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
-                                                    className="mt-1"
-                                                />
-                                            )}
-                                            {field.type === 'date' && (
-                                                <Input
-                                                    type="date"
-                                                    value={
-                                                        selectedMotivo?.codigo === 'renuncias' && field.name === 'fecha_renuncia'
-                                                            ? (formData[field.name] || new Date().toISOString().split('T')[0])
-                                                            : (formData[field.name] || '')
-                                                    }
-                                                    onChange={e => {
-                                                        if (selectedMotivo?.codigo === 'renuncias' && field.name === 'fecha_renuncia') return;
-                                                        setFormData(prev => ({ ...prev, [field.name]: e.target.value }));
-                                                    }}
-                                                    disabled={selectedMotivo?.codigo === 'renuncias' && field.name === 'fecha_renuncia'}
-                                                    className="mt-1"
-                                                    title={selectedMotivo?.codigo === 'renuncias' && field.name === 'fecha_renuncia' ? 'La fecha de renuncia es siempre la fecha de hoy' : undefined}
-                                                />
-                                            )}
-                                            {field.type === 'textarea' && (
-                                                <Textarea
-                                                    value={formData[field.name] || ''}
-                                                    onChange={e => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
-                                                    className="mt-1"
-                                                    rows={3}
-                                                />
-                                            )}
-                                            {field.type === 'select' && (
-                                                <Select
-                                                    value={formData[field.name] || ''}
-                                                    onValueChange={v => setFormData(prev => ({ ...prev, [field.name]: v }))}
-                                                >
-                                                    <SelectTrigger className="mt-1">
-                                                        <SelectValue placeholder={`Seleccionar ${field.label.toLowerCase()}...`} />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {(field.options || []).map(opt => (
-                                                            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            )}
-                                            {field.type === 'checkbox' && (
-                                                <div className="flex items-center gap-2 mt-1">
-                                                    <Checkbox
-                                                        checked={!!formData[field.name]}
-                                                        onCheckedChange={checked => setFormData(prev => ({ ...prev, [field.name]: checked }))}
-                                                    />
-                                                    <span className="text-sm text-gray-600">{field.label}</span>
-                                                </div>
-                                            )}
-                                            {field.type === 'file' && (
-                                                <Input type="file" className="mt-1" onChange={e => {
-                                                    const file = e.target.files?.[0];
-                                                    if (file) setFormData(prev => ({ ...prev, [field.name]: file.name }));
-                                                }} />
-                                            )}
-                                            {field.helperText && (
-                                                <p className="text-xs text-gray-400 mt-0.5">{field.helperText}</p>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-
-                                {/* Observaciones — solo si el motivo lo requiere */}
-                                {selectedMotivo.requiere_observacion && (
-                                    <div>
-                                        <Label className="text-sm">
-                                            Observaciones <span className="text-red-500">*</span>
-                                        </Label>
-                                        <Textarea
-                                            value={observaciones}
-                                            onChange={e => setObservaciones(e.target.value)}
-                                            className="mt-1 border-amber-300 focus:border-amber-500"
-                                            placeholder="Observaciones obligatorias para este motivo..."
-                                            rows={3}
-                                        />
-                                    </div>
-                                )}
-
-                                {/* Observaciones opcionales cuando el motivo NO las requiere */}
-                                {!selectedMotivo.requiere_observacion && (
-                                    <div>
-                                        <Label className="text-sm text-gray-500">Observaciones (opcional)</Label>
-                                        <Textarea
-                                            value={observaciones}
-                                            onChange={e => setObservaciones(e.target.value)}
-                                            className="mt-1"
-                                            placeholder="Comentarios adicionales..."
-                                            rows={2}
-                                        />
-                                    </div>
-                                )}
-
-                                {/* Adjunto — solo si el motivo requiere adjunto */}
-                                {selectedMotivo.requiere_adjunto && (
-                                    <div>
-                                        <Label className="text-sm">
-                                            Documento adjunto{' '}
-                                            {selectedMotivo.adjunto_obligatorio
-                                                ? <span className="text-red-500">* (obligatorio)</span>
-                                                : <span className="text-gray-400">(opcional)</span>}
-                                        </Label>
-                                        <div className="mt-1 flex items-center gap-2">
-                                            <input
-                                                type="file"
-                                                className="block w-full text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100 border rounded-md p-1 cursor-pointer"
-                                                onChange={e => setAdjuntoFile(e.target.files?.[0] ?? null)}
-                                            />
-                                            {adjuntoFile && (
-                                                <span className="text-xs text-green-600 flex items-center gap-1 shrink-0">
-                                                    <CheckCircle className="w-3.5 h-3.5" />
-                                                    {adjuntoFile.name}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Aprobador de comité — asignado automáticamente (quemado por ahora) */}
-                                {selectedMotivo.requiere_comite && (
-                                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2">
-                                        <div className="flex items-center gap-2 text-amber-700">
-                                            <AlertCircle className="w-4 h-4 shrink-0" />
-                                            <span className="text-sm font-semibold">Esta novedad requiere aprobación de comité</span>
-                                        </div>
-                                        <p className="text-xs text-amber-600">
-                                            Se enviará una notificación por correo al aprobador para que gestione la solicitud.
-                                        </p>
-                                        <div>
-                                            <Label className="text-sm text-amber-800">Aprobador asignado</Label>
-                                            <div className="mt-1 text-sm bg-amber-100/80 border border-amber-200 rounded-md px-3 py-2 text-amber-800 space-y-0.5">
-                                                <p><span className="font-medium">Nombre:</span> {NOMBRE_APROBADOR_COMITE}</p>
-                                                <p><span className="font-medium">Cédula:</span> {CEDULA_APROBADOR_COMITE}</p>
-                                            </div>
-                                            <p className="text-xs text-amber-600 mt-1">(Asignado automáticamente por el sistema)</p>
-                                        </div>
-                                    </div>
-                                )}
-                            </>
-                        )}
-                    </div>
-
-                    <DialogFooter className="mt-4 gap-2">
-                        <Button variant="outline" onClick={resetForm} className="border-gray-200 hover:bg-gray-50">
-                            Cancelar
-                        </Button>
-                        <Button
-                            onClick={handleSubmitForm}
-                            disabled={createMutation.isPending || !selectedMotivo}
-                            className={selectedMotivo?.requiere_comite
-                                ? "bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-md"
-                                : "bg-gradient-to-r from-cyan-500 to-teal-600 hover:from-cyan-600 hover:to-teal-700 text-white shadow-md shadow-cyan-500/20"}
-                        >
-                            {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                            <CheckCircle className="h-4 w-4 mr-1.5" />
-                            {selectedMotivo?.requiere_comite ? 'Enviar a Comité' : 'Crear Solicitud'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* ================================================================ */}
-=======
->>>>>>> 35fd7af (feat: revision)
             {/* MODAL: Detalle de Solicitud */}
             {/* ================================================================ */}
             <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>

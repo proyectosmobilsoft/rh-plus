@@ -993,51 +993,30 @@ const ExpedicionOrdenPage = () => {
       });
 
       // Crear la hoja de trabajo con los datos ordenados
-      const ws = XLSX.utils.json_to_sheet(datosOrdenados);
+      const ws = workbook.addWorksheet('Solicitudes');
+      const numCols = columnHeadersOrdenados.length;
 
-      // Obtener número de columnas dinámicamente
-      const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
-      const numCols = range.e.c + 1;
+      // Agregar fila de headers y filas de datos
+      ws.addRow(columnHeadersOrdenados);
+      datosOrdenados.forEach(fila => ws.addRow(columnHeadersOrdenados.map(col => fila[col])));
 
       // Calcular el ancho óptimo de cada columna basado en el contenido
       const calcularAnchoColumna = (header: string, index: number): number => {
-        // Anchos mínimos y máximos
         const MIN_WIDTH = 10;
         const MAX_WIDTH = 50;
-        
-        // Calcular ancho del header
         const headerWidth = header.length;
-        
-        // Calcular ancho máximo del contenido en esa columna
         let maxContentWidth = headerWidth;
         datosOrdenados.forEach((fila) => {
           const valor = fila[header];
           if (valor !== null && valor !== undefined) {
-            const valorStr = String(valor);
-            // Contar caracteres, pero considerar que algunos caracteres (como ñ, acentos) pueden tomar más espacio
-            const valorLength = valorStr.length;
-            // Si es muy largo, limitar el cálculo para no hacer columnas gigantes
-            const maxVal = Math.min(valorLength, 100);
-            if (maxVal > maxContentWidth) {
-              maxContentWidth = maxVal;
-            }
+            const maxVal = Math.min(String(valor).length, 100);
+            if (maxVal > maxContentWidth) maxContentWidth = maxVal;
           }
         });
-        
-        // Calcular ancho óptimo: header + padding + margen
-        // Usamos el máximo entre header y contenido, más un padding
-        const width = Math.max(headerWidth, maxContentWidth) + 3; // +3 para padding
-        
-        // Aplicar límites
-        const finalWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, width));
-        
-        return finalWidth;
+        return Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, Math.max(headerWidth, maxContentWidth) + 3));
       };
 
-      // Configurar el ancho de las columnas basado en el contenido real
-      const colWidths: { wch: number }[] = [];
-      
-      // Anchos preferidos para campos comunes (pueden ser sobrescritos si el contenido es mayor)
+      // Anchos preferidos para campos comunes
       const anchosPreferidos: Record<string, number> = {
         'CONSECUTIVO': 12,
         'DOCUMENTO': 18,
@@ -1052,194 +1031,95 @@ const ExpedicionOrdenPage = () => {
         'HORA MODIFICACIÓN': 18
       };
 
-      // Configurar ancho para cada columna usando el orden correcto
+      // Configurar ancho de columnas
       columnHeadersOrdenados.forEach((header, index) => {
-        // Si tiene un ancho preferido, usarlo como mínimo
         const anchoPreferido = anchosPreferidos[header];
         const anchoCalculado = calcularAnchoColumna(header, index);
-        
-        // Usar el mayor entre el preferido y el calculado
-        const anchoFinal = anchoPreferido 
+        ws.getColumn(index + 1).width = anchoPreferido
           ? Math.max(anchoPreferido, anchoCalculado)
           : anchoCalculado;
-        
-        colWidths.push({ wch: anchoFinal });
       });
-
-      // Asegurar que tenemos anchos para todas las columnas
-      while (colWidths.length < numCols) {
-        colWidths.push({ wch: 15 });
-      }
-
-      ws['!cols'] = colWidths;
 
       // Función para detectar si una columna contiene principalmente números
       const esColumnaNumerica = (header: string, index: number): boolean => {
-        // Validar primero si es teléfono o celular (NO debe ser numérica)
         const headerLower = header.toLowerCase().replace(/\s+/g, '');
-        if (headerLower.includes('telefono') || 
-            headerLower.includes('teléfono') || 
-            headerLower.includes('celular') ||
-            headerLower.includes('phone')) {
+        if (headerLower.includes('telefono') || headerLower.includes('teléfono') ||
+            headerLower.includes('celular') || headerLower.includes('phone')) {
           return false;
         }
-        
-        // Nombres de columnas que típicamente contienen números
-        // NOTA: TELEFONO y CELULAR están explícitamente excluidos arriba
         const columnasNumericasPorNombre = [
           'CONSECUTIVO', 'DOCUMENTO', 'ID',
           'SALARIO', 'SALARIO_BASICO', 'SALARIO_MENSUAL', 'AUXILIO_TRANSPORTE',
           'PORCENTAJE', 'CANTIDAD', 'TOTAL', 'PRECIO', 'COSTO'
         ];
-        
-        const headerUpper = header.toUpperCase();
-        // Verificar si el nombre del header sugiere que es numérico
-        if (columnasNumericasPorNombre.some(nombre => headerUpper.includes(nombre))) {
+        if (columnasNumericasPorNombre.some(nombre => header.toUpperCase().includes(nombre))) {
           return true;
         }
-        
-        // Verificar el contenido: si la mayoría de valores no vacíos son números, es numérica
         let valoresNumericos = 0;
         let valoresTotales = 0;
-        
         datosOrdenados.forEach((fila) => {
           const valor = fila[header];
           if (valor !== null && valor !== undefined && valor !== '') {
             valoresTotales++;
             const valorStr = String(valor).trim();
-            // Verificar si es un número (entero o decimal)
             if (/^-?\d+(\.\d+)?$/.test(valorStr) || /^-?\d+,\d+$/.test(valorStr)) {
               valoresNumericos++;
             }
           }
         });
-        
-        // Si al menos el 80% de los valores son números, consideramos la columna numérica
         return valoresTotales > 0 && (valoresNumericos / valoresTotales) >= 0.8;
       };
 
-      // Aplicar formato a los headers (mayúsculas, negrita, fondo gris pálido)
-      for (let col = 0; col < numCols; col++) {
-        const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
-        // Asegurar que la celda existe - si no, crearla
-        if (!ws[cellAddress]) {
-          ws[cellAddress] = { v: columnHeadersOrdenados[col] || '', t: 's' };
-        }
-        
-        const headerName = columnHeadersOrdenados[col] || '';
-
-        // Aplicar formato al header con fondo gris pálido
-        // Usando exactamente el mismo patrón que AnalistasPage (con 'size' no 'sz')
-        ws[cellAddress].s = {
-          font: { 
-            bold: true,
-            size: 11,
-            color: { rgb: "000000" }
-          },
-          fill: { 
-            fgColor: { rgb: "D3D3D3" } // Gris claro (lightgray)
-          },
-          alignment: { 
-            horizontal: "center", 
-            vertical: "center"
-          },
-          border: {
-            top: { style: "thin", color: { rgb: "000000" } },
-            bottom: { style: "thin", color: { rgb: "000000" } },
-            left: { style: "thin", color: { rgb: "000000" } },
-            right: { style: "thin", color: { rgb: "000000" } }
-          }
+      // Aplicar estilo a la fila de headers (fila 1)
+      const headerRow = ws.getRow(1);
+      for (let col = 1; col <= numCols; col++) {
+        const cell = headerRow.getCell(col);
+        cell.font = { bold: true, size: 11, color: { argb: 'FF000000' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD3D3D3' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FF000000' } },
+          bottom: { style: 'thin', color: { argb: 'FF000000' } },
+          left: { style: 'thin', color: { argb: 'FF000000' } },
+          right: { style: 'thin', color: { argb: 'FF000000' } }
         };
       }
 
-      // Aplicar formato a las filas de datos
-      for (let row = 1; row <= range.e.r; row++) {
-        for (let col = 0; col < numCols; col++) {
-          const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
-          if (!ws[cellAddress]) continue;
-
-          const headerName = columnHeadersOrdenados[col] || '';
-          let cellValue = ws[cellAddress].v;
-          
-          // Validar si es una columna de teléfono o celular (no debe recibir formato numérico)
+      // Aplicar estilo a las filas de datos
+      const totalRows = ws.rowCount;
+      for (let rowNum = 2; rowNum <= totalRows; rowNum++) {
+        const dataRow = ws.getRow(rowNum);
+        for (let col = 1; col <= numCols; col++) {
+          const cell = dataRow.getCell(col);
+          const headerName = columnHeadersOrdenados[col - 1] || '';
           const headerNameLower = headerName.toLowerCase().replace(/\s+/g, '');
-          const esTelefonoOCelular = headerNameLower.includes('telefono') || 
-                                     headerNameLower.includes('teléfono') || 
+          const esTelefonoOCelular = headerNameLower.includes('telefono') ||
+                                     headerNameLower.includes('teléfono') ||
                                      headerNameLower.includes('celular') ||
                                      headerNameLower.includes('phone');
-          
-          // Determinar si esta columna es numérica (excluyendo teléfonos y celulares)
-          const esNumerica = !esTelefonoOCelular && esColumnaNumerica(headerName, col);
-          
-          // Si es una columna numérica (que no sea teléfono/celular) y el valor es un número, convertirlo y formatearlo
-          if (esNumerica && cellValue !== null && cellValue !== undefined && cellValue !== '') {
-            const numValue = typeof cellValue === 'number' ? cellValue : 
-                            parseFloat(String(cellValue).replace(/,/g, '').replace('.', '.'));
-            
+          const esNumerica = !esTelefonoOCelular && esColumnaNumerica(headerName, col - 1);
+
+          if (esNumerica && cell.value !== null && cell.value !== undefined && cell.value !== '') {
+            const numValue = typeof cell.value === 'number' ? cell.value :
+                            parseFloat(String(cell.value).replace(/,/g, ''));
             if (!isNaN(numValue)) {
-              // Establecer el valor numérico
-              ws[cellAddress].v = numValue;
-              ws[cellAddress].t = 'n'; // Tipo numérico
-              
-              // Aplicar formato numérico con separadores de miles
-              // La propiedad z contiene el formato de número de Excel
-              if (numValue % 1 === 0) {
-                // Es un entero - formato sin decimales con separadores de miles
-                ws[cellAddress].z = '#,##0';
-              } else {
-                // Tiene decimales - formato con 2 decimales y separadores de miles
-                ws[cellAddress].z = '#,##0.00';
-              }
-              
-              // Formato de estilo para números (alineación a la derecha)
-              // La celda ya existe y tiene v, t y z asignados arriba
-              ws[cellAddress].s = {
-                alignment: { 
-                  vertical: "center",
-                  horizontal: "right" // Números alineados a la derecha
-                },
-                border: {
-                  top: { style: "thin", color: { rgb: "CCCCCC" } },
-                  bottom: { style: "thin", color: { rgb: "CCCCCC" } },
-                  left: { style: "thin", color: { rgb: "CCCCCC" } },
-                  right: { style: "thin", color: { rgb: "CCCCCC" } }
-                }
-              };
+              cell.value = numValue;
+              cell.numFmt = numValue % 1 === 0 ? '#,##0' : '#,##0.00';
+              cell.alignment = { vertical: 'middle', horizontal: 'right' };
             } else {
-              // No es número válido, aplicar estilo normal de texto
-              ws[cellAddress].s = {
-                alignment: { 
-                  vertical: "center",
-                  horizontal: "left"
-                },
-                border: {
-                  top: { style: "thin", color: { rgb: "CCCCCC" } },
-                  bottom: { style: "thin", color: { rgb: "CCCCCC" } },
-                  left: { style: "thin", color: { rgb: "CCCCCC" } },
-                  right: { style: "thin", color: { rgb: "CCCCCC" } }
-                }
-              };
+              cell.alignment = { vertical: 'middle', horizontal: 'left' };
             }
           } else {
-            // Formato base para celdas de texto
-            ws[cellAddress].s = {
-              alignment: { 
-                vertical: "center",
-                horizontal: "left"
-              },
-              border: {
-                top: { style: "thin", color: { rgb: "CCCCCC" } },
-                bottom: { style: "thin", color: { rgb: "CCCCCC" } },
-                left: { style: "thin", color: { rgb: "CCCCCC" } },
-                right: { style: "thin", color: { rgb: "CCCCCC" } }
-              }
-            };
+            cell.alignment = { vertical: 'middle', horizontal: 'left' };
           }
+          cell.border = {
+            top: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+            bottom: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+            left: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+            right: { style: 'thin', color: { argb: 'FFCCCCCC' } }
+          };
         }
       }
-
-      // Agregar la hoja al libro
-      XLSX.utils.book_append_sheet(wb, ws, 'Solicitudes');
 
       // Generar el nombre del archivo con fecha y hora
       const fechaActual = new Date();
@@ -1248,9 +1128,16 @@ const ExpedicionOrdenPage = () => {
       const nombreArchivo = `Solicitudes_${fechaFormateada}_${horaFormateada}.xlsx`;
 
       // Descargar el archivo
-      // Nota: XLSX Community Edition puede tener limitaciones con estilos avanzados
-      // Los estilos básicos (fill, font, alignment, border) deberían funcionar
-      XLSX.writeFile(wb, nombreArchivo);
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = nombreArchivo;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
 
       toast.success(`Archivo Excel exportado exitosamente: ${nombreArchivo}`);
     } catch (error) {
