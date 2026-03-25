@@ -17,6 +17,28 @@ export interface Candidato {
   empresa_id?: number; // Relación con empresa (opcional)
   tipo_candidato_id?: number; // Relación con tipo de candidato
   activo?: boolean; // Estado del candidato
+
+  // Agregar campos que existen en la base de datos pero faltaban en la interfaz
+  cargo_aspirado?: string;
+  estado?: string;
+  created_at?: string;
+  updated_at?: string;
+  fecha_nacimiento?: string;
+  genero?: string;
+  sexo?: string;
+  edad?: number;
+  departamento?: string;
+  arl?: string;
+  eps?: string;
+  grupo_sanguineo?: string;
+  nivel_educativo?: string;
+  completado?: boolean;
+
+  // Campos de entrevista (pueden estar en un JSON o como columnas dependiendo de la tabla)
+  fecha_entrevista?: string;
+  hora_entrevista?: string;
+  lugar_entrevista?: string;
+  observacion_entrevista?: string;
 }
 
 export interface DocumentoCandidato {
@@ -131,7 +153,7 @@ export const candidatosService = {
       throw error;
     }
   },
-  
+
   update: async (id: number, candidato: Partial<Candidato>): Promise<Candidato | null> => {
     try {
       // Obtener el candidato actual para saber el usuario_id
@@ -174,7 +196,7 @@ export const candidatosService = {
       throw error;
     }
   },
-  
+
   delete: async (id: number): Promise<void> => {
     const { error } = await supabase.from('candidatos').delete().eq('id', id);
     if (error) throw error;
@@ -195,6 +217,86 @@ export const candidatosService = {
     const { error } = await supabase
       .from('candidatos')
       .update({ activo: false })
+      .eq('id', id);
+    if (error) throw error;
+    return true;
+  },
+
+  // ── ENTREVISTAS: consulta optimizada con paginación ──
+  getForEntrevistas: async (params: {
+    page: number;
+    pageSize: number;
+    busqueda?: string;
+    estado?: string;
+    empresaId?: number;
+  }): Promise<{ data: Candidato[]; total: number }> => {
+    const { page, pageSize, busqueda, estado, empresaId } = params;
+
+    // Solo las columnas que la vista de entrevistas necesita
+    const COLUMNS = 'id, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, numero_documento, tipo_documento, email, telefono, cargo_aspirado, estado, empresa_id, activo, created_at, fecha_entrevista, hora_entrevista, lugar_entrevista';
+
+    // ── count query (exact, head‑only → rápido) ──
+    let countQ = supabase
+      .from('candidatos')
+      .select('id', { count: 'exact', head: true });
+    // ── data query ──
+    let dataQ = supabase
+      .from('candidatos')
+      .select(COLUMNS);
+
+    // Filtros comunes
+    if (empresaId) {
+      countQ = countQ.eq('empresa_id', empresaId);
+      dataQ = dataQ.eq('empresa_id', empresaId);
+    }
+    if (estado && estado !== 'all') {
+      countQ = countQ.eq('estado', estado);
+      dataQ = dataQ.eq('estado', estado);
+    }
+    if (busqueda && busqueda.trim().length >= 2) {
+      const pattern = `%${busqueda.trim()}%`;
+      // ilike sobre doc, nombre y apellido — PostgREST or()
+      const orFilter = `numero_documento.ilike.${pattern},primer_nombre.ilike.${pattern},primer_apellido.ilike.${pattern}`;
+      countQ = countQ.or(orFilter);
+      dataQ = dataQ.or(orFilter);
+    }
+
+    // Ejecución en paralelo
+    const [countRes, dataRes] = await Promise.all([
+      countQ,
+      dataQ
+        .order('created_at', { ascending: false })
+        .range((page - 1) * pageSize, page * pageSize - 1),
+    ]);
+
+    if (countRes.error) throw countRes.error;
+    if (dataRes.error) throw dataRes.error;
+
+    return {
+      data: (dataRes.data || []) as Candidato[],
+      total: countRes.count ?? 0,
+    };
+  },
+
+  // Obtener un candidato por ID (entrevistas)
+  getByIdLean: async (id: number): Promise<Candidato | null> => {
+    const { data, error } = await supabase
+      .from('candidatos')
+      .select('id, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, numero_documento, tipo_documento, email, telefono, direccion, cargo_aspirado, estado, empresa_id, activo, ciudad, created_at, fecha_entrevista, hora_entrevista, lugar_entrevista, observacion_entrevista')
+      .eq('id', id)
+      .single();
+    if (error && error.code !== 'PGRST116') throw error;
+    return data;
+  },
+
+  // Actualizar estado de un candidato (calificación)
+  updateEstado: async (id: number, estado: string, observacion?: string): Promise<boolean> => {
+    const updateData: Record<string, any> = { estado };
+    if (observacion) updateData.observacion_entrevista = observacion;
+
+    const { error } = await supabase
+      .from('candidatos')
+      .update(updateData)
       .eq('id', id);
     if (error) throw error;
     return true;

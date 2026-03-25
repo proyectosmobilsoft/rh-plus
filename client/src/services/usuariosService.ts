@@ -26,7 +26,7 @@ export const usuariosService = {
     try {
       // Primero obtener solo los usuarios básicos (sin relaciones anidadas)
       // Incluir foto_base64 (ahora es URL de Storage, no base64 completo, así que es seguro)
-      const selectFields = `id, identificacion, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, telefono, email, username, activo, password, created_at`;
+      const selectFields = `id, identificacion, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, telefono, email, username, activo, created_at`;
 
       const { data: usuarios, error: usuariosError } = await supabase
         .from('gen_usuarios')
@@ -39,36 +39,56 @@ export const usuariosService = {
       // Obtener IDs de usuarios
       const usuarioIds = usuarios.map((u: any) => u.id);
 
-      // Obtener roles de usuarios en una consulta separada
-      const { data: usuarioRoles, error: rolesError } = await supabase
-        .from('gen_usuario_roles')
-        .select(`
-          id,
-          usuario_id,
-          rol_id,
-          created_at,
-          gen_roles ( id, nombre )
-        `)
-        .in('usuario_id', usuarioIds);
+      // Para evitar URLs enormes (502), consultar por lotes
+      const chunkSize = 150;
+      const chunk = <T,>(arr: T[], size: number): T[][] => {
+        const out: T[][] = [];
+        for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+        return out;
+      };
 
-      if (rolesError) {
-        console.error('Error al obtener roles de usuarios:', rolesError);
+      // Obtener roles de usuarios en consultas separadas (por lotes)
+      const usuarioRoles: any[] = [];
+      for (const ids of chunk(usuarioIds, chunkSize)) {
+        const { data, error } = await supabase
+          .from('gen_usuario_roles')
+          .select(`
+            id,
+            usuario_id,
+            rol_id,
+            created_at,
+            gen_roles ( id, nombre )
+          `)
+          .in('usuario_id', ids);
+
+        if (error) {
+          console.error('Error al obtener roles de usuarios:', error);
+          // continuar para no bloquear todo el listado
+        } else if (data?.length) {
+          usuarioRoles.push(...data);
+        }
       }
 
-      // Obtener empresas de usuarios en una consulta separada
-      const { data: usuarioEmpresas, error: empresasError } = await supabase
-        .from('gen_usuario_empresas')
-        .select(`
-          id,
-          usuario_id,
-          empresa_id,
-          created_at,
-          empresas ( id, razon_social )
-        `)
-        .in('usuario_id', usuarioIds);
+      // Obtener empresas de usuarios en consultas separadas (por lotes)
+      const usuarioEmpresas: any[] = [];
+      for (const ids of chunk(usuarioIds, chunkSize)) {
+        const { data, error } = await supabase
+          .from('gen_usuario_empresas')
+          .select(`
+            id,
+            usuario_id,
+            empresa_id,
+            created_at,
+            empresas ( id, razon_social )
+          `)
+          .in('usuario_id', ids);
 
-      if (empresasError) {
-        console.error('Error al obtener empresas de usuarios:', empresasError);
+        if (error) {
+          console.error('Error al obtener empresas de usuarios:', error);
+          // continuar para no bloquear todo el listado
+        } else if (data?.length) {
+          usuarioEmpresas.push(...data);
+        }
       }
 
       // Combinar los datos
@@ -133,18 +153,26 @@ export const usuariosService = {
       throw new Error(`El email '${usuarioData.email}' ya está en uso por: ${existingEmails[0].primer_nombre} ${existingEmails[0].primer_apellido} (ID: ${existingEmails[0].id})`);
     }
     
-    // 1. Guardar la contraseña como texto plano
-    const userDataWithPassword = {
-      ...usuarioData,
-      password: password
-    };
-      
-      const { data: newUser, error: userError } = await supabase
-        .from('gen_usuarios')
-        .insert(userDataWithPassword)
-        .select()
-        .single();
-      if (userError) throw userError;
+    // 1. Insertar usuario sin contraseña (se establece luego via RPC)
+    // Evitar enviar "password" en el insert.
+    const { password: _ignoredPassword, ...usuarioSinPassword } = usuarioData as any;
+    const { data: newUser, error: userError } = await supabase
+      .from('gen_usuarios')
+      .insert(usuarioSinPassword)
+      .select()
+      .single();
+    if (userError) throw userError;
+
+    // 2. Hashear y guardar contraseña via RPC (nunca en texto plano)
+    // Nota: el insert puede requerir un placeholder si la columna password es NOT NULL.
+    const { error: passwordError } = await supabase.rpc('update_user_password_by_id', {
+      p_id: newUser.id,
+      p_new_password: password
+    });
+    if (passwordError) {
+      console.error('❌ Error actualizando contraseña vía RPC:', passwordError);
+      throw new Error(`Error actualizando contraseña: ${passwordError.message}`);
+    }
 
       // 2. Asignar roles
       if (rolesIds.length > 0) {
@@ -201,11 +229,20 @@ export const usuariosService = {
       }
     }
     
-    let finalUsuarioData = { ...usuarioData };
+    // Excluir password del update normal, se maneja por RPC
+    const { password: _pw, ...restData } = usuarioData as any;
+    let finalUsuarioData = { ...restData };
     
-    // Si se proporciona una nueva contraseña, guardarla como texto plano
+    // Si se proporciona una nueva contraseña, hashearla via RPC
     if (password && password.trim() !== '') {
-      finalUsuarioData.password = password;
+      const { error: passwordError } = await supabase.rpc('update_user_password_by_id', {
+        p_id: id,
+        p_new_password: password
+      });
+      if (passwordError) {
+        console.error('❌ Error actualizando contraseña vía RPC:', passwordError);
+        throw new Error(`Error actualizando contraseña: ${passwordError.message}`);
+      }
     }
     
     // 1. Actualizar datos del usuario

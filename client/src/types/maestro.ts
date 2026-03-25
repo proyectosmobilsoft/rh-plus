@@ -3,6 +3,10 @@ export interface TipoCandidato {
   id: number;
   nombre: string;
   descripcion?: string;
+  tipo_cargo?: 'asistencial' | 'administrativo';
+  requiere_aprobador?: boolean;
+  aprobador_id?: number;
+  aprobador?: { id: number; primer_nombre: string; primer_apellido: string; };
   activo: boolean;
   created_at: string;
   updated_at: string;
@@ -11,12 +15,18 @@ export interface TipoCandidato {
 export interface CreateTipoCandidatoData {
   nombre: string;
   descripcion?: string;
+  tipo_cargo?: 'asistencial' | 'administrativo';
+  requiere_aprobador?: boolean;
+  aprobador_id?: number;
   activo?: boolean;
 }
 
 export interface UpdateTipoCandidatoData {
   nombre?: string;
   descripcion?: string;
+  tipo_cargo?: 'asistencial' | 'administrativo';
+  requiere_aprobador?: boolean;
+  aprobador_id?: number | null;
   activo?: boolean;
 }
 
@@ -88,6 +98,9 @@ export interface TipoCandidatoDocumentoConDetalles extends TipoCandidatoDocument
 export interface TipoCandidatoForm {
   nombre: string;
   descripcion?: string;
+  tipo_cargo?: 'asistencial' | 'administrativo';
+  requiere_aprobador?: boolean;
+  aprobador_id?: number;
 }
 
 export interface DocumentoTipoForm {
@@ -96,4 +109,59 @@ export interface DocumentoTipoForm {
   lleva_fecha_vigencia: boolean;
   fecha_vigencia?: string;
 } 
+
+// Motivos
+export interface Motivo {
+  id: number;
+  codigo: string;
+  nombre: string;
+  descripcion?: string;
+  tipo?: string;
+  empresa_id?: number;
+  requiere_adjunto?: boolean;
+  adjunto_obligatorio?: boolean;
+  requiere_observacion?: boolean;
+  requiere_comite?: boolean;
+  activo: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateMotivoData {
+  codigo: string;
+  nombre: string;
+  descripcion?: string;
+  tipo?: string;
+  empresa_id?: number;
+  requiere_adjunto?: boolean;
+  adjunto_obligatorio?: boolean;
+  requiere_observacion?: boolean;
+  requiere_comite?: boolean;
+  activo?: boolean;
+}
+
+export interface UpdateMotivoData {
+  codigo?: string;
+  nombre?: string;
+  descripcion?: string;
+   tipo?: string;
+   empresa_id?: number;
+   requiere_adjunto?: boolean;
+   adjunto_obligatorio?: boolean;
+   requiere_observacion?: boolean;
+   requiere_comite?: boolean;
+  activo?: boolean;
+}
+
+export interface MotivoForm {
+  codigo: string;
+  nombre: string;
+  descripcion?: string;
+  tipo: string;
+  empresa_id?: number;
+  requiere_adjunto: boolean;
+  adjunto_obligatorio: boolean;
+  requiere_observacion: boolean;
+  requiere_comite: boolean;
+}
 

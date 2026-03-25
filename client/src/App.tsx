@@ -87,8 +87,15 @@ import AnalistasPage from './pages/analistas/AnalistasPage';
 import CrearAnalistaPage from './pages/analistas/CrearAnalistaPage';
 import EditarAnalistaPage from './pages/analistas/EditarAnalistaPage';
 
+// Páginas de novedades
+import NovedadesPage from './pages/novedades/NovedadesPage';
+import EntrevistasPage from './pages/novedades/EntrevistasPage';
+import ComiteAprobacionPage from './pages/novedades/ComiteAprobacionPage';
+import SeleccionPage from './pages/novedades/SeleccionPage';
+
 // Páginas de maestro
 import TiposCandidatosPage from './pages/maestro/TiposCandidatosPage';
+import MotivosPage from './pages/maestro/MotivosPage';
 import TiposDocumentosPage from './pages/maestro/TiposDocumentosPage';
 
 // Páginas de admin
@@ -108,6 +115,7 @@ import CentrosCostoPage from './pages/maestro/CentrosCostoPage';
 import ActividadesEconomicasPage from './pages/maestro/ActividadesEconomicasPage';
 import ProyectosPage from './pages/maestro/ProyectosPage';
 import AreasNegociosPage from './pages/maestro/AreasNegociosPage';
+import JornadasLaboralesPage from './pages/maestro/JornadasLaboralesPage';
 
 // Página pública para visualizar QR
 import QRViewer from './pages/QRViewer';
@@ -127,122 +135,122 @@ function App() {
         <Sonner position="top-center" richColors />
         <Routes>
           {/* Rutas públicas */}
-            <Route path="/login" element={
-              <PublicRoute>
-                <LoginUnificado />
-              </PublicRoute>
-            } />
-            <Route path="/login-admin" element={
-              <PublicRoute>
-                <LoginAdmin />
-              </PublicRoute>
-            } />
+          <Route path="/login" element={
+            <PublicRoute>
+              <LoginUnificado />
+            </PublicRoute>
+          } />
+          <Route path="/login-admin" element={
+            <PublicRoute>
+              <LoginAdmin />
+            </PublicRoute>
+          } />
 
-            <Route path="/recuperar-password" element={
-              <PublicRoute>
-                <RecuperarPasswordPage />
-              </PublicRoute>
-            } />
-            <Route path="/verificar-codigo" element={
-              <PublicRoute>
-                <VerificarCodigoPage />
-              </PublicRoute>
-            } />
-            <Route path="/login-candidato" element={
-              <PublicRoute>
-                <LoginCandidato />
-              </PublicRoute>
-            } />
-            <Route path="/registro-candidato" element={
-              <PublicRoute>
-                <RegistroCandidato />
-              </PublicRoute>
-            } />
-            <Route path="/forgot-password-candidato" element={
-              <PublicRoute>
-                <ForgotPasswordCandidato />
-              </PublicRoute>
-            } />
-            <Route path="/reset-password-candidato" element={
-              <PublicRoute>
-                <ResetPasswordCandidato />
-              </PublicRoute>
-            } />
-            <Route path="/login-empresa" element={
-              <PublicRoute>
-                <LoginEmpresa />
-              </PublicRoute>
-            } />
-            <Route path="/forgot-password-empresa" element={
-              <PublicRoute>
-                <ForgotPasswordEmpresa />
-              </PublicRoute>
-            } />
-            <Route path="/reset-password-empresa" element={
-              <PublicRoute>
-                <ResetPasswordEmpresa />
-              </PublicRoute>
-            } />
-            
-            {/* Ruta pública para visualizar QR */}
-            <Route path="/qr/:qrId" element={<QRViewer />} />
-            
-            <Route path="/select-empresa" element={
+          <Route path="/recuperar-password" element={
+            <PublicRoute>
+              <RecuperarPasswordPage />
+            </PublicRoute>
+          } />
+          <Route path="/verificar-codigo" element={
+            <PublicRoute>
+              <VerificarCodigoPage />
+            </PublicRoute>
+          } />
+          <Route path="/login-candidato" element={
+            <PublicRoute>
+              <LoginCandidato />
+            </PublicRoute>
+          } />
+          <Route path="/registro-candidato" element={
+            <PublicRoute>
+              <RegistroCandidato />
+            </PublicRoute>
+          } />
+          <Route path="/forgot-password-candidato" element={
+            <PublicRoute>
+              <ForgotPasswordCandidato />
+            </PublicRoute>
+          } />
+          <Route path="/reset-password-candidato" element={
+            <PublicRoute>
+              <ResetPasswordCandidato />
+            </PublicRoute>
+          } />
+          <Route path="/login-empresa" element={
+            <PublicRoute>
+              <LoginEmpresa />
+            </PublicRoute>
+          } />
+          <Route path="/forgot-password-empresa" element={
+            <PublicRoute>
+              <ForgotPasswordEmpresa />
+            </PublicRoute>
+          } />
+          <Route path="/reset-password-empresa" element={
+            <PublicRoute>
+              <ResetPasswordEmpresa />
+            </PublicRoute>
+          } />
+
+          {/* Ruta pública para visualizar QR */}
+          <Route path="/qr/:qrId" element={<QRViewer />} />
+
+          <Route path="/select-empresa" element={
+            <ProtectedRoute>
+              <SelectEmpresa />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/cambiar-password" element={
+            <PublicRoute>
+              <CambiarPassword />
+            </PublicRoute>
+          } />
+
+          {/* Rutas adicionales de candidatos (sin sidebar) */}
+          <Route path="/candidatos-perfil" element={
+            <ProtectedRoute>
+              <PerfilCandidato />
+            </ProtectedRoute>
+          } />
+          <Route path="/candidatos-registro" element={
+            <PublicRoute>
+              <RegistroCandidato />
+            </PublicRoute>
+          } />
+          <Route path="/candidatos-login" element={
+            <PublicRoute>
+              <LoginCandidato />
+            </PublicRoute>
+          } />
+          <Route path="/candidatos-forgot-password" element={
+            <PublicRoute>
+              <ForgotPasswordCandidato />
+            </PublicRoute>
+          } />
+          <Route path="/candidatos-reset-password" element={
+            <PublicRoute>
+              <ResetPasswordCandidato />
+            </PublicRoute>
+          } />
+          <Route path="/candidatos-cambiar-password" element={
+            <ProtectedRoute>
+              <CambiarPassword />
+            </ProtectedRoute>
+          } />
+
+          {/* Layout con menú para rutas protegidas */}
+          <Route element={<Layout />}>
+            <Route path="/" element={
               <ProtectedRoute>
-                <SelectEmpresa />
+                <Index />
               </ProtectedRoute>
             } />
-
-            <Route path="/cambiar-password" element={
-              <PublicRoute>
-                <CambiarPassword />
-              </PublicRoute>
-            } />
-            
-            {/* Rutas adicionales de candidatos (sin sidebar) */}
-            <Route path="/candidatos-perfil" element={
+            <Route path="/dashboard" element={
               <ProtectedRoute>
-                <PerfilCandidato />
+                <Index />
               </ProtectedRoute>
             } />
-            <Route path="/candidatos-registro" element={
-              <PublicRoute>
-                <RegistroCandidato />
-              </PublicRoute>
-            } />
-            <Route path="/candidatos-login" element={
-              <PublicRoute>
-                <LoginCandidato />
-              </PublicRoute>
-            } />
-            <Route path="/candidatos-forgot-password" element={
-              <PublicRoute>
-                <ForgotPasswordCandidato />
-              </PublicRoute>
-            } />
-            <Route path="/candidatos-reset-password" element={
-              <PublicRoute>
-                <ResetPasswordCandidato />
-              </PublicRoute>
-            } />
-            <Route path="/candidatos-cambiar-password" element={
-              <ProtectedRoute>
-                <CambiarPassword />
-              </ProtectedRoute>
-            } />
-
-            {/* Layout con menú para rutas protegidas */}
-            <Route element={<Layout />}>
-              <Route path="/" element={
-                <ProtectedRoute>
-                  <Index />
-                </ProtectedRoute>
-              } />
-              <Route path="/dashboard" element={
-                <ProtectedRoute>
-                  <Index />
-                </ProtectedRoute>
-              } />
 
             {/* Rutas de registros */}
             <Route path="/candidatos" element={
@@ -477,6 +485,11 @@ function App() {
                 <AreasNegociosPage />
               </ProtectedRoute>
             } />
+            <Route path="/maestro/jornadas-laborales" element={
+              <ProtectedRoute>
+                <JornadasLaboralesPage />
+              </ProtectedRoute>
+            } />
 
             {/* Rutas de analistas */}
             <Route path="/analistas" element={
@@ -510,15 +523,55 @@ function App() {
               </ProtectedRoute>
             } />
 
+            {/* Rutas de novedades */}
+            <Route path="/novedades" element={
+              <ProtectedRoute>
+                <NovedadesPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/novedades/entrevista" element={
+              <ProtectedRoute>
+                <EntrevistasPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/comite_aprob" element={
+              <ProtectedRoute>
+                <ComiteAprobacionPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/seleccion" element={
+              <ProtectedRoute>
+                <SeleccionPage />
+              </ProtectedRoute>
+            } />
+            {/* Analista Gestión Humana — redirigen a páginas existentes */}
+            <Route path="/analista/novedades" element={
+              <ProtectedRoute>
+                <NovedadesPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/analista/solicitudes" element={
+              <ProtectedRoute>
+                <SeleccionPage />
+              </ProtectedRoute>
+            } />
+
             {/* Rutas de maestro */}
             <Route path="/tipos-candidatos" element={
               <ProtectedRoute>
                 <TiposCandidatosPage />
               </ProtectedRoute>
             } />
+
             <Route path="/maestro/tipos-candidatos" element={
               <ProtectedRoute>
                 <TiposCandidatosPage />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/maestro/motivos" element={
+              <ProtectedRoute>
+                <MotivosPage />
               </ProtectedRoute>
             } />
 
@@ -539,7 +592,7 @@ function App() {
               </ProtectedRoute>
             } />
 
-           
+
             <Route path="/plantillas" element={
               <ProtectedRoute>
                 <PlantillasPage />
@@ -646,13 +699,13 @@ function App() {
               </ProtectedRoute>
             } />
 
-            </Route>
+          </Route>
 
-            {/* Ruta 404 */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </div>
-      </Router>
+          {/* Ruta 404 */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </div>
+    </Router>
   );
 }
 

@@ -865,7 +865,51 @@ class EmailService {
       </html>
     `;
   }
+
+  async sendComiteMultiNotification(params: {
+    emails: string[];
+    colaboradorNombre: string;
+    novedadTipo: string;
+    solicitudId: number;
+    aprobado: boolean;
+    observacion: string;
+    sistemaUrl: string;
+  }): Promise<{ success: boolean; message: string }> {
+    const estado = params.aprobado ? 'APROBADA' : 'RECHAZADA';
+    const color = params.aprobado ? '#16a34a' : '#dc2626';
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <body style="font-family:sans-serif;background:#f9fafb;padding:24px;">
+        <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;padding:24px;border:1px solid #e5e7eb;">
+          <h2 style="color:${color};margin:0 0 8px;">Solicitud ${estado}</h2>
+          <p style="color:#374151;margin:0 0 16px;">
+            La solicitud <strong>#${params.solicitudId}</strong> de <strong>${params.colaboradorNombre}</strong>
+            para <strong>${params.novedadTipo}</strong> ha sido <strong>${estado.toLowerCase()}</strong> por el Comité de RRHH.
+          </p>
+          ${params.observacion ? `<div style="background:#f3f4f6;border-radius:8px;padding:12px;color:#374151;font-style:italic;">"${params.observacion}"</div>` : ''}
+          <p style="color:#6b7280;font-size:12px;margin-top:16px;">Este es un correo automático. Por favor no responda.</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const results = await Promise.all(
+      params.emails.map(email =>
+        this.sendEmail({
+          to: email,
+          subject: `Solicitud ${estado} - Comité RRHH (#${params.solicitudId})`,
+          html,
+          text: `La solicitud #${params.solicitudId} de ${params.colaboradorNombre} (${params.novedadTipo}) fue ${estado.toLowerCase()}. Observación: ${params.observacion}`,
+          from: 'noreply@rhcompensamos.com',
+        })
+      )
+    );
+
+    const allOk = results.every(r => r.success);
+    return { success: allOk, message: allOk ? 'Notificaciones enviadas' : 'Algunas notificaciones fallaron' };
+  }
 }
 
-export const emailService = new EmailService(); 
+export const emailService = new EmailService();
 

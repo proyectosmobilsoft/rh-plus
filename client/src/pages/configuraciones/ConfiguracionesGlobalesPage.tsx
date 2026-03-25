@@ -8,13 +8,13 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Building2, 
-  MapPin, 
-  Phone, 
-  Mail, 
-  User, 
-  FileText, 
+import {
+  Building2,
+  MapPin,
+  Phone,
+  Mail,
+  User,
+  FileText,
   Globe,
   Save,
   Edit3,
@@ -25,11 +25,13 @@ import {
   Users,
   Briefcase,
   Shield,
-  Palette
+  Palette,
+  Clock
 } from 'lucide-react';
 import { supabase } from '@/services/supabaseClient';
 import { toast } from "sonner";
 import ConfiguracionColores from '@/components/configuracion/ConfiguracionColores';
+import { Can } from '@/contexts/PermissionsContext';
 
 interface ConfigEmpresa {
   id: number;
@@ -71,6 +73,9 @@ export default function ConfiguracionesGlobalesPage() {
   const [ciudades, setCiudades] = useState<Ciudad[]>([]);
   const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState<string>('');
   const [activeTab, setActiveTab] = useState<string>('configuracion');
+  const [sessionTimeout, setSessionTimeout] = useState<string>(
+    localStorage.getItem('app_session_timeout_hours') || '8'
+  );
 
   useEffect(() => {
     cargarConfiguracionEmpresa();
@@ -307,7 +312,7 @@ export default function ConfiguracionesGlobalesPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 bg-cyan-100/60 p-1 rounded-lg">
+        <TabsList className="grid w-full grid-cols-3 bg-cyan-100/60 p-1 rounded-lg">
           <TabsTrigger
             value="configuracion"
             className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
@@ -321,6 +326,15 @@ export default function ConfiguracionesGlobalesPage() {
             <Palette className="w-4 h-4 mr-2" />
             Configuración de Colores
           </TabsTrigger>
+          <Can action="accion-config-seguridad">
+            <TabsTrigger
+              value="seguridad"
+              className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+            >
+              <Shield className="w-4 h-4 mr-2" />
+              Seguridad
+            </TabsTrigger>
+          </Can>
         </TabsList>
 
         <TabsContent value="configuracion" className="mt-6">
@@ -647,12 +661,64 @@ export default function ConfiguracionesGlobalesPage() {
         </TabsContent>
 
         <TabsContent value="colores" className="mt-6">
-
-          {/* Componente importado */}
           <div className="mt-6">
             <ConfiguracionColores />
           </div>
         </TabsContent>
+
+        <Can action="accion-config-seguridad">
+        <TabsContent value="seguridad" className="mt-6">
+          <div className="bg-white rounded-lg border">
+            <div className="flex items-center gap-3 p-4 border-b">
+              <div className="w-8 h-8 bg-cyan-100 rounded flex items-center justify-center">
+                <Shield className="w-5 h-5 text-cyan-600" />
+              </div>
+              <span className="text-lg font-semibold text-gray-700">Configuración de Seguridad</span>
+            </div>
+            <div className="p-6 space-y-6">
+              {/* Expiración de sesión */}
+              <div className="max-w-md space-y-3">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-cyan-600" />
+                  <Label className="text-sm font-semibold text-gray-700">Expiración de sesión</Label>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Tiempo de inactividad máximo antes de que la sesión expire y el usuario deba iniciar sesión nuevamente.
+                  Se aplica a los nuevos inicios de sesión.
+                </p>
+                <Select
+                  value={sessionTimeout}
+                  onValueChange={(val) => {
+                    setSessionTimeout(val);
+                    localStorage.setItem('app_session_timeout_hours', val);
+                    toast.success(`Expiración de sesión actualizada a ${
+                      val === '1' ? '1 hora' :
+                      val === '4' ? '4 horas' :
+                      val === '8' ? '8 horas' :
+                      val === '24' ? '24 horas' : '48 horas'
+                    }. Aplica en el próximo inicio de sesión.`);
+                  }}
+                >
+                  <SelectTrigger className="w-64">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1 hora</SelectItem>
+                    <SelectItem value="4">4 horas</SelectItem>
+                    <SelectItem value="8">8 horas (predeterminado)</SelectItem>
+                    <SelectItem value="24">24 horas</SelectItem>
+                    <SelectItem value="48">48 horas</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  Las sesiones activas no se ven afectadas. El nuevo tiempo aplica desde el próximo inicio de sesión.
+                </div>
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+        </Can>
       </Tabs>
     </div>
   );

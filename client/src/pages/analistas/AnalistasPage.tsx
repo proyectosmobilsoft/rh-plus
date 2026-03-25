@@ -257,155 +257,89 @@ export default function AnalistasPage() {
 
   const handleExportarExcel = async () => {
     try {
-      // Importar xlsx dinámicamente para evitar problemas de SSR
-      const XLSX = await import('xlsx');
-      
-      const fecha = new Date().toLocaleDateString('es-ES');
-      const fechaHora = new Date().toLocaleString('es-ES');
-      
-                    // Preparar los datos para Excel con diseño limpio
-       const excelData = [
-         // Fila de título principal
-         ['ANALISTAS DEL SISTEMA'],
-         [], // Fila vacía
-                 // Headers de la tabla (SIN ICONOS)
-        [
-          'Analista',
-          'Email', 
-          'Nivel 1',
-          'Nivel 2',
-          'Nivel 3',
-          'Solicitudes',
-          'Cliente',
-          'NIT',
-          'Sucursal'
-        ],
-         // Datos de los analistas (SIN ICONOS en estados)
-         ...filteredAnalistas.map(analista => [
-           analista.usuario_nombre || 'No especificado',
-           analista.usuario_email || 'No especificado',
-           analista.nivel_prioridad_1 ? 'Sí' : 'No',
-           analista.nivel_prioridad_2 ? 'Sí' : 'No',
-           analista.nivel_prioridad_3 ? 'Sí' : 'No',
-           analista.cantidad_solicitudes || 0,
-           analista.empresa_nombre || 'Sin asignar',
-           analista.empresa_nit || '-',
-           analista.empresa_direccion || '-'
-         ])
-       ];
+      const ExcelJS = await import('exceljs');
+      const workbook = new ExcelJS.default.Workbook();
+      const ws = workbook.addWorksheet('Analistas');
 
-      // Crear el workbook y worksheet
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.aoa_to_sheet(excelData);
-
-      // Configurar el ancho de las columnas
-      const colWidths = [
-        { wch: 25 }, // Analista
-        { wch: 30 }, // Email
-        { wch: 10 }, // Nivel 1
-        { wch: 10 }, // Nivel 2
-        { wch: 10 }, // Nivel 3
-        { wch: 12 }, // Solicitudes
-        { wch: 30 }, // Cliente
-        { wch: 15 }, // NIT
-        { wch: 25 }  // Sucursal
+      // Preparar los datos para Excel con diseño limpio
+      const excelData = [
+        ['ANALISTAS DEL SISTEMA'],
+        [],
+        ['Analista', 'Email', 'Nivel 1', 'Nivel 2', 'Nivel 3', 'Solicitudes', 'Cliente', 'NIT', 'Sucursal'],
+        ...filteredAnalistas.map(analista => [
+          analista.usuario_nombre || 'No especificado',
+          analista.usuario_email || 'No especificado',
+          analista.nivel_prioridad_1 ? 'Sí' : 'No',
+          analista.nivel_prioridad_2 ? 'Sí' : 'No',
+          analista.nivel_prioridad_3 ? 'Sí' : 'No',
+          analista.cantidad_solicitudes || 0,
+          analista.empresa_nombre || 'Sin asignar',
+          analista.empresa_nit || '-',
+          analista.empresa_direccion || '-'
+        ])
       ];
-      ws['!cols'] = colWidths;
 
-       // Estilo para el título principal (primera fila) - VERDE CLARO
-       if (ws['A1']) {
-         ws['A1'].s = {
-           font: { bold: true, size: 16, color: { rgb: "000000" } },
-           fill: { fgColor: { rgb: "90EE90" } }, // Verde claro como en la imagen
-           alignment: { horizontal: "center", vertical: "center" }
-         };
-       }
+      excelData.forEach(row => ws.addRow(row));
 
-       // Estilo para los headers (fila 3) - VERDE CLARO COMO EL TÍTULO
-       const headerRow = 3;
-       const headerCols = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
-       headerCols.forEach(col => {
-         const cellRef = col + headerRow;
-         if (ws[cellRef]) {
-           ws[cellRef].s = {
-             font: { bold: true, size: 12, color: { rgb: "000000" } },
-             fill: { fgColor: { rgb: "90EE90" } }, // Verde claro igual al título
-             alignment: { horizontal: "center", vertical: "center" },
-             border: {
-               top: { style: "thin", color: { rgb: "C0C0C0" } },
-               bottom: { style: "thin", color: { rgb: "C0C0C0" } },
-               left: { style: "thin", color: { rgb: "C0C0C0" } },
-               right: { style: "thin", color: { rgb: "C0C0C0" } }
-             }
-           };
-         }
-       });
-
-       // Estilo para las filas de datos (TODAS BLANCAS SIN COLORES ALTERNADOS)
-       const dataStartRow = 4;
-       const dataEndRow = dataStartRow + filteredAnalistas.length - 1;
-       
-       for (let row = dataStartRow; row <= dataEndRow; row++) {
-         headerCols.forEach(col => {
-           const cellRef = col + row;
-           if (ws[cellRef]) {
-             ws[cellRef].s = {
-               font: { size: 11, color: { rgb: "000000" } }, // Texto negro
-               fill: { fgColor: { rgb: "FFFFFF" } }, // Fondo blanco
-               alignment: { horizontal: "left" }, // Alineación a la izquierda como en la imagen
-               border: {
-                 top: { style: "thin", color: { rgb: "C0C0C0" } },
-                 bottom: { style: "thin", color: { rgb: "C0C0C0" } },
-                 left: { style: "thin", color: { rgb: "C0C0C0" } },
-                 right: { style: "thin", color: { rgb: "C0C0C0" } }
-               }
-             };
-           }
-         });
-       }
-
-                    // Mergear celdas para mejor presentación
-       ws['!merges'] = [
-         { s: { r: 0, c: 0 }, e: { r: 0, c: 8 } } // Mergear título principal (9 columnas)
-       ];
-
-      // Agregar la hoja al workbook
-      XLSX.utils.book_append_sheet(wb, ws, "Analistas");
-
-      // Generar el archivo Excel como buffer
-      const excelBuffer = XLSX.write(wb, { 
-        bookType: 'xlsx', 
-        type: 'array',
-        compression: true 
+      // Configurar ancho de columnas
+      [25, 30, 10, 10, 10, 12, 30, 15, 25].forEach((width, i) => {
+        ws.getColumn(i + 1).width = width;
       });
 
-      // Crear blob con el buffer
-      const blob = new Blob([excelBuffer], { 
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      // Estilo título principal (fila 1) - VERDE CLARO
+      const titleCell = ws.getCell('A1');
+      titleCell.font = { bold: true, size: 16, color: { argb: 'FF000000' } };
+      titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF90EE90' } };
+      titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      ws.mergeCells('A1:I1');
+
+      // Estilo headers (fila 3) - VERDE CLARO
+      const headerCols = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
+      headerCols.forEach(col => {
+        const cell = ws.getCell(`${col}3`);
+        cell.font = { bold: true, size: 12, color: { argb: 'FF000000' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF90EE90' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFC0C0C0' } },
+          bottom: { style: 'thin', color: { argb: 'FFC0C0C0' } },
+          left: { style: 'thin', color: { argb: 'FFC0C0C0' } },
+          right: { style: 'thin', color: { argb: 'FFC0C0C0' } }
+        };
       });
 
-      // Crear URL para el blob
+      // Estilo filas de datos (blancas)
+      for (let row = 4; row <= 3 + filteredAnalistas.length; row++) {
+        headerCols.forEach(col => {
+          const cell = ws.getCell(`${col}${row}`);
+          cell.font = { size: 11, color: { argb: 'FF000000' } };
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+          cell.alignment = { horizontal: 'left' };
+          cell.border = {
+            top: { style: 'thin', color: { argb: 'FFC0C0C0' } },
+            bottom: { style: 'thin', color: { argb: 'FFC0C0C0' } },
+            left: { style: 'thin', color: { argb: 'FFC0C0C0' } },
+            right: { style: 'thin', color: { argb: 'FFC0C0C0' } }
+          };
+        });
+      }
+
+      const excelBuffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([excelBuffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
       const url = URL.createObjectURL(blob);
-      
-      // Crear nombre del archivo
       const fileName = `analistas_${new Date().toISOString().split('T')[0]}.xlsx`;
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
 
-             // Descargar el archivo directamente
-       const link = document.createElement('a');
-       link.href = url;
-       link.download = fileName;
-       link.style.display = 'none';
-       document.body.appendChild(link);
-       link.click();
-       document.body.removeChild(link);
-       
-       // Limpiar la URL después de un tiempo
-       setTimeout(() => {
-         URL.revokeObjectURL(url);
-       }, 5000);
-       
-       toast.success(`Archivo Excel "${fileName}" descargado correctamente`);
-      
+      toast.success(`Archivo Excel "${fileName}" descargado correctamente`);
     } catch (error) {
       console.error('Error exportando analistas a Excel:', error);
       toast.error("Error al exportar la lista de analistas a Excel");
