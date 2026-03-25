@@ -58,6 +58,7 @@ import {
 } from '@/services/novedadesService';
 import { supabase } from '@/services/supabaseClient';
 import { emailService } from '@/services/emailService';
+import { Can } from '@/contexts/PermissionsContext';
 
 // ============================================================
 // TIPOS DE FORMULARIO POR MOTIVO
@@ -613,42 +614,46 @@ const NovedadesPage: React.FC = () => {
                                 <Badge variant="secondary" className="ml-1">{solicitudes.length}</Badge>
                             </div>
                             <div className="flex space-x-2">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                        if (!solicitudes.length) { toast.error('No hay datos para exportar'); return; }
-                                        const dataToExport = solicitudes.map(s => ({
-                                            ID: s.id,
-                                            Empleado: s.empleado ? `${s.empleado.nombre} ${s.empleado.apellido || ''}`.trim() : 'N/A',
-                                            Documento: s.empleado?.documento || 'N/A',
-                                            Cargo: s.empleado?.cargo || 'N/A',
-                                            Motivo: s.motivo?.nombre || 'N/A',
-                                            Estado: ESTADO_LABELS[s.estado || 'solicitada'] || s.estado,
-                                            'Fecha Solicitud': formatDate(s.created_at),
-                                            Sucursal: s.sucursal || 'N/A',
-                                            'Creado Por': s.creador ? `${s.creador.primer_nombre} ${s.creador.primer_apellido}`.trim() : 'Sistema',
-                                            Observaciones: s.observaciones || '',
-                                            'Requiere Reemplazo': s.requiere_reemplazo ? 'Sí' : 'No',
-                                        }));
-                                        import('@/utils/exportUtils').then(({ exportToExcel }) => {
-                                            exportToExcel(dataToExport, `Solicitudes_Novedades_${new Date().toISOString().split('T')[0]}`, 'Solicitudes')
-                                                .then(() => toast.success('Exportación generada exitosamente'))
-                                                .catch(() => toast.error('Error al generar el archivo Excel'));
-                                        }).catch(() => toast.error('Error al generar el archivo Excel'));
-                                    }}
-                                    className="flex items-center gap-2"
-                                >
-                                    <Download className="h-4 w-4" />
-                                    Exportar
-                                </Button>
-                                <Button
-                                    onClick={goToRegistro}
-                                    className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
-                                    size="sm"
-                                >
-                                    Adicionar Registro
-                                </Button>
+                                <Can action="accion-exportar-novedades">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                            if (!solicitudes.length) { toast.error('No hay datos para exportar'); return; }
+                                            const dataToExport = solicitudes.map(s => ({
+                                                ID: s.id,
+                                                Empleado: s.empleado ? `${s.empleado.nombre} ${s.empleado.apellido || ''}`.trim() : 'N/A',
+                                                Documento: s.empleado?.documento || 'N/A',
+                                                Cargo: s.empleado?.cargo || 'N/A',
+                                                Motivo: s.motivo?.nombre || 'N/A',
+                                                Estado: ESTADO_LABELS[s.estado || 'solicitada'] || s.estado,
+                                                'Fecha Solicitud': formatDate(s.created_at),
+                                                Sucursal: s.sucursal || 'N/A',
+                                                'Creado Por': s.creador ? `${s.creador.primer_nombre} ${s.creador.primer_apellido}`.trim() : 'Sistema',
+                                                Observaciones: s.observaciones || '',
+                                                'Requiere Reemplazo': s.requiere_reemplazo ? 'Sí' : 'No',
+                                            }));
+                                            import('@/utils/exportUtils').then(({ exportToExcel }) => {
+                                                exportToExcel(dataToExport, `Solicitudes_Novedades_${new Date().toISOString().split('T')[0]}`, 'Solicitudes')
+                                                    .then(() => toast.success('Exportación generada exitosamente'))
+                                                    .catch(() => toast.error('Error al generar el archivo Excel'));
+                                            }).catch(() => toast.error('Error al generar el archivo Excel'));
+                                        }}
+                                        className="flex items-center gap-2"
+                                    >
+                                        <Download className="h-4 w-4" />
+                                        Exportar
+                                    </Button>
+                                </Can>
+                                <Can action="accion-crear-novedad">
+                                    <Button
+                                        onClick={goToRegistro}
+                                        className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
+                                        size="sm"
+                                    >
+                                        Adicionar Registro
+                                    </Button>
+                                </Can>
                             </div>
                         </div>
 
@@ -736,13 +741,15 @@ const NovedadesPage: React.FC = () => {
                                     </div>
                                     <p className="text-lg font-semibold text-gray-600">No hay solicitudes</p>
                                     <p className="text-sm text-gray-400 mt-1">Crea una nueva novedad para comenzar</p>
-                                    <Button
-                                        size="sm"
-                                        onClick={goToRegistro}
-                                        className="mt-4 bg-teal-400 hover:bg-teal-500 text-white"
-                                    >
-                                        Crear primera solicitud
-                                    </Button>
+                                    <Can action="accion-crear-novedad">
+                                        <Button
+                                            size="sm"
+                                            onClick={goToRegistro}
+                                            className="mt-4 bg-teal-400 hover:bg-teal-500 text-white"
+                                        >
+                                            Crear primera solicitud
+                                        </Button>
+                                    </Can>
                                 </div>
                             ) : (
                                 <Table className="min-w-[900px] w-full text-xs">
@@ -809,21 +816,23 @@ const NovedadesPage: React.FC = () => {
                                                                 </UITooltip>
                                                             </TooltipProvider>
                                                             {sol.estado === 'solicitada' && (
-                                                                <TooltipProvider>
-                                                                    <UITooltip>
-                                                                        <TooltipTrigger asChild>
-                                                                            <Button
-                                                                                variant="ghost"
-                                                                                size="icon"
-                                                                                onClick={(e) => { e.stopPropagation(); cancelMutation.mutate(sol.id!); }}
-                                                                                className="h-8 w-8"
-                                                                            >
-                                                                                <XCircle className="h-4 w-4 text-red-600 hover:text-red-800 transition-colors" />
-                                                                            </Button>
-                                                                        </TooltipTrigger>
-                                                                        <TooltipContent><p>Cancelar</p></TooltipContent>
-                                                                    </UITooltip>
-                                                                </TooltipProvider>
+                                                                <Can action="accion-cancelar-novedad">
+                                                                    <TooltipProvider>
+                                                                        <UITooltip>
+                                                                            <TooltipTrigger asChild>
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="icon"
+                                                                                    onClick={(e) => { e.stopPropagation(); cancelMutation.mutate(sol.id!); }}
+                                                                                    className="h-8 w-8"
+                                                                                >
+                                                                                    <XCircle className="h-4 w-4 text-red-600 hover:text-red-800 transition-colors" />
+                                                                                </Button>
+                                                                            </TooltipTrigger>
+                                                                            <TooltipContent><p>Cancelar</p></TooltipContent>
+                                                                        </UITooltip>
+                                                                    </TooltipProvider>
+                                                                </Can>
                                                             )}
                                                         </div>
                                                     </TableCell>
@@ -860,24 +869,26 @@ const NovedadesPage: React.FC = () => {
                                                                     <span className="text-gray-500 font-medium">Observaciones:</span>
                                                                     <p className="mt-0.5 line-clamp-2">{sol.observaciones || 'Sin observaciones'}</p>
                                                                 </div>
-                                                                <div className="flex gap-2 flex-wrap">
-                                                                    {(TRANSICIONES_VALIDAS[sol.estado || ''] || []).slice(0, 3).map(nextEstado => {
-                                                                        const soloViernes = nextEstado === 'aprobado_comite' && !esViernes();
-                                                                        return (
-                                                                            <Button
-                                                                                key={nextEstado}
-                                                                                variant="outline"
-                                                                                size="sm"
-                                                                                className="text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                                                                                disabled={soloViernes}
-                                                                                title={soloViernes ? 'La aprobación solo está permitida los viernes' : undefined}
-                                                                                onClick={() => cambiarEstadoMutation.mutate({ id: sol.id!, estado: nextEstado })}
-                                                                            >
-                                                                                {ESTADO_LABELS[nextEstado]}
-                                                                            </Button>
-                                                                        );
-                                                                    })}
-                                                                </div>
+                                                                <Can action="accion-cambiar-estado-novedad">
+                                                                    <div className="flex gap-2 flex-wrap">
+                                                                        {(TRANSICIONES_VALIDAS[sol.estado || ''] || []).slice(0, 3).map(nextEstado => {
+                                                                            const soloViernes = nextEstado === 'aprobado_comite' && !esViernes();
+                                                                            return (
+                                                                                <Button
+                                                                                    key={nextEstado}
+                                                                                    variant="outline"
+                                                                                    size="sm"
+                                                                                    className="text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                                    disabled={soloViernes}
+                                                                                    title={soloViernes ? 'La aprobación solo está permitida los viernes' : undefined}
+                                                                                    onClick={() => cambiarEstadoMutation.mutate({ id: sol.id!, estado: nextEstado })}
+                                                                                >
+                                                                                    {ESTADO_LABELS[nextEstado]}
+                                                                                </Button>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                </Can>
                                                             </div>
                                                         </TableCell>
                                                     </TableRow>
