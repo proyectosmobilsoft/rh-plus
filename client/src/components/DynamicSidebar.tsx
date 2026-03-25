@@ -335,7 +335,7 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
 
     // Agregar vistas dinámicas que no estén ya en el menú estático
     const dynamicMenusFormatted = vistasDinamicas
-      .filter(v => !menuItems.some(mi => mi.path === v.ruta)) // Evitar duplicados
+      .filter(v => !menuItems.some(mi => mi.path === v.ruta || mi.subItems?.some((sub: any) => sub.path === v.ruta))) // Evitar duplicados con ítems estáticos y subítems
       .map(v => ({
         title: v.nombre,
         path: v.ruta,

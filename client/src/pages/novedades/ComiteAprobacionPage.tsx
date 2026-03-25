@@ -125,9 +125,6 @@ const ComiteAprobacionPage: React.FC = () => {
             const liderEmail = (selectedSolicitud?.empleado as any)?.lider?.email;
             if (liderEmail) emails.push(liderEmail);
 
-            emails.push('analista.seleccion@empresa.com');
-            emails.push('analista.contratacion@empresa.com');
-
             if (emails.length > 0) {
                 emailService.sendComiteMultiNotification({
                     emails: [...new Set(emails)],

@@ -42,11 +42,11 @@ export interface AuthService {
   configurarEmail: (gmail: string, password: string, appPassword?: string) => void;
 }
 
-// Configuración de email (puedes cambiar estos valores)
+// Configuración de email
 const EMAIL_CONFIG = {
-  gmail: import.meta.env.VITE_GMAIL_USER,
-  password: import.meta.env.VITE_GMAIL_PASS,
-  appPassword: import.meta.env.VITE_GMAIL_APP_PASSWORD
+  gmail: import.meta.env.VITE_EMAIL_USER,
+  password: import.meta.env.VITE_EMAIL_PASSWORD,
+  appPassword: import.meta.env.VITE_EMAIL_APP_PASSWORD
 };
 
 // Configurar el servicio de email
