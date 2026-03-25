@@ -177,10 +177,10 @@ export default function JornadasLaboralesPage() {
               <Table className="min-w-[500px] w-full text-xs">
                 <TableHeader className="bg-cyan-50">
                   <TableRow>
-                    <TableHead className="px-2 py-1 text-teal-600">Acciones</TableHead>
-                    <TableHead className="px-4 py-3">Nombre de Jornada</TableHead>
-                    <TableHead className="px-4 py-3">Horas Laborales</TableHead>
-                    <TableHead className="px-4 py-3">Estado</TableHead>
+                    <TableHead className="px-2 py-1 text-teal-600 text-center">Acciones</TableHead>
+                    <TableHead className="px-4 py-3 text-center">Nombre de Jornada</TableHead>
+                    <TableHead className="px-4 py-3 text-center">Horas Laborales</TableHead>
+                    <TableHead className="px-4 py-3 text-center">Estado</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -190,8 +190,8 @@ export default function JornadasLaboralesPage() {
                     <TableRow><TableCell colSpan={4} className="h-24 text-center text-gray-400">No hay jornadas disponibles.</TableCell></TableRow>
                   ) : filtered.map(j => (
                     <TableRow key={j.id} className="hover:bg-gray-50">
-                      <TableCell className="px-2 py-1">
-                        <div className="flex gap-1">
+                      <TableCell className="px-2 py-1 text-center">
+                        <div className="flex gap-1 justify-center">
                           <Can action="accion-editar-jornada-laboral">
                             <TooltipProvider>
                               <Tooltip>
@@ -282,9 +282,9 @@ export default function JornadasLaboralesPage() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="px-4 py-3 font-medium text-gray-900">{j.nombre_jornada}</TableCell>
-                      <TableCell className="px-4 py-3 text-gray-600">{j.horas_laborales}h</TableCell>
-                      <TableCell className="px-4 py-3">
+                      <TableCell className="px-4 py-3 font-medium text-gray-900 text-center">{j.nombre_jornada}</TableCell>
+                      <TableCell className="px-4 py-3 text-gray-600 text-center">{j.horas_laborales}h</TableCell>
+                      <TableCell className="px-4 py-3 text-center">
                         <Badge className={j.activo ? 'bg-green-100 text-green-800 border-green-200' : 'bg-gray-200 text-gray-600 border-gray-300'}>
                           {j.activo ? 'Activo' : 'Inactivo'}
                         </Badge>
