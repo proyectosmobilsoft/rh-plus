@@ -68,7 +68,6 @@ const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type:
     incapacidades: [
         { label: 'Fecha de inicio', name: 'fecha_inicio', type: 'date', required: true },
         { label: 'Fecha final', name: 'fecha_fin', type: 'date', required: true },
-        { label: 'Motivo de incapacidad', name: 'motivo_incapacidad', type: 'textarea', required: true },
     ],
     retiros: [
         { label: 'Fecha de solicitud', name: 'fecha_solicitud', type: 'date', required: true, defaultToday: true, colStart: 1 },
@@ -79,9 +78,9 @@ const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type:
     ],
     aumento_plaza: [
         { label: 'Cargo', name: 'cargo', type: 'text', required: true },
-        { label: 'Salario', name: 'salario', type: 'number', required: true },
+        { label: 'Salario', name: 'salario', type: 'number' },
         { label: 'Auxilio no prestacional', name: 'auxilio', type: 'number' },
-        { label: 'Horas laborales', name: 'horas', type: 'number', required: true },
+        { label: 'Horas laborales', name: 'horas', type: 'jornada-select', required: true },
         { label: 'Jornada', name: 'jornada', type: 'select', options: ['Diurna', 'Nocturna', 'Mixta', 'Flexible'], required: true },
         { label: 'Centro de costo', name: 'centro_costo', type: 'text', required: true },
         { label: 'Área', name: 'area', type: 'text', required: true },
@@ -161,6 +160,13 @@ const NovedadesPage: React.FC = () => {
             return parsed?.empresa?.id ?? parsed?.empresas?.[0]?.id ?? undefined;
         } catch { return undefined; }
     })();
+
+    // Jornadas laborales para el select de horas
+    const [jornadasLaborales, setJornadasLaborales] = useState<{ id: number; nombre_jornada: string; horas_laborales: number }[]>([]);
+    useEffect(() => {
+        supabase.from('jornadas_laborales').select('id, nombre_jornada, horas_laborales').eq('activo', true).order('nombre_jornada')
+            .then(({ data }) => { if (data) setJornadasLaborales(data); });
+    }, []);
 
     // Estado de filtros
     const [filtros, setFiltros] = useState<NovedadFiltros>({});
@@ -1129,6 +1135,25 @@ const NovedadesPage: React.FC = () => {
                                                                 <SelectContent>
                                                                     {(field.options || []).map(opt => (
                                                                         <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        )}
+                                                        {field.type === 'jornada-select' && (
+                                                            <Select
+                                                                value={formData[field.name] || ''}
+                                                                onValueChange={v => setFormData(prev => ({ ...prev, [field.name]: v }))}
+                                                            >
+                                                                <SelectTrigger className="mt-1">
+                                                                    <SelectValue placeholder="Seleccionar jornada..." />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {jornadasLaborales.length === 0 ? (
+                                                                        <SelectItem value="__none__" disabled>Sin jornadas registradas</SelectItem>
+                                                                    ) : jornadasLaborales.map(j => (
+                                                                        <SelectItem key={j.id} value={String(j.id)}>
+                                                                            {j.nombre_jornada} — {j.horas_laborales}h
+                                                                        </SelectItem>
                                                                     ))}
                                                                 </SelectContent>
                                                             </Select>

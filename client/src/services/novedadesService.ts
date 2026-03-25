@@ -532,14 +532,6 @@ export const novedadesService = {
         observacion?: string
     ): Promise<NovedadSolicitud | null> => {
         try {
-            // Regla de negocio: la aprobación de comité solo se permite los viernes
-            if (nuevoEstado === ESTADOS_NOVEDAD.APROBADO_COMITE) {
-                const diaSemana = new Date().getDay(); // 0=Dom, 5=Vie
-                if (diaSemana !== 5) {
-                    throw new Error('La aprobación de novedades solo está permitida los días viernes.');
-                }
-            }
-
             const current = await novedadesService.getSolicitudById(id);
             if (!current) {
                 console.error('Solicitud no encontrada');
@@ -596,10 +588,6 @@ export const novedadesService = {
             console.log(`✅ Estado cambiado: ${current.estado} → ${nuevoEstado}`);
             return data;
         } catch (error) {
-            // Re-lanzar error de regla de negocio (solo viernes) para que el UI muestre el mensaje
-            if (error instanceof Error && error.message.includes('viernes')) {
-                throw error;
-            }
             console.error('Error en cambiarEstado:', error);
             return null;
         }

@@ -32,6 +32,9 @@ import { Can } from "@/contexts/PermissionsContext";
 const tipoCandidatoSchema = z.object({
   nombre: z.string().min(2, 'Nombre requerido'),
   descripcion: z.string().optional(),
+  tipo_cargo: z.enum(['asistencial', 'administrativo']).optional(),
+  requiere_aprobador: z.boolean().optional(),
+  aprobador_id: z.number().optional(),
 });
 
 
@@ -39,6 +42,7 @@ const tipoCandidatoSchema = z.object({
 export default function TiposCandidatosPage() {
   // Estados
   const [activeTab, setActiveTab] = useState("tipos");
+  const [aprobadores, setAprobadores] = useState<{ id: number; nombre: string }[]>([]);
   const [editingTipo, setEditingTipo] = useState<TipoCandidato | null>(null);
   const [editingDocumento, setEditingDocumento] = useState<TipoDocumento | null>(null);
   const [selectedTipo, setSelectedTipo] = useState<TipoCandidato | null>(null);
@@ -131,6 +135,43 @@ export default function TiposCandidatosPage() {
     defaultValues: { nombre: '', descripcion: '' },
   });
 
+  // Cargar aprobadores: usuarios con permiso accion-aprobar-comite
+  useEffect(() => {
+    const fetchAprobadores = async () => {
+      // Roles que tienen accion-aprobar-comite en selected_actions_codes
+      const { data: rolesData } = await supabase
+        .from('gen_roles_modulos')
+        .select('rol_id, selected_actions_codes');
+
+      if (!rolesData) return;
+      const rolesConPermiso = rolesData
+        .filter(r => Array.isArray(r.selected_actions_codes) && r.selected_actions_codes.includes('accion-aprobar-comite'))
+        .map(r => r.rol_id);
+
+      if (!rolesConPermiso.length) return;
+
+      const { data: usuarioRoles } = await supabase
+        .from('gen_usuario_roles')
+        .select('usuario_id')
+        .in('rol_id', rolesConPermiso);
+
+      if (!usuarioRoles?.length) return;
+      const ids = [...new Set(usuarioRoles.map(r => r.usuario_id))];
+
+      const { data: usuarios } = await supabase
+        .from('gen_usuarios')
+        .select('id, primer_nombre, primer_apellido')
+        .in('id', ids)
+        .eq('activo', true);
+
+      setAprobadores((usuarios || []).map(u => ({
+        id: u.id,
+        nombre: `${u.primer_nombre} ${u.primer_apellido}`.trim(),
+      })));
+    };
+    fetchAprobadores();
+  }, []);
+
   // Cargar contadores cuando se cargan los tipos de candidatos
   useEffect(() => {
     loadDocumentosCounts();
@@ -182,6 +223,9 @@ export default function TiposCandidatosPage() {
     tipoForm.reset({
       nombre: tipo.nombre || '',
       descripcion: tipo.descripcion || '',
+      tipo_cargo: tipo.tipo_cargo,
+      requiere_aprobador: tipo.requiere_aprobador ?? false,
+      aprobador_id: tipo.aprobador_id,
     });
     setActiveTab("registro");
   };
@@ -285,7 +329,7 @@ export default function TiposCandidatosPage() {
   const handleNewTipo = () => {
     setEditingTipo(null);
     setSelectedTipo(null);
-    tipoForm.reset({ nombre: '', descripcion: '' });
+    tipoForm.reset({ nombre: '', descripcion: '', tipo_cargo: undefined, requiere_aprobador: false, aprobador_id: undefined });
     setActiveTab("registro");
   };
 
@@ -444,7 +488,7 @@ export default function TiposCandidatosPage() {
       } else {
         await createTipoCandidato(data);
       }
-      tipoForm.reset();
+      tipoForm.reset({ nombre: '', descripcion: '', tipo_cargo: undefined, requiere_aprobador: false, aprobador_id: undefined });
       setEditingTipo(null);
       setSelectedTipo(null);
       setActiveTab("tipos");
@@ -547,9 +591,10 @@ export default function TiposCandidatosPage() {
                 <TableHeader className="bg-cyan-50">
                   <TableRow className="text-left font-semibold text-gray-700">
                     <TableHead className="px-2 py-1 text-teal-600 w-32">Acciones</TableHead>
-                    <TableHead className="px-4 py-3 w-1/3">Nombre</TableHead>
-                    <TableHead className="px-4 py-3 w-1/3">Descripción</TableHead>
-                    <TableHead className="px-4 py-3 w-40 whitespace-nowrap">Documentos Asociados</TableHead>
+                    <TableHead className="px-4 py-3">Nombre</TableHead>
+                    <TableHead className="px-4 py-3">Tipo</TableHead>
+                    <TableHead className="px-4 py-3">Aprobador</TableHead>
+                    <TableHead className="px-4 py-3 whitespace-nowrap">Docs. Asociados</TableHead>
                     <TableHead className="px-4 py-3 w-24">Estado</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -680,7 +725,18 @@ export default function TiposCandidatosPage() {
                             </div>
                           </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-900 font-medium">{tipo.nombre}</TableCell>
-                          <TableCell className="px-4 py-3 text-sm text-gray-500">{tipo.descripcion || '-'}</TableCell>
+                          <TableCell className="px-4 py-3 text-sm">
+                            {tipo.tipo_cargo ? (
+                              <Badge variant="outline" className={tipo.tipo_cargo === 'asistencial' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-sky-50 text-sky-700 border-sky-200'}>
+                                {tipo.tipo_cargo === 'asistencial' ? 'Asistencial' : 'Administrativo'}
+                              </Badge>
+                            ) : <span className="text-gray-400">-</span>}
+                          </TableCell>
+                          <TableCell className="px-4 py-3 text-sm text-gray-500">
+                            {tipo.requiere_aprobador
+                              ? (tipo.aprobador ? `${tipo.aprobador.primer_nombre} ${tipo.aprobador.primer_apellido}` : <span className="text-amber-500 text-xs">Sin asignar</span>)
+                              : <span className="text-gray-400">No requerido</span>}
+                          </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-500">
                             <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
                               {documentosCounts[tipo.id] || 0} documentos
@@ -696,7 +752,7 @@ export default function TiposCandidatosPage() {
                     )
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={5} className="h-24 text-center">
+                      <TableCell colSpan={6} className="h-24 text-center">
                         Cargando tipos de cargos...
                       </TableCell>
                     </TableRow>
@@ -726,11 +782,29 @@ export default function TiposCandidatosPage() {
                         <FormItem>
                           <FormLabel>Nombre del Cargo</FormLabel>
                           <FormControl>
-                            <Input 
-                              autoComplete="off"
-                              {...field} 
-                            />
+                            <Input autoComplete="off" {...field} />
                           </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={tipoForm.control}
+                      name="tipo_cargo"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Tipo de Cargo</FormLabel>
+                          <Select value={field.value || ''} onValueChange={field.onChange}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Seleccione tipo" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="asistencial">Asistencial</SelectItem>
+                              <SelectItem value="administrativo">Administrativo</SelectItem>
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -742,16 +816,64 @@ export default function TiposCandidatosPage() {
                         <FormItem>
                           <FormLabel>Descripción</FormLabel>
                           <FormControl>
-                            <Textarea 
-                              autoComplete="off"
-                              {...field} 
-                            />
+                            <Textarea autoComplete="off" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
+                    <div className="space-y-3">
+                      <FormField
+                        control={tipoForm.control}
+                        name="requiere_aprobador"
+                        render={({ field }) => (
+                          <FormItem className="flex items-center gap-3 rounded-md border p-3">
+                            <FormControl>
+                              <Checkbox
+                                checked={!!field.value}
+                                onCheckedChange={checked => {
+                                  field.onChange(checked);
+                                  if (!checked) tipoForm.setValue('aprobador_id', undefined);
+                                }}
+                              />
+                            </FormControl>
+                            <FormLabel className="!mt-0 cursor-pointer">Requiere aprobador de comité</FormLabel>
+                          </FormItem>
+                        )}
+                      />
+                      {tipoForm.watch('requiere_aprobador') && (
+                        <FormField
+                          control={tipoForm.control}
+                          name="aprobador_id"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Aprobador</FormLabel>
+                              <Select
+                                value={field.value?.toString() || ''}
+                                onValueChange={v => field.onChange(v ? parseInt(v) : undefined)}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Seleccione aprobador" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {aprobadores.length === 0 ? (
+                                    <SelectItem value="__none__" disabled>Sin aprobadores con permiso accion-aprobar-comite</SelectItem>
+                                  ) : (
+                                    aprobadores.map(a => (
+                                      <SelectItem key={a.id} value={a.id.toString()}>{a.nombre}</SelectItem>
+                                    ))
+                                  )}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      )}
                     </div>
+                  </div>
                   <div className="flex justify-end">
                     <Can action={editingTipo ? "accion-actualizar-tipo-cargo" : "accion-crear-tipo-cargo"}>
                       <Button

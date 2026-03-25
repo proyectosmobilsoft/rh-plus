@@ -6,6 +6,7 @@ export interface CentroCosto {
   codigo: string;
   nombre: string;
   sucursal_id?: number;
+  empresa_id?: number;
   area_negocio?: string;
   porcentaje_estructura?: number;
   activo: boolean;
@@ -16,12 +17,17 @@ export interface CentroCosto {
     nombre: string;
     codigo?: string;
   };
+  empresa?: {
+    id: number;
+    razon_social: string;
+  };
 }
 
 export interface CreateCentroCostoData {
   codigo: string;
   nombre: string;
   sucursal_id?: number;
+  empresa_id?: number;
   area_negocio?: string;
   porcentaje_estructura?: number;
   activo: boolean;
@@ -31,6 +37,7 @@ export interface UpdateCentroCostoData {
   codigo?: string;
   nombre?: string;
   sucursal_id?: number;
+  empresa_id?: number;
   area_negocio?: string;
   porcentaje_estructura?: number;
   activo?: boolean;
@@ -47,6 +54,10 @@ class CentrosCostoService {
             id,
             nombre,
             codigo
+          ),
+          empresa:empresas(
+            id,
+            razon_social
           )
         `)
         .eq('activo', true)
@@ -70,6 +81,10 @@ class CentrosCostoService {
             id,
             nombre,
             codigo
+          ),
+          empresa:empresas(
+            id,
+            razon_social
           )
         `)
         .order('created_at', { ascending: false });
@@ -94,6 +109,10 @@ class CentrosCostoService {
             id,
             nombre,
             codigo
+          ),
+          empresa:empresas(
+            id,
+            razon_social
           )
         `)
         .eq('id', id)
@@ -166,6 +185,7 @@ class CentrosCostoService {
       if (centroCostoData.codigo !== undefined) updateData.codigo = centroCostoData.codigo;
       if (centroCostoData.nombre !== undefined) updateData.nombre = centroCostoData.nombre;
       if (centroCostoData.sucursal_id !== undefined) updateData.sucursal_id = centroCostoData.sucursal_id;
+      if (centroCostoData.empresa_id !== undefined) updateData.empresa_id = centroCostoData.empresa_id;
       if (centroCostoData.area_negocio !== undefined) updateData.area_negocio = centroCostoData.area_negocio;
       if (centroCostoData.porcentaje_estructura !== undefined) updateData.porcentaje_estructura = centroCostoData.porcentaje_estructura;
       if (centroCostoData.activo !== undefined) updateData.activo = centroCostoData.activo;
@@ -183,6 +203,10 @@ class CentrosCostoService {
             id,
             nombre,
             codigo
+          ),
+          empresa:empresas(
+            id,
+            razon_social
           )
         `);
 
@@ -269,6 +293,10 @@ class CentrosCostoService {
             id,
             nombre,
             codigo
+          ),
+          empresa:empresas(
+            id,
+            razon_social
           )
         `)
         .eq('sucursal_id', sucursalId)
@@ -293,6 +321,10 @@ class CentrosCostoService {
             id,
             nombre,
             codigo
+          ),
+          empresa:empresas(
+            id,
+            razon_social
           )
         `)
         .or(`nombre.ilike.%${query}%,codigo.ilike.%${query}%`)
