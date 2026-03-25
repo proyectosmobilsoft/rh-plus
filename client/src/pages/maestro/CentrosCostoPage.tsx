@@ -25,31 +25,36 @@ import {
   XCircle,
   Lock
 } from "lucide-react";
-import { 
+import {
   centrosCostoService,
   CentroCosto,
   CreateCentroCostoData
 } from "@/services/centrosCostoService";
 import { sucursalesService, Sucursal } from "@/services/sucursalesService";
+import { supabase } from "@/services/supabaseClient";
 import { useLoading } from '@/contexts/LoadingContext';
 import { useRegisterView } from '@/hooks/useRegisterView';
 import { Can } from '@/contexts/PermissionsContext';
 import { getErrorMessage } from '@/utils/errorHandler';
 
+interface Empresa { id: number; razon_social: string; }
+
 export default function CentrosCostoPage() {
   const [centrosCosto, setCentrosCosto] = useState<CentroCosto[]>([]);
   const [sucursales, setSucursales] = useState<Sucursal[]>([]);
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("listado");
-  
+
   // Estados para modales
   const [showFormModal, setShowFormModal] = useState(false);
   const [editingCentroCosto, setEditingCentroCosto] = useState<CentroCosto | null>(null);
-  
+
   // Estados para filtros
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("active");
   const [sucursalFilter, setSucursalFilter] = useState<string>("all");
+  const [empresaFilter, setEmpresaFilter] = useState<string>("all");
 
   const { startLoading, stopLoading } = useLoading();
   const { addAction: addCentrosCostoListado } = useRegisterView('Centros de Costos', 'listado', 'Listado de Centros de Costos');
@@ -79,15 +84,17 @@ export default function CentrosCostoPage() {
     setLoading(true);
     try {
       console.log('🔄 Cargando datos de centros de costo...');
-      const [centrosCostoData, sucursalesData] = await Promise.all([
+      const [centrosCostoData, sucursalesData, empresasResult] = await Promise.all([
         centrosCostoService.getAllIncludingInactive(),
-        sucursalesService.getAllIncludingInactive()
+        sucursalesService.getAllIncludingInactive(),
+        supabase.from('empresas').select('id, razon_social').order('razon_social'),
       ]);
 
       console.log('📊 Centros de costo cargados:', centrosCostoData);
       console.log('📊 Sucursales cargadas:', sucursalesData);
       setCentrosCosto(centrosCostoData);
       setSucursales(sucursalesData);
+      setEmpresas(empresasResult.data || []);
     } catch (error) {
       console.error('❌ Error cargando datos:', error);
       toast.error('Error al cargar los datos de centros de costo');
@@ -110,7 +117,11 @@ export default function CentrosCostoPage() {
          sucursalFilter === "0" ? !centro.sucursal_id :
          centro.sucursal_id?.toString() === sucursalFilter;
 
-             return matchesSearch && matchesStatus && matchesSucursal;
+      const matchesEmpresa = empresaFilter === "all" ? true :
+        empresaFilter === "0" ? !centro.empresa_id :
+        centro.empresa_id?.toString() === empresaFilter;
+
+             return matchesSearch && matchesStatus && matchesSucursal && matchesEmpresa;
     })
     .sort((a, b) => {
       // Mostrar activos primero
@@ -298,12 +309,28 @@ export default function CentrosCostoPage() {
                    </SelectContent>
                  </Select>
 
+                 <Select value={empresaFilter} onValueChange={setEmpresaFilter}>
+                   <SelectTrigger>
+                     <SelectValue placeholder="Filtrar por empresa" />
+                   </SelectTrigger>
+                   <SelectContent>
+                     <SelectItem value="all">Todas las empresas</SelectItem>
+                     <SelectItem value="0">Sin empresa</SelectItem>
+                     {empresas.map(emp => (
+                       <SelectItem key={emp.id} value={emp.id.toString()}>
+                         {emp.razon_social}
+                       </SelectItem>
+                     ))}
+                   </SelectContent>
+                 </Select>
+
                                  <Button
                    variant="outline"
                    onClick={() => {
                      setSearchTerm("");
                      setStatusFilter("active");
                      setSucursalFilter("all");
+                     setEmpresaFilter("all");
                    }}
                    className="flex items-center gap-2"
                  >
@@ -321,6 +348,7 @@ export default function CentrosCostoPage() {
                      <TableHead className="px-2 py-1 text-teal-600">Acciones</TableHead>
                      <TableHead className="px-4 py-3">Código</TableHead>
                      <TableHead className="px-4 py-3">Nombre</TableHead>
+                     <TableHead className="px-4 py-3">Empresa</TableHead>
                      <TableHead className="px-4 py-3">Sucursal</TableHead>
                      <TableHead className="px-4 py-3">Área de Negocios</TableHead>
                      <TableHead className="px-4 py-3">Porcentaje</TableHead>
@@ -486,6 +514,13 @@ export default function CentrosCostoPage() {
                          <TableCell className="px-4 py-3 text-sm text-gray-900">{centro.codigo}</TableCell>
                          <TableCell className="px-4 py-3 text-sm text-gray-900 font-medium">{centro.nombre}</TableCell>
                          <TableCell className="px-4 py-3 text-sm text-gray-500">
+                           {centro.empresa ? (
+                             <span>{centro.empresa.razon_social}</span>
+                           ) : (
+                             <span className="text-gray-400">Sin empresa</span>
+                           )}
+                         </TableCell>
+                         <TableCell className="px-4 py-3 text-sm text-gray-500">
                            {centro.sucursal ? (
                              <div className="flex items-center gap-2">
                                <Building2 className="w-4 h-4 text-gray-400" />
@@ -531,6 +566,7 @@ export default function CentrosCostoPage() {
            editingCentroCosto={editingCentroCosto}
            onSaved={handleSaved}
            sucursales={sucursales}
+           empresas={empresas}
          />
         </TabsContent>
       </Tabs>
@@ -543,13 +579,15 @@ interface CentroCostoFormProps {
   editingCentroCosto: CentroCosto | null;
   onSaved: () => void;
   sucursales: Sucursal[];
+  empresas: Empresa[];
 }
 
-function CentroCostoForm({ editingCentroCosto, onSaved, sucursales }: CentroCostoFormProps) {
+function CentroCostoForm({ editingCentroCosto, onSaved, sucursales, empresas }: CentroCostoFormProps) {
   const [formData, setFormData] = useState<CreateCentroCostoData>({
     codigo: '',
     nombre: '',
     sucursal_id: undefined,
+    empresa_id: undefined,
     area_negocio: undefined,
     porcentaje_estructura: undefined,
     activo: true
@@ -563,6 +601,7 @@ function CentroCostoForm({ editingCentroCosto, onSaved, sucursales }: CentroCost
          codigo: editingCentroCosto.codigo,
          nombre: editingCentroCosto.nombre,
          sucursal_id: editingCentroCosto.sucursal_id,
+         empresa_id: editingCentroCosto.empresa_id,
          area_negocio: editingCentroCosto.area_negocio || '',
          porcentaje_estructura: editingCentroCosto.porcentaje_estructura,
          activo: editingCentroCosto.activo
@@ -572,6 +611,7 @@ function CentroCostoForm({ editingCentroCosto, onSaved, sucursales }: CentroCost
          codigo: '',
          nombre: '',
          sucursal_id: undefined,
+         empresa_id: undefined,
          area_negocio: undefined,
          porcentaje_estructura: undefined,
          activo: true
@@ -664,6 +704,26 @@ function CentroCostoForm({ editingCentroCosto, onSaved, sucursales }: CentroCost
                    {sucursales.map(sucursal => (
                      <SelectItem key={sucursal.id} value={sucursal.id.toString()}>
                        {sucursal.nombre}
+                     </SelectItem>
+                   ))}
+                 </SelectContent>
+               </Select>
+             </div>
+
+             <div className="space-y-2">
+               <Label htmlFor="empresa_id">Empresa</Label>
+               <Select
+                 value={formData.empresa_id?.toString() || '0'}
+                 onValueChange={(value) => setFormData({ ...formData, empresa_id: value === '0' ? undefined : parseInt(value) })}
+               >
+                 <SelectTrigger>
+                   <SelectValue placeholder="Seleccione una empresa" />
+                 </SelectTrigger>
+                 <SelectContent>
+                   <SelectItem value="0">Sin empresa</SelectItem>
+                   {empresas.map(emp => (
+                     <SelectItem key={emp.id} value={emp.id.toString()}>
+                       {emp.razon_social}
                      </SelectItem>
                    ))}
                  </SelectContent>

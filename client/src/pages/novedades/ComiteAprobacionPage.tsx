@@ -53,9 +53,6 @@ import {
 } from '@/services/novedadesService';
 import { emailService } from '@/services/emailService';
 
-// La aprobación de novedades solo está permitida los viernes
-const esViernes = () => new Date().getDay() === 5;
-
 const ComiteAprobacionPage: React.FC = () => {
     const queryClient = useQueryClient();
 
@@ -350,9 +347,7 @@ const ComiteAprobacionPage: React.FC = () => {
                                                                         variant="outline"
                                                                         size="sm"
                                                                         onClick={() => { setSelectedSolicitud(sol); setShowActionModal('aprobar'); }}
-                                                                        disabled={!esViernes()}
-                                                                        title={!esViernes() ? 'La aprobación solo está permitida los viernes' : undefined}
-                                                                        className="h-7 rounded-md border-green-200 text-green-600 hover:bg-green-500 hover:text-white text-[10px] font-bold px-2.5 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                        className="h-7 rounded-md border-green-200 text-green-600 hover:bg-green-500 hover:text-white text-[10px] font-bold px-2.5 shadow-sm transition-all"
                                                                     >
                                                                         Aceptar
                                                                     </Button>
@@ -537,11 +532,6 @@ const ComiteAprobacionPage: React.FC = () => {
                                 </Button>
                                 {selectedSolicitud.estado === 'solicitada' && (
                                     <div className="flex gap-2 items-center">
-                                        {!esViernes() && (
-                                            <span className="text-[10px] text-amber-600 font-bold italic mr-1">
-                                                Aprobación solo los viernes
-                                            </span>
-                                        )}
                                         <Button
                                             onClick={() => setShowActionModal('rechazar')}
                                             className="bg-red-50 text-red-600 hover:bg-red-100 border-red-100 font-bold rounded-xl h-10 px-4 text-xs border"
@@ -550,9 +540,7 @@ const ComiteAprobacionPage: React.FC = () => {
                                         </Button>
                                         <Button
                                             onClick={() => setShowActionModal('aprobar')}
-                                            disabled={!esViernes()}
-                                            title={!esViernes() ? 'La aprobación solo está permitida los viernes' : undefined}
-                                            className="bg-indigo-600 text-white hover:bg-indigo-700 font-bold rounded-xl h-10 px-6 text-xs shadow-md shadow-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            className="bg-indigo-600 text-white hover:bg-indigo-700 font-bold rounded-xl h-10 px-6 text-xs shadow-md shadow-indigo-200"
                                         >
                                             Aprobar Solicitud
                                         </Button>
@@ -577,23 +565,22 @@ const ComiteAprobacionPage: React.FC = () => {
                     </div>
                     <div className="p-6 bg-white space-y-4">
                         <div className="space-y-2">
-                            <Label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Comentarios del Comité</Label>
+                            <Label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Observación del Comité <span className="text-red-500">*</span></Label>
                             <Textarea
-                                placeholder={showActionModal === 'aprobar' ? "Opcional: Detalles de la aprobación..." : "Obligatorio: Motivo del rechazo..."}
+                                placeholder={showActionModal === 'aprobar' ? "Obligatorio: Detalles de la aprobación..." : "Obligatorio: Motivo del rechazo..."}
                                 value={observacion}
                                 onChange={(e) => setObservacion(e.target.value)}
                                 className="min-h-[120px] rounded-2xl border-gray-100 bg-gray-50/50 focus:bg-white resize-none shadow-inner p-4"
                             />
-                            {showActionModal === 'rechazar' && !observacion.trim() && (
-                                <p className="text-[10px] text-red-500 font-bold ml-1 animate-pulse">EL RECHAZO REQUIERE UNA JUSTIFICACIÓN</p>
+                            {!observacion.trim() && (
+                                <p className="text-[10px] text-red-500 font-bold ml-1 animate-pulse">SE REQUIERE UNA OBSERVACIÓN PARA CONTINUAR</p>
                             )}
                         </div>
                         <div className="flex gap-3 pt-2">
                             <Button variant="ghost" onClick={() => setShowActionModal(null)} className="flex-1 rounded-2xl font-bold text-gray-400 h-12">Cancelar</Button>
                             <Button
                                 onClick={() => decisionMutation.mutate({ id: selectedSolicitud!.id!, aprobado: showActionModal === 'aprobar', obs: observacion })}
-                                disabled={decisionMutation.isPending || (showActionModal === 'rechazar' && !observacion.trim()) || (showActionModal === 'aprobar' && !esViernes())}
-                                title={showActionModal === 'aprobar' && !esViernes() ? 'La aprobación solo está permitida los viernes' : undefined}
+                                disabled={decisionMutation.isPending || !observacion.trim()}
                                 className={`flex-1 rounded-2xl font-bold shadow-lg h-12 disabled:opacity-50 disabled:cursor-not-allowed ${showActionModal === 'aprobar' ? 'bg-green-500 hover:bg-green-600 text-white shadow-green-500/25' : 'bg-red-500 hover:bg-red-600 text-white shadow-red-500/25'}`}
                             >
                                 {decisionMutation.isPending ? 'Procesando...' : 'Confirmar Decision'}

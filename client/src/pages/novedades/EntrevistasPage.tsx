@@ -47,10 +47,16 @@ import {
   Mail,
   Phone,
   Hash,
+  Clock,
+  CalendarX,
+  CalendarClock,
+  History,
+  AlertTriangle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { candidatosService, type Candidato } from '@/services/candidatosService';
 import { candidatosDocumentosService, type CandidatoDocumentoConDetalles } from '@/services/candidatosDocumentosService';
+import { entrevistasHistorialService, type EntrevistaHistorial, type AccionEntrevista } from '@/services/entrevistasHistorialService';
 
 // ============================================================
 // CONSTANTES
@@ -153,6 +159,15 @@ export default function EntrevistasPage() {
   const [calificacion, setCalificacion] = useState('');
   const [obsCalificacion, setObsCalificacion] = useState('');
 
+  // ── Modales de aplazar/cancelar ──
+  const [showAplazarModal, setShowAplazarModal] = useState(false);
+  const [showCancelarModal, setShowCancelarModal] = useState(false);
+  const [showHistorialModal, setShowHistorialModal] = useState(false);
+  const [motivoAccion, setMotivoAccion] = useState('');
+  const [nuevaFechaEntrevista, setNuevaFechaEntrevista] = useState('');
+  const [nuevaHoraEntrevista, setNuevaHoraEntrevista] = useState('');
+  const [nuevoLugarEntrevista, setNuevoLugarEntrevista] = useState('');
+
   // ── Empresa activa ──
   const empresaId = useMemo(() => {
     try {
@@ -223,6 +238,21 @@ export default function EntrevistasPage() {
     descartado: statsData?.descartado ?? 0,
   }), [totalCandidatos, statsData]);
 
+  /** Historial de entrevistas del candidato seleccionado */
+  const { data: historial = [], isLoading: historialLoading } = useQuery<EntrevistaHistorial[]>({
+    queryKey: ['entrevista-historial', selectedCandidato?.id],
+    queryFn: () =>
+      selectedCandidato?.id
+        ? entrevistasHistorialService.getByCandidato(selectedCandidato.id)
+        : Promise.resolve([]),
+    enabled: !!selectedCandidato?.id,
+  });
+
+  const cancelacionesCount = useMemo(
+    () => historial.filter(h => h.accion === 'cancelada' || h.accion === 'aplazada').length,
+    [historial]
+  );
+
   /** Documentos del candidato seleccionado */
   const { data: documentos = [], isLoading: documentosLoading } = useQuery<CandidatoDocumentoConDetalles[]>({
     queryKey: ['entrevista-documentos', selectedCandidato?.id],
@@ -253,10 +283,11 @@ export default function EntrevistasPage() {
     onError: () => toast.error('Error al calificar el candidato'),
   });
 
-  /** Programar entrevista (guarda datos en la tabla de candidatos) */
+  /** Programar entrevista (guarda datos en la tabla de candidatos + historial) */
   const programarMutation = useMutation({
     mutationFn: async ({ id }: { id: number }) => {
-      const { error } = await (await import('@/services/supabaseClient')).supabase
+      const { supabase: sb } = await import('@/services/supabaseClient');
+      const { error } = await sb
         .from('candidatos')
         .update({
           estado: 'entrevista',
@@ -267,15 +298,97 @@ export default function EntrevistasPage() {
         })
         .eq('id', id);
       if (error) throw error;
+
+      const isReprogramacion = historial.some(h => h.accion === 'programada' || h.accion === 'reprogramada');
+      await entrevistasHistorialService.create({
+        candidato_id: id,
+        accion: isReprogramacion ? 'reprogramada' : 'programada',
+        fecha_entrevista: fechaEntrevista || undefined,
+        hora_entrevista: horaEntrevista || undefined,
+        lugar_entrevista: lugarEntrevista || undefined,
+        observaciones: obsEntrevista || undefined,
+      });
     },
     onSuccess: () => {
       toast.success('Entrevista programada exitosamente');
       queryClient.invalidateQueries({ queryKey: ['entrevistas-candidatos'] });
       queryClient.invalidateQueries({ queryKey: ['entrevistas-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['entrevista-historial'] });
       setShowScheduleModal(false);
       resetScheduleForm();
     },
     onError: () => toast.error('Error al programar la entrevista'),
+  });
+
+  /** Aplazar entrevista */
+  const aplazarMutation = useMutation({
+    mutationFn: async ({ id }: { id: number }) => {
+      const { supabase: sb } = await import('@/services/supabaseClient');
+      const { error } = await sb
+        .from('candidatos')
+        .update({
+          fecha_entrevista: nuevaFechaEntrevista || null,
+          hora_entrevista: nuevaHoraEntrevista || null,
+          lugar_entrevista: nuevoLugarEntrevista || selectedCandidato?.lugar_entrevista || null,
+        })
+        .eq('id', id);
+      if (error) throw error;
+
+      await entrevistasHistorialService.create({
+        candidato_id: id,
+        accion: 'aplazada',
+        fecha_entrevista: nuevaFechaEntrevista || undefined,
+        hora_entrevista: nuevaHoraEntrevista || undefined,
+        lugar_entrevista: nuevoLugarEntrevista || selectedCandidato?.lugar_entrevista || undefined,
+        motivo: motivoAccion || undefined,
+      });
+    },
+    onSuccess: () => {
+      toast.success('Entrevista aplazada exitosamente');
+      queryClient.invalidateQueries({ queryKey: ['entrevistas-candidatos'] });
+      queryClient.invalidateQueries({ queryKey: ['entrevista-historial'] });
+      setShowAplazarModal(false);
+      setMotivoAccion('');
+      setNuevaFechaEntrevista('');
+      setNuevaHoraEntrevista('');
+      setNuevoLugarEntrevista('');
+    },
+    onError: () => toast.error('Error al aplazar la entrevista'),
+  });
+
+  /** Cancelar entrevista */
+  const cancelarMutation = useMutation({
+    mutationFn: async ({ id }: { id: number }) => {
+      const { supabase: sb } = await import('@/services/supabaseClient');
+      const { error } = await sb
+        .from('candidatos')
+        .update({
+          estado: 'en_proceso',
+          fecha_entrevista: null,
+          hora_entrevista: null,
+          lugar_entrevista: null,
+          observacion_entrevista: null,
+        })
+        .eq('id', id);
+      if (error) throw error;
+
+      await entrevistasHistorialService.create({
+        candidato_id: id,
+        accion: 'cancelada',
+        fecha_entrevista: selectedCandidato?.fecha_entrevista || undefined,
+        motivo: motivoAccion || undefined,
+      });
+    },
+    onSuccess: () => {
+      toast.success('Entrevista cancelada');
+      queryClient.invalidateQueries({ queryKey: ['entrevistas-candidatos'] });
+      queryClient.invalidateQueries({ queryKey: ['entrevistas-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['entrevista-historial'] });
+      setShowCancelarModal(false);
+      setMotivoAccion('');
+      setSelectedCandidato(null);
+    },
+    onError: () => toast.error('Error al cancelar la entrevista'),
   });
 
   // ============================================================
@@ -318,7 +431,70 @@ export default function EntrevistasPage() {
     setShowScheduleModal(true);
   };
 
+  const handleAplazar = (c: Candidato) => {
+    setSelectedCandidato(c);
+    setMotivoAccion('');
+    setNuevaFechaEntrevista('');
+    setNuevaHoraEntrevista('');
+    setNuevoLugarEntrevista(c.lugar_entrevista || '');
+    setShowAplazarModal(true);
+  };
+
+  const handleCancelar = (c: Candidato) => {
+    setSelectedCandidato(c);
+    setMotivoAccion('');
+    setShowCancelarModal(true);
+  };
+
+  const handleVerHistorial = (c: Candidato) => {
+    setSelectedCandidato(c);
+    setShowHistorialModal(true);
+  };
+
+  const handleSubmitAplazar = () => {
+    if (!selectedCandidato?.id) return;
+    if (!nuevaFechaEntrevista) {
+      toast.error('Debe indicar la nueva fecha de entrevista');
+      return;
+    }
+    if (!motivoAccion.trim()) {
+      toast.error('Debe indicar el motivo del aplazamiento');
+      return;
+    }
+    aplazarMutation.mutate({ id: selectedCandidato.id });
+  };
+
+  const handleSubmitCancelar = () => {
+    if (!selectedCandidato?.id) return;
+    if (!motivoAccion.trim()) {
+      toast.error('Debe indicar el motivo de la cancelación');
+      return;
+    }
+    cancelarMutation.mutate({ id: selectedCandidato.id });
+  };
+
+  const canCalificar = (c: Candidato): { allowed: boolean; reason: string } => {
+    if (c.estado !== 'entrevista') {
+      return { allowed: false, reason: 'Debe programar la entrevista antes de calificar' };
+    }
+    if (!c.fecha_entrevista) {
+      return { allowed: false, reason: 'No se ha registrado fecha de entrevista' };
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const entrevistaDate = new Date(c.fecha_entrevista + 'T00:00:00');
+    if (entrevistaDate > today) {
+      return { allowed: false, reason: `La entrevista está programada para ${fmtDate(c.fecha_entrevista)}, aún no se ha realizado` };
+    }
+    return { allowed: true, reason: '' };
+  };
+
   const handleCalificar = (c: Candidato) => {
+    const check = canCalificar(c);
+    if (!check.allowed) {
+      toast.error(check.reason);
+      return;
+    }
     setSelectedCandidato(c);
     setCalificacion('');
     setObsCalificacion('');
@@ -609,11 +785,77 @@ export default function EntrevistasPage() {
                       <p className="text-sm font-medium text-gray-700 mt-0.5">{selectedCandidato.telefono || '-'}</p>
                     </div>
                   </div>
+
+                  {/* Info de entrevista programada */}
+                  {selectedCandidato.fecha_entrevista && (
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-indigo-500" />
+                          <span className="text-sm font-semibold text-gray-700">Entrevista Programada</span>
+                          {(() => {
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            const entDate = new Date(selectedCandidato.fecha_entrevista + 'T00:00:00');
+                            const isPast = entDate <= today;
+                            return (
+                              <Badge className={`text-[10px] ${isPast ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-amber-100 text-amber-700 border-amber-200'}`}>
+                                {isPast ? 'Realizada' : 'Pendiente'}
+                              </Badge>
+                            );
+                          })()}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="sm" className="h-7 text-xs text-indigo-600 hover:bg-indigo-50"
+                            onClick={() => handleAplazar(selectedCandidato)}>
+                            <CalendarClock className="h-3.5 w-3.5 mr-1" />
+                            Aplazar
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-7 text-xs text-red-600 hover:bg-red-50"
+                            onClick={() => handleCancelar(selectedCandidato)}>
+                            <CalendarX className="h-3.5 w-3.5 mr-1" />
+                            Cancelar
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        <div>
+                          <span className="text-xs text-gray-400 font-medium">Fecha</span>
+                          <p className="text-sm font-medium text-gray-700 mt-0.5">{fmtDate(selectedCandidato.fecha_entrevista)}</p>
+                        </div>
+                        {selectedCandidato.hora_entrevista && (
+                          <div>
+                            <span className="text-xs text-gray-400 font-medium">Hora</span>
+                            <p className="text-sm font-medium text-gray-700 mt-0.5">{selectedCandidato.hora_entrevista}</p>
+                          </div>
+                        )}
+                        {selectedCandidato.lugar_entrevista && (
+                          <div>
+                            <span className="text-xs text-gray-400 font-medium">Lugar</span>
+                            <p className="text-sm font-medium text-gray-700 mt-0.5">{selectedCandidato.lugar_entrevista}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Alerta de cancelaciones frecuentes */}
+                  {cancelacionesCount >= 2 && (
+                    <div className="mt-3 flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
+                      <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-xs font-semibold text-amber-800">
+                          Este candidato tiene {cancelacionesCount} aplazamiento{cancelacionesCount > 1 ? 's' : ''}/cancelacion{cancelacionesCount > 1 ? 'es' : ''} registrada{cancelacionesCount > 1 ? 's' : ''}
+                        </p>
+                        <p className="text-xs text-amber-600 mt-0.5">Revise el historial para más detalles.</p>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
               {/* Acciones */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {/* Documentos */}
                 <Card className="border-0 shadow-sm cursor-pointer group hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
                   onClick={() => handleViewDocumentos(selectedCandidato)}>
@@ -624,7 +866,7 @@ export default function EntrevistasPage() {
                       </div>
                       <div>
                         <p className="text-sm font-semibold text-gray-800">Documentos</p>
-                        <p className="text-xs text-gray-500">Ver adjuntos del candidato</p>
+                        <p className="text-xs text-gray-500">Ver adjuntos</p>
                       </div>
                     </div>
                   </CardContent>
@@ -640,23 +882,61 @@ export default function EntrevistasPage() {
                       </div>
                       <div>
                         <p className="text-sm font-semibold text-gray-800">Programar</p>
-                        <p className="text-xs text-gray-500">Fecha y lugar de entrevista</p>
+                        <p className="text-xs text-gray-500">Agendar entrevista</p>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
 
                 {/* Calificar */}
+                {(() => {
+                  const check = canCalificar(selectedCandidato);
+                  return (
+                    <Card
+                      className={`border-0 shadow-sm transition-all duration-200 overflow-hidden ${
+                        check.allowed
+                          ? 'cursor-pointer group hover:shadow-md hover:-translate-y-0.5'
+                          : 'opacity-60 cursor-not-allowed'
+                      }`}
+                      onClick={() => handleCalificar(selectedCandidato)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2.5 rounded-xl shadow-sm transition-transform duration-300 ${
+                            check.allowed
+                              ? 'bg-gradient-to-br from-emerald-500 to-green-600 group-hover:scale-110'
+                              : 'bg-gradient-to-br from-gray-400 to-gray-500'
+                          }`}>
+                            <Star className="h-5 w-5 text-white" />
+                          </div>
+                          <div>
+                            <p className={`text-sm font-semibold ${check.allowed ? 'text-gray-800' : 'text-gray-500'}`}>Calificar</p>
+                            <p className="text-xs text-gray-500">
+                              {check.allowed ? 'Evaluar candidato' : check.reason}
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })()}
+
+                {/* Historial */}
                 <Card className="border-0 shadow-sm cursor-pointer group hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
-                  onClick={() => handleCalificar(selectedCandidato)}>
+                  onClick={() => handleVerHistorial(selectedCandidato)}>
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
-                      <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 shadow-sm group-hover:scale-110 transition-transform duration-300">
-                        <Star className="h-5 w-5 text-white" />
+                      <div className="p-2.5 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 shadow-sm group-hover:scale-110 transition-transform duration-300 relative">
+                        <History className="h-5 w-5 text-white" />
+                        {historial.length > 0 && (
+                          <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-violet-600 text-white text-[9px] font-bold flex items-center justify-center border-2 border-white">
+                            {historial.length}
+                          </span>
+                        )}
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-gray-800">Calificar</p>
-                        <p className="text-xs text-gray-500">Evaluar candidato</p>
+                        <p className="text-sm font-semibold text-gray-800">Historial</p>
+                        <p className="text-xs text-gray-500">Timeline de citas</p>
                       </div>
                     </div>
                   </CardContent>
@@ -890,6 +1170,248 @@ export default function EntrevistasPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ================================================================ */}
+      {/* MODAL: Aplazar Entrevista                                        */}
+      {/* ================================================================ */}
+      <Dialog open={showAplazarModal} onOpenChange={setShowAplazarModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 shadow-sm">
+                <CalendarClock className="h-4 w-4 text-white" />
+              </div>
+              <div>
+                <span className="text-lg">Aplazar / Posponer Entrevista</span>
+                {selectedCandidato && (
+                  <p className="text-xs font-normal text-gray-500 mt-0.5">{fullName(selectedCandidato)}</p>
+                )}
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+
+          {cancelacionesCount >= 2 && (
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
+              <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-700">
+                <span className="font-semibold">Atención:</span> Este candidato ya tiene {cancelacionesCount} aplazamiento{cancelacionesCount > 1 ? 's' : ''}/cancelacion{cancelacionesCount > 1 ? 'es' : ''} registrada{cancelacionesCount > 1 ? 's' : ''}.
+              </p>
+            </div>
+          )}
+
+          {selectedCandidato?.fecha_entrevista && (
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-gray-50 border border-gray-200">
+              <Calendar className="h-4 w-4 text-gray-500" />
+              <p className="text-xs text-gray-600">
+                Cita actual: <span className="font-semibold">{fmtDate(selectedCandidato.fecha_entrevista)}</span>
+                {selectedCandidato.hora_entrevista && <> a las <span className="font-semibold">{selectedCandidato.hora_entrevista}</span></>}
+              </p>
+            </div>
+          )}
+
+          <div className="space-y-4">
+            <div>
+              <Label className="text-sm font-semibold">Motivo del aplazamiento <span className="text-red-500">*</span></Label>
+              <Textarea
+                placeholder="Indique por qué se aplaza la entrevista..."
+                value={motivoAccion}
+                onChange={e => setMotivoAccion(e.target.value)}
+                className="mt-1"
+                rows={3}
+              />
+            </div>
+
+            <Separator />
+            <p className="text-sm font-semibold text-gray-700">Nueva fecha de entrevista</p>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-sm font-semibold">Fecha <span className="text-red-500">*</span></Label>
+                <Input type="date" value={nuevaFechaEntrevista} onChange={e => setNuevaFechaEntrevista(e.target.value)} className="mt-1" min={new Date().toISOString().split('T')[0]} />
+              </div>
+              <div>
+                <Label className="text-sm font-semibold">Hora</Label>
+                <Input type="time" value={nuevaHoraEntrevista} onChange={e => setNuevaHoraEntrevista(e.target.value)} className="mt-1" />
+              </div>
+            </div>
+            <div>
+              <Label className="text-sm font-semibold">Lugar</Label>
+              <div className="relative mt-1">
+                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input placeholder="Dejar vacío para mantener el actual..." value={nuevoLugarEntrevista} onChange={e => setNuevoLugarEntrevista(e.target.value)} className="pl-9" />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="mt-4 gap-2">
+            <Button variant="outline" onClick={() => setShowAplazarModal(false)}>Cancelar</Button>
+            <Button onClick={handleSubmitAplazar} disabled={aplazarMutation.isPending} className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-md shadow-amber-500/20">
+              {aplazarMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              <CalendarClock className="h-4 w-4 mr-1.5" />
+              Aplazar cita
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ================================================================ */}
+      {/* MODAL: Cancelar Entrevista                                       */}
+      {/* ================================================================ */}
+      <Dialog open={showCancelarModal} onOpenChange={setShowCancelarModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-red-500 to-rose-600 shadow-sm">
+                <CalendarX className="h-4 w-4 text-white" />
+              </div>
+              <div>
+                <span className="text-lg">Cancelar Entrevista</span>
+                {selectedCandidato && (
+                  <p className="text-xs font-normal text-gray-500 mt-0.5">{fullName(selectedCandidato)}</p>
+                )}
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+
+          {cancelacionesCount >= 2 && (
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-red-50 border border-red-200">
+              <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-red-700">
+                <span className="font-semibold">Atención:</span> Este candidato ya acumula {cancelacionesCount} aplazamiento{cancelacionesCount > 1 ? 's' : ''}/cancelacion{cancelacionesCount > 1 ? 'es' : ''}. Considere descartar al candidato si el patrón persiste.
+              </p>
+            </div>
+          )}
+
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-red-50 border border-red-200">
+            <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-red-700">
+              Se cancelará la entrevista y el candidato regresará al estado <span className="font-semibold">En Proceso</span>. Deberá reprogramar la cita si desea entrevistarlo nuevamente.
+            </p>
+          </div>
+
+          <div>
+            <Label className="text-sm font-semibold">Motivo de cancelación <span className="text-red-500">*</span></Label>
+            <Textarea
+              placeholder="Indique por qué se cancela la entrevista..."
+              value={motivoAccion}
+              onChange={e => setMotivoAccion(e.target.value)}
+              className="mt-1"
+              rows={3}
+            />
+          </div>
+
+          <DialogFooter className="mt-4 gap-2">
+            <Button variant="outline" onClick={() => setShowCancelarModal(false)}>Volver</Button>
+            <Button onClick={handleSubmitCancelar} disabled={cancelarMutation.isPending} variant="destructive" className="shadow-md shadow-red-500/20">
+              {cancelarMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              <CalendarX className="h-4 w-4 mr-1.5" />
+              Confirmar cancelación
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ================================================================ */}
+      {/* MODAL: Historial / Timeline de Entrevistas                       */}
+      {/* ================================================================ */}
+      <Dialog open={showHistorialModal} onOpenChange={setShowHistorialModal}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 shadow-sm">
+                <History className="h-4 w-4 text-white" />
+              </div>
+              <div>
+                <span className="text-lg">Historial de Entrevistas</span>
+                {selectedCandidato && (
+                  <p className="text-xs font-normal text-gray-500 mt-0.5">{fullName(selectedCandidato)}</p>
+                )}
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+
+          {cancelacionesCount >= 2 && (
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
+              <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-700">
+                <span className="font-semibold">{cancelacionesCount} aplazamiento{cancelacionesCount > 1 ? 's' : ''}/cancelacion{cancelacionesCount > 1 ? 'es' : ''}</span> registrada{cancelacionesCount > 1 ? 's' : ''} para este candidato.
+              </p>
+            </div>
+          )}
+
+          <div className="space-y-1">
+            {historialLoading ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <div className="relative">
+                  <div className="h-10 w-10 rounded-full border-4 border-gray-100" />
+                  <div className="absolute inset-0 h-10 w-10 rounded-full border-4 border-transparent border-t-violet-500 animate-spin" />
+                </div>
+                <span className="mt-3 text-sm text-gray-500">Cargando historial...</span>
+              </div>
+            ) : historial.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <div className="p-4 rounded-full bg-gray-50 mb-3">
+                  <History className="h-8 w-8 text-gray-300" />
+                </div>
+                <p className="text-sm font-medium text-gray-500">Sin historial</p>
+                <p className="text-xs text-gray-400 mt-1">Aún no hay acciones registradas para este candidato</p>
+              </div>
+            ) : (
+              <div className="relative pl-6">
+                <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-gray-200" />
+                {historial.map((h, idx) => {
+                  const accionConfig: Record<string, { color: string; bgColor: string; icon: React.ReactNode }> = {
+                    programada: { color: 'text-indigo-600', bgColor: 'bg-indigo-100 border-indigo-300', icon: <CalendarCheck className="h-3 w-3" /> },
+                    reprogramada: { color: 'text-blue-600', bgColor: 'bg-blue-100 border-blue-300', icon: <CalendarClock className="h-3 w-3" /> },
+                    aplazada: { color: 'text-amber-600', bgColor: 'bg-amber-100 border-amber-300', icon: <CalendarClock className="h-3 w-3" /> },
+                    cancelada: { color: 'text-red-600', bgColor: 'bg-red-100 border-red-300', icon: <CalendarX className="h-3 w-3" /> },
+                    realizada: { color: 'text-emerald-600', bgColor: 'bg-emerald-100 border-emerald-300', icon: <CheckCircle className="h-3 w-3" /> },
+                  };
+                  const conf = accionConfig[h.accion] || { color: 'text-gray-600', bgColor: 'bg-gray-100 border-gray-300', icon: <Clock className="h-3 w-3" /> };
+
+                  return (
+                    <div key={h.id || idx} className="relative mb-4 last:mb-0">
+                      <div className={`absolute -left-6 top-1 w-5 h-5 rounded-full border-2 ${conf.bgColor} flex items-center justify-center ${conf.color}`}>
+                        {conf.icon}
+                      </div>
+                      <div className="bg-white border border-gray-100 rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center justify-between mb-1">
+                          <Badge className={`text-[10px] font-semibold border ${conf.bgColor} ${conf.color}`}>
+                            {entrevistasHistorialService.getAccionLabel(h.accion)}
+                          </Badge>
+                          <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {h.created_at ? new Date(h.created_at).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' }) : '-'}
+                          </span>
+                        </div>
+                        {h.fecha_entrevista && (
+                          <p className="text-xs text-gray-600 mt-1">
+                            <span className="font-medium">Fecha:</span> {fmtDate(h.fecha_entrevista)}
+                            {h.hora_entrevista && <> a las <span className="font-medium">{h.hora_entrevista}</span></>}
+                          </p>
+                        )}
+                        {h.lugar_entrevista && (
+                          <p className="text-xs text-gray-600">
+                            <span className="font-medium">Lugar:</span> {h.lugar_entrevista}
+                          </p>
+                        )}
+                        {h.motivo && (
+                          <p className="text-xs text-gray-600 mt-1">
+                            <span className="font-medium">Motivo:</span> {h.motivo}
+                          </p>
+                        )}
+                        {h.observaciones && (
+                          <p className="text-xs text-gray-500 mt-1 italic">{h.observaciones}</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

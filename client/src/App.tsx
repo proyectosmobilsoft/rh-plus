@@ -115,6 +115,7 @@ import CentrosCostoPage from './pages/maestro/CentrosCostoPage';
 import ActividadesEconomicasPage from './pages/maestro/ActividadesEconomicasPage';
 import ProyectosPage from './pages/maestro/ProyectosPage';
 import AreasNegociosPage from './pages/maestro/AreasNegociosPage';
+import JornadasLaboralesPage from './pages/maestro/JornadasLaboralesPage';
 
 // Página pública para visualizar QR
 import QRViewer from './pages/QRViewer';
@@ -482,6 +483,11 @@ function App() {
             <Route path="/maestro/areas-negocios" element={
               <ProtectedRoute>
                 <AreasNegociosPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/maestro/jornadas-laborales" element={
+              <ProtectedRoute>
+                <JornadasLaboralesPage />
               </ProtectedRoute>
             } />
 

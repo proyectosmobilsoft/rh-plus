@@ -35,6 +35,7 @@ import {
   Lock,
   FolderKanban,
   HelpCircle,
+  Clock,
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { vistasService, VistaSistema } from '@/services/vistasService';
@@ -70,6 +71,7 @@ const menuItems = [
       { title: "Áreas de Negocios", path: "/maestro/areas-negocios", icon: <Briefcase className="h-4 w-4" /> },
       { title: "Correos Masivos", path: "/maestro/correos-masivos", icon: <Mail className="h-4 w-4" /> },
       { title: "Motivos", path: "/maestro/motivos", icon: <Mail className="h-4 w-4" /> },
+      { title: "Jornadas Laborales", path: "/maestro/jornadas-laborales", icon: <Clock className="h-4 w-4" /> },
     ],
   },
   {
@@ -235,6 +237,7 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
     '/maestro/areas-negocios': ['vista-areas-negocios'],
     '/maestro/correos-masivos': ['vista-correos-masivos'],
     '/maestro/motivos': ['vista-motivos'],
+    '/maestro/jornadas-laborales': ['vista-jornadas-laborales'],
 
     // Registros
     '/registros/candidatos': ['vista-candidatos'],
