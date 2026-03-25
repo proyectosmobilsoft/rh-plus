@@ -51,6 +51,7 @@ import {
 import { toast } from 'sonner';
 import { candidatosService, type Candidato } from '@/services/candidatosService';
 import { candidatosDocumentosService, type CandidatoDocumentoConDetalles } from '@/services/candidatosDocumentosService';
+import { usePermissions } from '@/contexts/PermissionsContext';
 
 // ============================================================
 // CONSTANTES
@@ -128,6 +129,7 @@ const getEstadoBadge = (estado?: string) => {
 
 export default function EntrevistasPage() {
   const queryClient = useQueryClient();
+  const { hasAction } = usePermissions();
 
   // ── Paginación + búsqueda ──
   const [page, setPage] = useState(1);
@@ -449,7 +451,7 @@ export default function EntrevistasPage() {
       <div className="grid grid-cols-12 gap-6">
         {/* ─── Lista de Candidatos ─── */}
         <div className="col-span-12 lg:col-span-5">
-          <Card className="border-0 shadow-sm h-full">
+          <Card className="border-0 shadow-sm h-full" style={!hasAction('vista-entrevista-listado-candidatos') ? { display: 'none' } : {}}>
             <CardHeader className="pb-3">
               <CardTitle className="text-lg font-semibold text-gray-800 flex items-center gap-2">
                 <Users className="h-5 w-5 text-indigo-600" />
@@ -615,52 +617,58 @@ export default function EntrevistasPage() {
               {/* Acciones */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {/* Documentos */}
-                <Card className="border-0 shadow-sm cursor-pointer group hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
-                  onClick={() => handleViewDocumentos(selectedCandidato)}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2.5 rounded-xl bg-gradient-to-br from-sky-500 to-cyan-600 shadow-sm group-hover:scale-110 transition-transform duration-300">
-                        <Paperclip className="h-5 w-5 text-white" />
+                {hasAction('vista-entrevista-ver-adjuntos') && (
+                  <Card className="border-0 shadow-sm cursor-pointer group hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
+                    onClick={() => handleViewDocumentos(selectedCandidato)}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2.5 rounded-xl bg-gradient-to-br from-sky-500 to-cyan-600 shadow-sm group-hover:scale-110 transition-transform duration-300">
+                          <Paperclip className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-gray-800">Documentos</p>
+                          <p className="text-xs text-gray-500">Ver adjuntos del candidato</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-semibold text-gray-800">Documentos</p>
-                        <p className="text-xs text-gray-500">Ver adjuntos del candidato</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                )}
 
                 {/* Programar Entrevista */}
-                <Card className="border-0 shadow-sm cursor-pointer group hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
-                  onClick={() => handleSchedule(selectedCandidato)}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2.5 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-sm group-hover:scale-110 transition-transform duration-300">
-                        <Calendar className="h-5 w-5 text-white" />
+                {hasAction('vista-entrevista-programar') && (
+                  <Card className="border-0 shadow-sm cursor-pointer group hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
+                    onClick={() => handleSchedule(selectedCandidato)}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2.5 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-sm group-hover:scale-110 transition-transform duration-300">
+                          <Calendar className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-gray-800">Programar</p>
+                          <p className="text-xs text-gray-500">Fecha y lugar de entrevista</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-semibold text-gray-800">Programar</p>
-                        <p className="text-xs text-gray-500">Fecha y lugar de entrevista</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                )}
 
                 {/* Calificar */}
-                <Card className="border-0 shadow-sm cursor-pointer group hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
-                  onClick={() => handleCalificar(selectedCandidato)}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 shadow-sm group-hover:scale-110 transition-transform duration-300">
-                        <Star className="h-5 w-5 text-white" />
+                {hasAction('vista-entrevista-calificar') && (
+                  <Card className="border-0 shadow-sm cursor-pointer group hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
+                    onClick={() => handleCalificar(selectedCandidato)}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 shadow-sm group-hover:scale-110 transition-transform duration-300">
+                          <Star className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-gray-800">Calificar</p>
+                          <p className="text-xs text-gray-500">Evaluar candidato</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-semibold text-gray-800">Calificar</p>
-                        <p className="text-xs text-gray-500">Evaluar candidato</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             </div>
           ) : (

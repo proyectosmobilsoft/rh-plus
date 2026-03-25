@@ -58,24 +58,24 @@ import {
 } from '@/services/novedadesService';
 import { supabase } from '@/services/supabaseClient';
 import { emailService } from '@/services/emailService';
-import { Can } from '@/contexts/PermissionsContext';
+import { Can, usePermissions } from '@/contexts/PermissionsContext';
 
 // ============================================================
 // TIPOS DE FORMULARIO POR MOTIVO
 // ============================================================
 
-const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type: string; required?: boolean; options?: string[]; helperText?: string; defaultToday?: boolean; rowSpan?: boolean }[]> = {
+const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type: string; required?: boolean; options?: string[]; helperText?: string; defaultToday?: boolean; rowSpan?: boolean; colStart?: 1 | 2; rowStart?: number; multiple?: boolean }[]> = {
     incapacidades: [
         { label: 'Fecha de inicio', name: 'fecha_inicio', type: 'date', required: true },
         { label: 'Fecha final', name: 'fecha_fin', type: 'date', required: true },
         { label: 'Motivo de incapacidad', name: 'motivo_incapacidad', type: 'textarea', required: true },
     ],
     retiros: [
-        { label: 'Fecha de retiro', name: 'fecha_retiro', type: 'date', required: true },
-        { label: 'Fecha de solicitud', name: 'fecha_solicitud', type: 'date', required: true },
-        { label: 'Motivo del retiro', name: 'motivo_retiro', type: 'textarea', required: true },
-        { label: '¿Requiere reemplazo?', name: 'requiere_reemplazo', type: 'checkbox' },
-        { label: 'Documento de soporte', name: 'documento_soporte', type: 'file' },
+        { label: 'Fecha de solicitud', name: 'fecha_solicitud', type: 'date', required: true, defaultToday: true, colStart: 1 },
+        { label: 'Último día de trabajo', name: 'fecha_retiro', type: 'date', required: true, colStart: 1 },
+        { label: 'Motivo del retiro', name: 'motivo_retiro', type: 'textarea', required: true, rowSpan: true, colStart: 2, rowStart: 1 },
+        { label: '¿Requiere reemplazo?', name: 'requiere_reemplazo', type: 'checkbox', colStart: 1 },
+        { label: 'Documentos de soporte', name: 'documento_soporte', type: 'file', colStart: 2, multiple: true },
     ],
     aumento_plaza: [
         { label: 'Cargo', name: 'cargo', type: 'text', required: true },
@@ -165,7 +165,9 @@ const NovedadesPage: React.FC = () => {
     // Estado de filtros
     const [filtros, setFiltros] = useState<NovedadFiltros>({});
     const [busquedaEmpleado, setBusquedaEmpleado] = useState('');
-    const [activeTab, setActiveTab] = useState('solicitudes');
+    const { hasAction } = usePermissions();
+    const defaultTab = hasAction('accion-tab-novedades') ? 'solicitudes' : hasAction('accion-tab-empleados') ? 'empleados' : 'solicitudes';
+    const [activeTab, setActiveTab] = useState(defaultTab);
     const [prevTab, setPrevTab] = useState('solicitudes');
 
     // Formulario de nueva solicitud
@@ -584,20 +586,24 @@ const NovedadesPage: React.FC = () => {
             )}
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                {activeTab !== 'nueva_novedad' && (
-                    <TabsList className="grid w-full grid-cols-2 bg-cyan-100/60 p-1 rounded-lg">
-                        <TabsTrigger
-                            value="solicitudes"
-                            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
-                        >
-                            Listado de Solicitudes
-                        </TabsTrigger>
-                        <TabsTrigger
-                            value="empleados"
-                            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
-                        >
-                            Empleados
-                        </TabsTrigger>
+                {activeTab !== 'nueva_novedad' && (hasAction('accion-tab-novedades') || hasAction('accion-tab-empleados')) && (
+                    <TabsList className={`grid w-full bg-cyan-100/60 p-1 rounded-lg ${hasAction('accion-tab-novedades') && hasAction('accion-tab-empleados') ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                        {hasAction('accion-tab-novedades') && (
+                            <TabsTrigger
+                                value="solicitudes"
+                                className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+                            >
+                                Listado de Solicitudes
+                            </TabsTrigger>
+                        )}
+                        {hasAction('accion-tab-empleados') && (
+                            <TabsTrigger
+                                value="empleados"
+                                className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
+                            >
+                                Empleados
+                            </TabsTrigger>
+                        )}
                     </TabsList>
                 )}
 
@@ -785,36 +791,40 @@ const NovedadesPage: React.FC = () => {
                                                 <TableRow className="hover:bg-gray-50 cursor-pointer" onClick={() => toggleRow(sol.id!)}>
                                                     <TableCell className="px-2 py-1">
                                                         <div className="flex flex-row gap-1 items-center">
-                                                            <TooltipProvider>
-                                                                <UITooltip>
-                                                                    <TooltipTrigger asChild>
-                                                                        <Button
-                                                                            variant="ghost"
-                                                                            size="icon"
-                                                                            onClick={(e) => { e.stopPropagation(); handleViewDetail(sol); }}
-                                                                            className="h-8 w-8"
-                                                                        >
-                                                                            <Eye className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
-                                                                        </Button>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent><p>Ver detalle</p></TooltipContent>
-                                                                </UITooltip>
-                                                            </TooltipProvider>
-                                                            <TooltipProvider>
-                                                                <UITooltip>
-                                                                    <TooltipTrigger asChild>
-                                                                        <Button
-                                                                            variant="ghost"
-                                                                            size="icon"
-                                                                            onClick={(e) => { e.stopPropagation(); handleViewTimeline(sol.id!); }}
-                                                                            className="h-8 w-8"
-                                                                        >
-                                                                            <Clock className="h-4 w-4 text-indigo-600 hover:text-indigo-800 transition-colors" />
-                                                                        </Button>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent><p>Ver timeline</p></TooltipContent>
-                                                                </UITooltip>
-                                                            </TooltipProvider>
+                                                            {hasAction('accion-ver-detalle-novedad') && (
+                                                                <TooltipProvider>
+                                                                    <UITooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="icon"
+                                                                                onClick={(e) => { e.stopPropagation(); handleViewDetail(sol); }}
+                                                                                className="h-8 w-8"
+                                                                            >
+                                                                                <Eye className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
+                                                                            </Button>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent><p>Ver detalle</p></TooltipContent>
+                                                                    </UITooltip>
+                                                                </TooltipProvider>
+                                                            )}
+                                                            {hasAction('accion-ver-timeline-novedad') && (
+                                                                <TooltipProvider>
+                                                                    <UITooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="icon"
+                                                                                onClick={(e) => { e.stopPropagation(); handleViewTimeline(sol.id!); }}
+                                                                                className="h-8 w-8"
+                                                                            >
+                                                                                <Clock className="h-4 w-4 text-indigo-600 hover:text-indigo-800 transition-colors" />
+                                                                            </Button>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent><p>Ver timeline</p></TooltipContent>
+                                                                    </UITooltip>
+                                                                </TooltipProvider>
+                                                            )}
                                                             {sol.estado === 'solicitada' && (
                                                                 <Can action="accion-cancelar-novedad">
                                                                     <TooltipProvider>
@@ -1060,11 +1070,15 @@ const NovedadesPage: React.FC = () => {
                                             </span>
                                         </div>
                                         <div className="p-4">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 items-start">
                                                 {(FORM_FIELDS_BY_MOTIVO[selectedMotivo.codigo] || []).map(field => (
-                                                    <div key={field.name} className={[
-                                                        field.rowSpan ? 'md:row-span-2 flex flex-col' : '',
-                                                        !field.rowSpan && field.type === 'textarea' ? 'md:col-span-2' : '',
+                                                    <div key={field.name} style={{
+                                                        ...(field.colStart ? { gridColumnStart: field.colStart } : {}),
+                                                        ...(field.rowStart ? { gridRowStart: field.rowStart } : {}),
+                                                        ...(field.rowSpan ? { gridRowEnd: `span 2` } : {}),
+                                                    }} className={[
+                                                        field.rowSpan ? 'flex flex-col' : '',
+                                                        !field.rowSpan && field.type === 'textarea' && !field.colStart ? 'md:col-span-2' : '',
                                                     ].join(' ').trim()}>
                                                         <Label className="text-xs font-medium text-gray-600">
                                                             {field.label} {field.required && <span className="text-red-500">*</span>}
@@ -1090,8 +1104,9 @@ const NovedadesPage: React.FC = () => {
                                                             <Input
                                                                 type="date"
                                                                 value={formData[field.name] || ''}
-                                                                onChange={e => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
-                                                                className="mt-1"
+                                                                onChange={e => !field.defaultToday && setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
+                                                                className={`mt-1 ${field.defaultToday ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''}`}
+                                                                readOnly={field.defaultToday}
                                                             />
                                                         )}
                                                         {field.type === 'textarea' && (
@@ -1128,10 +1143,48 @@ const NovedadesPage: React.FC = () => {
                                                             </div>
                                                         )}
                                                         {field.type === 'file' && (
-                                                            <Input type="file" className="mt-1" onChange={e => {
-                                                                const file = e.target.files?.[0];
-                                                                if (file) setFormData(prev => ({ ...prev, [field.name]: file.name }));
-                                                            }} />
+                                                            <div className="mt-1 flex flex-col gap-2">
+                                                                <label className="flex items-center justify-center gap-2 cursor-pointer border-2 border-dashed border-gray-200 hover:border-cyan-400 rounded-lg px-3 py-2.5 transition-colors bg-gray-50 hover:bg-cyan-50">
+                                                                    <FileText className="h-4 w-4 text-gray-400" />
+                                                                    <span className="text-xs text-gray-500">Seleccionar {field.multiple ? 'archivos' : 'archivo'}</span>
+                                                                    <Input
+                                                                        type="file"
+                                                                        multiple={field.multiple}
+                                                                        className="hidden"
+                                                                        onChange={e => {
+                                                                            const files = Array.from(e.target.files || []).map(f => f.name);
+                                                                            if (files.length) setFormData(prev => ({
+                                                                                ...prev,
+                                                                                [field.name]: field.multiple
+                                                                                    ? [...(Array.isArray(prev[field.name]) ? prev[field.name] : []), ...files]
+                                                                                    : files[0],
+                                                                            }));
+                                                                        }}
+                                                                    />
+                                                                </label>
+                                                                {Array.isArray(formData[field.name]) && (formData[field.name] as string[]).length > 0 && (
+                                                                    <div className="border border-gray-100 rounded-lg bg-white divide-y divide-gray-50">
+                                                                        {(formData[field.name] as string[]).map((name, i) => (
+                                                                            <div key={i} className="flex items-center justify-between px-3 py-1.5 gap-2">
+                                                                                <div className="flex items-center gap-2 min-w-0">
+                                                                                    <FileText className="h-3.5 w-3.5 text-cyan-500 flex-shrink-0" />
+                                                                                    <span className="text-xs text-gray-600 truncate">{name}</span>
+                                                                                </div>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => setFormData(prev => ({
+                                                                                        ...prev,
+                                                                                        [field.name]: (prev[field.name] as string[]).filter((_, j) => j !== i),
+                                                                                    }))}
+                                                                                    className="text-gray-300 hover:text-red-400 transition-colors flex-shrink-0 text-base leading-none"
+                                                                                >
+                                                                                    ×
+                                                                                </button>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                         )}
                                                         {field.helperText && (
                                                             <p className="text-xs text-gray-400 mt-1">{field.helperText}</p>
