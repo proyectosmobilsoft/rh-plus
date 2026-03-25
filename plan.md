@@ -6,7 +6,7 @@ Req 4	Modulo Novedades Selección	Tablero vista Novedades con sus campo y funcio
 		Cargue masivo de solicitudes
 		Asignacion automatica de novedades
 
-
+test
 
 Aquí tienes una referencia de lo que quiero lograr:
 
