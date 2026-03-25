@@ -174,13 +174,19 @@ export default function JornadasLaboralesPage() {
             </div>
 
             <div className="overflow-x-auto">
-              <Table className="min-w-[500px] w-full text-xs">
+              <Table className="w-full text-xs table-fixed">
+                <colgroup>
+                  <col className="w-28" />
+                  <col />
+                  <col className="w-40" />
+                  <col className="w-32" />
+                </colgroup>
                 <TableHeader className="bg-cyan-50">
                   <TableRow>
-                    <TableHead className="px-2 py-1 text-teal-600 text-center">Acciones</TableHead>
-                    <TableHead className="px-4 py-3 text-center">Nombre de Jornada</TableHead>
-                    <TableHead className="px-4 py-3 text-center">Horas Laborales</TableHead>
-                    <TableHead className="px-4 py-3 text-center">Estado</TableHead>
+                    <TableHead className="px-3 py-2 text-teal-600">Acciones</TableHead>
+                    <TableHead className="px-4 py-2 text-left">Nombre de Jornada</TableHead>
+                    <TableHead className="px-4 py-2 text-left">Horas Laborales</TableHead>
+                    <TableHead className="px-4 py-2 text-left">Estado</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -190,8 +196,8 @@ export default function JornadasLaboralesPage() {
                     <TableRow><TableCell colSpan={4} className="h-24 text-center text-gray-400">No hay jornadas disponibles.</TableCell></TableRow>
                   ) : filtered.map(j => (
                     <TableRow key={j.id} className="hover:bg-gray-50">
-                      <TableCell className="px-2 py-1 text-center">
-                        <div className="flex gap-1 justify-center">
+                      <TableCell className="px-2 py-1">
+                        <div className="flex gap-1">
                           <Can action="accion-editar-jornada-laboral">
                             <TooltipProvider>
                               <Tooltip>
@@ -205,30 +211,56 @@ export default function JornadasLaboralesPage() {
                             </TooltipProvider>
                           </Can>
                           {j.activo ? (
-                            <Can action="accion-inactivar-jornada-laboral">
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <AlertDialog>
-                                      <AlertDialogTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8"><Lock className="h-4 w-4 text-yellow-600" /></Button>
-                                      </AlertDialogTrigger>
-                                      <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                          <AlertDialogTitle>¿Inactivar jornada?</AlertDialogTitle>
-                                          <AlertDialogDescription>La jornada no aparecerá en los selects hasta reactivarla.</AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                          <AlertDialogAction onClick={() => handleToggle(j)}>Sí, inactivar</AlertDialogAction>
-                                        </AlertDialogFooter>
-                                      </AlertDialogContent>
-                                    </AlertDialog>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Inactivar</TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            </Can>
+                            <>
+                              <Can action="accion-inactivar-jornada-laboral">
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <Button variant="ghost" size="icon" className="h-8 w-8"><Lock className="h-4 w-4 text-yellow-600" /></Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>¿Inactivar jornada?</AlertDialogTitle>
+                                            <AlertDialogDescription>La jornada no aparecerá en los selects hasta reactivarla.</AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleToggle(j)}>Sí, inactivar</AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Inactivar</TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </Can>
+                              <Can action="accion-eliminar-jornada-laboral">
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <Button variant="ghost" size="icon" className="h-8 w-8"><Trash2 className="h-4 w-4 text-rose-600" /></Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>¿Eliminar jornada?</AlertDialogTitle>
+                                            <AlertDialogDescription>Esta acción es permanente.</AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleDelete(j.id)}>Sí, eliminar</AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Eliminar</TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </Can>
+                            </>
                           ) : (
                             <>
                               <Can action="accion-activar-jornada-laboral">
@@ -282,9 +314,9 @@ export default function JornadasLaboralesPage() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="px-4 py-3 font-medium text-gray-900 text-center">{j.nombre_jornada}</TableCell>
-                      <TableCell className="px-4 py-3 text-gray-600 text-center">{j.horas_laborales}h</TableCell>
-                      <TableCell className="px-4 py-3 text-center">
+                      <TableCell className="px-4 py-3 font-medium text-gray-900 text-left">{j.nombre_jornada}</TableCell>
+                      <TableCell className="px-4 py-3 text-gray-600 text-left">{j.horas_laborales}h</TableCell>
+                      <TableCell className="px-4 py-3 text-left">
                         <Badge className={j.activo ? 'bg-green-100 text-green-800 border-green-200' : 'bg-gray-200 text-gray-600 border-gray-300'}>
                           {j.activo ? 'Activo' : 'Inactivo'}
                         </Badge>
