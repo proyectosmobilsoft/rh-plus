@@ -346,7 +346,7 @@ const ComiteAprobacionPage: React.FC = () => {
                                                                         onClick={() => { setSelectedSolicitud(sol); setShowActionModal('aprobar'); }}
                                                                         className="h-7 rounded-md border-green-200 text-green-600 hover:bg-green-500 hover:text-white text-[10px] font-bold px-2.5 shadow-sm transition-all"
                                                                     >
-                                                                        Aceptar
+                                                                        Aprobar
                                                                     </Button>
                                                                     <Button
                                                                         variant="outline"
