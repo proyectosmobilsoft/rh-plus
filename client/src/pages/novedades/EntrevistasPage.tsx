@@ -155,11 +155,13 @@ export default function EntrevistasPage() {
   const [fechaEntrevista, setFechaEntrevista] = useState('');
   const [horaEntrevista, setHoraEntrevista] = useState('');
   const [lugarEntrevista, setLugarEntrevista] = useState('');
+  const [cargoEntrevista, setCargoEntrevista] = useState('');
   const [obsEntrevista, setObsEntrevista] = useState('');
 
   // ── Datos de calificación ──
   const [calificacion, setCalificacion] = useState('');
   const [obsCalificacion, setObsCalificacion] = useState('');
+  const [motivoDescarte, setMotivoDescarte] = useState('');
 
   // ── Modales de aplazar/cancelar ──
   const [showAplazarModal, setShowAplazarModal] = useState(false);
@@ -280,6 +282,7 @@ export default function EntrevistasPage() {
       setShowCalificarModal(false);
       setCalificacion('');
       setObsCalificacion('');
+      setMotivoDescarte('');
       setSelectedCandidato(null);
     },
     onError: () => toast.error('Error al calificar el candidato'),
@@ -296,6 +299,7 @@ export default function EntrevistasPage() {
           fecha_entrevista: fechaEntrevista || null,
           hora_entrevista: horaEntrevista || null,
           lugar_entrevista: lugarEntrevista || null,
+          cargo: cargoEntrevista || null,
           observacion_entrevista: obsEntrevista || null,
         })
         .eq('id', id);
@@ -401,6 +405,7 @@ export default function EntrevistasPage() {
     setFechaEntrevista('');
     setHoraEntrevista('');
     setLugarEntrevista('');
+    setCargoEntrevista('');
     setObsEntrevista('');
   };
 
@@ -500,6 +505,7 @@ export default function EntrevistasPage() {
     setSelectedCandidato(c);
     setCalificacion('');
     setObsCalificacion('');
+    setMotivoDescarte('');
     setShowCalificarModal(true);
   };
 
@@ -517,10 +523,17 @@ export default function EntrevistasPage() {
       toast.error('Seleccione una calificación');
       return;
     }
+    if (calificacion === 'descartado' && !motivoDescarte.trim()) {
+      toast.error('Ingrese el motivo del descarte');
+      return;
+    }
+    const obs = calificacion === 'descartado'
+      ? `Motivo de descarte: ${motivoDescarte}${obsCalificacion ? ` | ${obsCalificacion}` : ''}`
+      : obsCalificacion || undefined;
     calificarMutation.mutate({
       id: selectedCandidato.id,
       estado: calificacion,
-      obs: obsCalificacion || undefined,
+      obs,
     });
   };
 
@@ -534,17 +547,17 @@ export default function EntrevistasPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="relative">
-            <div className="p-3 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/25">
+            <div className="p-3 rounded-2xl bg-teal-500 shadow-lg shadow-teal-500/25">
               <CalendarCheck className="h-7 w-7 text-white" />
             </div>
             <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white animate-pulse" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
+            <h1 className="text-2xl font-bold text-cyan-800">
               Programación de Entrevistas
             </h1>
             <p className="text-sm text-gray-500 flex items-center gap-1.5 mt-0.5">
-              <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
+              <Sparkles className="h-3.5 w-3.5 text-teal-500" />
               Gestión y calificación de candidatos
             </p>
           </div>
@@ -554,9 +567,9 @@ export default function EntrevistasPage() {
       {/* ───── Stats Cards ───── */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {([
-          { label: 'Total Candidatos', value: stats.total, icon: TrendingUp, gradient: 'from-blue-500 to-indigo-600', bg: 'bg-blue-50', shadow: 'shadow-blue-500/15' },
-          { label: 'En Proceso', value: stats.en_proceso, icon: Users, gradient: 'from-purple-500 to-violet-600', bg: 'bg-purple-50', shadow: 'shadow-purple-500/15' },
-          { label: 'Entrevistados', value: stats.entrevista, icon: CalendarCheck, gradient: 'from-indigo-500 to-blue-600', bg: 'bg-indigo-50', shadow: 'shadow-indigo-500/15' },
+          { label: 'Total Candidatos', value: stats.total, icon: TrendingUp, gradient: 'from-cyan-500 to-teal-600', bg: 'bg-cyan-50', shadow: 'shadow-cyan-500/15' },
+          { label: 'En Proceso', value: stats.en_proceso, icon: Users, gradient: 'from-teal-500 to-cyan-600', bg: 'bg-teal-50', shadow: 'shadow-teal-500/15' },
+          { label: 'Entrevistados', value: stats.entrevista, icon: CalendarCheck, gradient: 'from-cyan-600 to-teal-700', bg: 'bg-cyan-50', shadow: 'shadow-cyan-600/15' },
           { label: 'Seleccionados', value: stats.seleccionado, icon: UserCheck, gradient: 'from-emerald-500 to-green-600', bg: 'bg-emerald-50', shadow: 'shadow-emerald-500/15' },
           { label: 'Descartados', value: stats.descartado, icon: UserX, gradient: 'from-rose-500 to-red-600', bg: 'bg-rose-50', shadow: 'shadow-rose-500/15' },
         ] as const).map(stat => (
@@ -577,7 +590,7 @@ export default function EntrevistasPage() {
       </div>
 
       {/* ───── Filtros ───── */}
-      <Card className="border-0 shadow-sm bg-white/80 backdrop-blur-sm">
+      <Card className="border border-gray-200 shadow-sm bg-white">
         <CardContent className="p-4">
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2 text-sm font-semibold text-gray-600 bg-gray-100 px-3 py-1.5 rounded-full">
@@ -592,7 +605,7 @@ export default function EntrevistasPage() {
                 value={searchInput}
                 onChange={e => setSearchInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                className="pl-9 border-gray-200 hover:border-indigo-300 focus:border-indigo-400 focus:ring-indigo-400/20 transition-all"
+                className="pl-9 border-gray-200 hover:border-cyan-300 focus:border-cyan-400 focus:ring-cyan-400/20 transition-all"
               />
             </div>
 
@@ -602,7 +615,7 @@ export default function EntrevistasPage() {
             </Button>
 
             <Select value={filtroEstado} onValueChange={v => { setFiltroEstado(v); setPage(1); }}>
-              <SelectTrigger className="w-52 border-gray-200 hover:border-indigo-300 transition-colors">
+              <SelectTrigger className="w-52 border-gray-200 hover:border-cyan-300 transition-colors">
                 <SelectValue placeholder="Estado" />
               </SelectTrigger>
               <SelectContent>
@@ -629,8 +642,8 @@ export default function EntrevistasPage() {
         <div className="col-span-12 lg:col-span-5">
           <Card className="border-0 shadow-sm h-full" style={!hasAction('vista-entrevista-listado-candidatos') ? { display: 'none' } : {}}>
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                <Users className="h-5 w-5 text-indigo-600" />
+              <CardTitle className="text-lg font-semibold text-cyan-800 flex items-center gap-2">
+                <Users className="h-5 w-5 text-teal-600" />
                 Candidatos
                 <Badge variant="secondary" className="ml-auto h-6 px-2 text-[11px] font-bold">
                   {totalCandidatos}
@@ -642,7 +655,7 @@ export default function EntrevistasPage() {
                 <div className="flex flex-col items-center justify-center py-20">
                   <div className="relative">
                     <div className="h-12 w-12 rounded-full border-4 border-gray-100" />
-                    <div className="absolute inset-0 h-12 w-12 rounded-full border-4 border-transparent border-t-indigo-500 animate-spin" />
+                    <div className="absolute inset-0 h-12 w-12 rounded-full border-4 border-transparent border-t-teal-500 animate-spin" />
                   </div>
                   <span className="mt-4 text-sm text-gray-500 font-medium">Cargando candidatos...</span>
                 </div>
@@ -662,39 +675,25 @@ export default function EntrevistasPage() {
                         <div
                           key={c.id}
                           onClick={() => handleSelectCandidato(c)}
-                          className={`p-4 cursor-pointer transition-all duration-200 group hover:bg-indigo-50/40 ${selectedCandidato?.id === c.id
-                              ? 'bg-indigo-50/60 border-l-4 border-l-indigo-500'
+                          className={`px-4 py-3 cursor-pointer transition-all duration-150 group hover:bg-cyan-50/40 ${selectedCandidato?.id === c.id
+                              ? 'bg-cyan-50/60 border-l-4 border-l-teal-500'
                               : 'border-l-4 border-l-transparent'
                             }`}
                         >
-                          <div className="flex items-start gap-3">
-                            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-sm font-bold shadow-sm flex-shrink-0">
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-lg bg-teal-500 flex items-center justify-center text-white text-xs font-bold shadow-sm flex-shrink-0">
                               {initials(c)}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between gap-2">
-                                <p className="font-semibold text-sm text-gray-800 truncate">{fullName(c)}</p>
-                                <span className="inline-flex items-center justify-center h-5 px-1.5 rounded-md bg-gray-100 font-mono text-[10px] font-semibold text-gray-400 flex-shrink-0">
-                                  #{c.id}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                                <span className="flex items-center gap-1">
-                                  <Hash className="h-3 w-3" />
-                                  {c.numero_documento}
-                                </span>
-                                {c.cargo_aspirado && (
-                                  <span className="flex items-center gap-1">
-                                    <Briefcase className="h-3 w-3" />
-                                    {c.cargo_aspirado}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-2 mt-1.5">
+                              <div className="flex items-center gap-2">
+                                <p className="font-semibold text-xs text-gray-800 truncate">{fullName(c)}</p>
                                 {getEstadoBadge(c.estado)}
                               </div>
+                              <p className="text-[11px] text-gray-400 mt-0.5 truncate">
+                                {c.numero_documento}{c.cargo_aspirado ? ` · ${c.cargo_aspirado}` : ''}
+                              </p>
                             </div>
-                            <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-indigo-400 transition-colors flex-shrink-0 mt-1" />
+                            <ChevronRight className="h-3.5 w-3.5 text-gray-300 group-hover:text-teal-400 transition-colors flex-shrink-0" />
                           </div>
                         </div>
                       ))}
@@ -738,222 +737,148 @@ export default function EntrevistasPage() {
         {/* ─── Panel de Detalle / Acciones ─── */}
         <div className="col-span-12 lg:col-span-7">
           {selectedCandidato ? (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {/* Info del candidato */}
               <Card className="border-0 shadow-sm overflow-hidden">
-                <div className="h-2 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
-                <CardContent className="p-5">
-                  <div className="flex items-start gap-4">
-                    <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-indigo-500/20">
+                <div className="h-1 bg-teal-500" />
+                <CardContent className="p-4">
+                  {/* Header compacto */}
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg bg-teal-500 flex items-center justify-center text-white text-sm font-bold shadow-sm flex-shrink-0">
                       {initials(selectedCandidato)}
                     </div>
-                    <div className="flex-1">
-                      <h2 className="text-lg font-bold text-gray-800">{fullName(selectedCandidato)}</h2>
-                      <div className="flex items-center gap-3 mt-1 text-sm text-gray-500 flex-wrap">
-                        {selectedCandidato.cargo_aspirado && (
-                          <span className="flex items-center gap-1"><Briefcase className="h-3.5 w-3.5" />{selectedCandidato.cargo_aspirado}</span>
-                        )}
-                        {selectedCandidato.email && (
-                          <span className="flex items-center gap-1"><Mail className="h-3.5 w-3.5" />{selectedCandidato.email}</span>
-                        )}
-                        {selectedCandidato.telefono && (
-                          <span className="flex items-center gap-1"><Phone className="h-3.5 w-3.5" />{selectedCandidato.telefono}</span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 mt-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h2 className="text-sm font-bold text-gray-800">{fullName(selectedCandidato)}</h2>
                         {getEstadoBadge(selectedCandidato.estado)}
                       </div>
-                    </div>
-                  </div>
-
-                  {/* Detalle grid */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 pt-4 border-t border-gray-100">
-                    <div>
-                      <span className="text-xs text-gray-400 font-medium">Documento</span>
-                      <p className="text-sm font-medium text-gray-700 mt-0.5">
-                        {selectedCandidato.tipo_documento} {selectedCandidato.numero_documento}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-gray-400 font-medium">Registrado</span>
-                      <p className="text-sm font-medium text-gray-700 mt-0.5">{fmtDate(selectedCandidato.created_at as any)}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-gray-400 font-medium">Email</span>
-                      <p className="text-sm font-medium text-gray-700 mt-0.5 truncate">{selectedCandidato.email || '-'}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-gray-400 font-medium">Teléfono</span>
-                      <p className="text-sm font-medium text-gray-700 mt-0.5">{selectedCandidato.telefono || '-'}</p>
+                      <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-500 flex-wrap">
+                        <span className="flex items-center gap-1">
+                          <Hash className="h-3 w-3" />{selectedCandidato.tipo_documento} {selectedCandidato.numero_documento}
+                        </span>
+                        {selectedCandidato.email && (
+                          <span className="flex items-center gap-1 truncate max-w-[180px]">
+                            <Mail className="h-3 w-3 flex-shrink-0" />{selectedCandidato.email}
+                          </span>
+                        )}
+                        {selectedCandidato.telefono && (
+                          <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{selectedCandidato.telefono}</span>
+                        )}
+                        {selectedCandidato.cargo_aspirado && (
+                          <span className="flex items-center gap-1"><Briefcase className="h-3 w-3" />{selectedCandidato.cargo_aspirado}</span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
                   {/* Info de entrevista programada */}
                   {selectedCandidato.fecha_entrevista && (
-                    <div className="mt-4 pt-4 border-t border-gray-100">
-                      <div className="flex items-center justify-between mb-3">
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-indigo-500" />
-                          <span className="text-sm font-semibold text-gray-700">Entrevista Programada</span>
+                          <Calendar className="h-3.5 w-3.5 text-teal-500" />
+                          <span className="text-xs font-semibold text-gray-600">Entrevista</span>
                           {(() => {
-                            const today = new Date();
-                            today.setHours(0, 0, 0, 0);
+                            const today = new Date(); today.setHours(0,0,0,0);
                             const entDate = new Date(selectedCandidato.fecha_entrevista + 'T00:00:00');
                             const isPast = entDate <= today;
                             return (
-                              <Badge className={`text-[10px] ${isPast ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-amber-100 text-amber-700 border-amber-200'}`}>
+                              <Badge className={`text-[10px] h-4 px-1.5 ${isPast ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-amber-100 text-amber-700 border-amber-200'}`}>
                                 {isPast ? 'Realizada' : 'Pendiente'}
                               </Badge>
                             );
                           })()}
+                          <span className="text-xs text-gray-600 font-medium">{fmtDate(selectedCandidato.fecha_entrevista)}</span>
+                          {selectedCandidato.hora_entrevista && <span className="text-xs text-gray-500">{selectedCandidato.hora_entrevista}</span>}
+                          {selectedCandidato.lugar_entrevista && (
+                            <span className="flex items-center gap-0.5 text-xs text-gray-500">
+                              <MapPin className="h-3 w-3" />{selectedCandidato.lugar_entrevista}
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="sm" className="h-7 text-xs text-indigo-600 hover:bg-indigo-50"
+                          <Button variant="ghost" size="sm" className="h-6 text-[11px] px-2 text-teal-600 hover:bg-teal-50"
                             onClick={() => handleAplazar(selectedCandidato)}>
-                            <CalendarClock className="h-3.5 w-3.5 mr-1" />
-                            Aplazar
+                            <CalendarClock className="h-3 w-3 mr-1" />Aplazar
                           </Button>
-                          <Button variant="ghost" size="sm" className="h-7 text-xs text-red-600 hover:bg-red-50"
+                          <Button variant="ghost" size="sm" className="h-6 text-[11px] px-2 text-red-600 hover:bg-red-50"
                             onClick={() => handleCancelar(selectedCandidato)}>
-                            <CalendarX className="h-3.5 w-3.5 mr-1" />
-                            Cancelar
+                            <CalendarX className="h-3 w-3 mr-1" />Cancelar
                           </Button>
                         </div>
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        <div>
-                          <span className="text-xs text-gray-400 font-medium">Fecha</span>
-                          <p className="text-sm font-medium text-gray-700 mt-0.5">{fmtDate(selectedCandidato.fecha_entrevista)}</p>
-                        </div>
-                        {selectedCandidato.hora_entrevista && (
-                          <div>
-                            <span className="text-xs text-gray-400 font-medium">Hora</span>
-                            <p className="text-sm font-medium text-gray-700 mt-0.5">{selectedCandidato.hora_entrevista}</p>
-                          </div>
-                        )}
-                        {selectedCandidato.lugar_entrevista && (
-                          <div>
-                            <span className="text-xs text-gray-400 font-medium">Lugar</span>
-                            <p className="text-sm font-medium text-gray-700 mt-0.5">{selectedCandidato.lugar_entrevista}</p>
-                          </div>
-                        )}
                       </div>
                     </div>
                   )}
 
                   {/* Alerta de cancelaciones frecuentes */}
                   {cancelacionesCount >= 2 && (
-                    <div className="mt-3 flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
-                      <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-xs font-semibold text-amber-800">
-                          Este candidato tiene {cancelacionesCount} aplazamiento{cancelacionesCount > 1 ? 's' : ''}/cancelacion{cancelacionesCount > 1 ? 'es' : ''} registrada{cancelacionesCount > 1 ? 's' : ''}
-                        </p>
-                        <p className="text-xs text-amber-600 mt-0.5">Revise el historial para más detalles.</p>
-                      </div>
+                    <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200">
+                      <AlertTriangle className="h-3.5 w-3.5 text-amber-600 flex-shrink-0" />
+                      <p className="text-xs text-amber-800">
+                        {cancelacionesCount} aplazamiento{cancelacionesCount > 1 ? 's' : ''}/cancelación{cancelacionesCount > 1 ? 'es' : ''} registrada{cancelacionesCount > 1 ? 's' : ''} — revise el historial.
+                      </p>
                     </div>
                   )}
                 </CardContent>
               </Card>
 
-              {/* Acciones */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {/* Documentos */}
+              {/* Acciones — fila horizontal compacta */}
+              <div className="flex items-center gap-2 flex-wrap">
                 {hasAction('vista-entrevista-ver-adjuntos') && (
-                  <Card className="border-0 shadow-sm cursor-pointer group hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
-                    onClick={() => handleViewDocumentos(selectedCandidato)}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2.5 rounded-xl bg-gradient-to-br from-sky-500 to-cyan-600 shadow-sm group-hover:scale-110 transition-transform duration-300">
-                          <Paperclip className="h-5 w-5 text-white" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-gray-800">Documentos</p>
-                          <p className="text-xs text-gray-500">Ver adjuntos del candidato</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <button
+                    onClick={() => handleViewDocumentos(selectedCandidato)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-white hover:bg-sky-50 hover:border-sky-300 text-gray-700 hover:text-sky-700 text-xs font-medium transition-all shadow-sm"
+                  >
+                    <Paperclip className="h-3.5 w-3.5 text-sky-500" />
+                    Documentos
+                  </button>
                 )}
-
-                {/* Programar Entrevista */}
                 {hasAction('vista-entrevista-programar') && (
-                  <Card className="border-0 shadow-sm cursor-pointer group hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
-                    onClick={() => handleSchedule(selectedCandidato)}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2.5 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-sm group-hover:scale-110 transition-transform duration-300">
-                          <Calendar className="h-5 w-5 text-white" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-gray-800">Programar</p>
-                          <p className="text-xs text-gray-500">Fecha y lugar de entrevista</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <button
+                    onClick={() => handleSchedule(selectedCandidato)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-white hover:bg-cyan-50 hover:border-cyan-300 text-gray-700 hover:text-cyan-700 text-xs font-medium transition-all shadow-sm"
+                  >
+                    <Calendar className="h-3.5 w-3.5 text-cyan-500" />
+                    Programar entrevista
+                  </button>
                 )}
-
-                {/* Calificar */}
                 {hasAction('vista-entrevista-calificar') && (() => {
                   const check = canCalificar(selectedCandidato);
                   return (
-                    <Card
-                      className={`border-0 shadow-sm transition-all duration-200 overflow-hidden ${
-                        check.allowed
-                          ? 'cursor-pointer group hover:shadow-md hover:-translate-y-0.5'
-                          : 'opacity-60 cursor-not-allowed'
-                      }`}
+                    <button
                       onClick={() => handleCalificar(selectedCandidato)}
+                      disabled={!check.allowed}
+                      title={!check.allowed ? check.reason : undefined}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-all shadow-sm ${
+                        check.allowed
+                          ? 'border-gray-200 bg-white hover:bg-emerald-50 hover:border-emerald-300 text-gray-700 hover:text-emerald-700'
+                          : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
+                      }`}
                     >
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                          <div className={`p-2.5 rounded-xl shadow-sm transition-transform duration-300 ${
-                            check.allowed
-                              ? 'bg-gradient-to-br from-emerald-500 to-green-600 group-hover:scale-110'
-                              : 'bg-gradient-to-br from-gray-400 to-gray-500'
-                          }`}>
-                            <Star className="h-5 w-5 text-white" />
-                          </div>
-                          <div>
-                            <p className={`text-sm font-semibold ${check.allowed ? 'text-gray-800' : 'text-gray-500'}`}>Calificar</p>
-                            <p className="text-xs text-gray-500">
-                              {check.allowed ? 'Evaluar candidato' : check.reason}
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+                      <Star className={`h-3.5 w-3.5 ${check.allowed ? 'text-emerald-500' : 'text-gray-300'}`} />
+                      Calificar
+                    </button>
                   );
                 })()}
-
-                {/* Historial */}
-                <Card className="border-0 shadow-sm cursor-pointer group hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
-                  onClick={() => handleVerHistorial(selectedCandidato)}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2.5 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 shadow-sm group-hover:scale-110 transition-transform duration-300 relative">
-                        <History className="h-5 w-5 text-white" />
-                        {historial.length > 0 && (
-                          <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-violet-600 text-white text-[9px] font-bold flex items-center justify-center border-2 border-white">
-                            {historial.length}
-                          </span>
-                        )}
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-gray-800">Historial</p>
-                        <p className="text-xs text-gray-500">Timeline de citas</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                <button
+                  onClick={() => handleVerHistorial(selectedCandidato)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-white hover:bg-teal-50 hover:border-teal-300 text-gray-700 hover:text-teal-700 text-xs font-medium transition-all shadow-sm relative"
+                >
+                  <History className="h-3.5 w-3.5 text-teal-500" />
+                  Historial
+                  {historial.length > 0 && (
+                    <span className="ml-1 h-4 w-4 rounded-full bg-teal-100 text-teal-700 text-[9px] font-bold flex items-center justify-center">
+                      {historial.length}
+                    </span>
+                  )}
+                </button>
               </div>
             </div>
           ) : (
             <Card className="border-0 shadow-sm h-full">
               <CardContent className="flex flex-col items-center justify-center h-full min-h-[520px]">
-                <div className="p-6 rounded-full bg-gradient-to-br from-indigo-50 to-purple-50 mb-5">
-                  <CalendarCheck className="h-14 w-14 text-indigo-300" />
+                <div className="p-6 rounded-full bg-cyan-50 mb-5">
+                  <CalendarCheck className="h-14 w-14 text-teal-300" />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-600">Seleccione un candidato</h3>
                 <p className="text-sm text-gray-400 mt-2 text-center max-w-xs">
@@ -972,7 +897,7 @@ export default function EntrevistasPage() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 shadow-sm">
+              <div className="p-2 rounded-lg bg-teal-500 shadow-sm">
                 <Calendar className="h-4 w-4 text-white" />
               </div>
               <div>
@@ -1003,6 +928,10 @@ export default function EntrevistasPage() {
               </div>
             </div>
             <div>
+              <Label className="text-sm font-semibold">Cargo</Label>
+              <Input placeholder="Cargo al que aplica el candidato..." value={cargoEntrevista} onChange={e => setCargoEntrevista(e.target.value)} className="mt-1" />
+            </div>
+            <div>
               <Label className="text-sm font-semibold">Observaciones</Label>
               <Textarea placeholder="Notas adicionales..." value={obsEntrevista} onChange={e => setObsEntrevista(e.target.value)} className="mt-1" rows={3} />
             </div>
@@ -1010,7 +939,7 @@ export default function EntrevistasPage() {
 
           <DialogFooter className="mt-4 gap-2">
             <Button variant="outline" onClick={() => setShowScheduleModal(false)}>Cancelar</Button>
-            <Button onClick={handleSubmitSchedule} disabled={programarMutation.isPending} className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white shadow-md shadow-indigo-500/20">
+            <Button onClick={handleSubmitSchedule} disabled={programarMutation.isPending} className="bg-teal-500 hover:bg-teal-600 text-white shadow-md shadow-teal-500/20">
               {programarMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               <CalendarCheck className="h-4 w-4 mr-1.5" />
               Programar
@@ -1070,7 +999,15 @@ export default function EntrevistasPage() {
             <div>
               <Label className="text-sm font-semibold">Observaciones</Label>
               <p className="text-xs text-gray-400 mt-0.5 mb-2">Notas sobre la entrevista y el candidato</p>
-              <Textarea placeholder="Escriba sus observaciones..." value={obsCalificacion} onChange={e => setObsCalificacion(e.target.value)} rows={4} className="resize-none" />
+              {calificacion === 'descartado' && (
+                <div className="mb-3">
+                  <label className="text-xs font-semibold text-red-700 flex items-center gap-1 mb-1">
+                    Motivo del descarte <span className="text-red-500">*</span>
+                  </label>
+                  <Textarea placeholder="Indique el motivo por el cual se descarta al candidato..." value={motivoDescarte} onChange={e => setMotivoDescarte(e.target.value)} rows={2} className="resize-none border-red-200 focus-visible:ring-red-400" />
+                </div>
+              )}
+              <Textarea placeholder="Escriba sus observaciones adicionales..." value={obsCalificacion} onChange={e => setObsCalificacion(e.target.value)} rows={3} className="resize-none" />
             </div>
 
             {calificacion && (

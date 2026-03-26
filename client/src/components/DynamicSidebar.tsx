@@ -97,7 +97,8 @@ const menuItems = [
     subItems: [],
   },
   {
-    title: "Novedades Contratación y Selección",
+    title: "Contratación y Selección",
+    subtitle: "Novedad",
     icon: <ClipboardCheck className="h-5 w-5" />,
     subItems: [
       { title: "Novedades", path: "/novedades", icon: <ClipboardList className="h-4 w-4" /> },
@@ -109,15 +110,6 @@ const menuItems = [
     icon: <ClipboardCheck className="h-5 w-5" />,
     path: "/comite_aprob",
     subItems: [],
-  },
-  {
-    title: "Analista Gestión Humana",
-    icon: <UserCheck className="h-5 w-5" />,
-    subItems: [
-      { title: "Gestión de Novedades", path: "/analista/novedades", icon: <ClipboardList className="h-4 w-4" /> },
-      { title: "Solicitudes", path: "/analista/solicitudes", icon: <FileCheck className="h-4 w-4" /> },
-      { title: "Candidatos", path: "/registros/candidatos", icon: <User className="h-4 w-4" /> },
-    ],
   },
   {
     title: "Novedades Selección",
@@ -623,7 +615,14 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
                   >
                     <div className="flex items-center space-x-3">
                       {menu.icon}
-                      <span>{menu.title}</span>
+                      {menu.subtitle ? (
+                        <span className="flex flex-col leading-tight">
+                          <span className="text-[10px] text-gray-400 font-normal">{menu.subtitle}</span>
+                          <span>{menu.title}</span>
+                        </span>
+                      ) : (
+                        <span>{menu.title}</span>
+                      )}
                     </div>
                     {isExpanded ? (
                       <ChevronDown className="w-4 h-4" />
@@ -640,7 +639,14 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
                   >
                     <div className="flex items-center space-x-3">
                       {menu.icon}
-                      <span>{menu.title}</span>
+                      {menu.subtitle ? (
+                        <span className="flex flex-col leading-tight">
+                          <span className="text-[10px] text-gray-400 font-normal">{menu.subtitle}</span>
+                          <span>{menu.title}</span>
+                        </span>
+                      ) : (
+                        <span>{menu.title}</span>
+                      )}
                     </div>
                   </NavLink>
                 )}

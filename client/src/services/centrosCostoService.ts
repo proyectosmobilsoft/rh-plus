@@ -9,6 +9,7 @@ export interface CentroCosto {
   empresa_id?: number;
   area_negocio?: string;
   porcentaje_estructura?: number;
+  proyecto_id?: number;
   activo: boolean;
   created_at?: string;
   updated_at?: string;
@@ -30,6 +31,7 @@ export interface CreateCentroCostoData {
   empresa_id?: number;
   area_negocio?: string;
   porcentaje_estructura?: number;
+  proyecto_id?: number;
   activo: boolean;
 }
 
@@ -40,6 +42,7 @@ export interface UpdateCentroCostoData {
   empresa_id?: number;
   area_negocio?: string;
   porcentaje_estructura?: number;
+  proyecto_id?: number;
   activo?: boolean;
 }
 
@@ -188,6 +191,7 @@ class CentrosCostoService {
       if (centroCostoData.empresa_id !== undefined) updateData.empresa_id = centroCostoData.empresa_id;
       if (centroCostoData.area_negocio !== undefined) updateData.area_negocio = centroCostoData.area_negocio;
       if (centroCostoData.porcentaje_estructura !== undefined) updateData.porcentaje_estructura = centroCostoData.porcentaje_estructura;
+      if (centroCostoData.proyecto_id !== undefined) updateData.proyecto_id = centroCostoData.proyecto_id;
       if (centroCostoData.activo !== undefined) updateData.activo = centroCostoData.activo;
 
       console.log('📝 Datos filtrados para actualización:', updateData);

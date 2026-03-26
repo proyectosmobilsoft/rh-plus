@@ -703,18 +703,17 @@ export const novedadesService = {
     getSucursales: async (): Promise<string[]> => {
         try {
             const { data, error } = await supabase
-                .from('novedades_empleados')
-                .select('sucursal')
+                .from('gen_sucursales')
+                .select('nombre')
                 .eq('activo', true)
-                .not('sucursal', 'is', null);
+                .order('nombre');
 
             if (error) {
                 console.error('Error obteniendo sucursales:', error);
                 return [];
             }
 
-            const sucursales = [...new Set((data || []).map((d: any) => d.sucursal).filter(Boolean))];
-            return sucursales.sort();
+            return (data || []).map((d: any) => d.nombre).filter(Boolean);
         } catch (error) {
             console.error('Error en getSucursales:', error);
             return [];

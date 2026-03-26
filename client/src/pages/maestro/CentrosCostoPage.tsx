@@ -590,10 +590,20 @@ function CentroCostoForm({ editingCentroCosto, onSaved, sucursales, empresas }: 
     empresa_id: undefined,
     area_negocio: undefined,
     porcentaje_estructura: undefined,
+    proyecto_id: undefined,
     activo: true
   });
   const [loading, setLoading] = useState(false);
+  const [areasNegocio, setAreasNegocio] = useState<{ id: number; nombre: string }[]>([]);
+  const [proyectos, setProyectos] = useState<{ id: number; nombre: string; codigo: string }[]>([]);
   const { startLoading, stopLoading } = useLoading();
+
+  useEffect(() => {
+    supabase.from('gen_areas_negocios').select('id, nombre').eq('activo', true).order('nombre')
+      .then(({ data }) => { if (data) setAreasNegocio(data); });
+    supabase.from('proyectos').select('id, nombre, codigo').eq('activo', true).order('nombre')
+      .then(({ data }) => { if (data) setProyectos(data); });
+  }, []);
 
   useEffect(() => {
     if (editingCentroCosto) {
@@ -604,6 +614,7 @@ function CentroCostoForm({ editingCentroCosto, onSaved, sucursales, empresas }: 
          empresa_id: editingCentroCosto.empresa_id,
          area_negocio: editingCentroCosto.area_negocio || '',
          porcentaje_estructura: editingCentroCosto.porcentaje_estructura,
+         proyecto_id: editingCentroCosto.proyecto_id,
          activo: editingCentroCosto.activo
        });
          } else {
@@ -741,17 +752,27 @@ function CentroCostoForm({ editingCentroCosto, onSaved, sucursales, empresas }: 
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="0">Sin área de negocio</SelectItem>
-                    <SelectItem value="Administración">Administración</SelectItem>
-                    <SelectItem value="Comercial">Comercial</SelectItem>
-                    <SelectItem value="Finanzas">Finanzas</SelectItem>
-                    <SelectItem value="Recursos Humanos">Recursos Humanos</SelectItem>
-                    <SelectItem value="Tecnología">Tecnología</SelectItem>
-                    <SelectItem value="Operaciones">Operaciones</SelectItem>
-                    <SelectItem value="Marketing">Marketing</SelectItem>
-                    <SelectItem value="Logística">Logística</SelectItem>
-                    <SelectItem value="Calidad">Calidad</SelectItem>
-                    <SelectItem value="Seguridad">Seguridad</SelectItem>
-                    <SelectItem value="Mantenimiento">Mantenimiento</SelectItem>
+                    {areasNegocio.map(a => (
+                      <SelectItem key={a.id} value={a.nombre}>{a.nombre}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="proyecto_id">Proyecto</Label>
+                <Select
+                  value={formData.proyecto_id?.toString() || '0'}
+                  onValueChange={(value) => setFormData({ ...formData, proyecto_id: value === '0' ? undefined : parseInt(value) })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccione un proyecto" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">Sin proyecto</SelectItem>
+                    {proyectos.map(p => (
+                      <SelectItem key={p.id} value={p.id.toString()}>{p.codigo} — {p.nombre}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

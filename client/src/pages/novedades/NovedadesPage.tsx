@@ -77,15 +77,15 @@ const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type:
         { label: 'Documentos de soporte', name: 'documento_soporte', type: 'file', colStart: 2, multiple: true },
     ],
     aumento_plaza: [
-        { label: 'Cargo', name: 'cargo', type: 'text', required: true },
+        { label: 'Cargo', name: 'cargo', type: 'cargo-select', required: true },
         { label: 'Salario', name: 'salario', type: 'number' },
         { label: 'Auxilio no prestacional', name: 'auxilio', type: 'number' },
         { label: 'Horas laborales', name: 'horas', type: 'jornada-select', required: true },
         { label: 'Jornada', name: 'jornada', type: 'select', options: ['Diurna', 'Nocturna', 'Mixta', 'Flexible'], required: true },
-        { label: 'Centro de costo', name: 'centro_costo', type: 'text', required: true },
-        { label: 'Área', name: 'area', type: 'text', required: true },
+        { label: 'Centro de costo', name: 'centro_costo', type: 'centro-costo-select', required: true },
+        { label: 'Área', name: 'area', type: 'text' },
         { label: 'Unidad de negocio', name: 'negocio', type: 'text', required: true },
-        { label: 'Ciudad', name: 'ciudad', type: 'text', required: true },
+        { label: 'Ciudad', name: 'ciudad', type: 'ciudad-select', required: true },
         { label: 'Fecha de ingreso', name: 'fecha_ingreso', type: 'date', required: true },
         { label: 'Proyecto', name: 'proyecto', type: 'text' },
     ],
@@ -102,7 +102,7 @@ const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type:
         { label: 'Fecha de inicio', name: 'fecha_inicio', type: 'date', required: true },
         { label: 'Fecha final', name: 'fecha_fin', type: 'date', required: true },
         { label: 'Tipo de licencia', name: 'tipo_licencia', type: 'select', options: ['Maternidad', 'Paternidad', 'Luto', 'Calamidad doméstica', 'Sin goce de sueldo', 'Otra'], required: true },
-        { label: 'Duración', name: 'duracion', type: 'text', required: true },
+        { label: 'Duración (días)', name: 'duracion', type: 'duracion-auto' },
         { label: 'Observaciones', name: 'observaciones', type: 'textarea' },
     ],
     renuncias: [
@@ -113,7 +113,7 @@ const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type:
         { label: 'Documento de soporte', name: 'documento_soporte', type: 'file' },
     ],
     postulaciones_internas: [
-        { label: 'Cargo al que postula', name: 'cargo_postulacion', type: 'text', required: true },
+        { label: 'Cargo al que postula', name: 'cargo_postulacion', type: 'cargo-select', required: true },
         { label: 'Motivo de la postulación', name: 'motivo_postulacion', type: 'textarea', required: true },
         { label: 'Salario esperado', name: 'salario_esperado', type: 'number' },
         { label: '¿Genera reemplazo?', name: 'genera_reemplazo', type: 'checkbox' },
@@ -166,6 +166,29 @@ const NovedadesPage: React.FC = () => {
     useEffect(() => {
         supabase.from('jornadas_laborales').select('id, nombre_jornada, horas_laborales').eq('activo', true).order('nombre_jornada')
             .then(({ data }) => { if (data) setJornadasLaborales(data); });
+    }, []);
+
+    // Datos para selects del formulario
+    const [centrosCostoSelect, setCentrosCostoSelect] = useState<{ id: number; nombre: string; codigo: string; area_negocio?: string }[]>([]);
+    const [areasSelect, setAreasSelect] = useState<{ id: number; nombre: string }[]>([]);
+    const [ciudadesSelect, setCiudadesSelect] = useState<{ id: number; nombre: string }[]>([]);
+    const [cargosSelect, setCargosSelect] = useState<{ id: number; nombre: string }[]>([]);
+    useEffect(() => {
+        supabase.from('centros_costo').select('id, nombre, codigo, area_negocio').eq('activo', true).order('nombre')
+            .then(({ data }) => { if (data) setCentrosCostoSelect(data); });
+        supabase.from('areas_negocios').select('id, nombre').eq('activo', true).order('nombre')
+            .then(({ data }) => { if (data) setAreasSelect(data); });
+        supabase.from('ciudades').select('id, nombre').order('nombre')
+            .then(({ data }) => { if (data) setCiudadesSelect(data); });
+        supabase.from('tipos_candidatos').select('id, nombre').eq('activo', true).order('nombre')
+            .then(({ data }) => { if (data) setCargosSelect(data); });
+    }, []);
+
+    // Empresas para el filtro
+    const [empresasFiltro, setEmpresasFiltro] = useState<{ id: number; razon_social: string }[]>([]);
+    useEffect(() => {
+        supabase.from('empresas').select('id, razon_social').order('razon_social')
+            .then(({ data }) => { if (data) setEmpresasFiltro(data); });
     }, []);
 
     // Estado de filtros
@@ -671,7 +694,22 @@ const NovedadesPage: React.FC = () => {
 
                         {/* Filtros */}
                         <div className="p-4 border-b bg-gray-50">
-                            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                                <Select
+                                    value={filtros.empresa_id?.toString() || 'all'}
+                                    onValueChange={(v) => setFiltros(prev => ({ ...prev, empresa_id: v === 'all' ? undefined : parseInt(v) }))}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Empresa" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Todas las empresas</SelectItem>
+                                        {empresasFiltro.map(e => (
+                                            <SelectItem key={e.id} value={e.id.toString()}>{e.razon_social}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
                                 <Select
                                     value={filtros.motivo_id?.toString() || 'all'}
                                     onValueChange={(v) => setFiltros(prev => ({ ...prev, motivo_id: v === 'all' ? undefined : parseInt(v) }))}
@@ -1095,8 +1133,9 @@ const NovedadesPage: React.FC = () => {
                                                             <Input
                                                                 value={formData[field.name] || ''}
                                                                 onChange={e => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
-                                                                className="bg-white border-gray-200 focus:border-cyan-400 focus:ring-cyan-100 h-9 text-sm"
-                                                                placeholder={field.label}
+                                                                readOnly={field.name === 'area' && !!formData['centro_costo']}
+                                                                className={`border-gray-200 h-9 text-sm ${field.name === 'area' && formData['centro_costo'] ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : 'bg-white focus:border-cyan-400 focus:ring-cyan-100'}`}
+                                                                placeholder={field.name === 'area' && !formData['centro_costo'] ? 'Se autocompleta al elegir centro de costo' : field.label}
                                                             />
                                                         )}
                                                         {field.type === 'number' && (
@@ -1104,8 +1143,10 @@ const NovedadesPage: React.FC = () => {
                                                                 type="number"
                                                                 value={formData[field.name] || ''}
                                                                 onChange={e => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
+                                                                onKeyDown={e => { if (!/[\d\b\t]/.test(e.key) && !['Backspace','Delete','ArrowLeft','ArrowRight','Tab'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }}
                                                                 className="bg-white border-gray-200 focus:border-cyan-400 focus:ring-cyan-100 h-9 text-sm"
                                                                 placeholder="0"
+                                                                min="0"
                                                             />
                                                         )}
                                                         {field.type === 'date' && (
@@ -1157,6 +1198,81 @@ const NovedadesPage: React.FC = () => {
                                                                             {j.nombre_jornada} — {j.horas_laborales}h
                                                                         </SelectItem>
                                                                     ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        )}
+                                                        {field.type === 'centro-costo-select' && (
+                                                            <Select
+                                                                value={formData[field.name] || ''}
+                                                                onValueChange={v => {
+                                                                    const cc = centrosCostoSelect.find(c => String(c.id) === v);
+                                                                    setFormData(prev => ({ ...prev, [field.name]: v, area: cc?.area_negocio || '' }));
+                                                                }}
+                                                            >
+                                                                <SelectTrigger className="h-9 text-sm bg-white border-gray-200 focus:border-cyan-400 focus:ring-cyan-100">
+                                                                    <SelectValue placeholder="Seleccionar centro de costo..." />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {centrosCostoSelect.length === 0
+                                                                        ? <SelectItem value="__none__" disabled>Sin centros registrados</SelectItem>
+                                                                        : centrosCostoSelect.map(c => (
+                                                                            <SelectItem key={c.id} value={String(c.id)}>{c.codigo} — {c.nombre}</SelectItem>
+                                                                        ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        )}
+                                                        {field.type === 'area-select' && (
+                                                            <Select value={formData[field.name] || ''} onValueChange={v => setFormData(prev => ({ ...prev, [field.name]: v }))}>
+                                                                <SelectTrigger className="h-9 text-sm bg-white border-gray-200 focus:border-cyan-400 focus:ring-cyan-100">
+                                                                    <SelectValue placeholder="Seleccionar área..." />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {areasSelect.length === 0
+                                                                        ? <SelectItem value="__none__" disabled>Sin áreas registradas</SelectItem>
+                                                                        : areasSelect.map(a => (
+                                                                            <SelectItem key={a.id} value={String(a.id)}>{a.nombre}</SelectItem>
+                                                                        ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        )}
+                                                        {field.type === 'ciudad-select' && (
+                                                            <Select value={formData[field.name] || ''} onValueChange={v => setFormData(prev => ({ ...prev, [field.name]: v }))}>
+                                                                <SelectTrigger className="h-9 text-sm bg-white border-gray-200 focus:border-cyan-400 focus:ring-cyan-100">
+                                                                    <SelectValue placeholder="Seleccionar ciudad..." />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {ciudadesSelect.length === 0
+                                                                        ? <SelectItem value="__none__" disabled>Sin ciudades registradas</SelectItem>
+                                                                        : ciudadesSelect.map(c => (
+                                                                            <SelectItem key={c.id} value={String(c.id)}>{c.nombre}</SelectItem>
+                                                                        ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        )}
+                                                        {field.type === 'duracion-auto' && (() => {
+                                                            const fi = formData['fecha_inicio'] ? new Date(formData['fecha_inicio']) : null;
+                                                            const ff = formData['fecha_fin'] ? new Date(formData['fecha_fin']) : null;
+                                                            const dias = fi && ff ? Math.max(0, Math.round((ff.getTime() - fi.getTime()) / 86400000) + 1) : null;
+                                                            if (dias !== null && formData['duracion'] !== String(dias)) {
+                                                                setTimeout(() => setFormData(prev => ({ ...prev, duracion: String(dias) })), 0);
+                                                            }
+                                                            return (
+                                                                <div className="flex items-center h-9 px-3 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-600">
+                                                                    {dias !== null ? <><span className="font-semibold text-cyan-700">{dias}</span>&nbsp;día{dias !== 1 ? 's' : ''}</> : <span className="text-gray-400 italic">Complete fechas de inicio y fin</span>}
+                                                                </div>
+                                                            );
+                                                        })()}
+                                                        {field.type === 'cargo-select' && (
+                                                            <Select value={formData[field.name] || ''} onValueChange={v => setFormData(prev => ({ ...prev, [field.name]: v }))}>
+                                                                <SelectTrigger className="h-9 text-sm bg-white border-gray-200 focus:border-cyan-400 focus:ring-cyan-100">
+                                                                    <SelectValue placeholder="Seleccionar cargo..." />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {cargosSelect.length === 0
+                                                                        ? <SelectItem value="__none__" disabled>Sin cargos registrados</SelectItem>
+                                                                        : cargosSelect.map(c => (
+                                                                            <SelectItem key={c.id} value={String(c.id)}>{c.nombre}</SelectItem>
+                                                                        ))}
                                                                 </SelectContent>
                                                             </Select>
                                                         )}
@@ -1286,20 +1402,8 @@ const NovedadesPage: React.FC = () => {
                                         </div>
                                         <div className="p-4 space-y-3">
                                             <p className="text-sm text-amber-700">
-                                                Al guardar se creará la solicitud y se enviará una notificación por correo electrónico al aprobador para que gestione su aprobación.
+                                                Esta solicitud requiere aprobación de comité. Al guardar, se notificará automáticamente por correo al aprobador designado para que gestione su aprobación.
                                             </p>
-                                            <div>
-                                                <Label className="text-xs font-medium text-amber-800">
-                                                    Cédula de la persona aprobadora <span className="text-red-500">*</span>
-                                                </Label>
-                                                <Input
-                                                    type="text"
-                                                    value={cedulaAprobador}
-                                                    onChange={e => setCedulaAprobador(e.target.value)}
-                                                    placeholder="Número de identificación del aprobador"
-                                                    className="mt-1 border-amber-300 focus-visible:ring-amber-400 bg-white"
-                                                />
-                                            </div>
                                         </div>
                                     </div>
                                 )}
