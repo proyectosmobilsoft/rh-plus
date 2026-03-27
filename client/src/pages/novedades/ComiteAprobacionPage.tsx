@@ -37,6 +37,7 @@ import {
     Filter,
     Send,
     RotateCcw,
+    Scale,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -190,15 +191,15 @@ const ComiteAprobacionPage: React.FC = () => {
     };
 
     return (
-        <div className="space-y-3 p-4 font-sans antialiased bg-gray-50/30 min-h-screen">
+        <div className="space-y-4 p-4 font-sans antialiased">
             {/* Cabecera del Módulo - Más Compacta */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-1">
                 <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-md shadow-indigo-500/20">
-                        <ClipboardCheck className="h-5 w-5 text-white" />
+                    <div className="p-3 rounded-xl bg-cyan-600 shadow-md shadow-cyan-500/20">
+                        <Scale className="h-6 w-6 text-white" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
+                        <h1 className="text-3xl font-extrabold text-cyan-800 tracking-tight flex items-center gap-2">
                             Módulo Comité
                             <Badge variant="outline" className="text-[9px] font-bold text-indigo-700 bg-indigo-50 border-indigo-100 uppercase py-0 px-1.5 h-4">Aprobador</Badge>
                         </h1>
@@ -208,16 +209,16 @@ const ComiteAprobacionPage: React.FC = () => {
 
             {/* Navegación por Pestañas - Margen reducido */}
             <Tabs defaultValue="solicitudes" className="w-full">
-                <TabsList className="bg-gray-200/50 p-0.5 rounded-lg mb-3 h-9">
-                    <TabsTrigger value="solicitudes" className="rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm px-4 py-1 text-xs">
+                <TabsList className="grid w-full grid-cols-3 bg-cyan-100/60 p-0.5 rounded-lg mb-3 h-10">
+                    <TabsTrigger value="solicitudes" className="rounded-md data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-sm px-4 py-1 text-sm">
                         <FileText className="h-3.5 w-3.5 mr-1.5" />
                         Solicitudes Pendientes
                     </TabsTrigger>
-                    <TabsTrigger value="empleados" className="rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm px-4 py-1 text-xs">
+                    <TabsTrigger value="empleados" className="rounded-md data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-sm px-4 py-1 text-sm">
                         <Users className="h-3.5 w-3.5 mr-1.5" />
                         Listado de Empleados
                     </TabsTrigger>
-                    <TabsTrigger value="maestro" className="rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm px-4 py-1 text-xs">
+                    <TabsTrigger value="maestro" className="rounded-md data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-sm px-4 py-1 text-sm">
                         <Building className="h-3.5 w-3.5 mr-1.5" />
                         Maestro
                     </TabsTrigger>
@@ -230,10 +231,6 @@ const ComiteAprobacionPage: React.FC = () => {
                         <CardContent className="p-2.5">
                             <div className="flex flex-wrap items-center justify-between gap-3">
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase bg-gray-50 px-2 py-1 rounded-md border border-gray-100 italic">
-                                        <Filter className="h-3 w-3" />
-                                        Filtros:
-                                    </div>
                                     <Select
                                         value={filtros.motivo_id?.toString() || 'all'}
                                         onValueChange={(v) => setFiltros(prev => ({ ...prev, motivo_id: v === 'all' ? undefined : parseInt(v) }))}

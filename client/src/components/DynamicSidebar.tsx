@@ -36,11 +36,26 @@ import {
   FolderKanban,
   HelpCircle,
   Clock,
+  Scale,
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { vistasService, VistaSistema } from '@/services/vistasService';
 
-const menuItems = [
+type SidebarSubItem = {
+  title: string;
+  path: string;
+  icon: React.ReactNode;
+};
+
+type SidebarMenuItem = {
+  title: string;
+  icon: React.ReactNode;
+  path?: string;
+  subtitle?: string;
+  subItems: SidebarSubItem[];
+};
+
+const menuItems: SidebarMenuItem[] = [
   {
     title: "Dashboard",
     icon: <Activity className="h-5 w-5" />,
@@ -98,23 +113,14 @@ const menuItems = [
   },
   {
     title: "Contratación y Selección",
-    subtitle: "Novedad",
     icon: <ClipboardCheck className="h-5 w-5" />,
-    subItems: [
-      { title: "Novedades", path: "/novedades", icon: <ClipboardList className="h-4 w-4" /> },
-      { title: "Entrevistas", path: "/novedades/entrevista", icon: <UserCheck className="h-4 w-4" /> },
-    ],
-  },
-  {
-    title: "Comité de Aprobación",
-    icon: <ClipboardCheck className="h-5 w-5" />,
-    path: "/comite_aprob",
+    path: "/novedades",
     subItems: [],
   },
   {
-    title: "Novedades Selección",
-    icon: <FolderKanban className="h-5 w-5" />,
-    path: "/seleccion",
+    title: "Comité de Aprobación",
+    icon: <Scale className="h-5 w-5" />,
+    path: "/comite_aprob",
     subItems: [],
   },
   {
@@ -248,8 +254,9 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
     '/certificados-medicos': ['vista-certificados'],
 
     // Novedades Contratación y Selección (módulo líder/coordinador)
-    '/novedades': ['vista-novedades'],
-    '/novedades/entrevista': ['vista-novedades', 'vista-entrevistas'],
+    '/novedades': ['vista-novedades', 'vista-entrevistas', 'vista-seleccion'],
+    '/novedades/entrevista': ['vista-novedades', 'vista-entrevistas', 'vista-seleccion'],
+    '/novedades/empleados': ['vista-novedades', 'vista-entrevistas', 'vista-seleccion'],
 
     // Comité de Aprobación (módulo independiente)
     '/comite_aprob': ['vista-comite'],
@@ -259,7 +266,7 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
     '/analista/solicitudes': ['vista-analista-solicitudes', 'vista-solicitudes-analista'],
 
     // Novedades Selección (módulo analista selección)
-    '/seleccion': ['vista-seleccion'],
+    '/seleccion': ['vista-novedades', 'vista-entrevistas', 'vista-seleccion'],
 
     // Información Personal
     '/perfil-candidato': ['vista-informacion-personal'],
@@ -326,16 +333,28 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
       .filter(Boolean) as typeof menuItems;
 
     // Agregar vistas dinámicas que no estén ya en el menú estático
-    const dynamicMenusFormatted = vistasDinamicas
+    const dynamicMenusFormatted: SidebarMenuItem[] = vistasDinamicas
       .filter(v => !menuItems.some(mi => mi.path === v.ruta || mi.subItems?.some((sub: any) => sub.path === v.ruta))) // Evitar duplicados con ítems estáticos y subítems
       .map(v => ({
         title: v.nombre,
         path: v.ruta,
         icon: renderDynamicIcon(v.icono),
+        subtitle: undefined,
         subItems: []
       }));
 
-    return [...staticMenus, ...dynamicMenusFormatted];
+    const merged = [...staticMenus, ...dynamicMenusFormatted];
+
+    // Regla de visibilidad:
+    // Eliminar todos los ítems "debajo" de "Acerca de la Empresa", excepto los de Analistas.
+    const acercaIndex = merged.findIndex(m => m.path === '/empresa/acerca' || m.title === 'Acerca de la Empresa');
+    if (acercaIndex === -1) return merged;
+
+    return merged.filter((m, idx) => {
+      if (idx <= acercaIndex) return true;
+      const path = (m as any).path as string | undefined;
+      return typeof path === 'string' && path.startsWith('/analista/');
+    });
   }, [accionesSet, vistasDinamicas]);
 
   const getRoleColor = (role: string) => {
@@ -617,7 +636,7 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
                       {menu.icon}
                       {menu.subtitle ? (
                         <span className="flex flex-col leading-tight">
-                          <span className="text-[10px] text-gray-400 font-normal">{menu.subtitle}</span>
+                          <span className="text-[14px] text-gray-400 font-normal">{menu.subtitle}</span>
                           <span>{menu.title}</span>
                         </span>
                       ) : (

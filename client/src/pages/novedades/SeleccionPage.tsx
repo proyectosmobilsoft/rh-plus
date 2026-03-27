@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
@@ -17,7 +18,7 @@ import {
   Search, Filter, Upload, Download, Loader2, Users, FileText, Clock,
   CheckCircle, XCircle, Pause, Play, Eye, ChevronRight, Building,
   MapPin, Calendar, Briefcase, UserPlus, AlertCircle, TrendingUp,
-  ClipboardList, FileUp, RefreshCw, Star, ArrowRight, UserCheck,
+  ClipboardList, FileUp, Star, ArrowRight, UserCheck, Sparkles, MoreHorizontal,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import ExcelJS from 'exceljs';
@@ -316,67 +317,59 @@ export default function SeleccionPage() {
   // ============================================================
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <ClipboardList className="w-7 h-7 text-blue-600" />
-            Módulo de Selección
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Gestión de procesos de selección y reclutamiento
-          </p>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <div className="p-3 rounded-2xl bg-teal-500 shadow-lg shadow-teal-500/25">
+              <ClipboardList className="h-7 w-7 text-white" />
+            </div>
+            <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white animate-pulse" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-extrabold text-cyan-800">
+              Módulo de Selección
+            </h1>
+            <p className="text-sm text-gray-500 flex items-center gap-1.5 mt-0.5">
+              <Sparkles className="h-3.5 w-3.5 text-teal-500" />
+              Gestión de procesos de selección y reclutamiento
+            </p>
+          </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleDescargarPlantilla} className="gap-2">
+          <Button variant="outline" size="sm" onClick={handleDescargarPlantilla} className="gap-2">
             <Download className="w-4 h-4" /> Plantilla Excel
           </Button>
-          <Button onClick={() => setShowCargaMasiva(true)} className="gap-2">
+          <Button size="sm" onClick={() => setShowCargaMasiva(true)} className="gap-2 bg-teal-400 hover:bg-teal-500 text-white">
             <FileUp className="w-4 h-4" /> Carga Masiva
           </Button>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: 'En Reclutamiento', value: stats.reclutamiento, icon: Search, color: 'text-purple-600', bg: 'bg-purple-50' },
-          { label: 'Entrevista Cliente', value: stats.entrevista, icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-          { label: 'Seleccionados', value: stats.seleccionados, icon: UserCheck, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-          { label: 'Total Procesos', value: stats.total, icon: TrendingUp, color: 'text-blue-600', bg: 'bg-blue-50' },
-        ].map(stat => (
-          <Card key={stat.label}>
-            <CardContent className="pt-4 pb-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-500">{stat.label}</p>
-                  <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
-                </div>
-                <div className={`w-10 h-10 rounded-full ${stat.bg} flex items-center justify-center`}>
-                  <stat.icon className={`w-5 h-5 ${stat.color}`} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Filtros */}
-      <Card>
-        <CardContent className="pt-4 pb-4">
-          <div className="flex flex-wrap gap-3 items-center">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+      {/* Tabla de solicitudes */}
+      <Card className="bg-white rounded-lg border mt-4">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg font-semibold text-gray-700 flex items-center gap-3">
+            <div className="w-8 h-8 bg-orange-100 rounded flex items-center justify-center">
+              <FileText className="w-5 h-5 text-orange-600" />
+            </div>
+            <span>SOLICITUDES DE SELECCIÓN</span>
+            <Badge variant="secondary" className="ml-1">{solicitudesFiltradas.length}</Badge>
+          </CardTitle>
+          <div className="mt-3 p-3 border rounded-md bg-gray-50">
+            <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap pb-1">
+            <div className="relative w-[220px]">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
               <Input
-                placeholder="Buscar por empleado, cargo, empresa..."
+                placeholder="Buscar..."
                 value={busqueda}
                 onChange={e => setBusqueda(e.target.value)}
-                className="pl-9"
+                className="h-8 pl-8 text-xs border-gray-200"
               />
             </div>
             <Select value={filtroEstado} onValueChange={setFiltroEstado}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger className="h-8 w-[170px] text-xs border-gray-200">
                 <SelectValue placeholder="Estado" />
               </SelectTrigger>
               <SelectContent>
@@ -387,7 +380,7 @@ export default function SeleccionPage() {
               </SelectContent>
             </Select>
             <Select value={filtroEmpresa} onValueChange={setFiltroEmpresa}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger className="h-8 w-[170px] text-xs border-gray-200">
                 <SelectValue placeholder="Empresa" />
               </SelectTrigger>
               <SelectContent>
@@ -397,20 +390,22 @@ export default function SeleccionPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Button variant="ghost" size="icon" onClick={() => queryClient.invalidateQueries({ queryKey: ['solicitudes-seleccion'] })}>
-              <RefreshCw className="w-4 h-4" />
-            </Button>
+            {(busqueda || filtroEstado !== 'todos' || filtroEmpresa !== 'todas') && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setBusqueda('');
+                  setFiltroEstado('todos');
+                  setFiltroEmpresa('todas');
+                }}
+                className="h-8 px-2 text-xs flex items-center gap-1.5"
+              >
+                <Filter className="w-3.5 h-3.5" />
+                Limpiar
+              </Button>
+            )}
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Tabla de solicitudes */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">
-            Solicitudes de Selección
-            <span className="ml-2 text-sm font-normal text-gray-500">({solicitudesFiltradas.length})</span>
-          </CardTitle>
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
@@ -423,48 +418,73 @@ export default function SeleccionPage() {
               <p className="text-sm">No hay solicitudes de selección</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-gray-50">
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">#</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Empleado / Cargo</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Empresa</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Motivo</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Estado</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Días</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Política</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Acciones</th>
+            <div className="overflow-x-auto rounded-lg shadow-sm">
+              <table className="min-w-[900px] w-full text-[11px]">
+                <thead className="bg-cyan-50">
+                  <tr className="text-left font-semibold text-gray-700">
+                    <th className="text-left px-3 py-2 font-medium text-gray-600">#</th>
+                    <th className="text-left px-3 py-2 font-medium text-gray-600">Empleado / Cargo</th>
+                    <th className="text-left px-3 py-2 font-medium text-gray-600">Empresa</th>
+                    <th className="text-left px-3 py-2 font-medium text-gray-600">Motivo</th>
+                    <th className="text-left px-3 py-2 font-medium text-gray-600">Estado</th>
+                    <th className="text-left px-3 py-2 font-medium text-gray-600">Días</th>
+                    <th className="text-left px-3 py-2 font-medium text-gray-600">Política</th>
+                    <th className="text-left px-3 py-2 font-medium text-gray-600 w-24">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
                   {solicitudesFiltradas.map(s => {
                     const dias = s.created_at ? calcularDiasHabiles(s.created_at) : 0;
                     const politica = getPoliticaTiempo(dias);
+                    const rowTransitions = TRANSICIONES_VALIDAS[s.estado || ''] || [];
                     return (
                       <tr key={s.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3 text-gray-500 font-mono text-xs">#{s.id}</td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-2 text-gray-500 font-mono text-xs">#{s.id}</td>
+                        <td className="px-3 py-2">
                           <p className="font-medium text-gray-900">
                             {s.empleado ? `${s.empleado.nombre} ${s.empleado.apellido || ''}` : '—'}
                           </p>
                           <p className="text-xs text-gray-500">{s.empleado?.cargo || '—'}</p>
                         </td>
-                        <td className="px-4 py-3 text-gray-600">{s.empresa?.razon_social || '—'}</td>
-                        <td className="px-4 py-3 text-gray-600">{s.motivo?.nombre || '—'}</td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-2 text-gray-600">{s.empresa?.razon_social || '—'}</td>
+                        <td className="px-3 py-2 text-gray-600">{s.motivo?.nombre || '—'}</td>
+                        <td className="px-3 py-2">
                           <Badge className={`text-xs ${ESTADO_COLORS[s.estado || ''] || 'bg-gray-100 text-gray-800'}`}>
                             {ESTADO_LABELS[s.estado || ''] || s.estado}
                           </Badge>
                         </td>
-                        <td className="px-4 py-3 text-gray-600 font-mono">{dias}d</td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-2 text-gray-600 font-mono">{dias}d</td>
+                        <td className="px-3 py-2">
                           <Badge className={`text-xs ${politica.color}`}>{politica.label}</Badge>
                         </td>
-                        <td className="px-4 py-3">
-                          <Button size="sm" variant="ghost" onClick={() => setSolicitudDetalle(s)} className="gap-1">
-                            <Eye className="w-4 h-4" /> Ver
-                          </Button>
+                        <td className="px-3 py-2">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-7 w-7">
+                                <MoreHorizontal className="h-4 w-4 text-gray-600" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" className="w-40">
+                              <DropdownMenuItem onClick={() => setSolicitudDetalle(s)} className="cursor-pointer">
+                                <Eye className="mr-2 h-4 w-4 text-cyan-600" />
+                                Ver detalle
+                              </DropdownMenuItem>
+                              {rowTransitions.map((estadoDestino) => (
+                                <DropdownMenuItem
+                                  key={estadoDestino}
+                                  onClick={() => {
+                                    setSolicitudDetalle(s);
+                                    setNuevoEstado(estadoDestino);
+                                    setShowCambiarEstado(true);
+                                  }}
+                                  className="cursor-pointer"
+                                >
+                                  <ArrowRight className="mr-2 h-4 w-4 text-indigo-600" />
+                                  {ESTADO_LABELS[estadoDestino] || estadoDestino}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </td>
                       </tr>
                     );
@@ -582,15 +602,6 @@ export default function SeleccionPage() {
                 onClick={() => setShowSolicitudIngreso(true)}
               >
                 <CheckCircle className="w-4 h-4" /> Solicitud de Ingreso
-              </Button>
-            )}
-            {transicionesDisponibles.length > 0 && (
-              <Button
-                variant="outline"
-                className="gap-2"
-                onClick={() => setShowCambiarEstado(true)}
-              >
-                <ArrowRight className="w-4 h-4" /> Cambiar Estado
               </Button>
             )}
             <Button variant="ghost" onClick={() => setSolicitudDetalle(null)}>Cerrar</Button>

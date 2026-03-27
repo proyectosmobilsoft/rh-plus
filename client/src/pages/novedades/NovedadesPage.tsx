@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import {
     Dialog,
     DialogContent,
@@ -40,6 +41,8 @@ import {
     Pause,
     Loader2,
     AlertCircle,
+    MoreHorizontal,
+    Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -148,7 +151,14 @@ const escapeHtml = (str: string) =>
 // COMPONENTE PRINCIPAL
 // ============================================================
 
-const NovedadesPage: React.FC = () => {
+interface NovedadesPageProps {
+    forcedTab?: 'solicitudes' | 'empleados';
+    hideInternalTabs?: boolean;
+    headerTitle?: string;
+    headerDescription?: string;
+}
+
+const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTabs = false, headerTitle, headerDescription }) => {
     const queryClient = useQueryClient();
 
     // Empresa del usuario actual
@@ -195,9 +205,16 @@ const NovedadesPage: React.FC = () => {
     const [filtros, setFiltros] = useState<NovedadFiltros>({});
     const [busquedaEmpleado, setBusquedaEmpleado] = useState('');
     const { hasAction } = usePermissions();
-    const defaultTab = hasAction('accion-tab-novedades') ? 'solicitudes' : hasAction('accion-tab-empleados') ? 'empleados' : 'solicitudes';
+    const defaultTab = forcedTab || (hasAction('accion-tab-novedades') ? 'solicitudes' : hasAction('accion-tab-empleados') ? 'empleados' : 'solicitudes');
     const [activeTab, setActiveTab] = useState(defaultTab);
-    const [prevTab, setPrevTab] = useState('solicitudes');
+    const [prevTab, setPrevTab] = useState(defaultTab);
+
+    useEffect(() => {
+        if (forcedTab && activeTab !== 'nueva_novedad') {
+            setActiveTab(forcedTab);
+            setPrevTab(forcedTab);
+        }
+    }, [forcedTab, activeTab]);
 
     // Formulario de nueva solicitud
     const [selectedMotivo, setSelectedMotivo] = useState<NovedadMotivo | null>(null);
@@ -223,6 +240,10 @@ const NovedadesPage: React.FC = () => {
     // Expanded rows
     const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
     const [sortFecha, setSortFecha] = useState<'asc' | 'desc'>('desc');
+    const resolvedHeaderTitle = headerTitle || (forcedTab === 'empleados' ? 'Listado de Empleados' : 'Gestión de Novedades');
+    const resolvedHeaderDescription = headerDescription || (forcedTab === 'empleados'
+        ? 'Consulta y seguimiento de empleados relacionados con novedades'
+        : 'Gestión integral de solicitudes de novedades');
 
     // ============================================================
     // QUERIES
@@ -239,10 +260,11 @@ const NovedadesPage: React.FC = () => {
     });
 
     const { data: empleados = [], isLoading: empleadosLoading } = useQuery<NovedadEmpleado[]>({
-        queryKey: ['novedades-empleados', busquedaEmpleado, filtros.empresa_id],
+        queryKey: ['novedades-empleados', busquedaEmpleado, filtros.empresa_id, filtros.sucursal],
         queryFn: () => novedadesService.getAllEmpleados({
             busqueda: busquedaEmpleado || undefined,
             empresa_id: filtros.empresa_id,
+            sucursal: filtros.sucursal,
         }),
     });
 
@@ -606,16 +628,29 @@ const NovedadesPage: React.FC = () => {
     return (
         <div className="p-4 max-w-full mx-auto">
             {activeTab !== 'nueva_novedad' && (
-                <div className="flex items-center justify-between mb-4">
-                    <h1 className="text-3xl font-extrabold text-cyan-800 flex items-center gap-2 mb-2">
-                        <ClipboardCheck className="w-8 h-8 text-cyan-600" />
-                        Gestión de Novedades
-                    </h1>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+                    <div className="flex items-center gap-4">
+                        <div className="relative">
+                            <div className="p-3 rounded-2xl bg-teal-500 shadow-lg shadow-teal-500/25">
+                                <ClipboardCheck className="h-7 w-7 text-white" />
+                            </div>
+                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white animate-pulse" />
+                        </div>
+                        <div>
+                            <h1 className="text-3xl font-extrabold text-cyan-800">
+                                {resolvedHeaderTitle}
+                            </h1>
+                            <p className="text-sm text-gray-500 flex items-center gap-1.5 mt-0.5">
+                                <Sparkles className="h-3.5 w-3.5 text-teal-500" />
+                                {resolvedHeaderDescription}
+                            </p>
+                        </div>
+                    </div>
                 </div>
             )}
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                {activeTab !== 'nueva_novedad' && (hasAction('accion-tab-novedades') || hasAction('accion-tab-empleados')) && (
+                {!hideInternalTabs && activeTab !== 'nueva_novedad' && (hasAction('accion-tab-novedades') || hasAction('accion-tab-empleados')) && (
                     <TabsList className={`grid w-full bg-cyan-100/60 p-1 rounded-lg ${hasAction('accion-tab-novedades') && hasAction('accion-tab-empleados') ? 'grid-cols-2' : 'grid-cols-1'}`}>
                         {hasAction('accion-tab-novedades') && (
                             <TabsTrigger
@@ -694,12 +729,12 @@ const NovedadesPage: React.FC = () => {
 
                         {/* Filtros */}
                         <div className="p-4 border-b bg-gray-50">
-                            <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                            <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap pb-1">
                                 <Select
                                     value={filtros.empresa_id?.toString() || 'all'}
                                     onValueChange={(v) => setFiltros(prev => ({ ...prev, empresa_id: v === 'all' ? undefined : parseInt(v) }))}
                                 >
-                                    <SelectTrigger>
+                                    <SelectTrigger className="h-8 w-[170px] text-xs">
                                         <SelectValue placeholder="Empresa" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -714,7 +749,7 @@ const NovedadesPage: React.FC = () => {
                                     value={filtros.motivo_id?.toString() || 'all'}
                                     onValueChange={(v) => setFiltros(prev => ({ ...prev, motivo_id: v === 'all' ? undefined : parseInt(v) }))}
                                 >
-                                    <SelectTrigger>
+                                    <SelectTrigger className="h-8 w-[170px] text-xs">
                                         <SelectValue placeholder="Motivo de novedad" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -729,7 +764,7 @@ const NovedadesPage: React.FC = () => {
                                     value={filtros.sucursal || 'all'}
                                     onValueChange={(v) => setFiltros(prev => ({ ...prev, sucursal: v === 'all' ? undefined : v }))}
                                 >
-                                    <SelectTrigger>
+                                    <SelectTrigger className="h-8 w-[170px] text-xs">
                                         <SelectValue placeholder="Sucursal" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -744,7 +779,7 @@ const NovedadesPage: React.FC = () => {
                                     value={filtros.estado || 'all'}
                                     onValueChange={(v) => setFiltros(prev => ({ ...prev, estado: v === 'all' ? undefined : v }))}
                                 >
-                                    <SelectTrigger>
+                                    <SelectTrigger className="h-8 w-[170px] text-xs">
                                         <SelectValue placeholder="Estado" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -755,22 +790,22 @@ const NovedadesPage: React.FC = () => {
                                     </SelectContent>
                                 </Select>
 
-                                <div className="relative md:col-span-1">
-                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                <div className="relative w-[220px]">
+                                    <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5" />
                                     <Input
                                         placeholder="Buscar empleado..."
                                         value={busquedaEmpleado}
                                         onChange={e => setBusquedaEmpleado(e.target.value)}
-                                        className="pl-10"
+                                        className="h-8 pl-8 text-xs"
                                     />
                                 </div>
 
                                 <Button
                                     variant="outline"
                                     onClick={() => { setFiltros({}); setBusquedaEmpleado(''); }}
-                                    className="flex items-center gap-2"
+                                    className="h-8 px-2 text-xs flex items-center gap-1.5"
                                 >
-                                    <Filter className="w-4 h-4" />
+                                    <Filter className="w-3.5 h-3.5" />
                                     Limpiar filtros
                                 </Button>
                             </div>
@@ -834,61 +869,40 @@ const NovedadesPage: React.FC = () => {
                                             <React.Fragment key={sol.id}>
                                                 <TableRow className="hover:bg-gray-50 cursor-pointer" onClick={() => toggleRow(sol.id!)}>
                                                     <TableCell className="px-2 py-1">
-                                                        <div className="flex flex-row gap-1 items-center">
-                                                            {hasAction('accion-ver-detalle-novedad') && (
-                                                                <TooltipProvider>
-                                                                    <UITooltip>
-                                                                        <TooltipTrigger asChild>
-                                                                            <Button
-                                                                                variant="ghost"
-                                                                                size="icon"
-                                                                                onClick={(e) => { e.stopPropagation(); handleViewDetail(sol); }}
-                                                                                className="h-8 w-8"
-                                                                            >
-                                                                                <Eye className="h-4 w-4 text-cyan-600 hover:text-cyan-800 transition-colors" />
-                                                                            </Button>
-                                                                        </TooltipTrigger>
-                                                                        <TooltipContent><p>Ver detalle</p></TooltipContent>
-                                                                    </UITooltip>
-                                                                </TooltipProvider>
-                                                            )}
-                                                            {hasAction('accion-ver-timeline-novedad') && (
-                                                                <TooltipProvider>
-                                                                    <UITooltip>
-                                                                        <TooltipTrigger asChild>
-                                                                            <Button
-                                                                                variant="ghost"
-                                                                                size="icon"
-                                                                                onClick={(e) => { e.stopPropagation(); handleViewTimeline(sol.id!); }}
-                                                                                className="h-8 w-8"
-                                                                            >
-                                                                                <Clock className="h-4 w-4 text-indigo-600 hover:text-indigo-800 transition-colors" />
-                                                                            </Button>
-                                                                        </TooltipTrigger>
-                                                                        <TooltipContent><p>Ver timeline</p></TooltipContent>
-                                                                    </UITooltip>
-                                                                </TooltipProvider>
-                                                            )}
-                                                            {sol.estado === 'solicitada' && (
-                                                                <Can action="accion-cancelar-novedad">
-                                                                    <TooltipProvider>
-                                                                        <UITooltip>
-                                                                            <TooltipTrigger asChild>
-                                                                                <Button
-                                                                                    variant="ghost"
-                                                                                    size="icon"
-                                                                                    onClick={(e) => { e.stopPropagation(); cancelMutation.mutate(sol.id!); }}
-                                                                                    className="h-8 w-8"
-                                                                                >
-                                                                                    <XCircle className="h-4 w-4 text-red-600 hover:text-red-800 transition-colors" />
-                                                                                </Button>
-                                                                            </TooltipTrigger>
-                                                                            <TooltipContent><p>Cancelar</p></TooltipContent>
-                                                                        </UITooltip>
-                                                                    </TooltipProvider>
-                                                                </Can>
-                                                            )}
-                                                        </div>
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    className="h-8 w-8"
+                                                                >
+                                                                    <MoreHorizontal className="h-4 w-4 text-gray-600" />
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="start" className="w-44" onClick={(e) => e.stopPropagation()}>
+                                                                {hasAction('accion-ver-detalle-novedad') && (
+                                                                    <DropdownMenuItem onClick={() => handleViewDetail(sol)} className="cursor-pointer">
+                                                                        <Eye className="mr-2 h-4 w-4 text-cyan-600" />
+                                                                        Ver detalle
+                                                                    </DropdownMenuItem>
+                                                                )}
+                                                                {hasAction('accion-ver-timeline-novedad') && (
+                                                                    <DropdownMenuItem onClick={() => handleViewTimeline(sol.id!)} className="cursor-pointer">
+                                                                        <Clock className="mr-2 h-4 w-4 text-indigo-600" />
+                                                                        Ver timeline
+                                                                    </DropdownMenuItem>
+                                                                )}
+                                                                {sol.estado === 'solicitada' && (
+                                                                    <Can action="accion-cancelar-novedad">
+                                                                        <DropdownMenuItem onClick={() => cancelMutation.mutate(sol.id!)} className="cursor-pointer text-red-600 focus:text-red-700">
+                                                                            <XCircle className="mr-2 h-4 w-4" />
+                                                                            Cancelar
+                                                                        </DropdownMenuItem>
+                                                                    </Can>
+                                                                )}
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
                                                     </TableCell>
                                                     <TableCell className="px-4 py-3 text-sm text-gray-900 font-mono">#{sol.id}</TableCell>
                                                     <TableCell className="px-4 py-3 text-sm text-gray-900 font-medium">
@@ -1442,22 +1456,55 @@ const NovedadesPage: React.FC = () => {
                         </div>
 
                         <div className="p-4 border-b bg-gray-50">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div className="relative md:col-span-2">
-                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                            <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap pb-1">
+                                <Select
+                                    value={filtros.empresa_id?.toString() || 'all'}
+                                    onValueChange={(v) => setFiltros(prev => ({ ...prev, empresa_id: v === 'all' ? undefined : parseInt(v, 10) }))}
+                                >
+                                    <SelectTrigger className="h-8 w-[170px] text-xs">
+                                        <SelectValue placeholder="Empresa" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Todas las empresas</SelectItem>
+                                        {empresasFiltro.map(e => (
+                                            <SelectItem key={e.id} value={e.id.toString()}>{e.razon_social}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
+                                <Select
+                                    value={filtros.sucursal || 'all'}
+                                    onValueChange={(v) => setFiltros(prev => ({ ...prev, sucursal: v === 'all' ? undefined : v }))}
+                                >
+                                    <SelectTrigger className="h-8 w-[170px] text-xs">
+                                        <SelectValue placeholder="Sucursal" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Todas las sucursales</SelectItem>
+                                        {sucursales.map(s => (
+                                            <SelectItem key={s} value={s}>{s}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
+                                <div className="relative w-[220px]">
+                                    <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5" />
                                     <Input
                                         placeholder="Buscar por nombre o cargo..."
                                         value={busquedaEmpleado}
                                         onChange={e => setBusquedaEmpleado(e.target.value)}
-                                        className="pl-10"
+                                        className="h-8 pl-8 text-xs"
                                     />
                                 </div>
                                 <Button
                                     variant="outline"
-                                    onClick={() => setBusquedaEmpleado('')}
-                                    className="flex items-center gap-2"
+                                    onClick={() => {
+                                        setBusquedaEmpleado('');
+                                        setFiltros(prev => ({ ...prev, empresa_id: undefined, sucursal: undefined }));
+                                    }}
+                                    className="h-8 px-2 text-xs flex items-center gap-1.5"
                                 >
-                                    <Filter className="w-4 h-4" />
+                                    <Filter className="w-3.5 h-3.5" />
                                     Limpiar filtros
                                 </Button>
                             </div>

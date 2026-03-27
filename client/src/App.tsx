@@ -88,10 +88,8 @@ import CrearAnalistaPage from './pages/analistas/CrearAnalistaPage';
 import EditarAnalistaPage from './pages/analistas/EditarAnalistaPage';
 
 // Páginas de novedades
-import NovedadesPage from './pages/novedades/NovedadesPage';
-import EntrevistasPage from './pages/novedades/EntrevistasPage';
 import ComiteAprobacionPage from './pages/novedades/ComiteAprobacionPage';
-import SeleccionPage from './pages/novedades/SeleccionPage';
+import ContratacionSeleccionPage from './pages/novedades/ContratacionSeleccionPage';
 
 // Páginas de maestro
 import TiposCandidatosPage from './pages/maestro/TiposCandidatosPage';
@@ -526,12 +524,17 @@ function App() {
             {/* Rutas de novedades */}
             <Route path="/novedades" element={
               <ProtectedRoute>
-                <NovedadesPage />
+                <ContratacionSeleccionPage />
               </ProtectedRoute>
             } />
             <Route path="/novedades/entrevista" element={
               <ProtectedRoute>
-                <EntrevistasPage />
+                <ContratacionSeleccionPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/novedades/empleados" element={
+              <ProtectedRoute>
+                <ContratacionSeleccionPage />
               </ProtectedRoute>
             } />
             <Route path="/comite_aprob" element={
@@ -541,7 +544,7 @@ function App() {
             } />
             <Route path="/seleccion" element={
               <ProtectedRoute>
-                <SeleccionPage />
+                <ContratacionSeleccionPage />
               </ProtectedRoute>
             } />
 
