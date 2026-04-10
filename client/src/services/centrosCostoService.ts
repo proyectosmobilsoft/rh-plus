@@ -10,6 +10,9 @@ export interface CentroCosto {
   area_negocio?: string;
   porcentaje_estructura?: number;
   proyecto_id?: number;
+  sucursal_ids?: number[];
+  area_negocio_ids?: number[];
+  proyecto_ids?: number[];
   activo: boolean;
   created_at?: string;
   updated_at?: string;
@@ -32,6 +35,9 @@ export interface CreateCentroCostoData {
   area_negocio?: string;
   porcentaje_estructura?: number;
   proyecto_id?: number;
+  sucursal_ids?: number[];
+  area_negocio_ids?: number[];
+  proyecto_ids?: number[];
   activo: boolean;
 }
 
@@ -43,10 +49,84 @@ export interface UpdateCentroCostoData {
   area_negocio?: string;
   porcentaje_estructura?: number;
   proyecto_id?: number;
+  sucursal_ids?: number[];
+  area_negocio_ids?: number[];
+  proyecto_ids?: number[];
   activo?: boolean;
 }
 
 class CentrosCostoService {
+  private async enrichWithRelations(rows: CentroCosto[]): Promise<CentroCosto[]> {
+    if (!rows.length) return rows;
+    const ids = rows.map(r => r.id);
+
+    const [sucursalesRel, areasRel, proyectosRel] = await Promise.all([
+      supabase
+        .from('centros_costo_sucursales')
+        .select('centro_costo_id, sucursal_id')
+        .in('centro_costo_id', ids),
+      supabase
+        .from('centros_costo_areas_negocios')
+        .select('centro_costo_id, area_negocio_id')
+        .in('centro_costo_id', ids),
+      supabase
+        .from('centros_costo_proyectos')
+        .select('centro_costo_id, proyecto_id')
+        .in('centro_costo_id', ids),
+    ]);
+
+    const sucMap = new Map<number, number[]>();
+    const areaMap = new Map<number, number[]>();
+    const proyMap = new Map<number, number[]>();
+
+    (sucursalesRel.data || []).forEach((row: any) => {
+      const current = sucMap.get(row.centro_costo_id) || [];
+      current.push(row.sucursal_id);
+      sucMap.set(row.centro_costo_id, current);
+    });
+    (areasRel.data || []).forEach((row: any) => {
+      const current = areaMap.get(row.centro_costo_id) || [];
+      current.push(row.area_negocio_id);
+      areaMap.set(row.centro_costo_id, current);
+    });
+    (proyectosRel.data || []).forEach((row: any) => {
+      const current = proyMap.get(row.centro_costo_id) || [];
+      current.push(row.proyecto_id);
+      proyMap.set(row.centro_costo_id, current);
+    });
+
+    return rows.map(row => ({
+      ...row,
+      sucursal_ids: sucMap.get(row.id) || (row.sucursal_id ? [row.sucursal_id] : []),
+      area_negocio_ids: areaMap.get(row.id) || [],
+      proyecto_ids: proyMap.get(row.id) || (row.proyecto_id ? [row.proyecto_id] : []),
+    }));
+  }
+
+  private async syncRelations(centroCostoId: number, data: Pick<UpdateCentroCostoData, 'sucursal_ids' | 'area_negocio_ids' | 'proyecto_ids'>): Promise<void> {
+    await Promise.all([
+      supabase.from('centros_costo_sucursales').delete().eq('centro_costo_id', centroCostoId),
+      supabase.from('centros_costo_areas_negocios').delete().eq('centro_costo_id', centroCostoId),
+      supabase.from('centros_costo_proyectos').delete().eq('centro_costo_id', centroCostoId),
+    ]);
+
+    if (data.sucursal_ids && data.sucursal_ids.length) {
+      const payload = data.sucursal_ids.map((sucursalId) => ({ centro_costo_id: centroCostoId, sucursal_id: sucursalId }));
+      const { error } = await supabase.from('centros_costo_sucursales').insert(payload);
+      if (error) throw error;
+    }
+    if (data.area_negocio_ids && data.area_negocio_ids.length) {
+      const payload = data.area_negocio_ids.map((areaId) => ({ centro_costo_id: centroCostoId, area_negocio_id: areaId }));
+      const { error } = await supabase.from('centros_costo_areas_negocios').insert(payload);
+      if (error) throw error;
+    }
+    if (data.proyecto_ids && data.proyecto_ids.length) {
+      const payload = data.proyecto_ids.map((proyectoId) => ({ centro_costo_id: centroCostoId, proyecto_id: proyectoId }));
+      const { error } = await supabase.from('centros_costo_proyectos').insert(payload);
+      if (error) throw error;
+    }
+  }
+
   async getAll(): Promise<CentroCosto[]> {
     try {
       const { data, error } = await supabase
@@ -67,7 +147,7 @@ class CentrosCostoService {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data || [];
+      return this.enrichWithRelations(data || []);
     } catch (error) {
       console.error('Error fetching centros de costo:', error);
       throw error;
@@ -93,7 +173,7 @@ class CentrosCostoService {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data || [];
+      return this.enrichWithRelations(data || []);
     } catch (error) {
       console.error('Error fetching centros de costo:', error);
       throw error;
@@ -130,7 +210,8 @@ class CentrosCostoService {
       }
       
       console.log('✅ Centro de costo obtenido:', data);
-      return data;
+      const [enriched] = await this.enrichWithRelations([data]);
+      return enriched;
     } catch (error) {
       logError('getById centro de costo', error);
       throw error;
@@ -139,9 +220,20 @@ class CentrosCostoService {
 
   async create(centroCostoData: CreateCentroCostoData): Promise<CentroCosto> {
     try {
+      const insertData = {
+        codigo: centroCostoData.codigo,
+        nombre: centroCostoData.nombre,
+        sucursal_id: centroCostoData.sucursal_ids?.[0] ?? centroCostoData.sucursal_id ?? null,
+        empresa_id: centroCostoData.empresa_id ?? null,
+        area_negocio: centroCostoData.area_negocio ?? null,
+        porcentaje_estructura: centroCostoData.porcentaje_estructura ?? null,
+        proyecto_id: centroCostoData.proyecto_ids?.[0] ?? centroCostoData.proyecto_id ?? null,
+        activo: centroCostoData.activo,
+      };
+
       const { data, error } = await supabase
         .from('centros_costo')
-        .insert([centroCostoData])
+        .insert([insertData])
         .select()
         .single();
 
@@ -149,7 +241,9 @@ class CentrosCostoService {
         logError('crear centro de costo', error);
         throw new Error(handleServiceError(error, 'Error al crear el centro de costo'));
       }
-      return data;
+      await this.syncRelations(data.id, centroCostoData);
+      const [enriched] = await this.enrichWithRelations([data]);
+      return enriched;
     } catch (error) {
       logError('create centro de costo', error);
       throw error;
@@ -193,6 +287,12 @@ class CentrosCostoService {
       if (centroCostoData.porcentaje_estructura !== undefined) updateData.porcentaje_estructura = centroCostoData.porcentaje_estructura;
       if (centroCostoData.proyecto_id !== undefined) updateData.proyecto_id = centroCostoData.proyecto_id;
       if (centroCostoData.activo !== undefined) updateData.activo = centroCostoData.activo;
+      if (centroCostoData.sucursal_ids !== undefined) {
+        updateData.sucursal_id = centroCostoData.sucursal_ids[0] ?? null;
+      }
+      if (centroCostoData.proyecto_ids !== undefined) {
+        updateData.proyecto_id = centroCostoData.proyecto_ids[0] ?? null;
+      }
 
       console.log('📝 Datos filtrados para actualización:', updateData);
 
@@ -224,7 +324,9 @@ class CentrosCostoService {
       }
 
       console.log('✅ Centro de costo actualizado exitosamente:', data[0]);
-      return data[0];
+      await this.syncRelations(id, centroCostoData);
+      const [enriched] = await this.enrichWithRelations([data[0]]);
+      return enriched;
     } catch (error) {
       logError('update centro de costo', error);
       throw error;
@@ -308,7 +410,7 @@ class CentrosCostoService {
         .order('nombre');
 
       if (error) throw error;
-      return data || [];
+      return this.enrichWithRelations(data || []);
     } catch (error) {
       console.error('Error fetching centros de costo by sucursal:', error);
       throw error;
@@ -336,7 +438,7 @@ class CentrosCostoService {
         .order('nombre');
 
       if (error) throw error;
-      return data || [];
+      return this.enrichWithRelations(data || []);
     } catch (error) {
       console.error('Error searching centros de costo:', error);
       throw error;

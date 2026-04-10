@@ -67,7 +67,7 @@ import { Can, usePermissions } from '@/contexts/PermissionsContext';
 // TIPOS DE FORMULARIO POR MOTIVO
 // ============================================================
 
-const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type: string; required?: boolean; options?: string[]; helperText?: string; defaultToday?: boolean; rowSpan?: boolean; colStart?: 1 | 2; rowStart?: number; multiple?: boolean }[]> = {
+const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type: string; required?: boolean; options?: string[]; helperText?: string; defaultToday?: boolean; minToday?: boolean; rowSpan?: boolean; colStart?: 1 | 2; rowStart?: number; multiple?: boolean }[]> = {
     incapacidades: [
         { label: 'Fecha de inicio', name: 'fecha_inicio', type: 'date', required: true },
         { label: 'Fecha final', name: 'fecha_fin', type: 'date', required: true },
@@ -85,16 +85,17 @@ const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type:
         { label: 'Auxilio no prestacional', name: 'auxilio', type: 'number' },
         { label: 'Horas laborales', name: 'horas', type: 'jornada-select', required: true },
         { label: 'Jornada', name: 'jornada', type: 'select', options: ['Diurna', 'Nocturna', 'Mixta', 'Flexible'], required: true },
-        { label: 'Centro de costo', name: 'centro_costo', type: 'centro-costo-select', required: true },
-        { label: 'Área', name: 'area', type: 'text' },
         { label: 'Unidad de negocio', name: 'negocio', type: 'text', required: true },
+        { label: 'Centro de costo', name: 'centro_costo', type: 'centro-costo-select', required: true },
+        { label: 'Área', name: 'area', type: 'area-select', required: true },
+        { label: 'Proyecto', name: 'proyecto', type: 'proyecto-select', required: true },
+        { label: 'Sucursal', name: 'sucursal', type: 'sucursal-select', required: true },
         { label: 'Ciudad', name: 'ciudad', type: 'ciudad-select', required: true },
-        { label: 'Fecha de ingreso', name: 'fecha_ingreso', type: 'date', required: true },
-        { label: 'Proyecto', name: 'proyecto', type: 'text' },
+        { label: 'Fecha de ingreso', name: 'fecha_ingreso', type: 'date', required: true, minToday: true },
     ],
     cambio_centro_costo: [
-        { label: 'Sucursal anterior', name: 'sucursal_anterior', type: 'text', required: true },
-        { label: 'Sucursal nueva', name: 'sucursal_nueva', type: 'text', required: true },
+        { label: 'Sucursal anterior', name: 'sucursal_anterior', type: 'sucursal-anterior-select', required: true },
+        { label: 'Sucursal nueva', name: 'sucursal_nueva', type: 'sucursal-select', required: true },
         { label: 'Fecha inicio del cambio', name: 'fecha_inicio_cambio', type: 'date', required: true },
     ],
     vacaciones: [
@@ -113,14 +114,14 @@ const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type:
         { label: 'Motivo de la renuncia', name: 'motivo_renuncia', type: 'textarea', required: true, rowSpan: true },
         { label: 'Último día de trabajo', name: 'fecha_finalizacion', type: 'date', required: true },
         { label: '¿Requiere reemplazo?', name: 'requiere_reemplazo', type: 'checkbox' },
-        { label: 'Documento de soporte', name: 'documento_soporte', type: 'file' },
+        { label: 'Documento de soporte', name: 'documento_soporte', type: 'file', multiple: true },
     ],
     postulaciones_internas: [
         { label: 'Cargo al que postula', name: 'cargo_postulacion', type: 'cargo-select', required: true },
         { label: 'Motivo de la postulación', name: 'motivo_postulacion', type: 'textarea', required: true },
         { label: 'Salario esperado', name: 'salario_esperado', type: 'number' },
         { label: '¿Genera reemplazo?', name: 'genera_reemplazo', type: 'checkbox' },
-        { label: 'Documento adjunto', name: 'documento_adjunto', type: 'file' },
+        { label: 'Documento adjunto', name: 'documento_adjunto', type: 'file', multiple: true },
     ],
 };
 
@@ -146,6 +147,13 @@ const ESTADOS_FINALES = [ESTADOS_NOVEDAD.EJECUTADA, ESTADOS_NOVEDAD.RECHAZADA, E
 
 const escapeHtml = (str: string) =>
     str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+const CURRENCY_FIELDS = new Set(['salario', 'auxilio', 'salario_esperado']);
+const formatCurrency = (value: string | number) => {
+    const numeric = Number(String(value).replace(/[^\d]/g, ''));
+    if (!numeric) return '';
+    return new Intl.NumberFormat('es-CO').format(numeric);
+};
 
 // ============================================================
 // COMPONENTE PRINCIPAL
@@ -179,19 +187,61 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
     }, []);
 
     // Datos para selects del formulario
-    const [centrosCostoSelect, setCentrosCostoSelect] = useState<{ id: number; nombre: string; codigo: string; area_negocio?: string }[]>([]);
+    const [centrosCostoSelect, setCentrosCostoSelect] = useState<{ id: number; nombre: string; codigo: string; area_negocio?: string; sucursal_ids?: number[]; area_negocio_ids?: number[]; proyecto_ids?: number[] }[]>([]);
     const [areasSelect, setAreasSelect] = useState<{ id: number; nombre: string }[]>([]);
     const [ciudadesSelect, setCiudadesSelect] = useState<{ id: number; nombre: string }[]>([]);
     const [cargosSelect, setCargosSelect] = useState<{ id: number; nombre: string }[]>([]);
+    const [proyectosSelect, setProyectosSelect] = useState<{ id: number; nombre: string }[]>([]);
+    const [sucursalesFormSelect, setSucursalesFormSelect] = useState<{ id: number; nombre: string }[]>([]);
     useEffect(() => {
-        supabase.from('centros_costo').select('id, nombre, codigo, area_negocio').eq('activo', true).order('nombre')
-            .then(({ data }) => { if (data) setCentrosCostoSelect(data); });
-        supabase.from('areas_negocios').select('id, nombre').eq('activo', true).order('nombre')
+        Promise.all([
+            supabase.from('centros_costo').select('id, nombre, codigo, area_negocio').eq('activo', true).order('nombre'),
+            supabase.from('centros_costo_sucursales').select('centro_costo_id, sucursal_id'),
+            supabase.from('centros_costo_areas_negocios').select('centro_costo_id, area_negocio_id'),
+            supabase.from('centros_costo_proyectos').select('centro_costo_id, proyecto_id'),
+        ]).then(([centrosRes, sucRes, areaRes, proyRes]) => {
+            const centros = centrosRes.data || [];
+            const sucRows = sucRes.data || [];
+            const areaRows = areaRes.data || [];
+            const proyRows = proyRes.data || [];
+
+            const sucMap = new Map<number, number[]>();
+            const areaMap = new Map<number, number[]>();
+            const proyMap = new Map<number, number[]>();
+
+            sucRows.forEach((row: any) => {
+                const list = sucMap.get(row.centro_costo_id) || [];
+                list.push(row.sucursal_id);
+                sucMap.set(row.centro_costo_id, list);
+            });
+            areaRows.forEach((row: any) => {
+                const list = areaMap.get(row.centro_costo_id) || [];
+                list.push(row.area_negocio_id);
+                areaMap.set(row.centro_costo_id, list);
+            });
+            proyRows.forEach((row: any) => {
+                const list = proyMap.get(row.centro_costo_id) || [];
+                list.push(row.proyecto_id);
+                proyMap.set(row.centro_costo_id, list);
+            });
+
+            setCentrosCostoSelect(centros.map((c: any) => ({
+                ...c,
+                sucursal_ids: sucMap.get(c.id) || [],
+                area_negocio_ids: areaMap.get(c.id) || [],
+                proyecto_ids: proyMap.get(c.id) || [],
+            })));
+        });
+        supabase.from('gen_areas_negocios').select('id, nombre').eq('activo', true).order('nombre')
             .then(({ data }) => { if (data) setAreasSelect(data); });
         supabase.from('ciudades').select('id, nombre').order('nombre')
             .then(({ data }) => { if (data) setCiudadesSelect(data); });
         supabase.from('tipos_candidatos').select('id, nombre').eq('activo', true).order('nombre')
             .then(({ data }) => { if (data) setCargosSelect(data); });
+        supabase.from('proyectos').select('id, nombre').eq('activo', true).order('nombre')
+            .then(({ data }) => { if (data) setProyectosSelect(data); });
+        supabase.from('gen_sucursales').select('id, nombre').eq('activo', true).order('nombre')
+            .then(({ data }) => { if (data) setSucursalesFormSelect(data); });
     }, []);
 
     // Empresas para el filtro
@@ -234,7 +284,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
     const [selectedEmpleados, setSelectedEmpleados] = useState<number[]>([]);
 
     // Flags del motivo seleccionado
-    const [adjuntoFile, setAdjuntoFile] = useState<File | null>(null);
+    const [adjuntoFiles, setAdjuntoFiles] = useState<File[]>([]);
     const [cedulaAprobador, setCedulaAprobador] = useState('');
 
     // Expanded rows
@@ -410,7 +460,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
         setFormData({});
         setObservaciones('');
         setSelectedEmpleados([]);
-        setAdjuntoFile(null);
+        setAdjuntoFiles([]);
         setCedulaAprobador('');
         setActiveTab('nueva_novedad');
     };
@@ -421,7 +471,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
         setFormData({});
         setObservaciones('');
         setSelectedEmpleados([]);
-        setAdjuntoFile(null);
+        setAdjuntoFiles([]);
         setCedulaAprobador('');
         setActiveTab(prevTab);
     };
@@ -459,7 +509,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
         }
 
         // Validar adjunto obligatorio
-        if (selectedMotivo.adjunto_obligatorio && !adjuntoFile) {
+        if (selectedMotivo.adjunto_obligatorio && adjuntoFiles.length === 0) {
             toast.error('Debe adjuntar un documento obligatorio para este motivo');
             return;
         }
@@ -473,9 +523,19 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
         }
 
         // Para otros motivos, verificar que hay empleado seleccionado
-        if (!selectedMotivo.permite_seleccion_multiple && !selectedEmpleado) {
+        if (!selectedMotivo.permite_seleccion_multiple && selectedMotivo.codigo !== 'aumento_plaza' && !selectedEmpleado) {
             toast.error('Selecciona un empleado');
             return;
+        }
+
+        if (selectedMotivo.codigo === 'aumento_plaza' && formData.fecha_ingreso) {
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+            const ingreso = new Date(`${formData.fecha_ingreso}T00:00:00`);
+            if (ingreso < hoy) {
+                toast.error('La fecha de ingreso no puede ser anterior a la fecha actual');
+                return;
+            }
         }
 
         const datosForm = { ...formData };
@@ -486,10 +546,15 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
             motivo_id: selectedMotivo.id,
             empleado_id: selectedEmpleado?.id,
             empresa_id: selectedEmpleado?.empresa_id || filtros.empresa_id,
-            sucursal: selectedEmpleado?.sucursal,
+            sucursal: selectedMotivo.codigo === 'aumento_plaza'
+                ? (sucursalesFormSelect.find(s => String(s.id) === String(formData.sucursal))?.nombre || undefined)
+                : selectedEmpleado?.sucursal,
             datos_formulario: {
                 ...datosForm,
-                ...(adjuntoFile ? { adjunto_nombre: adjuntoFile.name, adjunto_tipo: adjuntoFile.type } : {}),
+                ...(adjuntoFiles.length > 0 ? {
+                    adjunto_nombres: adjuntoFiles.map(file => file.name),
+                    adjunto_tipos: adjuntoFiles.map(file => file.type),
+                } : {}),
                 ...(selectedMotivo.requiere_comite ? { cedula_aprobador: CEDULA_APROBADOR_COMITE, nombre_aprobador: NOMBRE_APROBADOR_COMITE } : {}),
             },
             observaciones,
@@ -592,6 +657,26 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
             .sort((a, b) => b.total - a.total)
             .slice(0, 7);
     }, [solicitudes]);
+
+    const centroCostoSeleccionado = useMemo(
+        () => centrosCostoSelect.find(c => String(c.id) === String(formData.centro_costo)),
+        [centrosCostoSelect, formData.centro_costo],
+    );
+    const areasDisponiblesCentro = useMemo(() => {
+        if (!centroCostoSeleccionado) return areasSelect;
+        if (!centroCostoSeleccionado.area_negocio_ids?.length) return [];
+        return areasSelect.filter(a => centroCostoSeleccionado.area_negocio_ids!.includes(a.id));
+    }, [areasSelect, centroCostoSeleccionado]);
+    const proyectosDisponiblesCentro = useMemo(() => {
+        if (!centroCostoSeleccionado) return proyectosSelect;
+        if (!centroCostoSeleccionado.proyecto_ids?.length) return [];
+        return proyectosSelect.filter(p => centroCostoSeleccionado.proyecto_ids!.includes(p.id));
+    }, [proyectosSelect, centroCostoSeleccionado]);
+    const sucursalesDisponiblesCentro = useMemo(() => {
+        if (!centroCostoSeleccionado) return sucursalesFormSelect;
+        if (!centroCostoSeleccionado.sucursal_ids?.length) return [];
+        return sucursalesFormSelect.filter(s => centroCostoSeleccionado.sucursal_ids!.includes(s.id));
+    }, [sucursalesFormSelect, centroCostoSeleccionado]);
 
     const ESTADO_CHART_COLORS: Record<string, string> = {
         solicitada: '#38bdf8',
@@ -1051,6 +1136,9 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                             setFormData(buildDefaultFormData(motivo));
                                             setSelectedEmpleado(null);
                                             setSelectedEmpleados([]);
+                                            setObservaciones('');
+                                            setAdjuntoFiles([]);
+                                            setCedulaAprobador('');
                                         }}
                                     >
                                         <SelectTrigger className="mt-1.5 bg-white">
@@ -1076,9 +1164,15 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                 {selectedMotivo && (
                                     <div>
                                         <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                            {selectedMotivo.permite_seleccion_multiple ? 'Empleados *' : 'Empleado *'}
+                                            {selectedMotivo.codigo === 'aumento_plaza'
+                                                ? 'Vacante empleado'
+                                                : selectedMotivo.permite_seleccion_multiple ? 'Empleados *' : 'Empleado *'}
                                         </Label>
-                                        {selectedMotivo.permite_seleccion_multiple ? (
+                                        {selectedMotivo.codigo === 'aumento_plaza' ? (
+                                            <div className="mt-1.5 h-10 px-3 flex items-center rounded-md border border-gray-200 bg-gray-50 text-sm text-gray-600">
+                                                Vacante empleado
+                                            </div>
+                                        ) : selectedMotivo.permite_seleccion_multiple ? (
                                             <div className="mt-1.5 border rounded-md max-h-40 overflow-y-auto p-2 space-y-1 bg-white">
                                                 {empleados.map(emp => (
                                                     <label key={emp.id} className="flex items-center gap-2 py-1 px-2 rounded hover:bg-gray-50 cursor-pointer text-sm">
@@ -1097,6 +1191,12 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                 onValueChange={(v) => {
                                                     const emp = empleados.find(e => e.id === parseInt(v));
                                                     setSelectedEmpleado(emp || null);
+                                                    if (selectedMotivo?.codigo === 'cambio_centro_costo') {
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            sucursal_anterior: emp?.sucursal || '',
+                                                        }));
+                                                    }
                                                 }}
                                             >
                                                 <SelectTrigger className="mt-1.5 bg-white">
@@ -1117,7 +1217,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                         </div>
 
                         {/* Paso 2: Formulario dinámico — solo cuando hay motivo + empleado */}
-                        {selectedMotivo && (selectedEmpleado || selectedEmpleados.length > 0) && (
+                        {selectedMotivo && (selectedMotivo.codigo === 'aumento_plaza' || selectedEmpleado || selectedEmpleados.length > 0) && (
                             <div className="p-5 space-y-4">
                                 {/* Sección: Datos del motivo */}
                                 {(FORM_FIELDS_BY_MOTIVO[selectedMotivo.codigo] || []).length > 0 && (
@@ -1153,15 +1253,29 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                             />
                                                         )}
                                                         {field.type === 'number' && (
-                                                            <Input
-                                                                type="number"
-                                                                value={formData[field.name] || ''}
-                                                                onChange={e => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
-                                                                onKeyDown={e => { if (!/[\d\b\t]/.test(e.key) && !['Backspace','Delete','ArrowLeft','ArrowRight','Tab'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }}
-                                                                className="bg-white border-gray-200 focus:border-cyan-400 focus:ring-cyan-100 h-9 text-sm"
-                                                                placeholder="0"
-                                                                min="0"
-                                                            />
+                                                            CURRENCY_FIELDS.has(field.name) ? (
+                                                                <Input
+                                                                    type="text"
+                                                                    inputMode="numeric"
+                                                                    value={formatCurrency(formData[field.name] || '')}
+                                                                    onChange={e => {
+                                                                        const raw = e.target.value.replace(/[^\d]/g, '');
+                                                                        setFormData(prev => ({ ...prev, [field.name]: raw }));
+                                                                    }}
+                                                                    className="bg-white border-gray-200 focus:border-cyan-400 focus:ring-cyan-100 h-9 text-sm"
+                                                                    placeholder="0"
+                                                                />
+                                                            ) : (
+                                                                <Input
+                                                                    type="number"
+                                                                    value={formData[field.name] || ''}
+                                                                    onChange={e => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
+                                                                    onKeyDown={e => { if (!/[\d\b\t]/.test(e.key) && !['Backspace','Delete','ArrowLeft','ArrowRight','Tab'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }}
+                                                                    className="bg-white border-gray-200 focus:border-cyan-400 focus:ring-cyan-100 h-9 text-sm"
+                                                                    placeholder="0"
+                                                                    min="0"
+                                                                />
+                                                            )
                                                         )}
                                                         {field.type === 'date' && (
                                                             <Input
@@ -1170,6 +1284,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                                 onChange={e => !field.defaultToday && setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
                                                                 className={`h-9 text-sm border-gray-200 focus:border-cyan-400 focus:ring-cyan-100 ${field.defaultToday ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : 'bg-white'}`}
                                                                 readOnly={field.defaultToday}
+                                                                min={field.minToday ? new Date().toISOString().split('T')[0] : undefined}
                                                             />
                                                         )}
                                                         {field.type === 'textarea' && (
@@ -1220,7 +1335,13 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                                 value={formData[field.name] || ''}
                                                                 onValueChange={v => {
                                                                     const cc = centrosCostoSelect.find(c => String(c.id) === v);
-                                                                    setFormData(prev => ({ ...prev, [field.name]: v, area: cc?.area_negocio || '' }));
+                                                                    setFormData(prev => ({
+                                                                        ...prev,
+                                                                        [field.name]: v,
+                                                                        area: cc?.area_negocio_ids?.length === 1 ? String(cc.area_negocio_ids[0]) : '',
+                                                                        proyecto: '',
+                                                                        sucursal: '',
+                                                                    }));
                                                                 }}
                                                             >
                                                                 <SelectTrigger className="h-9 text-sm bg-white border-gray-200 focus:border-cyan-400 focus:ring-cyan-100">
@@ -1241,9 +1362,9 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                                     <SelectValue placeholder="Seleccionar área..." />
                                                                 </SelectTrigger>
                                                                 <SelectContent>
-                                                                    {areasSelect.length === 0
+                                                                    {areasDisponiblesCentro.length === 0
                                                                         ? <SelectItem value="__none__" disabled>Sin áreas registradas</SelectItem>
-                                                                        : areasSelect.map(a => (
+                                                                        : areasDisponiblesCentro.map(a => (
                                                                             <SelectItem key={a.id} value={String(a.id)}>{a.nombre}</SelectItem>
                                                                         ))}
                                                                 </SelectContent>
@@ -1290,6 +1411,48 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                                 </SelectContent>
                                                             </Select>
                                                         )}
+                                                        {field.type === 'proyecto-select' && (
+                                                            <Select value={formData[field.name] || ''} onValueChange={v => setFormData(prev => ({ ...prev, [field.name]: v }))}>
+                                                                <SelectTrigger className="h-9 text-sm bg-white border-gray-200 focus:border-cyan-400 focus:ring-cyan-100">
+                                                                    <SelectValue placeholder="Seleccionar proyecto..." />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {proyectosDisponiblesCentro.length === 0
+                                                                        ? <SelectItem value="__none__" disabled>Sin proyectos registrados</SelectItem>
+                                                                        : proyectosDisponiblesCentro.map(p => (
+                                                                            <SelectItem key={p.id} value={String(p.id)}>{p.nombre}</SelectItem>
+                                                                        ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        )}
+                                                        {field.type === 'sucursal-select' && (
+                                                            <Select value={formData[field.name] || ''} onValueChange={v => setFormData(prev => ({ ...prev, [field.name]: v }))}>
+                                                                <SelectTrigger className="h-9 text-sm bg-white border-gray-200 focus:border-cyan-400 focus:ring-cyan-100">
+                                                                    <SelectValue placeholder="Seleccionar sucursal..." />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {sucursalesDisponiblesCentro.length === 0
+                                                                        ? <SelectItem value="__none__" disabled>Sin sucursales registradas</SelectItem>
+                                                                        : sucursalesDisponiblesCentro.map(s => (
+                                                                            <SelectItem key={s.id} value={String(s.id)}>{s.nombre}</SelectItem>
+                                                                        ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        )}
+                                                        {field.type === 'sucursal-anterior-select' && (
+                                                            <Select value={formData[field.name] || ''} disabled>
+                                                                <SelectTrigger className="h-9 text-sm bg-gray-50 border-gray-200 text-gray-500">
+                                                                    <SelectValue placeholder="Sucursal actual del empleado" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {(selectedEmpleado?.sucursal || formData[field.name]) && (
+                                                                        <SelectItem value={formData[field.name] || selectedEmpleado?.sucursal || ''}>
+                                                                            {formData[field.name] || selectedEmpleado?.sucursal}
+                                                                        </SelectItem>
+                                                                    )}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        )}
                                                         {field.type === 'checkbox' && (
                                                             <div className="flex items-center gap-2.5 rounded-lg border border-gray-200 bg-white px-3 py-2.5">
                                                                 <Checkbox
@@ -1307,15 +1470,13 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                                     <span className="text-xs text-gray-500">Seleccionar {field.multiple ? 'archivos' : 'archivo'}</span>
                                                                     <Input
                                                                         type="file"
-                                                                        multiple={field.multiple}
+                                                                        multiple
                                                                         className="hidden"
                                                                         onChange={e => {
                                                                             const files = Array.from(e.target.files || []).map(f => f.name);
                                                                             if (files.length) setFormData(prev => ({
                                                                                 ...prev,
-                                                                                [field.name]: field.multiple
-                                                                                    ? [...(Array.isArray(prev[field.name]) ? prev[field.name] : []), ...files]
-                                                                                    : files[0],
+                                                                                [field.name]: [...(Array.isArray(prev[field.name]) ? prev[field.name] : []), ...files],
                                                                             }));
                                                                         }}
                                                                     />
@@ -1391,16 +1552,20 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                             <div className="flex items-center gap-3">
                                                 <input
                                                     type="file"
+                                                    multiple
                                                     className="block w-full text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100 border rounded-md p-1.5 cursor-pointer"
-                                                    onChange={e => setAdjuntoFile(e.target.files?.[0] ?? null)}
+                                                    onChange={e => setAdjuntoFiles(Array.from(e.target.files || []))}
                                                 />
-                                                {adjuntoFile && (
-                                                    <span className="text-xs text-green-600 flex items-center gap-1 shrink-0">
-                                                        <CheckCircle className="w-3.5 h-3.5" />
-                                                        {adjuntoFile.name}
-                                                    </span>
-                                                )}
                                             </div>
+                                            {adjuntoFiles.length > 0 && (
+                                                <div className="mt-2 space-y-1">
+                                                    {adjuntoFiles.map((file, idx) => (
+                                                        <span key={`${file.name}-${idx}`} className="block text-xs text-green-600">
+                                                            {file.name}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 )}
