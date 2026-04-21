@@ -34,6 +34,7 @@ interface MultiSelectProps {
   disabled?: boolean;
   maxHeight?: string;
   isLoading?: boolean;
+  compact?: boolean;
 }
 
 // Agregar exports para React Hook Form
@@ -49,6 +50,7 @@ export function MultiSelect({
   disabled = false,
   maxHeight = "300px",
   isLoading = false,
+  compact = false,
 }: MultiSelectProps) {
   const [open, setOpen] = React.useState(false);
 
@@ -71,11 +73,11 @@ export function MultiSelect({
   };
 
   return (
-    <div className={cn("space-y-2", className)}>
+    <div className={cn(compact ? "space-y-1" : "space-y-2", className)}>
       {/* Selected items display */}
       {selected.length > 0 && (
-        <div className="bg-gray-50 p-3 rounded-lg border">
-          <div className="flex items-center justify-between mb-2">
+        <div className={cn("bg-gray-50 rounded-lg border", compact ? "p-2" : "p-3")}>
+          <div className={cn("flex items-center justify-between", compact ? "mb-1" : "mb-2")}>
             <span className="text-xs font-medium text-gray-700">
               Elementos seleccionados ({selected.length})
             </span>
@@ -84,7 +86,7 @@ export function MultiSelect({
               variant="ghost"
               size="sm"
               onClick={handleClearAll}
-              className="h-6 px-2 text-xs text-red-600 hover:text-red-800 hover:bg-red-50"
+              className={cn("px-2 text-xs text-red-600 hover:text-red-800 hover:bg-red-50", compact ? "h-5" : "h-6")}
             >
               Limpiar todo
             </Button>
@@ -94,7 +96,7 @@ export function MultiSelect({
               <Badge
                 key={option.id}
                 variant="secondary"
-                className="text-xs px-2 py-1 bg-blue-100 text-blue-800 hover:bg-blue-200"
+                className={cn("text-xs bg-blue-100 text-blue-800 hover:bg-blue-200", compact ? "px-1.5 py-0.5" : "px-2 py-1")}
               >
                 <span className="max-w-32 truncate">{option.label}</span>
                 <Button
@@ -122,7 +124,7 @@ export function MultiSelect({
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-full justify-between h-auto min-h-[40px] p-3"
+            className={cn("w-full justify-between h-auto", compact ? "min-h-[34px] p-2 text-xs" : "min-h-[40px] p-3")}
             disabled={disabled}
           >
             <span className="text-left flex-1">
@@ -146,7 +148,7 @@ export function MultiSelect({
                     key={option.id}
                     value={option.label}
                     onSelect={() => handleSelect(option)}
-                    className="flex items-start space-x-3 p-3 cursor-pointer"
+                    className={cn("flex items-start space-x-3 cursor-pointer", compact ? "p-2" : "p-3")}
                   >
                     <Check
                       className={cn(
@@ -156,8 +158,8 @@ export function MultiSelect({
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2">
-                        <span className="font-medium text-sm">{option.label}</span>
-                        <Badge variant="outline" className="text-xs">
+                        <span className={cn("font-medium", compact ? "text-xs" : "text-sm")}>{option.label}</span>
+                        <Badge variant="outline" className={cn("text-xs", compact ? "hidden" : "")}>
                           ID: {String(option.id).padStart(2, '0')}
                         </Badge>
                       </div>
