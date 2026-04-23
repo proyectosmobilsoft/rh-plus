@@ -553,38 +553,6 @@ const CertificadosMedicosPage = () => {
 
       await solicitudesService.update(selectedSolicitud.id!, updateData);
 
-      // Si se descarta por restricciones, enviar email al candidato
-      if (modalType === 'no-aprobar') {
-        try {
-          // Obtener datos del candidato para el email
-          const candidatoNombre = selectedSolicitud.nombres && selectedSolicitud.apellidos
-            ? `${selectedSolicitud.nombres} ${selectedSolicitud.apellidos}`
-            : 'Candidato';
-
-          const empresaNombre = (selectedSolicitud as any).empresas?.razon_social || selectedSolicitud.empresa_usuaria || 'Empresa';
-
-          // Obtener email del candidato
-          const { data: candidatoData } = await supabase
-            .from('candidatos')
-            .select('email')
-            .eq('id', selectedSolicitud.candidato_id)
-            .single();
-
-          if (candidatoData?.email) {
-            await emailService.sendDescartadoPorRestricciones({
-              to: candidatoData.email,
-              candidatoNombre,
-              empresaNombre,
-              solicitudId: selectedSolicitud.id!,
-              observaciones: observaciones || 'Restricciones médicas detectadas en los exámenes'
-            });
-          }
-        } catch (emailError) {
-          console.error('Error enviando email de descarte:', emailError);
-          // No fallar la operación principal por error de email
-        }
-      }
-
       toast.success(`Certificado médico guardado y solicitud actualizada a "${nuevoEstado}" correctamente.`);
 
       // Limpiar estados
