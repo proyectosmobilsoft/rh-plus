@@ -62,12 +62,13 @@ import {
 import { supabase } from '@/services/supabaseClient';
 import { emailService } from '@/services/emailService';
 import { Can, usePermissions } from '@/contexts/PermissionsContext';
+import { SelectWithSearch } from '@/components/ui/select-with-search';
 
 // ============================================================
 // TIPOS DE FORMULARIO POR MOTIVO
 // ============================================================
 
-const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type: string; required?: boolean; options?: string[]; helperText?: string; defaultToday?: boolean; minToday?: boolean; rowSpan?: boolean; colStart?: 1 | 2; rowStart?: number; multiple?: boolean }[]> = {
+const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type: string; required?: boolean; options?: string[]; helperText?: string; defaultToday?: boolean; minToday?: boolean; rowSpan?: boolean; colStart?: 1 | 2 | 3 | 4; rowStart?: number; multiple?: boolean; colSpan?: 'full' | number }[]> = {
     incapacidades: [
         { label: 'Fecha de inicio', name: 'fecha_inicio', type: 'date', required: true },
         { label: 'Fecha final', name: 'fecha_fin', type: 'date', required: true },
@@ -77,7 +78,6 @@ const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type:
         { label: 'Último día de trabajo', name: 'fecha_retiro', type: 'date', required: true, colStart: 1 },
         { label: 'Motivo del retiro', name: 'motivo_retiro', type: 'textarea', required: true, rowSpan: true, colStart: 2, rowStart: 1 },
         { label: '¿Requiere reemplazo?', name: 'requiere_reemplazo', type: 'checkbox', colStart: 1 },
-        { label: 'Documentos de soporte', name: 'documento_soporte', type: 'file', colStart: 2, multiple: true },
     ],
     aumento_plaza: [
         { label: 'Cargo', name: 'cargo', type: 'cargo-select', required: true },
@@ -107,21 +107,18 @@ const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type:
         { label: 'Fecha final', name: 'fecha_fin', type: 'date', required: true },
         { label: 'Tipo de licencia', name: 'tipo_licencia', type: 'select', options: ['Maternidad', 'Paternidad', 'Luto', 'Calamidad doméstica', 'Sin goce de sueldo', 'Otra'], required: true },
         { label: 'Duración (días)', name: 'duracion', type: 'duracion-auto' },
-        { label: 'Observaciones', name: 'observaciones', type: 'textarea' },
     ],
     renuncias: [
         { label: 'Fecha de solicitud', name: 'fecha_renuncia', type: 'date', required: true, defaultToday: true },
         { label: 'Motivo de la renuncia', name: 'motivo_renuncia', type: 'textarea', required: true, rowSpan: true },
         { label: 'Último día de trabajo', name: 'fecha_finalizacion', type: 'date', required: true },
         { label: '¿Requiere reemplazo?', name: 'requiere_reemplazo', type: 'checkbox' },
-        { label: 'Documento de soporte', name: 'documento_soporte', type: 'file', multiple: true },
     ],
     postulaciones_internas: [
-        { label: 'Cargo al que postula', name: 'cargo_postulacion', type: 'cargo-select', required: true },
-        { label: 'Motivo de la postulación', name: 'motivo_postulacion', type: 'textarea', required: true },
-        { label: 'Salario esperado', name: 'salario_esperado', type: 'number' },
-        { label: '¿Genera reemplazo?', name: 'genera_reemplazo', type: 'checkbox' },
-        { label: 'Documento adjunto', name: 'documento_adjunto', type: 'file', multiple: true },
+        { label: 'Cargo al que postula', name: 'cargo_postulacion', type: 'cargo-select', required: true, colStart: 1, rowStart: 1 },
+        { label: 'Salario esperado', name: 'salario_esperado', type: 'number', colStart: 2, rowStart: 1 },
+        { label: '¿Genera reemplazo?', name: 'genera_reemplazo', type: 'checkbox', colStart: 3, rowStart: 1 },
+        { label: 'Motivo de la postulación', name: 'motivo_postulacion', type: 'textarea', required: true, colStart: 1, rowStart: 2, colSpan: 'full' },
     ],
 };
 
@@ -155,6 +152,35 @@ const formatCurrency = (value: string | number) => {
     return new Intl.NumberFormat('es-CO').format(numeric);
 };
 
+const CurrencyInput = React.memo(({ value, onChange, className }: { value: string; onChange: (raw: string) => void; className?: string }) => {
+    const [display, setDisplay] = React.useState(() => formatCurrency(value));
+    const externalRef = React.useRef(value);
+
+    React.useEffect(() => {
+        if (externalRef.current !== value) {
+            externalRef.current = value;
+            setDisplay(formatCurrency(value));
+        }
+    }, [value]);
+
+    return (
+        <Input
+            type="text"
+            inputMode="numeric"
+            value={display}
+            onChange={e => {
+                const raw = e.target.value.replace(/[^\d]/g, '');
+                const formatted = raw ? new Intl.NumberFormat('es-CO').format(Number(raw)) : '';
+                externalRef.current = raw;
+                setDisplay(formatted);
+                onChange(raw);
+            }}
+            className={className}
+            placeholder="0"
+        />
+    );
+});
+
 // ============================================================
 // COMPONENTE PRINCIPAL
 // ============================================================
@@ -176,6 +202,15 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
             if (!raw) return undefined;
             const parsed = JSON.parse(raw);
             return parsed?.empresa?.id ?? parsed?.empresas?.[0]?.id ?? undefined;
+        } catch { return undefined; }
+    })();
+
+    const empresaNombre: string | undefined = (() => {
+        try {
+            const raw = localStorage.getItem('empresaData');
+            if (!raw) return undefined;
+            const parsed = JSON.parse(raw);
+            return parsed?.razon_social || parsed?.razonSocial || parsed?.nombre || undefined;
         } catch { return undefined; }
     })();
 
@@ -449,6 +484,9 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
         const today = new Date().toISOString().split('T')[0];
         for (const f of fields) {
             if (f.defaultToday && f.type === 'date') defaults[f.name] = today;
+        }
+        if (motivo.codigo === 'aumento_plaza') {
+            defaults['negocio'] = empresaNombre || '';
         }
         return defaults;
     };
@@ -1229,16 +1267,20 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                             </span>
                                         </div>
                                         <div className="p-5 bg-gray-50/40">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5 items-start">
-                                                {(FORM_FIELDS_BY_MOTIVO[selectedMotivo.codigo] || []).map(field => (
+                                            {(() => {
+                                                const motFields = FORM_FIELDS_BY_MOTIVO[selectedMotivo.codigo] || [];
+                                                const gridCols = motFields.some(f => (f.colStart ?? 1) >= 3) ? 3 : 2;
+                                                return (
+                                            <div className={`grid grid-cols-1 ${gridCols === 3 ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-x-8 gap-y-5 items-start`}>
+                                                {motFields.map(field => (
                                                     <div key={field.name} style={{
-                                                        ...(field.colStart ? { gridColumnStart: field.colStart } : {}),
+                                                        ...(field.colSpan === 'full' ? { gridColumn: '1 / -1' } : field.colStart ? { gridColumnStart: field.colStart } : {}),
                                                         ...(field.rowStart ? { gridRowStart: field.rowStart } : {}),
                                                         ...(field.rowSpan ? { gridRowEnd: `span 2` } : {}),
                                                     }} className={[
                                                         'space-y-1.5',
                                                         field.rowSpan ? 'flex flex-col' : '',
-                                                        !field.rowSpan && field.type === 'textarea' && !field.colStart ? 'md:col-span-2' : '',
+                                                        !field.rowSpan && field.type === 'textarea' && !field.colStart && field.colSpan !== 'full' ? 'md:col-span-2' : '',
                                                     ].join(' ').trim()}>
                                                         <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1">
                                                             {field.label} {field.required && <span className="text-cyan-500">*</span>}
@@ -1247,23 +1289,26 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                             <Input
                                                                 value={formData[field.name] || ''}
                                                                 onChange={e => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
-                                                                readOnly={field.name === 'area' && !!formData['centro_costo']}
-                                                                className={`border-gray-200 h-9 text-sm ${field.name === 'area' && formData['centro_costo'] ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : 'bg-white focus:border-cyan-400 focus:ring-cyan-100'}`}
+                                                                readOnly={
+                                                                    (field.name === 'area' && !!formData['centro_costo']) ||
+                                                                    (field.name === 'negocio' && selectedMotivo?.codigo === 'aumento_plaza')
+                                                                }
+                                                                className={`border-gray-200 h-9 text-sm ${
+                                                                    (field.name === 'area' && formData['centro_costo']) ||
+                                                                    (field.name === 'negocio' && selectedMotivo?.codigo === 'aumento_plaza')
+                                                                        ? 'bg-gray-50 text-gray-500 cursor-not-allowed'
+                                                                        : 'bg-white focus:border-cyan-400 focus:ring-cyan-100'
+                                                                }`}
                                                                 placeholder={field.name === 'area' && !formData['centro_costo'] ? 'Se autocompleta al elegir centro de costo' : field.label}
                                                             />
                                                         )}
                                                         {field.type === 'number' && (
                                                             CURRENCY_FIELDS.has(field.name) ? (
-                                                                <Input
-                                                                    type="text"
-                                                                    inputMode="numeric"
-                                                                    value={formatCurrency(formData[field.name] || '')}
-                                                                    onChange={e => {
-                                                                        const raw = e.target.value.replace(/[^\d]/g, '');
-                                                                        setFormData(prev => ({ ...prev, [field.name]: raw }));
-                                                                    }}
+                                                                <CurrencyInput
+                                                                    key={field.name}
+                                                                    value={formData[field.name] || ''}
+                                                                    onChange={raw => setFormData(prev => ({ ...prev, [field.name]: raw }))}
                                                                     className="bg-white border-gray-200 focus:border-cyan-400 focus:ring-cyan-100 h-9 text-sm"
-                                                                    placeholder="0"
                                                                 />
                                                             ) : (
                                                                 <Input
@@ -1331,7 +1376,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                             </Select>
                                                         )}
                                                         {field.type === 'centro-costo-select' && (
-                                                            <Select
+                                                            <SelectWithSearch
                                                                 value={formData[field.name] || ''}
                                                                 onValueChange={v => {
                                                                     const cc = centrosCostoSelect.find(c => String(c.id) === v);
@@ -1343,18 +1388,15 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                                         sucursal: '',
                                                                     }));
                                                                 }}
-                                                            >
-                                                                <SelectTrigger className="h-9 text-sm bg-white border-gray-200 focus:border-cyan-400 focus:ring-cyan-100">
-                                                                    <SelectValue placeholder="Seleccionar centro de costo..." />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    {centrosCostoSelect.length === 0
-                                                                        ? <SelectItem value="__none__" disabled>Sin centros registrados</SelectItem>
-                                                                        : centrosCostoSelect.map(c => (
-                                                                            <SelectItem key={c.id} value={String(c.id)}>{c.codigo} — {c.nombre}</SelectItem>
-                                                                        ))}
-                                                                </SelectContent>
-                                                            </Select>
+                                                                placeholder="Seleccionar centro de costo..."
+                                                                emptyText="Sin centros registrados"
+                                                                className="h-9 text-sm border-gray-200"
+                                                                options={centrosCostoSelect.map(c => ({
+                                                                    value: String(c.id),
+                                                                    label: `${c.codigo} — ${c.nombre}`,
+                                                                    searchText: `${c.codigo} ${c.nombre}`,
+                                                                }))}
+                                                            />
                                                         )}
                                                         {field.type === 'area-select' && (
                                                             <Select value={formData[field.name] || ''} onValueChange={v => setFormData(prev => ({ ...prev, [field.name]: v }))}>
@@ -1371,18 +1413,17 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                             </Select>
                                                         )}
                                                         {field.type === 'ciudad-select' && (
-                                                            <Select value={formData[field.name] || ''} onValueChange={v => setFormData(prev => ({ ...prev, [field.name]: v }))}>
-                                                                <SelectTrigger className="h-9 text-sm bg-white border-gray-200 focus:border-cyan-400 focus:ring-cyan-100">
-                                                                    <SelectValue placeholder="Seleccionar ciudad..." />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    {ciudadesSelect.length === 0
-                                                                        ? <SelectItem value="__none__" disabled>Sin ciudades registradas</SelectItem>
-                                                                        : ciudadesSelect.map(c => (
-                                                                            <SelectItem key={c.id} value={String(c.id)}>{c.nombre}</SelectItem>
-                                                                        ))}
-                                                                </SelectContent>
-                                                            </Select>
+                                                            <SelectWithSearch
+                                                                value={formData[field.name] || ''}
+                                                                onValueChange={v => setFormData(prev => ({ ...prev, [field.name]: v }))}
+                                                                placeholder="Seleccionar ciudad..."
+                                                                emptyText="Sin ciudades registradas"
+                                                                className="h-9 text-sm border-gray-200"
+                                                                options={ciudadesSelect.map(c => ({
+                                                                    value: String(c.id),
+                                                                    label: c.nombre,
+                                                                }))}
+                                                            />
                                                         )}
                                                         {field.type === 'duracion-auto' && (() => {
                                                             const fi = formData['fecha_inicio'] ? new Date(formData['fecha_inicio']) : null;
@@ -1511,30 +1552,32 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                     </div>
                                                 ))}
                                             </div>
+                                                );
+                                            })()}
                                         </div>
                                     </div>
                                 )}
 
                                 {/* Sección: Observaciones */}
-                                <div className="rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-                                    <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-100 bg-white">
-                                        <div className="w-1 h-5 rounded-full bg-amber-400 flex-shrink-0" />
-                                        <span className="text-sm font-semibold text-gray-700 tracking-wide">
-                                            Observaciones {selectedMotivo.requiere_observacion && <span className="text-cyan-500 text-xs">*</span>}
-                                        </span>
+                                {selectedMotivo.requiere_observacion && (
+                                    <div className="rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                                        <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-100 bg-white">
+                                            <div className="w-1 h-5 rounded-full bg-amber-400 flex-shrink-0" />
+                                            <span className="text-sm font-semibold text-gray-700 tracking-wide">
+                                                Observaciones <span className="text-cyan-500 text-xs">*</span>
+                                            </span>
+                                        </div>
+                                        <div className="p-5 bg-gray-50/40">
+                                            <Textarea
+                                                value={observaciones}
+                                                onChange={e => setObservaciones(e.target.value)}
+                                                className="bg-white text-sm resize-none border-gray-200 focus:ring-cyan-100 focus:border-amber-400 border-amber-200"
+                                                placeholder="Observaciones obligatorias para este motivo..."
+                                                rows={3}
+                                            />
+                                        </div>
                                     </div>
-                                    <div className="p-5 bg-gray-50/40">
-                                        <Textarea
-                                            value={observaciones}
-                                            onChange={e => setObservaciones(e.target.value)}
-                                            className={`bg-white text-sm resize-none border-gray-200 focus:ring-cyan-100 ${selectedMotivo.requiere_observacion ? 'focus:border-amber-400 border-amber-200' : 'focus:border-cyan-400'}`}
-                                            placeholder={selectedMotivo.requiere_observacion
-                                                ? 'Observaciones obligatorias para este motivo...'
-                                                : 'Comentarios adicionales (opcional)...'}
-                                            rows={3}
-                                        />
-                                    </div>
-                                </div>
+                                )}
 
                                 {/* Sección: Adjunto */}
                                 {selectedMotivo.requiere_adjunto && (
@@ -1548,21 +1591,37 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                     : <span className="text-gray-400 text-xs font-normal">(opcional)</span>}
                                             </span>
                                         </div>
-                                        <div className="p-5 bg-gray-50/40">
-                                            <div className="flex items-center gap-3">
+                                        <div className="p-5 bg-gray-50/40 flex flex-col gap-2">
+                                            <label className="flex items-center justify-center gap-2 cursor-pointer border-2 border-dashed border-gray-200 hover:border-cyan-400 rounded-lg px-3 py-3 transition-colors bg-white hover:bg-cyan-50/40">
+                                                <FileText className="h-4 w-4 text-gray-400" />
+                                                <span className="text-xs text-gray-500">Seleccionar archivos</span>
                                                 <input
                                                     type="file"
                                                     multiple
-                                                    className="block w-full text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100 border rounded-md p-1.5 cursor-pointer"
-                                                    onChange={e => setAdjuntoFiles(Array.from(e.target.files || []))}
+                                                    className="hidden"
+                                                    onChange={e => {
+                                                        const nuevos = Array.from(e.target.files || []);
+                                                        if (nuevos.length) setAdjuntoFiles(prev => [...prev, ...nuevos]);
+                                                        e.target.value = '';
+                                                    }}
                                                 />
-                                            </div>
+                                            </label>
                                             {adjuntoFiles.length > 0 && (
-                                                <div className="mt-2 space-y-1">
+                                                <div className="border border-gray-100 rounded-lg bg-white divide-y divide-gray-50">
                                                     {adjuntoFiles.map((file, idx) => (
-                                                        <span key={`${file.name}-${idx}`} className="block text-xs text-green-600">
-                                                            {file.name}
-                                                        </span>
+                                                        <div key={`${file.name}-${idx}`} className="flex items-center justify-between px-3 py-1.5 gap-2">
+                                                            <div className="flex items-center gap-2 min-w-0">
+                                                                <FileText className="h-3.5 w-3.5 text-cyan-500 flex-shrink-0" />
+                                                                <span className="text-xs text-gray-600 truncate">{file.name}</span>
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setAdjuntoFiles(prev => prev.filter((_, j) => j !== idx))}
+                                                                className="text-red-400 hover:text-red-600 transition-colors flex-shrink-0 text-base leading-none"
+                                                            >
+                                                                ×
+                                                            </button>
+                                                        </div>
                                                     ))}
                                                 </div>
                                             )}
