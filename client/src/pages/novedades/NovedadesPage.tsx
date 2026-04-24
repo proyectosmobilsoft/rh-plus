@@ -286,9 +286,33 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
             .then(({ data }) => { if (data) setEmpresasFiltro(data); });
     }, []);
 
+    // Analistas para el filtro
+    const [analistasFilter, setAnalistasFilter] = useState<{ id: number; nombre: string }[]>([]);
+    useEffect(() => {
+        supabase
+            .from('gen_usuario_roles')
+            .select('usuario_id, gen_usuarios!inner(id, primer_nombre, primer_apellido, activo)')
+            .in('rol_id', [4, 18, 20])
+            .then(({ data }) => {
+                if (!data) return;
+                const vistos = new Set<number>();
+                const lista: { id: number; nombre: string }[] = [];
+                data.forEach((row: any) => {
+                    const u = row.gen_usuarios;
+                    if (u && u.activo && !vistos.has(u.id)) {
+                        vistos.add(u.id);
+                        lista.push({ id: u.id, nombre: `${u.primer_nombre} ${u.primer_apellido}`.trim() });
+                    }
+                });
+                setAnalistasFilter(lista.sort((a, b) => a.nombre.localeCompare(b.nombre)));
+            });
+    }, []);
+
     // Estado de filtros
     const [filtros, setFiltros] = useState<NovedadFiltros>({});
     const [busquedaEmpleado, setBusquedaEmpleado] = useState('');
+    const [filtroCargoEmp, setFiltroCargoEmp] = useState('');
+    const [filtroJornada, setFiltroJornada] = useState('');
     const { hasAction } = usePermissions();
     const defaultTab = forcedTab || (hasAction('accion-tab-novedades') ? 'solicitudes' : hasAction('accion-tab-empleados') ? 'empleados' : 'solicitudes');
     const [activeTab, setActiveTab] = useState(defaultTab);
@@ -372,10 +396,10 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
         // Calcular días una sola vez por solicitud (map → filter)
         const ahora = Date.now();
         const vencidas = solicitudes
-            .filter(s => s.created_at && !ESTADOS_FINALES.includes(s.estado || ''))
+            .filter(s => (s.fecha_inicio_vacante || s.created_at) && !ESTADOS_FINALES.includes(s.estado || ''))
             .map(s => ({
                 ...s,
-                diasSinGestion: Math.floor((ahora - new Date(s.created_at!).getTime()) / (1000 * 60 * 60 * 24)),
+                diasSinGestion: Math.floor((ahora - new Date((s.fecha_inicio_vacante || s.created_at)!).getTime()) / (1000 * 60 * 60 * 24)),
             }))
             .filter(s => s.diasSinGestion >= DIAS_LIMITE_NOTIFICACION);
 
@@ -696,6 +720,27 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
             .slice(0, 7);
     }, [solicitudes]);
 
+    // Filtros cliente: cargo y política de tiempo
+    const cargosEmpleadoOpciones = useMemo(() => {
+        const set = new Set<string>();
+        solicitudes.forEach(s => { if (s.empleado?.cargo) set.add(s.empleado.cargo); });
+        return Array.from(set).sort();
+    }, [solicitudes]);
+
+    const jornadaOpciones = useMemo(() => {
+        const set = new Set<string>();
+        solicitudes.forEach(s => { if ((s.empleado as any)?.jornada) set.add((s.empleado as any).jornada); });
+        ['Diurna', 'Nocturna', 'Mixta', 'Flexible'].forEach(j => set.add(j));
+        return Array.from(set).sort();
+    }, [solicitudes]);
+
+    const solicitudesMostradas = useMemo(() => {
+        let result = solicitudes;
+        if (filtroCargoEmp) result = result.filter(s => s.empleado?.cargo === filtroCargoEmp);
+        if (filtroJornada) result = result.filter(s => (s.empleado as any)?.jornada === filtroJornada);
+        return result;
+    }, [solicitudes, filtroCargoEmp, filtroJornada]);
+
     const centroCostoSeleccionado = useMemo(
         () => centrosCostoSelect.find(c => String(c.id) === String(formData.centro_costo)),
         [centrosCostoSelect, formData.centro_costo],
@@ -804,7 +849,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                     <FileText className="w-5 h-5 text-orange-600" />
                                 </div>
                                 <span className="text-lg font-semibold text-gray-700">SOLICITUDES</span>
-                                <Badge variant="secondary" className="ml-1">{solicitudes.length}</Badge>
+                                <Badge variant="secondary" className="ml-1">{solicitudesMostradas.length}</Badge>
                             </div>
                             <div className="flex space-x-2">
                                 <Can action="accion-exportar-novedades">
@@ -812,8 +857,8 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                         variant="outline"
                                         size="sm"
                                         onClick={() => {
-                                            if (!solicitudes.length) { toast.error('No hay datos para exportar'); return; }
-                                            const dataToExport = solicitudes.map(s => ({
+                                            if (!solicitudesMostradas.length) { toast.error('No hay datos para exportar'); return; }
+                                            const dataToExport = solicitudesMostradas.map(s => ({
                                                 ID: s.id,
                                                 Empleado: s.empleado ? `${s.empleado.nombre} ${s.empleado.apellido || ''}`.trim() : 'N/A',
                                                 Documento: s.empleado?.documento || 'N/A',
@@ -913,6 +958,51 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                     </SelectContent>
                                 </Select>
 
+                                <Select
+                                    value={filtros.analista_id?.toString() || 'all'}
+                                    onValueChange={(v) => setFiltros(prev => ({ ...prev, analista_id: v === 'all' ? undefined : parseInt(v) }))}
+                                >
+                                    <SelectTrigger className="h-8 w-[170px] text-xs">
+                                        <SelectValue placeholder="Analista" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Todos los analistas</SelectItem>
+                                        {analistasFilter.map(a => (
+                                            <SelectItem key={a.id} value={a.id.toString()}>{a.nombre}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
+                                <Select
+                                    value={filtroCargoEmp || 'all'}
+                                    onValueChange={(v) => setFiltroCargoEmp(v === 'all' ? '' : v)}
+                                >
+                                    <SelectTrigger className="h-8 w-[200px] text-xs">
+                                        <SelectValue placeholder="Cargo" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Todos los cargos</SelectItem>
+                                        {cargosEmpleadoOpciones.map(c => (
+                                            <SelectItem key={c} value={c}>{c}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
+                                <Select
+                                    value={filtroJornada || 'all'}
+                                    onValueChange={(v) => setFiltroJornada(v === 'all' ? '' : v)}
+                                >
+                                    <SelectTrigger className="h-8 w-[190px] text-xs">
+                                        <SelectValue placeholder="Política de tiempo" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Todas las jornadas</SelectItem>
+                                        {jornadaOpciones.map(j => (
+                                            <SelectItem key={j} value={j}>{j}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
                                 <div className="relative w-[220px]">
                                     <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5" />
                                     <Input
@@ -925,7 +1015,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
 
                                 <Button
                                     variant="outline"
-                                    onClick={() => { setFiltros({}); setBusquedaEmpleado(''); }}
+                                    onClick={() => { setFiltros({}); setBusquedaEmpleado(''); setFiltroCargoEmp(''); setFiltroJornada(''); }}
                                     className="h-8 px-2 text-xs flex items-center gap-1.5"
                                 >
                                     <Filter className="w-3.5 h-3.5" />
@@ -942,7 +1032,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                         Cargando solicitudes...
                                     </TableCell>
                                 </TableRow>
-                            ) : solicitudes.length === 0 ? (
+                            ) : solicitudesMostradas.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center py-20">
                                     <div className="p-4 rounded-full bg-gray-50 mb-4">
                                         <FileText className="h-10 w-10 text-gray-300" />
@@ -984,7 +1074,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {[...solicitudes].sort((a, b) => {
+                                        {[...solicitudesMostradas].sort((a, b) => {
                                             const ta = new Date(a.created_at || 0).getTime();
                                             const tb = new Date(b.created_at || 0).getTime();
                                             return sortFecha === 'desc' ? tb - ta : ta - tb;
@@ -1093,11 +1183,11 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                     </div>
 
                     {/* Stats + Gráficas */}
-                    {solicitudes.length > 0 && (
+                    {solicitudesMostradas.length > 0 && (
                         <div className="mt-4 space-y-4">
                             <div className="grid grid-cols-5 divide-x divide-gray-100 bg-white border border-gray-100 rounded-xl overflow-hidden">
                                 {[
-                                    { label: 'Total', value: solicitudes.length, color: 'text-gray-900' },
+                                    { label: 'Total', value: solicitudesMostradas.length, color: 'text-gray-900' },
                                     { label: 'Solicitadas', value: stats.solicitada || 0, color: 'text-sky-600' },
                                     { label: 'En proceso', value: stats.en_proceso || 0, color: 'text-amber-600' },
                                     { label: 'Aprobadas', value: stats.aprobado_comite || 0, color: 'text-emerald-600' },

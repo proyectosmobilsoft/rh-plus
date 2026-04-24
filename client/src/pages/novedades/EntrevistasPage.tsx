@@ -5,8 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import {
   Dialog,
   DialogContent,
@@ -55,8 +53,6 @@ import {
   CalendarClock,
   History,
   AlertTriangle,
-  ChevronsUpDown,
-  Check,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { candidatosService, type Candidato } from '@/services/candidatosService';
@@ -162,9 +158,7 @@ export default function EntrevistasPage() {
   const [horaEntrevista, setHoraEntrevista] = useState('');
   const [lugarEntrevista, setLugarEntrevista] = useState('');
   const [cargoEntrevista, setCargoEntrevista] = useState('');
-  const [openCargoSelect, setOpenCargoSelect] = useState(false);
   const [obsEntrevista, setObsEntrevista] = useState('');
-  const [cargosSelect, setCargosSelect] = useState<{ id: number; nombre: string }[]>([]);
 
   // ── Datos de calificación ──
   const [calificacion, setCalificacion] = useState('');
@@ -188,17 +182,6 @@ export default function EntrevistasPage() {
     } catch { return undefined; }
   }, []);
 
-  useEffect(() => {
-    import('@/services/supabaseClient').then(({ supabase: sb }) => {
-      sb.from('tipos_candidatos')
-        .select('id, nombre')
-        .eq('activo', true)
-        .order('nombre')
-        .then(({ data }) => {
-          if (data) setCargosSelect(data as { id: number; nombre: string }[]);
-        });
-    });
-  }, []);
 
   // ============================================================
   // QUERIES
@@ -319,7 +302,7 @@ export default function EntrevistasPage() {
           fecha_entrevista: fechaEntrevista || null,
           hora_entrevista: horaEntrevista || null,
           lugar_entrevista: lugarEntrevista || null,
-          cargo: cargoEntrevista || null,
+          cargo_aspirado: cargoEntrevista || null,
           observacion_entrevista: obsEntrevista || null,
         })
         .eq('id', id);
@@ -457,10 +440,32 @@ export default function EntrevistasPage() {
     setShowDocumentosModal(true);
   };
 
-  const handleSchedule = (c: Candidato) => {
+  const handleSchedule = async (c: Candidato) => {
     setSelectedCandidato(c);
     resetScheduleForm();
     setShowScheduleModal(true);
+    // Buscar el cargo desde la solicitud asociada al candidato
+    try {
+      const { supabase: sb } = await import('@/services/supabaseClient');
+      const { data: sol } = await sb
+        .from('hum_solicitudes')
+        .select('estructura_datos')
+        .eq('candidato_id', c.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const cargoId = (sol?.estructura_datos as any)?.cargo;
+      if (cargoId) {
+        const { data: tc } = await sb
+          .from('tipos_candidatos')
+          .select('nombre')
+          .eq('id', Number(cargoId))
+          .maybeSingle();
+        if (tc?.nombre) setCargoEntrevista(tc.nombre);
+      }
+    } catch {
+      // Si falla, el campo queda vacío
+    }
   };
 
   const handleAplazar = (c: Candidato) => {
@@ -950,38 +955,15 @@ export default function EntrevistasPage() {
             </div>
             <div>
               <Label className="text-sm font-semibold">Cargo</Label>
-              <Popover open={openCargoSelect} onOpenChange={setOpenCargoSelect}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="mt-1 w-full justify-between font-normal">
-                    {cargoEntrevista || 'Seleccionar cargo...'}
-                    <ChevronsUpDown className="h-4 w-4 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                  <Command>
-                    <CommandInput placeholder="Buscar cargo..." />
-                    <CommandList>
-                      <CommandEmpty>Sin cargos registrados</CommandEmpty>
-                      <CommandGroup>
-                        {cargosSelect.map(c => (
-                          <CommandItem
-                            key={c.id}
-                            value={c.nombre}
-                            onSelect={() => {
-                              setCargoEntrevista(c.nombre);
-                              setOpenCargoSelect(false);
-                            }}
-                            className="cursor-pointer"
-                          >
-                            <Check className={`mr-2 h-4 w-4 ${cargoEntrevista === c.nombre ? 'opacity-100' : 'opacity-0'}`} />
-                            {c.nombre}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+              <div className="relative mt-1">
+                <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  value={cargoEntrevista}
+                  readOnly
+                  placeholder="Sin cargo asociado en la vacante"
+                  className="pl-9 bg-gray-50 cursor-default"
+                />
+              </div>
             </div>
             <div>
               <Label className="text-sm font-semibold">Observaciones</Label>
