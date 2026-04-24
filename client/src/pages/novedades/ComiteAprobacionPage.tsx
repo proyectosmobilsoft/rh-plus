@@ -27,6 +27,7 @@ const ComiteAprobacionPage: React.FC = () => {
   const [observacion, setObservacion] = useState('');
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [actionTargetIds, setActionTargetIds] = useState<number[]>([]);
+  const [contratosCount, setContratosCount] = useState<number | null>(null);
 
   const empresaId: number | undefined = (() => {
     try {
@@ -51,6 +52,24 @@ const ComiteAprobacionPage: React.FC = () => {
     queryKey: ['novedades-sucursales'],
     queryFn: () => novedadesService.getSucursales(),
   });
+  const { data: empresas = [] } = useQuery<{ id: number; razon_social: string }[]>({
+    queryKey: ['empresas-list'],
+    queryFn: async () => {
+      const { supabase: sb } = await import('@/services/supabaseClient');
+      const { data } = await sb.from('empresas').select('id, razon_social').order('razon_social');
+      return data || [];
+    },
+  });
+
+  const lideresOptions = useMemo(() => {
+    const seen = new Map<number, string>();
+    solicitudes.forEach(s => {
+      if (s.creador?.id) {
+        seen.set(s.creador.id, `${s.creador.primer_nombre} ${s.creador.primer_apellido}`);
+      }
+    });
+    return Array.from(seen.entries()).map(([id, nombre]) => ({ id, nombre }));
+  }, [solicitudes]);
 
   const filteredSolicitudes = useMemo(() => {
     return solicitudes.filter(s => {
@@ -107,7 +126,20 @@ const ComiteAprobacionPage: React.FC = () => {
   const handleViewDetail = async (solicitud: NovedadSolicitud) => {
     const detail = await novedadesService.getSolicitudById(solicitud.id!);
     setSelectedSolicitud(detail || solicitud);
+    setContratosCount(null);
     setShowDetailModal(true);
+    // Fetch # de registros del empleado en todas las empresas
+    const docNum = (detail || solicitud)?.empleado?.numero_documento;
+    if (docNum) {
+      try {
+        const { supabase: sb } = await import('@/services/supabaseClient');
+        const { count } = await sb
+          .from('novedades_empleados')
+          .select('id', { count: 'exact', head: true })
+          .eq('numero_documento', docNum);
+        setContratosCount(count ?? 0);
+      } catch { setContratosCount(0); }
+    }
   };
 
   const openSingleAction = (sol: NovedadSolicitud, action: 'aprobar' | 'rechazar') => {
@@ -209,6 +241,20 @@ const ComiteAprobacionPage: React.FC = () => {
                     <SelectContent>
                       <SelectItem value="all">Todas las sucursales</SelectItem>
                       {sucursales.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Select value={filtros.empresa_id?.toString() || 'all'} onValueChange={(v) => setFiltros(prev => ({ ...prev, empresa_id: v === 'all' ? undefined : parseInt(v, 10) }))}>
+                    <SelectTrigger className="h-8 w-[180px] text-xs border-gray-200"><SelectValue placeholder="Empresa" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas las empresas</SelectItem>
+                      {empresas.map(e => <SelectItem key={e.id} value={e.id.toString()}>{e.razon_social}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Select value={filtros.analista_id?.toString() || 'all'} onValueChange={(v) => setFiltros(prev => ({ ...prev, analista_id: v === 'all' ? undefined : parseInt(v, 10) }))}>
+                    <SelectTrigger className="h-8 w-[200px] text-xs border-gray-200"><SelectValue placeholder="Líder solicitante" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos los líderes</SelectItem>
+                      {lideresOptions.map(l => <SelectItem key={l.id} value={l.id.toString()}>{l.nombre}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -325,6 +371,7 @@ const ComiteAprobacionPage: React.FC = () => {
           <div className="space-y-2 text-sm">
             <p><strong>Empleado:</strong> {selectedSolicitud?.empleado?.nombre} {selectedSolicitud?.empleado?.apellido || ''}</p>
             <p><strong>Cargo:</strong> {selectedSolicitud?.empleado?.cargo || '—'}</p>
+            <p><strong># contratos en todas las empresas:</strong> {contratosCount === null ? '...' : contratosCount}</p>
             <p><strong>Observaciones:</strong> {selectedSolicitud?.observaciones || '—'}</p>
             <div className="grid grid-cols-2 gap-2">
               {Object.entries(selectedSolicitud?.datos_formulario || {}).map(([k, v]) => (

@@ -434,7 +434,7 @@ export default function SeleccionPage() {
                 </thead>
                 <tbody className="divide-y">
                   {solicitudesFiltradas.map(s => {
-                    const dias = s.created_at ? calcularDiasHabiles(s.created_at) : 0;
+                    const dias = (s.fecha_inicio_vacante || s.created_at) ? calcularDiasHabiles((s.fecha_inicio_vacante || s.created_at)!) : 0;
                     const politica = getPoliticaTiempo(dias);
                     const rowTransitions = TRANSICIONES_VALIDAS[s.estado || ''] || [];
                     return (
@@ -548,12 +548,12 @@ export default function SeleccionPage() {
                   <div className="flex items-center gap-2 text-gray-600">
                     <Calendar className="w-4 h-4" />
                     <span className="font-medium">Fecha:</span>
-                    <span>{solicitudDetalle?.created_at ? new Date(solicitudDetalle.created_at).toLocaleDateString('es-CO') : '—'}</span>
+                    <span>{(solicitudDetalle?.fecha_inicio_vacante || solicitudDetalle?.created_at) ? new Date((solicitudDetalle.fecha_inicio_vacante || solicitudDetalle.created_at)!).toLocaleDateString('es-CO') : '—'}</span>
                   </div>
                   <div className="flex items-center gap-2 text-gray-600">
                     <Clock className="w-4 h-4" />
                     <span className="font-medium">Días hábiles:</span>
-                    <span>{solicitudDetalle?.created_at ? calcularDiasHabiles(solicitudDetalle.created_at) : 0} días</span>
+                    <span>{(solicitudDetalle?.fecha_inicio_vacante || solicitudDetalle?.created_at) ? calcularDiasHabiles((solicitudDetalle.fecha_inicio_vacante || solicitudDetalle.created_at)!) : 0} días</span>
                   </div>
                 </div>
               </div>
