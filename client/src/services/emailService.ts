@@ -695,25 +695,6 @@ class EmailService {
     `;
   }
 
-  // Función para enviar correo de descarte por restricciones médicas
-  async sendDescartadoPorRestricciones(params: {
-    to: string;
-    candidatoNombre: string;
-    empresaNombre: string;
-    solicitudId: number;
-    observaciones: string;
-  }): Promise<{ success: boolean; message: string }> {
-    const html = this.generateDescartadoPorRestriccionesHTML(params);
-    
-    return this.sendEmail({
-      to: params.to,
-      subject: `Solicitud #${params.solicitudId} - Descarte por restricciones médicas`,
-      html,
-      text: `Su solicitud #${params.solicitudId} en ${params.empresaNombre} ha sido descartada debido a restricciones médicas detectadas en los exámenes. Observaciones: ${params.observaciones}`,
-      from: 'noreply@rhcompensamos.com'
-    });
-  }
-
   // Generar HTML para correo de descarte por restricciones médicas
   generateDescartadoPorRestriccionesHTML(params: {
     candidatoNombre: string;
