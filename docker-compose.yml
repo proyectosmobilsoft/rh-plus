@@ -1,0 +1,13 @@
+services:
+  corehuman-front:
+    build: .
+    container_name: corehuman-front
+    restart: unless-stopped
+    ports:
+      - "4100:80"
+    networks:
+      - corehuman-net
+
+networks:
+  corehuman-net:
+    driver: bridge
