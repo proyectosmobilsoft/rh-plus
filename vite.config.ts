@@ -29,8 +29,21 @@ export default defineConfig({
   // Copiar archivos adicionales después del build
   publicDir: "public",
   server: {
-    // proxy: {
-    //   '/api': 'http://localhost:5001'
-    // }
+    proxy: {
+      '/kaptus-api': {
+        target: 'https://apicorehuman.mobilsoft.co',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/kaptus-api/, ''),
+      },
+    },
+  },
+  preview: {
+    proxy: {
+      '/kaptus-api': {
+        target: 'https://apicorehuman.mobilsoft.co',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/kaptus-api/, ''),
+      },
+    },
   },
 });
