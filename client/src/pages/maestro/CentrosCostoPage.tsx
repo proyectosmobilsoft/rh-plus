@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MultiSelect } from "@/components/ui/multi-select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
@@ -43,6 +44,8 @@ export default function CentrosCostoPage() {
   const [centrosCosto, setCentrosCosto] = useState<CentroCosto[]>([]);
   const [sucursales, setSucursales] = useState<Sucursal[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [areasNegocioCatalogo, setAreasNegocioCatalogo] = useState<{ id: number; nombre: string }[]>([]);
+  const [proyectosCatalogo, setProyectosCatalogo] = useState<{ id: number; nombre: string; codigo?: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("listado");
 
@@ -84,10 +87,12 @@ export default function CentrosCostoPage() {
     setLoading(true);
     try {
       console.log('🔄 Cargando datos de centros de costo...');
-      const [centrosCostoData, sucursalesData, empresasResult] = await Promise.all([
+      const [centrosCostoData, sucursalesData, empresasResult, areasResult, proyectosResult] = await Promise.all([
         centrosCostoService.getAllIncludingInactive(),
         sucursalesService.getAllIncludingInactive(),
         supabase.from('empresas').select('id, razon_social').order('razon_social'),
+        supabase.from('gen_areas_negocios').select('id, nombre').eq('activo', true).order('nombre'),
+        supabase.from('proyectos').select('id, nombre, codigo').eq('activo', true).order('nombre'),
       ]);
 
       console.log('📊 Centros de costo cargados:', centrosCostoData);
@@ -95,6 +100,8 @@ export default function CentrosCostoPage() {
       setCentrosCosto(centrosCostoData);
       setSucursales(sucursalesData);
       setEmpresas(empresasResult.data || []);
+      setAreasNegocioCatalogo(areasResult.data || []);
+      setProyectosCatalogo(proyectosResult.data || []);
     } catch (error) {
       console.error('❌ Error cargando datos:', error);
       toast.error('Error al cargar los datos de centros de costo');
@@ -114,8 +121,8 @@ export default function CentrosCostoPage() {
         statusFilter === "active" ? centro.activo : !centro.activo;
 
              const matchesSucursal = sucursalFilter === "all" ? true :
-         sucursalFilter === "0" ? !centro.sucursal_id :
-         centro.sucursal_id?.toString() === sucursalFilter;
+        sucursalFilter === "0" ? !(centro.sucursal_ids?.length || centro.sucursal_id) :
+        (centro.sucursal_ids?.includes(parseInt(sucursalFilter, 10)) || centro.sucursal_id?.toString() === sucursalFilter);
 
       const matchesEmpresa = empresaFilter === "all" ? true :
         empresaFilter === "0" ? !centro.empresa_id :
@@ -351,6 +358,7 @@ export default function CentrosCostoPage() {
                      <TableHead className="px-4 py-3">Empresa</TableHead>
                      <TableHead className="px-4 py-3">Sucursal</TableHead>
                      <TableHead className="px-4 py-3">Área de Negocios</TableHead>
+                     <TableHead className="px-4 py-3">Proyectos</TableHead>
                      <TableHead className="px-4 py-3">Porcentaje</TableHead>
                      <TableHead className="px-4 py-3">Estado</TableHead>
                    </TableRow>
@@ -358,13 +366,13 @@ export default function CentrosCostoPage() {
                  <TableBody>
                    {loading ? (
                      <TableRow>
-                       <TableCell colSpan={7} className="h-24 text-center">
+                      <TableCell colSpan={9} className="h-24 text-center">
                          Cargando centros de costo...
                        </TableCell>
                      </TableRow>
                    ) : filteredCentrosCosto.length === 0 ? (
                      <TableRow>
-                       <TableCell colSpan={7} className="h-24 text-center">
+                      <TableCell colSpan={9} className="h-24 text-center">
                          No hay centros de costo disponibles.
                        </TableCell>
                      </TableRow>
@@ -520,26 +528,51 @@ export default function CentrosCostoPage() {
                              <span className="text-gray-400">Sin empresa</span>
                            )}
                          </TableCell>
-                         <TableCell className="px-4 py-3 text-sm text-gray-500">
-                           {centro.sucursal ? (
-                             <div className="flex items-center gap-2">
-                               <Building2 className="w-4 h-4 text-gray-400" />
-                               <span>{centro.sucursal.nombre}</span>
-                               {centro.sucursal.codigo && (
-                                 <span className="text-xs text-gray-400">({centro.sucursal.codigo})</span>
-                               )}
-                             </div>
-                           ) : (
-                             <span className="text-gray-400">Sin sucursal</span>
-                           )}
-                         </TableCell>
-                         <TableCell className="px-4 py-3 text-sm text-gray-500">
-                           {centro.area_negocio ? (
-                             <span className="text-gray-700">{centro.area_negocio}</span>
-                           ) : (
-                             <span className="text-gray-400">Sin área</span>
-                           )}
-                         </TableCell>
+                        <TableCell className="px-4 py-3 text-sm text-gray-500">
+                          {centro.sucursal_ids && centro.sucursal_ids.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {centro.sucursal_ids.map((id) => {
+                                const suc = sucursales.find(s => s.id === id);
+                                return <Badge key={id} variant="outline">{suc?.nombre || `Sucursal ${id}`}</Badge>;
+                              })}
+                            </div>
+                          ) : centro.sucursal ? (
+                            <div className="flex items-center gap-2">
+                              <Building2 className="w-4 h-4 text-gray-400" />
+                              <span>{centro.sucursal.nombre}</span>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400">Sin sucursal</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-sm text-gray-500">
+                          {centro.area_negocio_ids && centro.area_negocio_ids.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {centro.area_negocio_ids.map((id) => {
+                                const area = areasNegocioCatalogo.find(a => a.id === id);
+                                return <Badge key={id} variant="outline">{area?.nombre || `Área ${id}`}</Badge>;
+                              })}
+                            </div>
+                          ) : centro.area_negocio ? (
+                            <span className="text-gray-700">{centro.area_negocio}</span>
+                          ) : (
+                            <span className="text-gray-400">Sin área</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-sm text-gray-500">
+                          {centro.proyecto_ids && centro.proyecto_ids.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {centro.proyecto_ids.map((id) => {
+                                const proyecto = proyectosCatalogo.find(p => p.id === id);
+                                return <Badge key={id} variant="outline">{proyecto?.nombre || `Proyecto ${id}`}</Badge>;
+                              })}
+                            </div>
+                          ) : centro.proyecto_id ? (
+                            <span className="text-gray-700">Proyecto {centro.proyecto_id}</span>
+                          ) : (
+                            <span className="text-gray-400">Sin proyectos</span>
+                          )}
+                        </TableCell>
                          <TableCell className="px-4 py-3 text-sm text-gray-500">
                            {centro.porcentaje_estructura ? (
                              <span className="text-gray-700 font-medium">{centro.porcentaje_estructura.toFixed(2)}%</span>
@@ -587,10 +620,13 @@ function CentroCostoForm({ editingCentroCosto, onSaved, sucursales, empresas }: 
     codigo: '',
     nombre: '',
     sucursal_id: undefined,
+    sucursal_ids: [],
     empresa_id: undefined,
     area_negocio: undefined,
+    area_negocio_ids: [],
     porcentaje_estructura: undefined,
     proyecto_id: undefined,
+    proyecto_ids: [],
     activo: true
   });
   const [loading, setLoading] = useState(false);
@@ -611,10 +647,13 @@ function CentroCostoForm({ editingCentroCosto, onSaved, sucursales, empresas }: 
          codigo: editingCentroCosto.codigo,
          nombre: editingCentroCosto.nombre,
          sucursal_id: editingCentroCosto.sucursal_id,
+         sucursal_ids: editingCentroCosto.sucursal_ids || (editingCentroCosto.sucursal_id ? [editingCentroCosto.sucursal_id] : []),
          empresa_id: editingCentroCosto.empresa_id,
          area_negocio: editingCentroCosto.area_negocio || '',
+         area_negocio_ids: editingCentroCosto.area_negocio_ids || [],
          porcentaje_estructura: editingCentroCosto.porcentaje_estructura,
          proyecto_id: editingCentroCosto.proyecto_id,
+         proyecto_ids: editingCentroCosto.proyecto_ids || (editingCentroCosto.proyecto_id ? [editingCentroCosto.proyecto_id] : []),
          activo: editingCentroCosto.activo
        });
          } else {
@@ -622,9 +661,13 @@ function CentroCostoForm({ editingCentroCosto, onSaved, sucursales, empresas }: 
          codigo: '',
          nombre: '',
          sucursal_id: undefined,
+         sucursal_ids: [],
          empresa_id: undefined,
          area_negocio: undefined,
+         area_negocio_ids: [],
          porcentaje_estructura: undefined,
+         proyecto_id: undefined,
+         proyecto_ids: [],
          activo: true
        });
      }
@@ -678,7 +721,7 @@ function CentroCostoForm({ editingCentroCosto, onSaved, sucursales, empresas }: 
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label htmlFor="codigo">Código *</Label>
               <Input
@@ -686,6 +729,7 @@ function CentroCostoForm({ editingCentroCosto, onSaved, sucursales, empresas }: 
                 value={formData.codigo}
                 onChange={(e) => setFormData({ ...formData, codigo: e.target.value })}
                 placeholder="Ingrese el código"
+                className="h-8 text-xs"
                 required
               />
             </div>
@@ -697,37 +741,18 @@ function CentroCostoForm({ editingCentroCosto, onSaved, sucursales, empresas }: 
                 value={formData.nombre}
                 onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                 placeholder="Ingrese el nombre"
+                className="h-8 text-sm"
                 required
               />
             </div>
 
-                         <div className="space-y-2">
-               <Label htmlFor="sucursal_id">Sucursal</Label>
-               <Select
-                 value={formData.sucursal_id?.toString() || '0'}
-                 onValueChange={(value) => setFormData({ ...formData, sucursal_id: value === '0' ? undefined : parseInt(value) })}
-               >
-                 <SelectTrigger>
-                   <SelectValue placeholder="Seleccione una sucursal" />
-                 </SelectTrigger>
-                 <SelectContent>
-                   <SelectItem value="0">Sin sucursal</SelectItem>
-                   {sucursales.map(sucursal => (
-                     <SelectItem key={sucursal.id} value={sucursal.id.toString()}>
-                       {sucursal.nombre}
-                     </SelectItem>
-                   ))}
-                 </SelectContent>
-               </Select>
-             </div>
-
-             <div className="space-y-2">
+            <div className="space-y-2">
                <Label htmlFor="empresa_id">Empresa</Label>
                <Select
                  value={formData.empresa_id?.toString() || '0'}
                  onValueChange={(value) => setFormData({ ...formData, empresa_id: value === '0' ? undefined : parseInt(value) })}
                >
-                 <SelectTrigger>
+                 <SelectTrigger className="h-8 text-sm">
                    <SelectValue placeholder="Seleccione una empresa" />
                  </SelectTrigger>
                  <SelectContent>
@@ -739,59 +764,58 @@ function CentroCostoForm({ editingCentroCosto, onSaved, sucursales, empresas }: 
                    ))}
                  </SelectContent>
                </Select>
-             </div>
+            </div>
 
-                           <div className="space-y-2">
-                <Label htmlFor="area_negocio">Área de Negocios</Label>
-                <Select
-                  value={formData.area_negocio || '0'}
-                  onValueChange={(value) => setFormData({ ...formData, area_negocio: value === '0' ? undefined : value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccione área de negocio" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="0">Sin área de negocio</SelectItem>
-                    {areasNegocio.map(a => (
-                      <SelectItem key={a.id} value={a.nombre}>{a.nombre}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="porcentaje_estructura">Porcentaje de Estructura (%)</Label>
+              <Input
+                id="porcentaje_estructura"
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                value={formData.porcentaje_estructura || ''}
+                onChange={(e) => setFormData({ ...formData, porcentaje_estructura: e.target.value ? parseFloat(e.target.value) : undefined })}
+                placeholder="0.00"
+                className="h-8 text-sm"
+              />
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="proyecto_id">Proyecto</Label>
-                <Select
-                  value={formData.proyecto_id?.toString() || '0'}
-                  onValueChange={(value) => setFormData({ ...formData, proyecto_id: value === '0' ? undefined : parseInt(value) })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccione un proyecto" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="0">Sin proyecto</SelectItem>
-                    {proyectos.map(p => (
-                      <SelectItem key={p.id} value={p.id.toString()}>{p.codigo} — {p.nombre}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="sucursal_ids">Sucursales</Label>
+              <MultiSelect
+                options={sucursales.map(s => ({ id: s.id, value: String(s.id), label: s.nombre, description: s.codigo || undefined }))}
+                selected={formData.sucursal_ids || []}
+                onSelectionChange={(selected) => setFormData({ ...formData, sucursal_ids: selected, sucursal_id: selected[0] })}
+                placeholder="Seleccione una o varias sucursales"
+                emptyText="No hay sucursales disponibles"
+                compact
+              />
+            </div>
 
-             <div className="space-y-2">
-               <Label htmlFor="porcentaje_estructura">Porcentaje de Estructura (%)</Label>
-               <Input
-                 id="porcentaje_estructura"
-                 type="number"
-                 min="0"
-                 max="100"
-                 step="0.01"
-                 value={formData.porcentaje_estructura || ''}
-                 onChange={(e) => setFormData({ ...formData, porcentaje_estructura: e.target.value ? parseFloat(e.target.value) : undefined })}
-                 placeholder="0.00"
-               />
-             </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="area_negocio_ids">Áreas de Negocio</Label>
+              <MultiSelect
+                options={areasNegocio.map(a => ({ id: a.id, value: String(a.id), label: a.nombre }))}
+                selected={formData.area_negocio_ids || []}
+                onSelectionChange={(selected) => setFormData({ ...formData, area_negocio_ids: selected, area_negocio: areasNegocio.find(a => a.id === selected[0])?.nombre })}
+                placeholder="Seleccione una o varias áreas"
+                emptyText="No hay áreas disponibles"
+                compact
+              />
+            </div>
 
-            
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="proyecto_ids">Proyectos</Label>
+              <MultiSelect
+                options={proyectos.map(p => ({ id: p.id, value: String(p.id), label: `${p.codigo} — ${p.nombre}` }))}
+                selected={formData.proyecto_ids || []}
+                onSelectionChange={(selected) => setFormData({ ...formData, proyecto_ids: selected, proyecto_id: selected[0] })}
+                placeholder="Seleccione uno o varios proyectos"
+                emptyText="No hay proyectos disponibles"
+                compact
+              />
+            </div>
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">

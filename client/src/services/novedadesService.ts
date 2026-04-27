@@ -71,6 +71,8 @@ export interface NovedadSolicitud {
     updated_by?: number;
     aprobado_por?: number;
     fecha_aprobacion?: string;
+    fecha_inicio_vacante?: string;
+    fecha_congelamiento?: string;
     empleados_ids?: number[];
     created_at?: string;
     updated_at?: string;
@@ -87,6 +89,7 @@ export interface NovedadFiltros {
     sucursal?: string;
     estado?: string;
     created_by?: number;
+    analista_id?: number;
     fecha_desde?: string;
     fecha_hasta?: string;
     busqueda?: string;
@@ -303,6 +306,55 @@ export const novedadesService = {
         }
     },
 
+    getEmpleadosKaptus: async (
+        params?: { page?: number; pageSize?: number }
+    ): Promise<NovedadEmpleado[]> => {
+        try {
+            const token = (import.meta as any).env?.VITE_KAPTUS_API_TOKEN || '';
+            const page = params?.page ?? 1;
+            const pageSize = params?.pageSize ?? 20;
+
+            const response = await fetch(`/kaptus-api/api/empleados_kaptus?page=${page}&pageSize=${pageSize}`, {
+                headers: { 'api_token': token },
+            });
+
+            if (!response.ok) {
+                console.error('Error fetching empleados kaptus:', response.status);
+                return [];
+            }
+
+            const data: any[] = await response.json();
+
+            return (data || []).map((k: any): NovedadEmpleado => ({
+                id: k['Numero documento Identidad'],
+                nombre: (k['Nombre Empleado'] || '').trim(),
+                apellido: (k['Apellidos empleados'] || '').trim(),
+                email: k['Mail Colaborador'] || undefined,
+                numero_documento: String(k['Numero documento Identidad'] || ''),
+                tipo_documento: k['Tipo Documento'] || undefined,
+                cargo: (k['Nombre Cargo'] || '').trim() || undefined,
+                sucursal: k['Codigo Sucursal'] != null ? String(k['Codigo Sucursal']) : undefined,
+                fecha_ingreso: k['Fecha Ingresos'] || undefined,
+                salario: k['Sueldo Basico'] || undefined,
+                auxilio_no_prestacional: k['Aux No prestacional'] || undefined,
+                estado: k['Indicador de Actividad'] === 'A' ? 'activo' : 'inactivo',
+                lider_id: k['Lider'] || undefined,
+                empresa: {
+                    id: k['Codigo Empresa'],
+                    razon_social: (k['Nombre Empresa'] || '').trim(),
+                },
+                lider: k['Lider'] ? {
+                    id: k['Lider'],
+                    primer_nombre: k['Nombre lider'] || '',
+                    primer_apellido: k['Apellidos lider'] || '',
+                } : undefined,
+            }));
+        } catch (error) {
+            console.error('Error en getEmpleadosKaptus:', error);
+            return [];
+        }
+    },
+
     getEmpleadoById: async (id: number): Promise<NovedadEmpleado | null> => {
         try {
             const { data, error } = await supabase
@@ -371,6 +423,9 @@ export const novedadesService = {
 
     getSolicitudes: async (filtros?: NovedadFiltros): Promise<NovedadSolicitud[]> => {
         try {
+            // Auto-descongelar vacantes que lleven más de 1 mes congeladas
+            novedadesService.autoDescongelarExpirados().catch(() => {});
+
             let query = supabase
                 .from('novedades_solicitudes')
                 .select(`
@@ -395,6 +450,9 @@ export const novedadesService = {
             }
             if (filtros?.created_by) {
                 query = query.eq('created_by', filtros.created_by);
+            }
+            if (filtros?.analista_id) {
+                query = query.eq('created_by', filtros.analista_id);
             }
             if (filtros?.fecha_desde) {
                 query = query.gte('created_at', filtros.fecha_desde);
@@ -448,6 +506,7 @@ export const novedadesService = {
                 ...solicitud,
                 created_by: userId,
                 estado: 'solicitada',
+                fecha_inicio_vacante: new Date().toISOString(),
             };
 
             const { data, error } = await supabase
@@ -545,6 +604,7 @@ export const novedadesService = {
                 return null;
             }
 
+
             const userId = getUsuarioActualId();
             const updateData: any = {
                 estado: nuevoEstado,
@@ -555,6 +615,17 @@ export const novedadesService = {
             if (nuevoEstado === 'aprobado_comite' || nuevoEstado === 'ejecutada') {
                 updateData.aprobado_por = userId;
                 updateData.fecha_aprobacion = new Date().toISOString();
+            }
+
+            // Al congelar, registrar fecha de congelamiento
+            if (nuevoEstado === ESTADOS_NOVEDAD.CONGELADA) {
+                updateData.fecha_congelamiento = new Date().toISOString();
+            }
+
+            // Al reactivar desde congelada, reiniciar el tiempo de inicio de vacante
+            if (current.estado === ESTADOS_NOVEDAD.CONGELADA) {
+                updateData.fecha_inicio_vacante = new Date().toISOString();
+                updateData.fecha_congelamiento = null;
             }
 
             const { data, error } = await supabase
@@ -590,6 +661,37 @@ export const novedadesService = {
         } catch (error) {
             console.error('Error en cambiarEstado:', error);
             return null;
+        }
+    },
+
+    // Auto-descongela vacantes congeladas por más de 30 días
+    autoDescongelarExpirados: async (): Promise<void> => {
+        try {
+            const hace30Dias = new Date();
+            hace30Dias.setDate(hace30Dias.getDate() - 30);
+            const { data, error } = await supabase
+                .from('novedades_solicitudes')
+                .select('id, estado_anterior')
+                .eq('estado', 'congelada')
+                .lt('fecha_congelamiento', hace30Dias.toISOString())
+                .not('fecha_congelamiento', 'is', null);
+            if (error || !data?.length) return;
+            const userId = getUsuarioActualId();
+            for (const s of data) {
+                const estadoRetorno = (s.estado_anterior && s.estado_anterior !== 'congelada') ? s.estado_anterior : 'solicitada';
+                await supabase
+                    .from('novedades_solicitudes')
+                    .update({
+                        estado: estadoRetorno,
+                        estado_anterior: 'congelada',
+                        fecha_inicio_vacante: new Date().toISOString(),
+                        fecha_congelamiento: null,
+                        updated_by: userId,
+                    })
+                    .eq('id', s.id);
+            }
+        } catch {
+            // Ignorar para no bloquear el flujo
         }
     },
 

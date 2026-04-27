@@ -43,6 +43,8 @@ import {
     AlertCircle,
     MoreHorizontal,
     Sparkles,
+    ChevronLeft,
+    ChevronRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -62,12 +64,13 @@ import {
 import { supabase } from '@/services/supabaseClient';
 import { emailService } from '@/services/emailService';
 import { Can, usePermissions } from '@/contexts/PermissionsContext';
+import { SelectWithSearch } from '@/components/ui/select-with-search';
 
 // ============================================================
 // TIPOS DE FORMULARIO POR MOTIVO
 // ============================================================
 
-const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type: string; required?: boolean; options?: string[]; helperText?: string; defaultToday?: boolean; rowSpan?: boolean; colStart?: 1 | 2; rowStart?: number; multiple?: boolean }[]> = {
+const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type: string; required?: boolean; options?: string[]; helperText?: string; defaultToday?: boolean; minToday?: boolean; rowSpan?: boolean; colStart?: 1 | 2 | 3 | 4; rowStart?: number; multiple?: boolean; colSpan?: 'full' | number }[]> = {
     incapacidades: [
         { label: 'Fecha de inicio', name: 'fecha_inicio', type: 'date', required: true },
         { label: 'Fecha final', name: 'fecha_fin', type: 'date', required: true },
@@ -77,7 +80,6 @@ const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type:
         { label: 'Último día de trabajo', name: 'fecha_retiro', type: 'date', required: true, colStart: 1 },
         { label: 'Motivo del retiro', name: 'motivo_retiro', type: 'textarea', required: true, rowSpan: true, colStart: 2, rowStart: 1 },
         { label: '¿Requiere reemplazo?', name: 'requiere_reemplazo', type: 'checkbox', colStart: 1 },
-        { label: 'Documentos de soporte', name: 'documento_soporte', type: 'file', colStart: 2, multiple: true },
     ],
     aumento_plaza: [
         { label: 'Cargo', name: 'cargo', type: 'cargo-select', required: true },
@@ -85,16 +87,17 @@ const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type:
         { label: 'Auxilio no prestacional', name: 'auxilio', type: 'number' },
         { label: 'Horas laborales', name: 'horas', type: 'jornada-select', required: true },
         { label: 'Jornada', name: 'jornada', type: 'select', options: ['Diurna', 'Nocturna', 'Mixta', 'Flexible'], required: true },
-        { label: 'Centro de costo', name: 'centro_costo', type: 'centro-costo-select', required: true },
-        { label: 'Área', name: 'area', type: 'text' },
         { label: 'Unidad de negocio', name: 'negocio', type: 'text', required: true },
+        { label: 'Centro de costo', name: 'centro_costo', type: 'centro-costo-select', required: true },
+        { label: 'Área', name: 'area', type: 'area-select', required: true },
+        { label: 'Proyecto', name: 'proyecto', type: 'proyecto-select', required: true },
+        { label: 'Sucursal', name: 'sucursal', type: 'sucursal-select', required: true },
         { label: 'Ciudad', name: 'ciudad', type: 'ciudad-select', required: true },
-        { label: 'Fecha de ingreso', name: 'fecha_ingreso', type: 'date', required: true },
-        { label: 'Proyecto', name: 'proyecto', type: 'text' },
+        { label: 'Fecha de ingreso', name: 'fecha_ingreso', type: 'date', required: true, minToday: true },
     ],
     cambio_centro_costo: [
-        { label: 'Sucursal anterior', name: 'sucursal_anterior', type: 'text', required: true },
-        { label: 'Sucursal nueva', name: 'sucursal_nueva', type: 'text', required: true },
+        { label: 'Sucursal anterior', name: 'sucursal_anterior', type: 'sucursal-anterior-select', required: true },
+        { label: 'Sucursal nueva', name: 'sucursal_nueva', type: 'sucursal-select', required: true },
         { label: 'Fecha inicio del cambio', name: 'fecha_inicio_cambio', type: 'date', required: true },
     ],
     vacaciones: [
@@ -106,21 +109,18 @@ const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type:
         { label: 'Fecha final', name: 'fecha_fin', type: 'date', required: true },
         { label: 'Tipo de licencia', name: 'tipo_licencia', type: 'select', options: ['Maternidad', 'Paternidad', 'Luto', 'Calamidad doméstica', 'Sin goce de sueldo', 'Otra'], required: true },
         { label: 'Duración (días)', name: 'duracion', type: 'duracion-auto' },
-        { label: 'Observaciones', name: 'observaciones', type: 'textarea' },
     ],
     renuncias: [
         { label: 'Fecha de solicitud', name: 'fecha_renuncia', type: 'date', required: true, defaultToday: true },
         { label: 'Motivo de la renuncia', name: 'motivo_renuncia', type: 'textarea', required: true, rowSpan: true },
         { label: 'Último día de trabajo', name: 'fecha_finalizacion', type: 'date', required: true },
         { label: '¿Requiere reemplazo?', name: 'requiere_reemplazo', type: 'checkbox' },
-        { label: 'Documento de soporte', name: 'documento_soporte', type: 'file' },
     ],
     postulaciones_internas: [
-        { label: 'Cargo al que postula', name: 'cargo_postulacion', type: 'cargo-select', required: true },
-        { label: 'Motivo de la postulación', name: 'motivo_postulacion', type: 'textarea', required: true },
-        { label: 'Salario esperado', name: 'salario_esperado', type: 'number' },
-        { label: '¿Genera reemplazo?', name: 'genera_reemplazo', type: 'checkbox' },
-        { label: 'Documento adjunto', name: 'documento_adjunto', type: 'file' },
+        { label: 'Cargo al que postula', name: 'cargo_postulacion', type: 'cargo-select', required: true, colStart: 1, rowStart: 1 },
+        { label: 'Salario esperado', name: 'salario_esperado', type: 'number', colStart: 2, rowStart: 1 },
+        { label: '¿Genera reemplazo?', name: 'genera_reemplazo', type: 'checkbox', colStart: 3, rowStart: 1 },
+        { label: 'Motivo de la postulación', name: 'motivo_postulacion', type: 'textarea', required: true, colStart: 1, rowStart: 2, colSpan: 'full' },
     ],
 };
 
@@ -147,6 +147,42 @@ const ESTADOS_FINALES = [ESTADOS_NOVEDAD.EJECUTADA, ESTADOS_NOVEDAD.RECHAZADA, E
 const escapeHtml = (str: string) =>
     str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+const CURRENCY_FIELDS = new Set(['salario', 'auxilio', 'salario_esperado']);
+const formatCurrency = (value: string | number) => {
+    const numeric = Number(String(value).replace(/[^\d]/g, ''));
+    if (!numeric) return '';
+    return new Intl.NumberFormat('es-CO').format(numeric);
+};
+
+const CurrencyInput = React.memo(({ value, onChange, className }: { value: string; onChange: (raw: string) => void; className?: string }) => {
+    const [display, setDisplay] = React.useState(() => formatCurrency(value));
+    const externalRef = React.useRef(value);
+
+    React.useEffect(() => {
+        if (externalRef.current !== value) {
+            externalRef.current = value;
+            setDisplay(formatCurrency(value));
+        }
+    }, [value]);
+
+    return (
+        <Input
+            type="text"
+            inputMode="numeric"
+            value={display}
+            onChange={e => {
+                const raw = e.target.value.replace(/[^\d]/g, '');
+                const formatted = raw ? new Intl.NumberFormat('es-CO').format(Number(raw)) : '';
+                externalRef.current = raw;
+                setDisplay(formatted);
+                onChange(raw);
+            }}
+            className={className}
+            placeholder="0"
+        />
+    );
+});
+
 // ============================================================
 // COMPONENTE PRINCIPAL
 // ============================================================
@@ -171,6 +207,15 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
         } catch { return undefined; }
     })();
 
+    const empresaNombre: string | undefined = (() => {
+        try {
+            const raw = localStorage.getItem('empresaData');
+            if (!raw) return undefined;
+            const parsed = JSON.parse(raw);
+            return parsed?.razon_social || parsed?.razonSocial || parsed?.nombre || undefined;
+        } catch { return undefined; }
+    })();
+
     // Jornadas laborales para el select de horas
     const [jornadasLaborales, setJornadasLaborales] = useState<{ id: number; nombre_jornada: string; horas_laborales: number }[]>([]);
     useEffect(() => {
@@ -179,19 +224,61 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
     }, []);
 
     // Datos para selects del formulario
-    const [centrosCostoSelect, setCentrosCostoSelect] = useState<{ id: number; nombre: string; codigo: string; area_negocio?: string }[]>([]);
+    const [centrosCostoSelect, setCentrosCostoSelect] = useState<{ id: number; nombre: string; codigo: string; area_negocio?: string; sucursal_ids?: number[]; area_negocio_ids?: number[]; proyecto_ids?: number[] }[]>([]);
     const [areasSelect, setAreasSelect] = useState<{ id: number; nombre: string }[]>([]);
     const [ciudadesSelect, setCiudadesSelect] = useState<{ id: number; nombre: string }[]>([]);
     const [cargosSelect, setCargosSelect] = useState<{ id: number; nombre: string }[]>([]);
+    const [proyectosSelect, setProyectosSelect] = useState<{ id: number; nombre: string }[]>([]);
+    const [sucursalesFormSelect, setSucursalesFormSelect] = useState<{ id: number; nombre: string }[]>([]);
     useEffect(() => {
-        supabase.from('centros_costo').select('id, nombre, codigo, area_negocio').eq('activo', true).order('nombre')
-            .then(({ data }) => { if (data) setCentrosCostoSelect(data); });
-        supabase.from('areas_negocios').select('id, nombre').eq('activo', true).order('nombre')
+        Promise.all([
+            supabase.from('centros_costo').select('id, nombre, codigo, area_negocio').eq('activo', true).order('nombre'),
+            supabase.from('centros_costo_sucursales').select('centro_costo_id, sucursal_id'),
+            supabase.from('centros_costo_areas_negocios').select('centro_costo_id, area_negocio_id'),
+            supabase.from('centros_costo_proyectos').select('centro_costo_id, proyecto_id'),
+        ]).then(([centrosRes, sucRes, areaRes, proyRes]) => {
+            const centros = centrosRes.data || [];
+            const sucRows = sucRes.data || [];
+            const areaRows = areaRes.data || [];
+            const proyRows = proyRes.data || [];
+
+            const sucMap = new Map<number, number[]>();
+            const areaMap = new Map<number, number[]>();
+            const proyMap = new Map<number, number[]>();
+
+            sucRows.forEach((row: any) => {
+                const list = sucMap.get(row.centro_costo_id) || [];
+                list.push(row.sucursal_id);
+                sucMap.set(row.centro_costo_id, list);
+            });
+            areaRows.forEach((row: any) => {
+                const list = areaMap.get(row.centro_costo_id) || [];
+                list.push(row.area_negocio_id);
+                areaMap.set(row.centro_costo_id, list);
+            });
+            proyRows.forEach((row: any) => {
+                const list = proyMap.get(row.centro_costo_id) || [];
+                list.push(row.proyecto_id);
+                proyMap.set(row.centro_costo_id, list);
+            });
+
+            setCentrosCostoSelect(centros.map((c: any) => ({
+                ...c,
+                sucursal_ids: sucMap.get(c.id) || [],
+                area_negocio_ids: areaMap.get(c.id) || [],
+                proyecto_ids: proyMap.get(c.id) || [],
+            })));
+        });
+        supabase.from('gen_areas_negocios').select('id, nombre').eq('activo', true).order('nombre')
             .then(({ data }) => { if (data) setAreasSelect(data); });
         supabase.from('ciudades').select('id, nombre').order('nombre')
             .then(({ data }) => { if (data) setCiudadesSelect(data); });
         supabase.from('tipos_candidatos').select('id, nombre').eq('activo', true).order('nombre')
             .then(({ data }) => { if (data) setCargosSelect(data); });
+        supabase.from('proyectos').select('id, nombre').eq('activo', true).order('nombre')
+            .then(({ data }) => { if (data) setProyectosSelect(data); });
+        supabase.from('gen_sucursales').select('id, nombre').eq('activo', true).order('nombre')
+            .then(({ data }) => { if (data) setSucursalesFormSelect(data); });
     }, []);
 
     // Empresas para el filtro
@@ -201,9 +288,35 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
             .then(({ data }) => { if (data) setEmpresasFiltro(data); });
     }, []);
 
+    // Analistas para el filtro
+    const [analistasFilter, setAnalistasFilter] = useState<{ id: number; nombre: string }[]>([]);
+    useEffect(() => {
+        supabase
+            .from('gen_usuario_roles')
+            .select('usuario_id, gen_usuarios!inner(id, primer_nombre, primer_apellido, activo)')
+            .in('rol_id', [4, 18, 20])
+            .then(({ data }) => {
+                if (!data) return;
+                const vistos = new Set<number>();
+                const lista: { id: number; nombre: string }[] = [];
+                data.forEach((row: any) => {
+                    const u = row.gen_usuarios;
+                    if (u && u.activo && !vistos.has(u.id)) {
+                        vistos.add(u.id);
+                        lista.push({ id: u.id, nombre: `${u.primer_nombre} ${u.primer_apellido}`.trim() });
+                    }
+                });
+                setAnalistasFilter(lista.sort((a, b) => a.nombre.localeCompare(b.nombre)));
+            });
+    }, []);
+
     // Estado de filtros
     const [filtros, setFiltros] = useState<NovedadFiltros>({});
     const [busquedaEmpleado, setBusquedaEmpleado] = useState('');
+    const [kaptusPage, setKaptusPage] = useState(1);
+    const KAPTUS_PAGE_SIZE = 20;
+    const [filtroCargoEmp, setFiltroCargoEmp] = useState('');
+    const [filtroJornada, setFiltroJornada] = useState('');
     const { hasAction } = usePermissions();
     const defaultTab = forcedTab || (hasAction('accion-tab-novedades') ? 'solicitudes' : hasAction('accion-tab-empleados') ? 'empleados' : 'solicitudes');
     const [activeTab, setActiveTab] = useState(defaultTab);
@@ -234,7 +347,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
     const [selectedEmpleados, setSelectedEmpleados] = useState<number[]>([]);
 
     // Flags del motivo seleccionado
-    const [adjuntoFile, setAdjuntoFile] = useState<File | null>(null);
+    const [adjuntoFiles, setAdjuntoFiles] = useState<File[]>([]);
     const [cedulaAprobador, setCedulaAprobador] = useState('');
 
     // Expanded rows
@@ -268,6 +381,23 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
         }),
     });
 
+    const { data: empleadosKaptusRaw = [], isLoading: kaptusLoading } = useQuery<NovedadEmpleado[]>({
+        queryKey: ['empleados-kaptus', kaptusPage],
+        queryFn: () => novedadesService.getEmpleadosKaptus({ page: kaptusPage, pageSize: KAPTUS_PAGE_SIZE }),
+        enabled: activeTab === 'empleados',
+    });
+
+    const empleadosKaptus = useMemo(() => {
+        if (!busquedaEmpleado) return empleadosKaptusRaw;
+        const term = busquedaEmpleado.toLowerCase();
+        return empleadosKaptusRaw.filter(emp =>
+            emp.nombre?.toLowerCase().includes(term) ||
+            emp.apellido?.toLowerCase().includes(term) ||
+            emp.cargo?.toLowerCase().includes(term) ||
+            emp.numero_documento?.includes(term)
+        );
+    }, [empleadosKaptusRaw, busquedaEmpleado]);
+
     const { data: sucursales = [] } = useQuery<string[]>({
         queryKey: ['novedades-sucursales'],
         queryFn: () => novedadesService.getSucursales(),
@@ -287,10 +417,10 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
         // Calcular días una sola vez por solicitud (map → filter)
         const ahora = Date.now();
         const vencidas = solicitudes
-            .filter(s => s.created_at && !ESTADOS_FINALES.includes(s.estado || ''))
+            .filter(s => (s.fecha_inicio_vacante || s.created_at) && !ESTADOS_FINALES.includes(s.estado || ''))
             .map(s => ({
                 ...s,
-                diasSinGestion: Math.floor((ahora - new Date(s.created_at!).getTime()) / (1000 * 60 * 60 * 24)),
+                diasSinGestion: Math.floor((ahora - new Date((s.fecha_inicio_vacante || s.created_at)!).getTime()) / (1000 * 60 * 60 * 24)),
             }))
             .filter(s => s.diasSinGestion >= DIAS_LIMITE_NOTIFICACION);
 
@@ -400,6 +530,9 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
         for (const f of fields) {
             if (f.defaultToday && f.type === 'date') defaults[f.name] = today;
         }
+        if (motivo.codigo === 'aumento_plaza') {
+            defaults['negocio'] = empresaNombre || '';
+        }
         return defaults;
     };
 
@@ -410,7 +543,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
         setFormData({});
         setObservaciones('');
         setSelectedEmpleados([]);
-        setAdjuntoFile(null);
+        setAdjuntoFiles([]);
         setCedulaAprobador('');
         setActiveTab('nueva_novedad');
     };
@@ -421,7 +554,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
         setFormData({});
         setObservaciones('');
         setSelectedEmpleados([]);
-        setAdjuntoFile(null);
+        setAdjuntoFiles([]);
         setCedulaAprobador('');
         setActiveTab(prevTab);
     };
@@ -459,7 +592,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
         }
 
         // Validar adjunto obligatorio
-        if (selectedMotivo.adjunto_obligatorio && !adjuntoFile) {
+        if (selectedMotivo.adjunto_obligatorio && adjuntoFiles.length === 0) {
             toast.error('Debe adjuntar un documento obligatorio para este motivo');
             return;
         }
@@ -473,9 +606,19 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
         }
 
         // Para otros motivos, verificar que hay empleado seleccionado
-        if (!selectedMotivo.permite_seleccion_multiple && !selectedEmpleado) {
+        if (!selectedMotivo.permite_seleccion_multiple && selectedMotivo.codigo !== 'aumento_plaza' && !selectedEmpleado) {
             toast.error('Selecciona un empleado');
             return;
+        }
+
+        if (selectedMotivo.codigo === 'aumento_plaza' && formData.fecha_ingreso) {
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+            const ingreso = new Date(`${formData.fecha_ingreso}T00:00:00`);
+            if (ingreso < hoy) {
+                toast.error('La fecha de ingreso no puede ser anterior a la fecha actual');
+                return;
+            }
         }
 
         const datosForm = { ...formData };
@@ -486,10 +629,15 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
             motivo_id: selectedMotivo.id,
             empleado_id: selectedEmpleado?.id,
             empresa_id: selectedEmpleado?.empresa_id || filtros.empresa_id,
-            sucursal: selectedEmpleado?.sucursal,
+            sucursal: selectedMotivo.codigo === 'aumento_plaza'
+                ? (sucursalesFormSelect.find(s => String(s.id) === String(formData.sucursal))?.nombre || undefined)
+                : selectedEmpleado?.sucursal,
             datos_formulario: {
                 ...datosForm,
-                ...(adjuntoFile ? { adjunto_nombre: adjuntoFile.name, adjunto_tipo: adjuntoFile.type } : {}),
+                ...(adjuntoFiles.length > 0 ? {
+                    adjunto_nombres: adjuntoFiles.map(file => file.name),
+                    adjunto_tipos: adjuntoFiles.map(file => file.type),
+                } : {}),
                 ...(selectedMotivo.requiere_comite ? { cedula_aprobador: CEDULA_APROBADOR_COMITE, nombre_aprobador: NOMBRE_APROBADOR_COMITE } : {}),
             },
             observaciones,
@@ -593,6 +741,47 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
             .slice(0, 7);
     }, [solicitudes]);
 
+    // Filtros cliente: cargo y política de tiempo
+    const cargosEmpleadoOpciones = useMemo(() => {
+        const set = new Set<string>();
+        solicitudes.forEach(s => { if (s.empleado?.cargo) set.add(s.empleado.cargo); });
+        return Array.from(set).sort();
+    }, [solicitudes]);
+
+    const jornadaOpciones = useMemo(() => {
+        const set = new Set<string>();
+        solicitudes.forEach(s => { if ((s.empleado as any)?.jornada) set.add((s.empleado as any).jornada); });
+        ['Diurna', 'Nocturna', 'Mixta', 'Flexible'].forEach(j => set.add(j));
+        return Array.from(set).sort();
+    }, [solicitudes]);
+
+    const solicitudesMostradas = useMemo(() => {
+        let result = solicitudes;
+        if (filtroCargoEmp) result = result.filter(s => s.empleado?.cargo === filtroCargoEmp);
+        if (filtroJornada) result = result.filter(s => (s.empleado as any)?.jornada === filtroJornada);
+        return result;
+    }, [solicitudes, filtroCargoEmp, filtroJornada]);
+
+    const centroCostoSeleccionado = useMemo(
+        () => centrosCostoSelect.find(c => String(c.id) === String(formData.centro_costo)),
+        [centrosCostoSelect, formData.centro_costo],
+    );
+    const areasDisponiblesCentro = useMemo(() => {
+        if (!centroCostoSeleccionado) return areasSelect;
+        if (!centroCostoSeleccionado.area_negocio_ids?.length) return [];
+        return areasSelect.filter(a => centroCostoSeleccionado.area_negocio_ids!.includes(a.id));
+    }, [areasSelect, centroCostoSeleccionado]);
+    const proyectosDisponiblesCentro = useMemo(() => {
+        if (!centroCostoSeleccionado) return proyectosSelect;
+        if (!centroCostoSeleccionado.proyecto_ids?.length) return [];
+        return proyectosSelect.filter(p => centroCostoSeleccionado.proyecto_ids!.includes(p.id));
+    }, [proyectosSelect, centroCostoSeleccionado]);
+    const sucursalesDisponiblesCentro = useMemo(() => {
+        if (!centroCostoSeleccionado) return sucursalesFormSelect;
+        if (!centroCostoSeleccionado.sucursal_ids?.length) return [];
+        return sucursalesFormSelect.filter(s => centroCostoSeleccionado.sucursal_ids!.includes(s.id));
+    }, [sucursalesFormSelect, centroCostoSeleccionado]);
+
     const ESTADO_CHART_COLORS: Record<string, string> = {
         solicitada: '#38bdf8',
         en_proceso: '#fb923c',
@@ -681,7 +870,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                     <FileText className="w-5 h-5 text-orange-600" />
                                 </div>
                                 <span className="text-lg font-semibold text-gray-700">SOLICITUDES</span>
-                                <Badge variant="secondary" className="ml-1">{solicitudes.length}</Badge>
+                                <Badge variant="secondary" className="ml-1">{solicitudesMostradas.length}</Badge>
                             </div>
                             <div className="flex space-x-2">
                                 <Can action="accion-exportar-novedades">
@@ -689,8 +878,8 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                         variant="outline"
                                         size="sm"
                                         onClick={() => {
-                                            if (!solicitudes.length) { toast.error('No hay datos para exportar'); return; }
-                                            const dataToExport = solicitudes.map(s => ({
+                                            if (!solicitudesMostradas.length) { toast.error('No hay datos para exportar'); return; }
+                                            const dataToExport = solicitudesMostradas.map(s => ({
                                                 ID: s.id,
                                                 Empleado: s.empleado ? `${s.empleado.nombre} ${s.empleado.apellido || ''}`.trim() : 'N/A',
                                                 Documento: s.empleado?.documento || 'N/A',
@@ -790,6 +979,51 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                     </SelectContent>
                                 </Select>
 
+                                <Select
+                                    value={filtros.analista_id?.toString() || 'all'}
+                                    onValueChange={(v) => setFiltros(prev => ({ ...prev, analista_id: v === 'all' ? undefined : parseInt(v) }))}
+                                >
+                                    <SelectTrigger className="h-8 w-[170px] text-xs">
+                                        <SelectValue placeholder="Analista" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Todos los analistas</SelectItem>
+                                        {analistasFilter.map(a => (
+                                            <SelectItem key={a.id} value={a.id.toString()}>{a.nombre}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
+                                <Select
+                                    value={filtroCargoEmp || 'all'}
+                                    onValueChange={(v) => setFiltroCargoEmp(v === 'all' ? '' : v)}
+                                >
+                                    <SelectTrigger className="h-8 w-[200px] text-xs">
+                                        <SelectValue placeholder="Cargo" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Todos los cargos</SelectItem>
+                                        {cargosEmpleadoOpciones.map(c => (
+                                            <SelectItem key={c} value={c}>{c}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
+                                <Select
+                                    value={filtroJornada || 'all'}
+                                    onValueChange={(v) => setFiltroJornada(v === 'all' ? '' : v)}
+                                >
+                                    <SelectTrigger className="h-8 w-[190px] text-xs">
+                                        <SelectValue placeholder="Política de tiempo" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Todas las jornadas</SelectItem>
+                                        {jornadaOpciones.map(j => (
+                                            <SelectItem key={j} value={j}>{j}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
                                 <div className="relative w-[220px]">
                                     <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5" />
                                     <Input
@@ -802,7 +1036,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
 
                                 <Button
                                     variant="outline"
-                                    onClick={() => { setFiltros({}); setBusquedaEmpleado(''); }}
+                                    onClick={() => { setFiltros({}); setBusquedaEmpleado(''); setFiltroCargoEmp(''); setFiltroJornada(''); }}
                                     className="h-8 px-2 text-xs flex items-center gap-1.5"
                                 >
                                     <Filter className="w-3.5 h-3.5" />
@@ -819,7 +1053,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                         Cargando solicitudes...
                                     </TableCell>
                                 </TableRow>
-                            ) : solicitudes.length === 0 ? (
+                            ) : solicitudesMostradas.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center py-20">
                                     <div className="p-4 rounded-full bg-gray-50 mb-4">
                                         <FileText className="h-10 w-10 text-gray-300" />
@@ -861,7 +1095,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {[...solicitudes].sort((a, b) => {
+                                        {[...solicitudesMostradas].sort((a, b) => {
                                             const ta = new Date(a.created_at || 0).getTime();
                                             const tb = new Date(b.created_at || 0).getTime();
                                             return sortFecha === 'desc' ? tb - ta : ta - tb;
@@ -970,11 +1204,11 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                     </div>
 
                     {/* Stats + Gráficas */}
-                    {solicitudes.length > 0 && (
+                    {solicitudesMostradas.length > 0 && (
                         <div className="mt-4 space-y-4">
                             <div className="grid grid-cols-5 divide-x divide-gray-100 bg-white border border-gray-100 rounded-xl overflow-hidden">
                                 {[
-                                    { label: 'Total', value: solicitudes.length, color: 'text-gray-900' },
+                                    { label: 'Total', value: solicitudesMostradas.length, color: 'text-gray-900' },
                                     { label: 'Solicitadas', value: stats.solicitada || 0, color: 'text-sky-600' },
                                     { label: 'En proceso', value: stats.en_proceso || 0, color: 'text-amber-600' },
                                     { label: 'Aprobadas', value: stats.aprobado_comite || 0, color: 'text-emerald-600' },
@@ -1051,6 +1285,9 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                             setFormData(buildDefaultFormData(motivo));
                                             setSelectedEmpleado(null);
                                             setSelectedEmpleados([]);
+                                            setObservaciones('');
+                                            setAdjuntoFiles([]);
+                                            setCedulaAprobador('');
                                         }}
                                     >
                                         <SelectTrigger className="mt-1.5 bg-white">
@@ -1076,9 +1313,15 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                 {selectedMotivo && (
                                     <div>
                                         <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                            {selectedMotivo.permite_seleccion_multiple ? 'Empleados *' : 'Empleado *'}
+                                            {selectedMotivo.codigo === 'aumento_plaza'
+                                                ? 'Vacante empleado'
+                                                : selectedMotivo.permite_seleccion_multiple ? 'Empleados *' : 'Empleado *'}
                                         </Label>
-                                        {selectedMotivo.permite_seleccion_multiple ? (
+                                        {selectedMotivo.codigo === 'aumento_plaza' ? (
+                                            <div className="mt-1.5 h-10 px-3 flex items-center rounded-md border border-gray-200 bg-gray-50 text-sm text-gray-600">
+                                                Vacante empleado
+                                            </div>
+                                        ) : selectedMotivo.permite_seleccion_multiple ? (
                                             <div className="mt-1.5 border rounded-md max-h-40 overflow-y-auto p-2 space-y-1 bg-white">
                                                 {empleados.map(emp => (
                                                     <label key={emp.id} className="flex items-center gap-2 py-1 px-2 rounded hover:bg-gray-50 cursor-pointer text-sm">
@@ -1097,6 +1340,12 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                 onValueChange={(v) => {
                                                     const emp = empleados.find(e => e.id === parseInt(v));
                                                     setSelectedEmpleado(emp || null);
+                                                    if (selectedMotivo?.codigo === 'cambio_centro_costo') {
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            sucursal_anterior: emp?.sucursal || '',
+                                                        }));
+                                                    }
                                                 }}
                                             >
                                                 <SelectTrigger className="mt-1.5 bg-white">
@@ -1117,7 +1366,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                         </div>
 
                         {/* Paso 2: Formulario dinámico — solo cuando hay motivo + empleado */}
-                        {selectedMotivo && (selectedEmpleado || selectedEmpleados.length > 0) && (
+                        {selectedMotivo && (selectedMotivo.codigo === 'aumento_plaza' || selectedEmpleado || selectedEmpleados.length > 0) && (
                             <div className="p-5 space-y-4">
                                 {/* Sección: Datos del motivo */}
                                 {(FORM_FIELDS_BY_MOTIVO[selectedMotivo.codigo] || []).length > 0 && (
@@ -1129,16 +1378,20 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                             </span>
                                         </div>
                                         <div className="p-5 bg-gray-50/40">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5 items-start">
-                                                {(FORM_FIELDS_BY_MOTIVO[selectedMotivo.codigo] || []).map(field => (
+                                            {(() => {
+                                                const motFields = FORM_FIELDS_BY_MOTIVO[selectedMotivo.codigo] || [];
+                                                const gridCols = motFields.some(f => (f.colStart ?? 1) >= 3) ? 3 : 2;
+                                                return (
+                                            <div className={`grid grid-cols-1 ${gridCols === 3 ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-x-8 gap-y-5 items-start`}>
+                                                {motFields.map(field => (
                                                     <div key={field.name} style={{
-                                                        ...(field.colStart ? { gridColumnStart: field.colStart } : {}),
+                                                        ...(field.colSpan === 'full' ? { gridColumn: '1 / -1' } : field.colStart ? { gridColumnStart: field.colStart } : {}),
                                                         ...(field.rowStart ? { gridRowStart: field.rowStart } : {}),
                                                         ...(field.rowSpan ? { gridRowEnd: `span 2` } : {}),
                                                     }} className={[
                                                         'space-y-1.5',
                                                         field.rowSpan ? 'flex flex-col' : '',
-                                                        !field.rowSpan && field.type === 'textarea' && !field.colStart ? 'md:col-span-2' : '',
+                                                        !field.rowSpan && field.type === 'textarea' && !field.colStart && field.colSpan !== 'full' ? 'md:col-span-2' : '',
                                                     ].join(' ').trim()}>
                                                         <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1">
                                                             {field.label} {field.required && <span className="text-cyan-500">*</span>}
@@ -1147,21 +1400,38 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                             <Input
                                                                 value={formData[field.name] || ''}
                                                                 onChange={e => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
-                                                                readOnly={field.name === 'area' && !!formData['centro_costo']}
-                                                                className={`border-gray-200 h-9 text-sm ${field.name === 'area' && formData['centro_costo'] ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : 'bg-white focus:border-cyan-400 focus:ring-cyan-100'}`}
+                                                                readOnly={
+                                                                    (field.name === 'area' && !!formData['centro_costo']) ||
+                                                                    (field.name === 'negocio' && selectedMotivo?.codigo === 'aumento_plaza')
+                                                                }
+                                                                className={`border-gray-200 h-9 text-sm ${
+                                                                    (field.name === 'area' && formData['centro_costo']) ||
+                                                                    (field.name === 'negocio' && selectedMotivo?.codigo === 'aumento_plaza')
+                                                                        ? 'bg-gray-50 text-gray-500 cursor-not-allowed'
+                                                                        : 'bg-white focus:border-cyan-400 focus:ring-cyan-100'
+                                                                }`}
                                                                 placeholder={field.name === 'area' && !formData['centro_costo'] ? 'Se autocompleta al elegir centro de costo' : field.label}
                                                             />
                                                         )}
                                                         {field.type === 'number' && (
-                                                            <Input
-                                                                type="number"
-                                                                value={formData[field.name] || ''}
-                                                                onChange={e => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
-                                                                onKeyDown={e => { if (!/[\d\b\t]/.test(e.key) && !['Backspace','Delete','ArrowLeft','ArrowRight','Tab'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }}
-                                                                className="bg-white border-gray-200 focus:border-cyan-400 focus:ring-cyan-100 h-9 text-sm"
-                                                                placeholder="0"
-                                                                min="0"
-                                                            />
+                                                            CURRENCY_FIELDS.has(field.name) ? (
+                                                                <CurrencyInput
+                                                                    key={field.name}
+                                                                    value={formData[field.name] || ''}
+                                                                    onChange={raw => setFormData(prev => ({ ...prev, [field.name]: raw }))}
+                                                                    className="bg-white border-gray-200 focus:border-cyan-400 focus:ring-cyan-100 h-9 text-sm"
+                                                                />
+                                                            ) : (
+                                                                <Input
+                                                                    type="number"
+                                                                    value={formData[field.name] || ''}
+                                                                    onChange={e => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
+                                                                    onKeyDown={e => { if (!/[\d\b\t]/.test(e.key) && !['Backspace','Delete','ArrowLeft','ArrowRight','Tab'].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }}
+                                                                    className="bg-white border-gray-200 focus:border-cyan-400 focus:ring-cyan-100 h-9 text-sm"
+                                                                    placeholder="0"
+                                                                    min="0"
+                                                                />
+                                                            )
                                                         )}
                                                         {field.type === 'date' && (
                                                             <Input
@@ -1170,6 +1440,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                                 onChange={e => !field.defaultToday && setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
                                                                 className={`h-9 text-sm border-gray-200 focus:border-cyan-400 focus:ring-cyan-100 ${field.defaultToday ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : 'bg-white'}`}
                                                                 readOnly={field.defaultToday}
+                                                                min={field.minToday ? new Date().toISOString().split('T')[0] : undefined}
                                                             />
                                                         )}
                                                         {field.type === 'textarea' && (
@@ -1216,24 +1487,27 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                             </Select>
                                                         )}
                                                         {field.type === 'centro-costo-select' && (
-                                                            <Select
+                                                            <SelectWithSearch
                                                                 value={formData[field.name] || ''}
                                                                 onValueChange={v => {
                                                                     const cc = centrosCostoSelect.find(c => String(c.id) === v);
-                                                                    setFormData(prev => ({ ...prev, [field.name]: v, area: cc?.area_negocio || '' }));
+                                                                    setFormData(prev => ({
+                                                                        ...prev,
+                                                                        [field.name]: v,
+                                                                        area: cc?.area_negocio_ids?.length === 1 ? String(cc.area_negocio_ids[0]) : '',
+                                                                        proyecto: '',
+                                                                        sucursal: '',
+                                                                    }));
                                                                 }}
-                                                            >
-                                                                <SelectTrigger className="h-9 text-sm bg-white border-gray-200 focus:border-cyan-400 focus:ring-cyan-100">
-                                                                    <SelectValue placeholder="Seleccionar centro de costo..." />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    {centrosCostoSelect.length === 0
-                                                                        ? <SelectItem value="__none__" disabled>Sin centros registrados</SelectItem>
-                                                                        : centrosCostoSelect.map(c => (
-                                                                            <SelectItem key={c.id} value={String(c.id)}>{c.codigo} — {c.nombre}</SelectItem>
-                                                                        ))}
-                                                                </SelectContent>
-                                                            </Select>
+                                                                placeholder="Seleccionar centro de costo..."
+                                                                emptyText="Sin centros registrados"
+                                                                className="h-9 text-sm border-gray-200"
+                                                                options={centrosCostoSelect.map(c => ({
+                                                                    value: String(c.id),
+                                                                    label: `${c.codigo} — ${c.nombre}`,
+                                                                    searchText: `${c.codigo} ${c.nombre}`,
+                                                                }))}
+                                                            />
                                                         )}
                                                         {field.type === 'area-select' && (
                                                             <Select value={formData[field.name] || ''} onValueChange={v => setFormData(prev => ({ ...prev, [field.name]: v }))}>
@@ -1241,27 +1515,26 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                                     <SelectValue placeholder="Seleccionar área..." />
                                                                 </SelectTrigger>
                                                                 <SelectContent>
-                                                                    {areasSelect.length === 0
+                                                                    {areasDisponiblesCentro.length === 0
                                                                         ? <SelectItem value="__none__" disabled>Sin áreas registradas</SelectItem>
-                                                                        : areasSelect.map(a => (
+                                                                        : areasDisponiblesCentro.map(a => (
                                                                             <SelectItem key={a.id} value={String(a.id)}>{a.nombre}</SelectItem>
                                                                         ))}
                                                                 </SelectContent>
                                                             </Select>
                                                         )}
                                                         {field.type === 'ciudad-select' && (
-                                                            <Select value={formData[field.name] || ''} onValueChange={v => setFormData(prev => ({ ...prev, [field.name]: v }))}>
-                                                                <SelectTrigger className="h-9 text-sm bg-white border-gray-200 focus:border-cyan-400 focus:ring-cyan-100">
-                                                                    <SelectValue placeholder="Seleccionar ciudad..." />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    {ciudadesSelect.length === 0
-                                                                        ? <SelectItem value="__none__" disabled>Sin ciudades registradas</SelectItem>
-                                                                        : ciudadesSelect.map(c => (
-                                                                            <SelectItem key={c.id} value={String(c.id)}>{c.nombre}</SelectItem>
-                                                                        ))}
-                                                                </SelectContent>
-                                                            </Select>
+                                                            <SelectWithSearch
+                                                                value={formData[field.name] || ''}
+                                                                onValueChange={v => setFormData(prev => ({ ...prev, [field.name]: v }))}
+                                                                placeholder="Seleccionar ciudad..."
+                                                                emptyText="Sin ciudades registradas"
+                                                                className="h-9 text-sm border-gray-200"
+                                                                options={ciudadesSelect.map(c => ({
+                                                                    value: String(c.id),
+                                                                    label: c.nombre,
+                                                                }))}
+                                                            />
                                                         )}
                                                         {field.type === 'duracion-auto' && (() => {
                                                             const fi = formData['fecha_inicio'] ? new Date(formData['fecha_inicio']) : null;
@@ -1290,6 +1563,48 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                                 </SelectContent>
                                                             </Select>
                                                         )}
+                                                        {field.type === 'proyecto-select' && (
+                                                            <Select value={formData[field.name] || ''} onValueChange={v => setFormData(prev => ({ ...prev, [field.name]: v }))}>
+                                                                <SelectTrigger className="h-9 text-sm bg-white border-gray-200 focus:border-cyan-400 focus:ring-cyan-100">
+                                                                    <SelectValue placeholder="Seleccionar proyecto..." />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {proyectosDisponiblesCentro.length === 0
+                                                                        ? <SelectItem value="__none__" disabled>Sin proyectos registrados</SelectItem>
+                                                                        : proyectosDisponiblesCentro.map(p => (
+                                                                            <SelectItem key={p.id} value={String(p.id)}>{p.nombre}</SelectItem>
+                                                                        ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        )}
+                                                        {field.type === 'sucursal-select' && (
+                                                            <Select value={formData[field.name] || ''} onValueChange={v => setFormData(prev => ({ ...prev, [field.name]: v }))}>
+                                                                <SelectTrigger className="h-9 text-sm bg-white border-gray-200 focus:border-cyan-400 focus:ring-cyan-100">
+                                                                    <SelectValue placeholder="Seleccionar sucursal..." />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {sucursalesDisponiblesCentro.length === 0
+                                                                        ? <SelectItem value="__none__" disabled>Sin sucursales registradas</SelectItem>
+                                                                        : sucursalesDisponiblesCentro.map(s => (
+                                                                            <SelectItem key={s.id} value={String(s.id)}>{s.nombre}</SelectItem>
+                                                                        ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        )}
+                                                        {field.type === 'sucursal-anterior-select' && (
+                                                            <Select value={formData[field.name] || ''} disabled>
+                                                                <SelectTrigger className="h-9 text-sm bg-gray-50 border-gray-200 text-gray-500">
+                                                                    <SelectValue placeholder="Sucursal actual del empleado" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {(selectedEmpleado?.sucursal || formData[field.name]) && (
+                                                                        <SelectItem value={formData[field.name] || selectedEmpleado?.sucursal || ''}>
+                                                                            {formData[field.name] || selectedEmpleado?.sucursal}
+                                                                        </SelectItem>
+                                                                    )}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        )}
                                                         {field.type === 'checkbox' && (
                                                             <div className="flex items-center gap-2.5 rounded-lg border border-gray-200 bg-white px-3 py-2.5">
                                                                 <Checkbox
@@ -1307,15 +1622,13 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                                     <span className="text-xs text-gray-500">Seleccionar {field.multiple ? 'archivos' : 'archivo'}</span>
                                                                     <Input
                                                                         type="file"
-                                                                        multiple={field.multiple}
+                                                                        multiple
                                                                         className="hidden"
                                                                         onChange={e => {
                                                                             const files = Array.from(e.target.files || []).map(f => f.name);
                                                                             if (files.length) setFormData(prev => ({
                                                                                 ...prev,
-                                                                                [field.name]: field.multiple
-                                                                                    ? [...(Array.isArray(prev[field.name]) ? prev[field.name] : []), ...files]
-                                                                                    : files[0],
+                                                                                [field.name]: [...(Array.isArray(prev[field.name]) ? prev[field.name] : []), ...files],
                                                                             }));
                                                                         }}
                                                                     />
@@ -1350,30 +1663,32 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                     </div>
                                                 ))}
                                             </div>
+                                                );
+                                            })()}
                                         </div>
                                     </div>
                                 )}
 
                                 {/* Sección: Observaciones */}
-                                <div className="rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-                                    <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-100 bg-white">
-                                        <div className="w-1 h-5 rounded-full bg-amber-400 flex-shrink-0" />
-                                        <span className="text-sm font-semibold text-gray-700 tracking-wide">
-                                            Observaciones {selectedMotivo.requiere_observacion && <span className="text-cyan-500 text-xs">*</span>}
-                                        </span>
+                                {selectedMotivo.requiere_observacion && (
+                                    <div className="rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                                        <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-100 bg-white">
+                                            <div className="w-1 h-5 rounded-full bg-amber-400 flex-shrink-0" />
+                                            <span className="text-sm font-semibold text-gray-700 tracking-wide">
+                                                Observaciones <span className="text-cyan-500 text-xs">*</span>
+                                            </span>
+                                        </div>
+                                        <div className="p-5 bg-gray-50/40">
+                                            <Textarea
+                                                value={observaciones}
+                                                onChange={e => setObservaciones(e.target.value)}
+                                                className="bg-white text-sm resize-none border-gray-200 focus:ring-cyan-100 focus:border-amber-400 border-amber-200"
+                                                placeholder="Observaciones obligatorias para este motivo..."
+                                                rows={3}
+                                            />
+                                        </div>
                                     </div>
-                                    <div className="p-5 bg-gray-50/40">
-                                        <Textarea
-                                            value={observaciones}
-                                            onChange={e => setObservaciones(e.target.value)}
-                                            className={`bg-white text-sm resize-none border-gray-200 focus:ring-cyan-100 ${selectedMotivo.requiere_observacion ? 'focus:border-amber-400 border-amber-200' : 'focus:border-cyan-400'}`}
-                                            placeholder={selectedMotivo.requiere_observacion
-                                                ? 'Observaciones obligatorias para este motivo...'
-                                                : 'Comentarios adicionales (opcional)...'}
-                                            rows={3}
-                                        />
-                                    </div>
-                                </div>
+                                )}
 
                                 {/* Sección: Adjunto */}
                                 {selectedMotivo.requiere_adjunto && (
@@ -1387,20 +1702,40 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                     : <span className="text-gray-400 text-xs font-normal">(opcional)</span>}
                                             </span>
                                         </div>
-                                        <div className="p-5 bg-gray-50/40">
-                                            <div className="flex items-center gap-3">
+                                        <div className="p-5 bg-gray-50/40 flex flex-col gap-2">
+                                            <label className="flex items-center justify-center gap-2 cursor-pointer border-2 border-dashed border-gray-200 hover:border-cyan-400 rounded-lg px-3 py-3 transition-colors bg-white hover:bg-cyan-50/40">
+                                                <FileText className="h-4 w-4 text-gray-400" />
+                                                <span className="text-xs text-gray-500">Seleccionar archivos</span>
                                                 <input
                                                     type="file"
-                                                    className="block w-full text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100 border rounded-md p-1.5 cursor-pointer"
-                                                    onChange={e => setAdjuntoFile(e.target.files?.[0] ?? null)}
+                                                    multiple
+                                                    className="hidden"
+                                                    onChange={e => {
+                                                        const nuevos = Array.from(e.target.files || []);
+                                                        if (nuevos.length) setAdjuntoFiles(prev => [...prev, ...nuevos]);
+                                                        e.target.value = '';
+                                                    }}
                                                 />
-                                                {adjuntoFile && (
-                                                    <span className="text-xs text-green-600 flex items-center gap-1 shrink-0">
-                                                        <CheckCircle className="w-3.5 h-3.5" />
-                                                        {adjuntoFile.name}
-                                                    </span>
-                                                )}
-                                            </div>
+                                            </label>
+                                            {adjuntoFiles.length > 0 && (
+                                                <div className="border border-gray-100 rounded-lg bg-white divide-y divide-gray-50">
+                                                    {adjuntoFiles.map((file, idx) => (
+                                                        <div key={`${file.name}-${idx}`} className="flex items-center justify-between px-3 py-1.5 gap-2">
+                                                            <div className="flex items-center gap-2 min-w-0">
+                                                                <FileText className="h-3.5 w-3.5 text-cyan-500 flex-shrink-0" />
+                                                                <span className="text-xs text-gray-600 truncate">{file.name}</span>
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setAdjuntoFiles(prev => prev.filter((_, j) => j !== idx))}
+                                                                className="text-red-400 hover:text-red-600 transition-colors flex-shrink-0 text-base leading-none"
+                                                            >
+                                                                ×
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 )}
@@ -1451,57 +1786,24 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                     <Users className="w-5 h-5 text-violet-600" />
                                 </div>
                                 <span className="text-lg font-semibold text-gray-700">EMPLEADOS</span>
-                                <Badge variant="secondary" className="ml-1">{empleados.length}</Badge>
+                                <Badge variant="secondary" className="ml-1">{empleadosKaptus.length}</Badge>
                             </div>
                         </div>
 
                         <div className="p-4 border-b bg-gray-50">
                             <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap pb-1">
-                                <Select
-                                    value={filtros.empresa_id?.toString() || 'all'}
-                                    onValueChange={(v) => setFiltros(prev => ({ ...prev, empresa_id: v === 'all' ? undefined : parseInt(v, 10) }))}
-                                >
-                                    <SelectTrigger className="h-8 w-[170px] text-xs">
-                                        <SelectValue placeholder="Empresa" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Todas las empresas</SelectItem>
-                                        {empresasFiltro.map(e => (
-                                            <SelectItem key={e.id} value={e.id.toString()}>{e.razon_social}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-
-                                <Select
-                                    value={filtros.sucursal || 'all'}
-                                    onValueChange={(v) => setFiltros(prev => ({ ...prev, sucursal: v === 'all' ? undefined : v }))}
-                                >
-                                    <SelectTrigger className="h-8 w-[170px] text-xs">
-                                        <SelectValue placeholder="Sucursal" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Todas las sucursales</SelectItem>
-                                        {sucursales.map(s => (
-                                            <SelectItem key={s} value={s}>{s}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-
                                 <div className="relative w-[220px]">
                                     <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5" />
                                     <Input
                                         placeholder="Buscar por nombre o cargo..."
                                         value={busquedaEmpleado}
-                                        onChange={e => setBusquedaEmpleado(e.target.value)}
+                                        onChange={e => { setBusquedaEmpleado(e.target.value); setKaptusPage(1); }}
                                         className="h-8 pl-8 text-xs"
                                     />
                                 </div>
                                 <Button
                                     variant="outline"
-                                    onClick={() => {
-                                        setBusquedaEmpleado('');
-                                        setFiltros(prev => ({ ...prev, empresa_id: undefined, sucursal: undefined }));
-                                    }}
+                                    onClick={() => { setBusquedaEmpleado(''); setKaptusPage(1); }}
                                     className="h-8 px-2 text-xs flex items-center gap-1.5"
                                 >
                                     <Filter className="w-3.5 h-3.5" />
@@ -1511,11 +1813,11 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                         </div>
 
                         <div className="overflow-x-auto rounded-lg shadow-sm">
-                            {empleadosLoading ? (
+                            {kaptusLoading ? (
                                 <div className="flex items-center justify-center py-20">
                                     <span className="text-sm text-gray-500">Cargando empleados...</span>
                                 </div>
-                            ) : empleados.length === 0 ? (
+                            ) : empleadosKaptus.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center py-20">
                                     <div className="p-4 rounded-full bg-gray-50 mb-4">
                                         <Users className="h-10 w-10 text-gray-300" />
@@ -1528,22 +1830,22 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                     <TableHeader className="bg-cyan-50">
                                         <TableRow className="text-left font-semibold text-gray-700">
                                             <TableHead className="px-4 py-3">Nombre</TableHead>
+                                            <TableHead className="px-4 py-3">Documento</TableHead>
                                             <TableHead className="px-4 py-3">Cargo</TableHead>
                                             <TableHead className="px-4 py-3">Empresa</TableHead>
-                                            <TableHead className="px-4 py-3">Sucursal</TableHead>
                                             <TableHead className="px-4 py-3">Fecha Ingreso</TableHead>
                                             <TableHead className="px-4 py-3">Estado</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {empleados.map(emp => (
-                                            <TableRow key={emp.id} className="hover:bg-gray-50">
+                                        {empleadosKaptus.map(emp => (
+                                            <TableRow key={emp.numero_documento} className="hover:bg-gray-50">
                                                 <TableCell className="px-4 py-3 text-sm text-gray-900 font-medium">
                                                     {emp.nombre} {emp.apellido || ''}
                                                 </TableCell>
+                                                <TableCell className="px-4 py-3 text-sm text-gray-500">{emp.numero_documento || '-'}</TableCell>
                                                 <TableCell className="px-4 py-3 text-sm text-gray-600">{emp.cargo || '-'}</TableCell>
                                                 <TableCell className="px-4 py-3 text-sm text-gray-600">{emp.empresa?.razon_social || '-'}</TableCell>
-                                                <TableCell className="px-4 py-3 text-sm text-gray-500">{emp.sucursal || '-'}</TableCell>
                                                 <TableCell className="px-4 py-3 text-sm text-gray-500">{formatDate(emp.fecha_ingreso)}</TableCell>
                                                 <TableCell className="px-4 py-3">
                                                     <Badge variant="default" className="bg-brand-lime/10 text-brand-lime border-brand-lime/20">
@@ -1555,6 +1857,33 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                     </TableBody>
                                 </Table>
                             )}
+                        </div>
+
+                        {/* Paginación */}
+                        <div className="flex items-center justify-between px-4 py-3 border-t bg-gray-50 text-xs text-gray-600">
+                            <span>Página {kaptusPage}</span>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={kaptusPage === 1 || kaptusLoading}
+                                    onClick={() => setKaptusPage(p => Math.max(1, p - 1))}
+                                    className="h-7 px-2"
+                                >
+                                    <ChevronLeft className="w-4 h-4" />
+                                    Anterior
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={empleadosKaptusRaw.length < KAPTUS_PAGE_SIZE || kaptusLoading}
+                                    onClick={() => setKaptusPage(p => p + 1)}
+                                    className="h-7 px-2"
+                                >
+                                    Siguiente
+                                    <ChevronRight className="w-4 h-4" />
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 </TabsContent>
