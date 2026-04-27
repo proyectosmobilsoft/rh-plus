@@ -313,8 +313,12 @@ export const novedadesService = {
             const token = (import.meta as any).env?.VITE_KAPTUS_API_TOKEN || '';
             const page = params?.page ?? 1;
             const pageSize = params?.pageSize ?? 20;
+            const isProd = (import.meta as any).env?.PROD;
+            const baseUrl = isProd
+                ? ((import.meta as any).env?.VITE_KAPTUS_API_URL || 'https://apicorehuman.mobilsoft.co')
+                : '/kaptus-api';
 
-            const response = await fetch(`/kaptus-api/api/empleados_kaptus?page=${page}&pageSize=${pageSize}`, {
+            const response = await fetch(`${baseUrl}/api/empleados_kaptus?page=${page}&pageSize=${pageSize}`, {
                 headers: { 'api_token': token },
             });
 
