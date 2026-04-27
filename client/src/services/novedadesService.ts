@@ -310,7 +310,7 @@ export const novedadesService = {
         params?: { page?: number; pageSize?: number }
     ): Promise<NovedadEmpleado[]> => {
         try {
-            const token = (import.meta as any).env?.VITE_KAPTUS_API_TOKEN || '';
+            const token = (import.meta as any).env?.VITE_KAPTUS_API_TOKEN || '14bf055ff3a38813f8fc9724c281e1588b2d6ff133e8f0f44f2dfe16c63b6175';
             const page = params?.page ?? 1;
             const pageSize = params?.pageSize ?? 20;
             const isProd = (import.meta as any).env?.PROD;
