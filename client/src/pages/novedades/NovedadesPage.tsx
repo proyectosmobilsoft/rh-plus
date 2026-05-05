@@ -1446,7 +1446,12 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                                 </SelectContent>
                                                             </Select>
                                                         )}
-                                                        {field.type === 'jornada-select' && (
+                                                        {field.type === 'jornada-select' && (() => {
+                                                            const JORNADAS_AUMENTO_PLAZA = ['AM', 'PM', 'COMPLETA'];
+                                                            const jornadasVisibles = selectedMotivo?.codigo === 'aumento_plaza'
+                                                                ? jornadasLaborales.filter(j => JORNADAS_AUMENTO_PLAZA.includes(j.nombre_jornada.toUpperCase()))
+                                                                : jornadasLaborales;
+                                                            return (
                                                             <Select
                                                                 value={formData[field.name] || ''}
                                                                 onValueChange={v => setFormData(prev => ({ ...prev, [field.name]: v }))}
@@ -1455,16 +1460,17 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                                     <SelectValue placeholder="Seleccionar jornada..." />
                                                                 </SelectTrigger>
                                                                 <SelectContent>
-                                                                    {jornadasLaborales.length === 0 ? (
+                                                                    {jornadasVisibles.length === 0 ? (
                                                                         <SelectItem value="__none__" disabled>Sin jornadas registradas</SelectItem>
-                                                                    ) : jornadasLaborales.map(j => (
+                                                                    ) : jornadasVisibles.map(j => (
                                                                         <SelectItem key={j.id} value={String(j.id)}>
                                                                             {j.nombre_jornada} — {j.horas_laborales}h
                                                                         </SelectItem>
                                                                     ))}
                                                                 </SelectContent>
                                                             </Select>
-                                                        )}
+                                                            );
+                                                        })()}
                                                         {field.type === 'centro-costo-select' && (
                                                             <SelectWithSearch
                                                                 value={formData[field.name] || ''}
