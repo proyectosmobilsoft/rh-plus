@@ -306,6 +306,59 @@ export const novedadesService = {
         }
     },
 
+    getEmpleadosKaptus: async (
+        params?: { page?: number; pageSize?: number }
+    ): Promise<NovedadEmpleado[]> => {
+        try {
+            const token = (import.meta as any).env?.VITE_KAPTUS_API_TOKEN || '14bf055ff3a38813f8fc9724c281e1588b2d6ff133e8f0f44f2dfe16c63b6175';
+            const page = params?.page ?? 1;
+            const pageSize = params?.pageSize ?? 20;
+            const isProd = (import.meta as any).env?.PROD;
+            const baseUrl = isProd
+                ? ((import.meta as any).env?.VITE_KAPTUS_API_URL || 'https://apicorehuman.mobilsoft.co')
+                : '/kaptus-api';
+
+            const response = await fetch(`${baseUrl}/api/empleados_kaptus?page=${page}&pageSize=${pageSize}`, {
+                headers: { 'api_token': token },
+            });
+
+            if (!response.ok) {
+                console.error('Error fetching empleados kaptus:', response.status);
+                return [];
+            }
+
+            const data: any[] = await response.json();
+
+            return (data || []).map((k: any): NovedadEmpleado => ({
+                id: k['Numero documento Identidad'],
+                nombre: (k['Nombre Empleado'] || '').trim(),
+                apellido: (k['Apellidos empleados'] || '').trim(),
+                email: k['Mail Colaborador'] || undefined,
+                numero_documento: String(k['Numero documento Identidad'] || ''),
+                tipo_documento: k['Tipo Documento'] || undefined,
+                cargo: (k['Nombre Cargo'] || '').trim() || undefined,
+                sucursal: k['Codigo Sucursal'] != null ? String(k['Codigo Sucursal']) : undefined,
+                fecha_ingreso: k['Fecha Ingresos'] || undefined,
+                salario: k['Sueldo Basico'] || undefined,
+                auxilio_no_prestacional: k['Aux No prestacional'] || undefined,
+                estado: k['Indicador de Actividad'] === 'A' ? 'activo' : 'inactivo',
+                lider_id: k['Lider'] || undefined,
+                empresa: {
+                    id: k['Codigo Empresa'],
+                    razon_social: (k['Nombre Empresa'] || '').trim(),
+                },
+                lider: k['Lider'] ? {
+                    id: k['Lider'],
+                    primer_nombre: k['Nombre lider'] || '',
+                    primer_apellido: k['Apellidos lider'] || '',
+                } : undefined,
+            }));
+        } catch (error) {
+            console.error('Error en getEmpleadosKaptus:', error);
+            return [];
+        }
+    },
+
     getEmpleadoById: async (id: number): Promise<NovedadEmpleado | null> => {
         try {
             const { data, error } = await supabase

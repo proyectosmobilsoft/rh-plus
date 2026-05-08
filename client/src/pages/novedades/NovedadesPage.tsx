@@ -43,6 +43,8 @@ import {
     AlertCircle,
     MoreHorizontal,
     Sparkles,
+    ChevronLeft,
+    ChevronRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -311,6 +313,8 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
     // Estado de filtros
     const [filtros, setFiltros] = useState<NovedadFiltros>({});
     const [busquedaEmpleado, setBusquedaEmpleado] = useState('');
+    const [kaptusPage, setKaptusPage] = useState(1);
+    const KAPTUS_PAGE_SIZE = 20;
     const [filtroCargoEmp, setFiltroCargoEmp] = useState('');
     const [filtroJornada, setFiltroJornada] = useState('');
     const { hasAction } = usePermissions();
@@ -376,6 +380,23 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
             sucursal: filtros.sucursal,
         }),
     });
+
+    const { data: empleadosKaptusRaw = [], isLoading: kaptusLoading } = useQuery<NovedadEmpleado[]>({
+        queryKey: ['empleados-kaptus', kaptusPage],
+        queryFn: () => novedadesService.getEmpleadosKaptus({ page: kaptusPage, pageSize: KAPTUS_PAGE_SIZE }),
+        enabled: activeTab === 'empleados',
+    });
+
+    const empleadosKaptus = useMemo(() => {
+        if (!busquedaEmpleado) return empleadosKaptusRaw;
+        const term = busquedaEmpleado.toLowerCase();
+        return empleadosKaptusRaw.filter(emp =>
+            emp.nombre?.toLowerCase().includes(term) ||
+            emp.apellido?.toLowerCase().includes(term) ||
+            emp.cargo?.toLowerCase().includes(term) ||
+            emp.numero_documento?.includes(term)
+        );
+    }, [empleadosKaptusRaw, busquedaEmpleado]);
 
     const { data: sucursales = [] } = useQuery<string[]>({
         queryKey: ['novedades-sucursales'],
@@ -1771,57 +1792,24 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                     <Users className="w-5 h-5 text-violet-600" />
                                 </div>
                                 <span className="text-lg font-semibold text-gray-700">EMPLEADOS</span>
-                                <Badge variant="secondary" className="ml-1">{empleados.length}</Badge>
+                                <Badge variant="secondary" className="ml-1">{empleadosKaptus.length}</Badge>
                             </div>
                         </div>
 
                         <div className="p-4 border-b bg-gray-50">
                             <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap pb-1">
-                                <Select
-                                    value={filtros.empresa_id?.toString() || 'all'}
-                                    onValueChange={(v) => setFiltros(prev => ({ ...prev, empresa_id: v === 'all' ? undefined : parseInt(v, 10) }))}
-                                >
-                                    <SelectTrigger className="h-8 w-[170px] text-xs">
-                                        <SelectValue placeholder="Empresa" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Todas las empresas</SelectItem>
-                                        {empresasFiltro.map(e => (
-                                            <SelectItem key={e.id} value={e.id.toString()}>{e.razon_social}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-
-                                <Select
-                                    value={filtros.sucursal || 'all'}
-                                    onValueChange={(v) => setFiltros(prev => ({ ...prev, sucursal: v === 'all' ? undefined : v }))}
-                                >
-                                    <SelectTrigger className="h-8 w-[170px] text-xs">
-                                        <SelectValue placeholder="Sucursal" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Todas las sucursales</SelectItem>
-                                        {sucursales.map(s => (
-                                            <SelectItem key={s} value={s}>{s}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-
                                 <div className="relative w-[220px]">
                                     <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5" />
                                     <Input
                                         placeholder="Buscar por nombre o cargo..."
                                         value={busquedaEmpleado}
-                                        onChange={e => setBusquedaEmpleado(e.target.value)}
+                                        onChange={e => { setBusquedaEmpleado(e.target.value); setKaptusPage(1); }}
                                         className="h-8 pl-8 text-xs"
                                     />
                                 </div>
                                 <Button
                                     variant="outline"
-                                    onClick={() => {
-                                        setBusquedaEmpleado('');
-                                        setFiltros(prev => ({ ...prev, empresa_id: undefined, sucursal: undefined }));
-                                    }}
+                                    onClick={() => { setBusquedaEmpleado(''); setKaptusPage(1); }}
                                     className="h-8 px-2 text-xs flex items-center gap-1.5"
                                 >
                                     <Filter className="w-3.5 h-3.5" />
@@ -1831,11 +1819,11 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                         </div>
 
                         <div className="overflow-x-auto rounded-lg shadow-sm">
-                            {empleadosLoading ? (
+                            {kaptusLoading ? (
                                 <div className="flex items-center justify-center py-20">
                                     <span className="text-sm text-gray-500">Cargando empleados...</span>
                                 </div>
-                            ) : empleados.length === 0 ? (
+                            ) : empleadosKaptus.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center py-20">
                                     <div className="p-4 rounded-full bg-gray-50 mb-4">
                                         <Users className="h-10 w-10 text-gray-300" />
@@ -1848,22 +1836,22 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                     <TableHeader className="bg-cyan-50">
                                         <TableRow className="text-left font-semibold text-gray-700">
                                             <TableHead className="px-4 py-3">Nombre</TableHead>
+                                            <TableHead className="px-4 py-3">Documento</TableHead>
                                             <TableHead className="px-4 py-3">Cargo</TableHead>
                                             <TableHead className="px-4 py-3">Empresa</TableHead>
-                                            <TableHead className="px-4 py-3">Sucursal</TableHead>
                                             <TableHead className="px-4 py-3">Fecha Ingreso</TableHead>
                                             <TableHead className="px-4 py-3">Estado</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {empleados.map(emp => (
-                                            <TableRow key={emp.id} className="hover:bg-gray-50">
+                                        {empleadosKaptus.map(emp => (
+                                            <TableRow key={emp.numero_documento} className="hover:bg-gray-50">
                                                 <TableCell className="px-4 py-3 text-sm text-gray-900 font-medium">
                                                     {emp.nombre} {emp.apellido || ''}
                                                 </TableCell>
+                                                <TableCell className="px-4 py-3 text-sm text-gray-500">{emp.numero_documento || '-'}</TableCell>
                                                 <TableCell className="px-4 py-3 text-sm text-gray-600">{emp.cargo || '-'}</TableCell>
                                                 <TableCell className="px-4 py-3 text-sm text-gray-600">{emp.empresa?.razon_social || '-'}</TableCell>
-                                                <TableCell className="px-4 py-3 text-sm text-gray-500">{emp.sucursal || '-'}</TableCell>
                                                 <TableCell className="px-4 py-3 text-sm text-gray-500">{formatDate(emp.fecha_ingreso)}</TableCell>
                                                 <TableCell className="px-4 py-3">
                                                     <Badge variant="default" className="bg-brand-lime/10 text-brand-lime border-brand-lime/20">
@@ -1875,6 +1863,33 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                     </TableBody>
                                 </Table>
                             )}
+                        </div>
+
+                        {/* Paginación */}
+                        <div className="flex items-center justify-between px-4 py-3 border-t bg-gray-50 text-xs text-gray-600">
+                            <span>Página {kaptusPage}</span>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={kaptusPage === 1 || kaptusLoading}
+                                    onClick={() => setKaptusPage(p => Math.max(1, p - 1))}
+                                    className="h-7 px-2"
+                                >
+                                    <ChevronLeft className="w-4 h-4" />
+                                    Anterior
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={empleadosKaptusRaw.length < KAPTUS_PAGE_SIZE || kaptusLoading}
+                                    onClick={() => setKaptusPage(p => p + 1)}
+                                    className="h-7 px-2"
+                                >
+                                    Siguiente
+                                    <ChevronRight className="w-4 h-4" />
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 </TabsContent>
