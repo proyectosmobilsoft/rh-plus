@@ -345,6 +345,35 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
             .then(({ data }) => { if (data) setSucursalesFormSelect(data); });
     }, []);
 
+    const { hasAction } = usePermissions();
+    const { startLoading, stopLoading } = useLoading();
+    const esAnalistaSeleccion = hasAction('rol_analista_seleccion');
+    const currentUserId = useMemo(() => {
+        try {
+            const raw = localStorage.getItem('userData');
+            return raw ? (JSON.parse(raw).id as number | null) : null;
+        } catch { return null; }
+    }, []);
+
+    // Estado de filtros
+    const [filtros, setFiltros] = useState<NovedadFiltros>({});
+    const [busquedaEmpleado, setBusquedaEmpleado] = useState('');
+    const [kaptusPage, setKaptusPage] = useState(1);
+    const KAPTUS_PAGE_SIZE = 20;
+    const [filtroCargoEmp, setFiltroCargoEmp] = useState('');
+    const [filtrosPanelAbierto, setFiltrosPanelAbierto] = useState(false);
+
+    useEffect(() => {
+        if (collapseFiltersSignal === 'novedades') {
+            setFiltrosPanelAbierto(false);
+        }
+    }, [collapseFiltersSignal]);
+    /** Búsqueda solo en nombre del empleado (primer nombre) dentro del listado de solicitudes. */
+    const [busquedaNombreListaSolicitudes, setBusquedaNombreListaSolicitudes] = useState('');
+    const [filtroJornada, setFiltroJornada] = useState('');
+
+    const defaultTab = forcedTab || (hasAction('accion-tab-novedades') ? 'solicitudes' : hasAction('accion-tab-empleados') ? 'empleados' : 'solicitudes');
+
     // Empresas para el filtro
     const [empresasFiltro, setEmpresasFiltro] = useState<{ id: number; razon_social: string }[]>([]);
     useEffect(() => {
@@ -386,33 +415,6 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                 setAnalistasFilter(lista.sort((a, b) => a.nombre.localeCompare(b.nombre)));
             });
     }, [esAnalistaSeleccion, currentUserId]);
-
-    // Estado de filtros
-    const [filtros, setFiltros] = useState<NovedadFiltros>({});
-    const [busquedaEmpleado, setBusquedaEmpleado] = useState('');
-    const [kaptusPage, setKaptusPage] = useState(1);
-    const KAPTUS_PAGE_SIZE = 20;
-    const [filtroCargoEmp, setFiltroCargoEmp] = useState('');
-    const [filtrosPanelAbierto, setFiltrosPanelAbierto] = useState(false);
-
-    useEffect(() => {
-        if (collapseFiltersSignal === 'novedades') {
-            setFiltrosPanelAbierto(false);
-        }
-    }, [collapseFiltersSignal]);
-    /** Búsqueda solo en nombre del empleado (primer nombre) dentro del listado de solicitudes. */
-    const [busquedaNombreListaSolicitudes, setBusquedaNombreListaSolicitudes] = useState('');
-    const [filtroJornada, setFiltroJornada] = useState('');
-    const { hasAction } = usePermissions();
-    const { startLoading, stopLoading } = useLoading();
-    const esAnalistaSeleccion = hasAction('rol_analista_seleccion');
-    const currentUserId = useMemo(() => {
-        try {
-            const raw = localStorage.getItem('userData');
-            return raw ? (JSON.parse(raw).id as number | null) : null;
-        } catch { return null; }
-    }, []);
-    const defaultTab = forcedTab || (hasAction('accion-tab-novedades') ? 'solicitudes' : hasAction('accion-tab-empleados') ? 'empleados' : 'solicitudes');
     const [activeTab, setActiveTab] = useState(defaultTab);
     const [prevTab, setPrevTab] = useState(defaultTab);
 
