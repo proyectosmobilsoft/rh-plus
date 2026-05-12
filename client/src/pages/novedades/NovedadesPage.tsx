@@ -12,7 +12,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
     Dialog,
     DialogContent,
@@ -38,13 +44,19 @@ import {
     Eye,
     XCircle,
     CheckCircle,
-    Pause,
     Loader2,
     AlertCircle,
     MoreHorizontal,
     Sparkles,
     ChevronLeft,
     ChevronRight,
+    ChevronDown,
+    ChevronUp,
+    ChevronsUpDown,
+    Snowflake,
+    Briefcase,
+    ArrowRightCircle,
+    UserPlus,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -62,8 +74,10 @@ import {
     type NovedadLog,
 } from '@/services/novedadesService';
 import { supabase } from '@/services/supabaseClient';
+import { analistaAsignacionService } from '@/services/analistaAsignacionService';
 import { emailService } from '@/services/emailService';
 import { Can, usePermissions } from '@/contexts/PermissionsContext';
+import { useLoading } from '@/contexts/LoadingContext';
 import { SelectWithSearch } from '@/components/ui/select-with-search';
 
 // ============================================================
@@ -76,10 +90,12 @@ const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type:
         { label: 'Fecha final', name: 'fecha_fin', type: 'date', required: true },
     ],
     retiros: [
-        { label: 'Fecha de solicitud', name: 'fecha_solicitud', type: 'date', required: true, defaultToday: true, colStart: 1 },
-        { label: 'Último día de trabajo', name: 'fecha_retiro', type: 'date', required: true, colStart: 1 },
-        { label: 'Motivo del retiro', name: 'motivo_retiro', type: 'textarea', required: true, rowSpan: true, colStart: 2, rowStart: 1 },
-        { label: '¿Requiere reemplazo?', name: 'requiere_reemplazo', type: 'checkbox', colStart: 1 },
+        { label: 'Fecha de solicitud', name: 'fecha_solicitud', type: 'date', required: true, defaultToday: true, colStart: 1, rowStart: 1 },
+        { label: 'Último día de trabajo', name: 'fecha_retiro', type: 'date', required: true, colStart: 2, rowStart: 1 },
+        { label: 'Tiempo Antigüedad', name: 'tiempo_antiguedad', type: 'text', colStart: 1, rowStart: 2 },
+        { label: 'Tipo de contratación', name: 'tipo_contratacion', type: 'text', colStart: 2, rowStart: 2 },
+        { label: '¿Requiere reemplazo?', name: 'requiere_reemplazo', type: 'checkbox', colSpan: 'full', rowStart: 3 },
+        { label: 'Motivo del retiro', name: 'motivo_retiro', type: 'textarea', required: true, colSpan: 'full', rowStart: 4 },
     ],
     aumento_plaza: [
         { label: 'Cargo', name: 'cargo', type: 'cargo-select', required: true },
@@ -135,6 +151,21 @@ FORM_FIELDS_BY_MOTIVO.renuncia = FORM_FIELDS_BY_MOTIVO.renuncias;
 FORM_FIELDS_BY_MOTIVO.licencia = FORM_FIELDS_BY_MOTIVO.licencias;
 FORM_FIELDS_BY_MOTIVO.postulacion_interna = FORM_FIELDS_BY_MOTIVO.postulaciones_internas;
 
+/** Etiqueta del menú para pasar a un estado destino (nombres de acción solicitados). */
+const getLabelAccionCambioEstado = (estadoDestino: string): string => {
+    if (estadoDestino === ESTADOS_NOVEDAD.CONGELADA) return 'Congelar';
+    if (estadoDestino === ESTADOS_NOVEDAD.CANCELADA) return 'Cancelar';
+    if (estadoDestino === ESTADOS_NOVEDAD.EN_RECLUTAMIENTO) return 'En Reclutamiento';
+    return ESTADO_LABELS[estadoDestino] || estadoDestino;
+};
+
+const iconAccionCambioEstado = (estadoDestino: string) => {
+    if (estadoDestino === ESTADOS_NOVEDAD.CONGELADA) return Snowflake;
+    if (estadoDestino === ESTADOS_NOVEDAD.CANCELADA) return XCircle;
+    if (estadoDestino === ESTADOS_NOVEDAD.EN_RECLUTAMIENTO) return Briefcase;
+    return ArrowRightCircle;
+};
+
 // La aprobación de novedades solo está permitida los viernes
 const esViernes = () => new Date().getDay() === 5;
 
@@ -152,6 +183,37 @@ const formatCurrency = (value: string | number) => {
     const numeric = Number(String(value).replace(/[^\d]/g, ''));
     if (!numeric) return '';
     return new Intl.NumberFormat('es-CO').format(numeric);
+};
+
+const calcularAntiguedad = (fechaIngreso?: string): string => {
+    if (!fechaIngreso) return '';
+    const inicio = new Date(fechaIngreso);
+    if (Number.isNaN(inicio.getTime())) return '';
+
+    const hoy = new Date();
+    let anios = hoy.getFullYear() - inicio.getFullYear();
+    let meses = hoy.getMonth() - inicio.getMonth();
+
+    if (meses < 0) {
+        anios -= 1;
+        meses += 12;
+    }
+
+    if (anios < 0) return '';
+
+    const partes: string[] = [];
+    if (anios > 0) {
+        partes.push(`${anios} año${anios !== 1 ? 's' : ''}`);
+    }
+    if (meses > 0) {
+        partes.push(`${meses} mes${meses !== 1 ? 'es' : ''}`);
+    }
+
+    if (!partes.length) {
+        return 'Menos de 1 mes';
+    }
+
+    return partes.join(' ');
 };
 
 const CurrencyInput = React.memo(({ value, onChange, className }: { value: string; onChange: (raw: string) => void; className?: string }) => {
@@ -192,9 +254,11 @@ interface NovedadesPageProps {
     hideInternalTabs?: boolean;
     headerTitle?: string;
     headerDescription?: string;
+    /** Cuando coincide con la pestaña activa del padre (p.ej. "novedades"), la sección de filtros del listado se contrae. */
+    collapseFiltersSignal?: string;
 }
 
-const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTabs = false, headerTitle, headerDescription }) => {
+const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTabs = false, headerTitle, headerDescription, collapseFiltersSignal }) => {
     const queryClient = useQueryClient();
 
     // Empresa del usuario actual
@@ -291,10 +355,23 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
     // Analistas para el filtro
     const [analistasFilter, setAnalistasFilter] = useState<{ id: number; nombre: string }[]>([]);
     useEffect(() => {
+        if (esAnalistaSeleccion && currentUserId) {
+            // Analista de selección: solo se ve a sí mismo
+            try {
+                const raw = localStorage.getItem('userData');
+                if (raw) {
+                    const u = JSON.parse(raw);
+                    setAnalistasFilter([{ id: u.id, nombre: `${u.primer_nombre || ''} ${u.primer_apellido || ''}`.trim() || u.username }]);
+                }
+            } catch {}
+            setFiltros(prev => ({ ...prev, analista_id: currentUserId }));
+            return;
+        }
+        // Otros roles: todos los analistas de selección
         supabase
             .from('gen_usuario_roles')
             .select('usuario_id, gen_usuarios!inner(id, primer_nombre, primer_apellido, activo)')
-            .in('rol_id', [4, 18, 20])
+            .eq('rol_id', 20)
             .then(({ data }) => {
                 if (!data) return;
                 const vistos = new Set<number>();
@@ -308,7 +385,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                 });
                 setAnalistasFilter(lista.sort((a, b) => a.nombre.localeCompare(b.nombre)));
             });
-    }, []);
+    }, [esAnalistaSeleccion, currentUserId]);
 
     // Estado de filtros
     const [filtros, setFiltros] = useState<NovedadFiltros>({});
@@ -316,8 +393,25 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
     const [kaptusPage, setKaptusPage] = useState(1);
     const KAPTUS_PAGE_SIZE = 20;
     const [filtroCargoEmp, setFiltroCargoEmp] = useState('');
+    const [filtrosPanelAbierto, setFiltrosPanelAbierto] = useState(false);
+
+    useEffect(() => {
+        if (collapseFiltersSignal === 'novedades') {
+            setFiltrosPanelAbierto(false);
+        }
+    }, [collapseFiltersSignal]);
+    /** Búsqueda solo en nombre del empleado (primer nombre) dentro del listado de solicitudes. */
+    const [busquedaNombreListaSolicitudes, setBusquedaNombreListaSolicitudes] = useState('');
     const [filtroJornada, setFiltroJornada] = useState('');
     const { hasAction } = usePermissions();
+    const { startLoading, stopLoading } = useLoading();
+    const esAnalistaSeleccion = hasAction('rol_analista_seleccion');
+    const currentUserId = useMemo(() => {
+        try {
+            const raw = localStorage.getItem('userData');
+            return raw ? (JSON.parse(raw).id as number | null) : null;
+        } catch { return null; }
+    }, []);
     const defaultTab = forcedTab || (hasAction('accion-tab-novedades') ? 'solicitudes' : hasAction('accion-tab-empleados') ? 'empleados' : 'solicitudes');
     const [activeTab, setActiveTab] = useState(defaultTab);
     const [prevTab, setPrevTab] = useState(defaultTab);
@@ -351,8 +445,9 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
     const [cedulaAprobador, setCedulaAprobador] = useState('');
 
     // Expanded rows
-    const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
     const [sortFecha, setSortFecha] = useState<'asc' | 'desc'>('desc');
+    const [sortEstado, setSortEstado] = useState<null | 'asc' | 'desc'>(null);
+    const [sortMotivo, setSortMotivo] = useState<null | 'asc' | 'desc'>(null);
     const resolvedHeaderTitle = headerTitle || (forcedTab === 'empleados' ? 'Listado de Empleados' : 'Gestión de Novedades');
     const resolvedHeaderDescription = headerDescription || (forcedTab === 'empleados'
         ? 'Consulta y seguimiento de empleados relacionados con novedades'
@@ -429,10 +524,17 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
 
         (async () => {
             try {
+                const { data: rolesCoord } = await supabase
+                    .from('gen_roles')
+                    .select('id')
+                    .ilike('nombre', '%coordinador%');
+                const rolIds = rolesCoord?.map((r: any) => r.id) ?? [];
+                if (!rolIds.length) return;
+
                 const { data: coordinadores } = await supabase
                     .from('gen_usuarios')
                     .select('email, primer_nombre, primer_apellido')
-                    .eq('role', 'coordinador')
+                    .in('rol_id', rolIds)
                     .eq('activo', true);
 
                 if (!coordinadores?.length) return;
@@ -509,13 +611,39 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
         onError: (err: Error) => toast.error(err?.message || 'Error al cambiar el estado'),
     });
 
-    const cancelMutation = useMutation({
-        mutationFn: (id: number) => novedadesService.cancelarSolicitud(id),
-        onSuccess: () => {
-            toast.success('Solicitud cancelada');
+    const asignarAnalistaMutation = useMutation({
+        mutationFn: async (sol: NovedadSolicitud) => {
+            startLoading('Asignando analista...');
+            const sucursalId = sol.sucursal
+                ? await (async () => {
+                    const { data } = await supabase
+                        .from('gen_sucursales')
+                        .select('id')
+                        .eq('nombre', sol.sucursal)
+                        .maybeSingle();
+                    return data?.id as number | undefined;
+                })()
+                : undefined;
+            const analistaAsignado = await analistaAsignacionService.asignarAnalistaSeleccionAutomatico(
+                sol.empresa_id, sucursalId
+            );
+            if (!analistaAsignado) throw new Error('No se encontró analista de selección disponible');
+            const { error } = await supabase
+                .from('novedades_solicitudes')
+                .update({ analista_id: analistaAsignado.analista_id })
+                .eq('id', sol.id!);
+            if (error) throw new Error(error.message);
+            return analistaAsignado;
+        },
+        onSuccess: (data) => {
+            stopLoading();
+            toast.success(`Analista ${data.analista_nombre} asignado correctamente`);
             queryClient.invalidateQueries({ queryKey: ['novedades-solicitudes'] });
         },
-        onError: () => toast.error('Error al cancelar la solicitud'),
+        onError: (err: Error) => {
+            stopLoading();
+            toast.error(err?.message || 'Error al asignar analista');
+        },
     });
 
     // ============================================================
@@ -702,15 +830,6 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
         setShowTimelineModal(true);
     };
 
-    const toggleRow = (id: number) => {
-        setExpandedRows(prev => {
-            const next = new Set(prev);
-            if (next.has(id)) next.delete(id);
-            else next.add(id);
-            return next;
-        });
-    };
-
     const toggleEmpleadoSelection = (empId: number) => {
         setSelectedEmpleados(prev =>
             prev.includes(empId) ? prev.filter(id => id !== empId) : [...prev, empId]
@@ -759,8 +878,35 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
         let result = solicitudes;
         if (filtroCargoEmp) result = result.filter(s => s.empleado?.cargo === filtroCargoEmp);
         if (filtroJornada) result = result.filter(s => (s.empleado as any)?.jornada === filtroJornada);
+        const bn = busquedaNombreListaSolicitudes.trim().toLowerCase();
+        if (bn) {
+            result = result.filter(s =>
+                (s.empleado?.nombre || '').toLowerCase().includes(bn));
+        }
         return result;
-    }, [solicitudes, filtroCargoEmp, filtroJornada]);
+    }, [solicitudes, filtroCargoEmp, filtroJornada, busquedaNombreListaSolicitudes]);
+
+    const cantidadFiltrosActivosLista = useMemo(() => {
+        let n = 0;
+        if (filtros.empresa_id) n++;
+        if (filtros.motivo_id) n++;
+        if (filtros.sucursal) n++;
+        if (filtros.estado) n++;
+        if (filtros.analista_id) n++;
+        if (filtroCargoEmp) n++;
+        if (filtroJornada) n++;
+        if (busquedaNombreListaSolicitudes.trim()) n++;
+        return n;
+    }, [
+        filtros.empresa_id,
+        filtros.motivo_id,
+        filtros.sucursal,
+        filtros.estado,
+        filtros.analista_id,
+        filtroCargoEmp,
+        filtroJornada,
+        busquedaNombreListaSolicitudes,
+    ]);
 
     const centroCostoSeleccionado = useMemo(
         () => centrosCostoSelect.find(c => String(c.id) === String(formData.centro_costo)),
@@ -872,7 +1018,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                 <span className="text-lg font-semibold text-gray-700">SOLICITUDES</span>
                                 <Badge variant="secondary" className="ml-1">{solicitudesMostradas.length}</Badge>
                             </div>
-                            <div className="flex space-x-2">
+                            <div className="flex flex-wrap items-center gap-2">
                                 <Can action="accion-exportar-novedades">
                                     <Button
                                         variant="outline"
@@ -886,6 +1032,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                 Cargo: s.empleado?.cargo || 'N/A',
                                                 Motivo: s.motivo?.nombre || 'N/A',
                                                 Estado: ESTADO_LABELS[s.estado || 'solicitada'] || s.estado,
+                                                'Inicio vacante': formatDate(s.fecha_inicio_vacante),
                                                 'Fecha Solicitud': formatDate(s.created_at),
                                                 Sucursal: s.sucursal || 'N/A',
                                                 'Creado Por': s.creador ? `${s.creador.primer_nombre} ${s.creador.primer_apellido}`.trim() : 'Sistema',
@@ -898,161 +1045,214 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                     .catch(() => toast.error('Error al generar el archivo Excel'));
                                             }).catch(() => toast.error('Error al generar el archivo Excel'));
                                         }}
-                                        className="flex items-center gap-2"
+                                        className="h-9 gap-2 rounded-md border-emerald-200 bg-emerald-50 px-4 text-emerald-900 shadow-sm hover:bg-emerald-100 hover:text-emerald-950"
                                     >
-                                        <Download className="h-4 w-4" />
-                                        Exportar
+                                        <Download className="h-4 w-4 text-emerald-700" />
+                                        Exportar Excel
                                     </Button>
                                 </Can>
                                 <Can action="accion-crear-novedad">
                                     <Button
                                         onClick={goToRegistro}
-                                        className="bg-teal-400 hover:bg-teal-500 text-white text-xs px-3 py-1"
                                         size="sm"
+                                        className="h-9 gap-2 rounded-md bg-cyan-600 px-4 font-medium text-white shadow-md hover:bg-cyan-700"
                                     >
-                                        Adicionar Registro
+                                        <Plus className="h-4 w-4 shrink-0" />
+                                        Adicionar registro
                                     </Button>
                                 </Can>
                             </div>
                         </div>
 
-                        {/* Filtros */}
-                        <div className="p-4 border-b bg-gray-50">
-                            <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap pb-1">
-                                <Select
-                                    value={filtros.empresa_id?.toString() || 'all'}
-                                    onValueChange={(v) => setFiltros(prev => ({ ...prev, empresa_id: v === 'all' ? undefined : parseInt(v) }))}
-                                >
-                                    <SelectTrigger className="h-8 w-[170px] text-xs">
-                                        <SelectValue placeholder="Empresa" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Todas las empresas</SelectItem>
-                                        {empresasFiltro.map(e => (
-                                            <SelectItem key={e.id} value={e.id.toString()}>{e.razon_social}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-
-                                <Select
-                                    value={filtros.motivo_id?.toString() || 'all'}
-                                    onValueChange={(v) => setFiltros(prev => ({ ...prev, motivo_id: v === 'all' ? undefined : parseInt(v) }))}
-                                >
-                                    <SelectTrigger className="h-8 w-[170px] text-xs">
-                                        <SelectValue placeholder="Motivo de novedad" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Todos los motivos</SelectItem>
-                                        {motivos.map(m => (
-                                            <SelectItem key={m.id} value={m.id.toString()}>{m.nombre}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-
-                                <Select
-                                    value={filtros.sucursal || 'all'}
-                                    onValueChange={(v) => setFiltros(prev => ({ ...prev, sucursal: v === 'all' ? undefined : v }))}
-                                >
-                                    <SelectTrigger className="h-8 w-[170px] text-xs">
-                                        <SelectValue placeholder="Sucursal" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Todas las sucursales</SelectItem>
-                                        {sucursales.map(s => (
-                                            <SelectItem key={s} value={s}>{s}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-
-                                <Select
-                                    value={filtros.estado || 'all'}
-                                    onValueChange={(v) => setFiltros(prev => ({ ...prev, estado: v === 'all' ? undefined : v }))}
-                                >
-                                    <SelectTrigger className="h-8 w-[170px] text-xs">
-                                        <SelectValue placeholder="Estado" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Todos los estados</SelectItem>
-                                        {Object.entries(ESTADO_LABELS).map(([key, label]) => (
-                                            <SelectItem key={key} value={key}>{label}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-
-                                <Select
-                                    value={filtros.analista_id?.toString() || 'all'}
-                                    onValueChange={(v) => setFiltros(prev => ({ ...prev, analista_id: v === 'all' ? undefined : parseInt(v) }))}
-                                >
-                                    <SelectTrigger className="h-8 w-[170px] text-xs">
-                                        <SelectValue placeholder="Analista" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Todos los analistas</SelectItem>
-                                        {analistasFilter.map(a => (
-                                            <SelectItem key={a.id} value={a.id.toString()}>{a.nombre}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-
-                                <Select
-                                    value={filtroCargoEmp || 'all'}
-                                    onValueChange={(v) => setFiltroCargoEmp(v === 'all' ? '' : v)}
-                                >
-                                    <SelectTrigger className="h-8 w-[200px] text-xs">
-                                        <SelectValue placeholder="Cargo" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Todos los cargos</SelectItem>
-                                        {cargosEmpleadoOpciones.map(c => (
-                                            <SelectItem key={c} value={c}>{c}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-
-                                <Select
-                                    value={filtroJornada || 'all'}
-                                    onValueChange={(v) => setFiltroJornada(v === 'all' ? '' : v)}
-                                >
-                                    <SelectTrigger className="h-8 w-[190px] text-xs">
-                                        <SelectValue placeholder="Política de tiempo" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Todas las jornadas</SelectItem>
-                                        {jornadaOpciones.map(j => (
-                                            <SelectItem key={j} value={j}>{j}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-
-                                <div className="relative w-[220px]">
-                                    <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5" />
-                                    <Input
-                                        placeholder="Buscar empleado..."
-                                        value={busquedaEmpleado}
-                                        onChange={e => setBusquedaEmpleado(e.target.value)}
-                                        className="h-8 pl-8 text-xs"
-                                    />
+                        {/* Filtros — plegables, búsqueda primero */}
+                        <div className="border-b bg-gray-50">
+                            <button
+                                type="button"
+                                className="flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left hover:bg-gray-100/70 transition-colors"
+                                onClick={() => setFiltrosPanelAbierto(v => !v)}
+                                aria-expanded={filtrosPanelAbierto}
+                            >
+                                <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                    <Filter className="h-3.5 w-3.5 text-cyan-600 shrink-0" />
+                                    Filtros
+                                    {cantidadFiltrosActivosLista > 0 && (
+                                        <span className="rounded-full bg-gray-200 px-1.5 py-0 text-[10px] font-semibold tabular-nums text-gray-600">
+                                            {cantidadFiltrosActivosLista}
+                                        </span>
+                                    )}
+                                </span>
+                                {filtrosPanelAbierto ? (
+                                    <ChevronUp className="h-4 w-4 text-gray-500 shrink-0" aria-hidden />
+                                ) : (
+                                    <ChevronDown className="h-4 w-4 text-gray-500 shrink-0" aria-hidden />
+                                )}
+                            </button>
+                            {filtrosPanelAbierto && (
+                                <div className="border-t border-gray-100 px-4 py-4 space-y-4">
+                                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
+                                        <div className="min-w-0 space-y-1">
+                                            <Label className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">Buscar nombre empleado</Label>
+                                            <div className="relative">
+                                                <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                                <Input
+                                                    placeholder="Únicamente primer nombre..."
+                                                    value={busquedaNombreListaSolicitudes}
+                                                    onChange={e => setBusquedaNombreListaSolicitudes(e.target.value)}
+                                                    className="h-7 pl-8 text-xs bg-white border-gray-200"
+                                                />
+                                            </div>
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => { setFiltros({}); setBusquedaNombreListaSolicitudes(''); setFiltroCargoEmp(''); setFiltroJornada(''); }}
+                                            className="h-7 w-full shrink-0 gap-1.5 rounded-md border border-gray-300 bg-white px-3 text-xs text-gray-800 shadow-sm hover:bg-gray-50 sm:w-auto"
+                                        >
+                                            <Filter className="h-3.5 w-3.5 text-gray-500 shrink-0" />
+                                            Limpiar filtros
+                                        </Button>
+                                    </div>
+                                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                        <div className="space-y-1 min-w-0">
+                                            <Label className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">Empresa</Label>
+                                            <Select
+                                                value={filtros.empresa_id?.toString() || 'all'}
+                                                onValueChange={(v) => setFiltros(prev => ({ ...prev, empresa_id: v === 'all' ? undefined : parseInt(v) }))}
+                                            >
+                                                <SelectTrigger className="h-7 w-full text-xs bg-white">
+                                                    <SelectValue placeholder="Todas las empresas" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">Todas las empresas</SelectItem>
+                                                    {empresasFiltro.map(e => (
+                                                        <SelectItem key={e.id} value={e.id.toString()}>{e.razon_social}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-1 min-w-0">
+                                            <Label className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">Motivo</Label>
+                                            <Select
+                                                value={filtros.motivo_id?.toString() || 'all'}
+                                                onValueChange={(v) => setFiltros(prev => ({ ...prev, motivo_id: v === 'all' ? undefined : parseInt(v) }))}
+                                            >
+                                                <SelectTrigger className="h-7 w-full text-xs bg-white">
+                                                    <SelectValue placeholder="Todos los motivos" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">Todos los motivos</SelectItem>
+                                                    {motivos.map(m => (
+                                                        <SelectItem key={m.id} value={m.id.toString()}>{m.nombre}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-1 min-w-0">
+                                            <Label className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">Sucursal</Label>
+                                            <Select
+                                                value={filtros.sucursal || 'all'}
+                                                onValueChange={(v) => setFiltros(prev => ({ ...prev, sucursal: v === 'all' ? undefined : v }))}
+                                            >
+                                                <SelectTrigger className="h-7 w-full text-xs bg-white">
+                                                    <SelectValue placeholder="Todas las sucursales" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">Todas las sucursales</SelectItem>
+                                                    {sucursales.map(s => (
+                                                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-1 min-w-0">
+                                            <Label className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">Estado</Label>
+                                            <Select
+                                                value={filtros.estado || 'all'}
+                                                onValueChange={(v) => setFiltros(prev => ({ ...prev, estado: v === 'all' ? undefined : v }))}
+                                            >
+                                                <SelectTrigger className="h-7 w-full text-xs bg-white">
+                                                    <SelectValue placeholder="Todos los estados" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">Todos los estados</SelectItem>
+                                                    {Object.entries(ESTADO_LABELS).map(([key, label]) => (
+                                                        <SelectItem key={key} value={key}>{label}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                                        <div className="space-y-1 min-w-0">
+                                            <Label className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">Analista</Label>
+                                            <Select
+                                                value={filtros.analista_id?.toString() || 'all'}
+                                                onValueChange={(v) => setFiltros(prev => ({ ...prev, analista_id: v === 'all' ? undefined : parseInt(v) }))}
+                                                disabled={esAnalistaSeleccion}
+                                            >
+                                                <SelectTrigger className="h-7 w-full text-xs bg-white">
+                                                    <SelectValue placeholder="Todos los analistas" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {!esAnalistaSeleccion && <SelectItem value="all">Todos los analistas</SelectItem>}
+                                                    {analistasFilter.map(a => (
+                                                        <SelectItem key={a.id} value={a.id.toString()}>{a.nombre}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-1 min-w-0">
+                                            <Label className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">Cargo empleado</Label>
+                                            <Select
+                                                value={filtroCargoEmp || 'all'}
+                                                onValueChange={(v) => setFiltroCargoEmp(v === 'all' ? '' : v)}
+                                            >
+                                                <SelectTrigger className="h-7 w-full text-xs bg-white">
+                                                    <SelectValue placeholder="Todos los cargos" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">Todos los cargos</SelectItem>
+                                                    {cargosEmpleadoOpciones.map(c => (
+                                                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-1 min-w-0">
+                                            <Label className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">Jornada</Label>
+                                            <Select
+                                                value={filtroJornada || 'all'}
+                                                onValueChange={(v) => setFiltroJornada(v === 'all' ? '' : v)}
+                                            >
+                                                <SelectTrigger className="h-7 w-full text-xs bg-white">
+                                                    <SelectValue placeholder="Todas las jornadas" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">Todas las jornadas</SelectItem>
+                                                    {jornadaOpciones.map(j => (
+                                                        <SelectItem key={j} value={j}>{j}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
                                 </div>
-
-                                <Button
-                                    variant="outline"
-                                    onClick={() => { setFiltros({}); setBusquedaEmpleado(''); setFiltroCargoEmp(''); setFiltroJornada(''); }}
-                                    className="h-8 px-2 text-xs flex items-center gap-1.5"
-                                >
-                                    <Filter className="w-3.5 h-3.5" />
-                                    Limpiar filtros
-                                </Button>
-                            </div>
+                            )}
                         </div>
 
                         {/* Tabla */}
                         <div className="overflow-x-auto rounded-lg shadow-sm">
                             {solicitudesLoading ? (
-                                <TableRow>
-                                    <TableCell colSpan={7} className="h-24 text-center">
-                                        Cargando solicitudes...
-                                    </TableCell>
-                                </TableRow>
+                                <Table className="min-w-[960px] w-full text-xs">
+                                    <TableBody>
+                                        <TableRow>
+                                            <TableCell colSpan={7} className="h-24 text-center text-gray-500">
+                                                Cargando solicitudes...
+                                            </TableCell>
+                                        </TableRow>
+                                    </TableBody>
+                                </Table>
                             ) : solicitudesMostradas.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center py-20">
                                     <div className="p-4 rounded-full bg-gray-50 mb-4">
@@ -1071,50 +1271,90 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                     </Can>
                                 </div>
                             ) : (
-                                <Table className="min-w-[900px] w-full text-xs">
+                                <Table className="min-w-[960px] w-full text-xs">
                                     <TableHeader className="bg-cyan-50">
                                         <TableRow className="text-left font-semibold text-gray-700">
-                                            <TableHead className="px-2 py-1 text-teal-600 w-28">Acciones</TableHead>
-                                            <TableHead className="px-4 py-3 w-16">ID</TableHead>
-                                            <TableHead className="px-4 py-3 w-1/4">Empleado</TableHead>
-                                            <TableHead className="px-4 py-3">Motivo</TableHead>
-                                            <TableHead className="px-4 py-3">Estado</TableHead>
+                                            <TableHead className="w-11 px-1 py-2" aria-label="Menú de acciones" />
+                                            <TableHead className="px-3 py-3 w-14">ID</TableHead>
+                                            <TableHead className="px-4 py-3 min-w-[240px] w-[28%]">Empleado</TableHead>
+                                            <TableHead className="px-4 py-3 min-w-[180px]">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSortMotivo(s => s === null ? 'asc' : s === 'asc' ? 'desc' : null)}
+                                                    className="flex flex-col gap-0 leading-tight hover:text-cyan-700 transition-colors text-left"
+                                                >
+                                                    <span className="flex items-center gap-1">
+                                                        Motivo
+                                                        {sortMotivo === 'asc' && <ChevronUp className="h-3.5 w-3.5 text-cyan-600" />}
+                                                        {sortMotivo === 'desc' && <ChevronDown className="h-3.5 w-3.5 text-cyan-600" />}
+                                                        {sortMotivo === null && <ChevronsUpDown className="h-3.5 w-3.5 text-gray-400" />}
+                                                    </span>
+                                                    <span className="text-[10px] font-normal capitalize tracking-normal text-gray-500 whitespace-normal">
+                                                        Inicio de vacante
+                                                    </span>
+                                                </button>
+                                            </TableHead>
+                                            <TableHead className="px-4 py-3 whitespace-nowrap">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSortEstado(s => s === null ? 'asc' : s === 'asc' ? 'desc' : null)}
+                                                    className="flex items-center gap-1 hover:text-cyan-700 transition-colors"
+                                                >
+                                                    Estado
+                                                    {sortEstado === 'asc' && <ChevronUp className="h-3.5 w-3.5 text-cyan-600" />}
+                                                    {sortEstado === 'desc' && <ChevronDown className="h-3.5 w-3.5 text-cyan-600" />}
+                                                    {sortEstado === null && <ChevronsUpDown className="h-3.5 w-3.5 text-gray-400" />}
+                                                </button>
+                                            </TableHead>
                                             <TableHead
-                                                className="px-4 py-3 cursor-pointer select-none"
+                                                className="px-4 py-3 cursor-pointer select-none whitespace-nowrap"
                                                 onClick={() => setSortFecha(d => d === 'desc' ? 'asc' : 'desc')}
                                             >
                                                 <span className="flex items-center gap-1">
-                                                    Fecha
+                                                    Fecha / Sucursal
                                                     {sortFecha === 'desc'
                                                         ? <ArrowDown className="h-3 w-3" />
                                                         : <ArrowUp className="h-3 w-3" />
                                                     }
                                                 </span>
                                             </TableHead>
-                                            <TableHead className="px-4 py-3">Sucursal</TableHead>
+                                            <TableHead className="px-4 py-3 whitespace-nowrap">Analista</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {[...solicitudesMostradas].sort((a, b) => {
+                                            if (sortEstado) {
+                                                const lA = ESTADO_LABELS[a.estado || ''] || a.estado || '';
+                                                const lB = ESTADO_LABELS[b.estado || ''] || b.estado || '';
+                                                const cmp = lA.localeCompare(lB, 'es');
+                                                if (cmp !== 0) return sortEstado === 'asc' ? cmp : -cmp;
+                                            }
+                                            if (sortMotivo) {
+                                                const mA = a.motivo?.nombre || '';
+                                                const mB = b.motivo?.nombre || '';
+                                                const cmp = mA.localeCompare(mB, 'es');
+                                                if (cmp !== 0) return sortMotivo === 'asc' ? cmp : -cmp;
+                                            }
                                             const ta = new Date(a.created_at || 0).getTime();
                                             const tb = new Date(b.created_at || 0).getTime();
                                             return sortFecha === 'desc' ? tb - ta : ta - tb;
-                                        }).map(sol => (
-                                            <React.Fragment key={sol.id}>
-                                                <TableRow className="hover:bg-gray-50 cursor-pointer" onClick={() => toggleRow(sol.id!)}>
-                                                    <TableCell className="px-2 py-1">
+                                        }).map(sol => {
+                                            const rowTransitions = TRANSICIONES_VALIDAS[sol.estado || ''] || [];
+                                            return (
+                                                <TableRow key={sol.id} className="hover:bg-gray-50 border-b border-gray-100">
+                                                    <TableCell className="w-11 px-1 py-2 align-middle text-center">
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
                                                                 <Button
                                                                     variant="ghost"
                                                                     size="icon"
-                                                                    onClick={(e) => e.stopPropagation()}
-                                                                    className="h-8 w-8"
+                                                                    aria-label="Más acciones"
+                                                                    className="h-8 w-8 shrink-0"
                                                                 >
                                                                     <MoreHorizontal className="h-4 w-4 text-gray-600" />
                                                                 </Button>
                                                             </DropdownMenuTrigger>
-                                                            <DropdownMenuContent align="start" className="w-44" onClick={(e) => e.stopPropagation()}>
+                                                            <DropdownMenuContent align="start" className="w-56 max-h-[min(70vh,24rem)] overflow-y-auto">
                                                                 {hasAction('accion-ver-detalle-novedad') && (
                                                                     <DropdownMenuItem onClick={() => handleViewDetail(sol)} className="cursor-pointer">
                                                                         <Eye className="mr-2 h-4 w-4 text-cyan-600" />
@@ -1127,76 +1367,90 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                                         Ver timeline
                                                                     </DropdownMenuItem>
                                                                 )}
-                                                                {sol.estado === 'solicitada' && (
-                                                                    <Can action="accion-cancelar-novedad">
-                                                                        <DropdownMenuItem onClick={() => cancelMutation.mutate(sol.id!)} className="cursor-pointer text-red-600 focus:text-red-700">
-                                                                            <XCircle className="mr-2 h-4 w-4" />
-                                                                            Cancelar
+                                                                {hasAction('accion-asignar-solicitud') && !sol.analista_id && (
+                                                                    <>
+                                                                        <DropdownMenuSeparator />
+                                                                        <DropdownMenuItem
+                                                                            onClick={() => asignarAnalistaMutation.mutate(sol)}
+                                                                            disabled={asignarAnalistaMutation.isPending}
+                                                                            className="cursor-pointer"
+                                                                        >
+                                                                            <UserPlus className="mr-2 h-4 w-4 text-teal-600" />
+                                                                            Asignar Analista
                                                                         </DropdownMenuItem>
-                                                                    </Can>
+                                                                    </>
                                                                 )}
+                                                                {(() => {
+                                                                    const puedeCambiarEstado = hasAction('accion-cambiar-estado-novedad');
+                                                                    const puedeCancelar = hasAction('accion-cancelar-novedad');
+                                                                    const transicionesVisibles = rowTransitions.filter((est) => {
+                                                                        if (est === ESTADOS_NOVEDAD.CANCELADA) return puedeCancelar || puedeCambiarEstado;
+                                                                        return puedeCambiarEstado;
+                                                                    });
+                                                                    if (!transicionesVisibles.length) return null;
+                                                                    return (
+                                                                        <>
+                                                                            <DropdownMenuSeparator />
+                                                                            {transicionesVisibles.map(nextEstado => {
+                                                                                const soloViernes = nextEstado === 'aprobado_comite' && !esViernes();
+                                                                                const IconTrans = iconAccionCambioEstado(nextEstado);
+                                                                                const destructive = nextEstado === ESTADOS_NOVEDAD.CANCELADA;
+                                                                                return (
+                                                                                    <DropdownMenuItem
+                                                                                        key={nextEstado}
+                                                                                        disabled={soloViernes || cambiarEstadoMutation.isPending}
+                                                                                        title={soloViernes ? 'La aprobación solo está permitida los viernes' : undefined}
+                                                                                        onClick={() => cambiarEstadoMutation.mutate({ id: sol.id!, estado: nextEstado })}
+                                                                                        className={destructive ? 'cursor-pointer text-red-600 focus:text-red-700' : 'cursor-pointer'}
+                                                                                    >
+                                                                                        <IconTrans className={`mr-2 h-4 w-4 shrink-0 ${destructive ? 'text-red-500' : 'text-gray-600'}`} />
+                                                                                        {getLabelAccionCambioEstado(nextEstado)}
+                                                                                    </DropdownMenuItem>
+                                                                                );
+                                                                            })}
+                                                                        </>
+                                                                    );
+                                                                })()}
                                                             </DropdownMenuContent>
                                                         </DropdownMenu>
                                                     </TableCell>
-                                                    <TableCell className="px-4 py-3 text-sm text-gray-900 font-mono">#{sol.id}</TableCell>
-                                                    <TableCell className="px-4 py-3 text-sm text-gray-900 font-medium">
-                                                        {sol.empleado ? `${sol.empleado.nombre} ${sol.empleado.apellido || ''}` : '-'}
+                                                    <TableCell className="px-3 py-3 text-sm text-gray-900 font-mono whitespace-nowrap">#{sol.id}</TableCell>
+                                                    <TableCell className="min-w-[240px] px-4 py-3 text-sm">
+                                                        <p className="font-medium leading-snug text-gray-900">
+                                                            {sol.empleado ? `${sol.empleado.nombre} ${sol.empleado.apellido || ''}`.trim() : '-'}
+                                                        </p>
+                                                        {sol.empleado?.cargo && (
+                                                            <p className="mt-0.5 text-xs text-gray-500">{sol.empleado.cargo}</p>
+                                                        )}
                                                     </TableCell>
-                                                    <TableCell className="px-4 py-3">
-                                                        <Badge variant="outline" className="text-xs font-medium border-gray-200 bg-white">
-                                                            {sol.motivo?.nombre || '-'}
-                                                        </Badge>
+                                                    <TableCell className="px-4 py-3 align-top">
+                                                        <div className="space-y-1">
+                                                            <p className="text-sm leading-snug text-gray-900">
+                                                                {sol.motivo?.nombre || '—'}
+                                                            </p>
+                                                            <p className="text-[11px] text-gray-500">
+                                                                Vacante desde: <span className="font-medium text-gray-700">{formatDate(sol.fecha_inicio_vacante)}</span>
+                                                            </p>
+                                                        </div>
                                                     </TableCell>
-                                                    <TableCell className="px-4 py-3">
+                                                    <TableCell className="px-4 py-3 whitespace-nowrap">
                                                         <Badge className={`text-xs font-semibold ${ESTADO_COLORS[sol.estado || 'solicitada']}`}>
                                                             {ESTADO_LABELS[sol.estado || 'solicitada']}
                                                         </Badge>
                                                     </TableCell>
-                                                    <TableCell className="px-4 py-3 text-sm text-gray-500">{formatDate(sol.created_at)}</TableCell>
-                                                    <TableCell className="px-4 py-3 text-sm text-gray-500">{sol.sucursal || '-'}</TableCell>
+                                                    <TableCell className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
+                                                        <p>{formatDate(sol.created_at)}</p>
+                                                        {sol.sucursal && <p className="text-[11px] text-gray-400 mt-0.5 max-w-[130px] truncate" title={sol.sucursal}>{sol.sucursal}</p>}
+                                                    </TableCell>
+                                                    <TableCell className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
+                                                        {sol.analista
+                                                            ? `${sol.analista.primer_nombre} ${sol.analista.primer_apellido}`.trim() || sol.analista.username
+                                                            : <span className="text-gray-300 italic text-xs">Sin asignar</span>
+                                                        }
+                                                    </TableCell>
                                                 </TableRow>
-                                                {expandedRows.has(sol.id!) && (
-                                                    <TableRow className="bg-gray-50/80">
-                                                        <TableCell colSpan={7} className="px-6 py-4">
-                                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-                                                                <div>
-                                                                    <span className="text-gray-500 font-medium">Creado por:</span>
-                                                                    <p className="mt-0.5">{sol.creador ? `${sol.creador.primer_nombre} ${sol.creador.primer_apellido}` : '-'}</p>
-                                                                </div>
-                                                                <div>
-                                                                    <span className="text-gray-500 font-medium">Reemplazo:</span>
-                                                                    <p className="mt-0.5">{sol.requiere_reemplazo ? 'Sí' : 'No'}</p>
-                                                                </div>
-                                                                <div>
-                                                                    <span className="text-gray-500 font-medium">Observaciones:</span>
-                                                                    <p className="mt-0.5 line-clamp-2">{sol.observaciones || 'Sin observaciones'}</p>
-                                                                </div>
-                                                                <Can action="accion-cambiar-estado-novedad">
-                                                                    <div className="flex gap-2 flex-wrap">
-                                                                        {(TRANSICIONES_VALIDAS[sol.estado || ''] || []).slice(0, 3).map(nextEstado => {
-                                                                            const soloViernes = nextEstado === 'aprobado_comite' && !esViernes();
-                                                                            return (
-                                                                                <Button
-                                                                                    key={nextEstado}
-                                                                                    variant="outline"
-                                                                                    size="sm"
-                                                                                    className="text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                                                                                    disabled={soloViernes}
-                                                                                    title={soloViernes ? 'La aprobación solo está permitida los viernes' : undefined}
-                                                                                    onClick={() => cambiarEstadoMutation.mutate({ id: sol.id!, estado: nextEstado })}
-                                                                                >
-                                                                                    {ESTADO_LABELS[nextEstado]}
-                                                                                </Button>
-                                                                            );
-                                                                        })}
-                                                                    </div>
-                                                                </Can>
-                                                            </div>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                )}
-                                            </React.Fragment>
-                                        ))}
+                                            );
+                                        })}
                                     </TableBody>
                                 </Table>
                             )}
@@ -1340,10 +1594,23 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                 onValueChange={(v) => {
                                                     const emp = empleados.find(e => e.id === parseInt(v));
                                                     setSelectedEmpleado(emp || null);
+
+                                                    if (!emp) {
+                                                        return;
+                                                    }
+
                                                     if (selectedMotivo?.codigo === 'cambio_centro_costo') {
                                                         setFormData(prev => ({
                                                             ...prev,
-                                                            sucursal_anterior: emp?.sucursal || '',
+                                                            sucursal_anterior: emp.sucursal || '',
+                                                        }));
+                                                    }
+
+                                                    if (selectedMotivo?.codigo === 'retiros' || selectedMotivo?.codigo === 'retiro') {
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            tiempo_antiguedad: calcularAntiguedad(emp.fecha_ingreso),
+                                                            tipo_contratacion: emp.duracion_contrato || '',
                                                         }));
                                                     }
                                                 }}
@@ -1396,23 +1663,30 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                         <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1">
                                                             {field.label} {field.required && <span className="text-cyan-500">*</span>}
                                                         </Label>
-                                                        {field.type === 'text' && (
-                                                            <Input
-                                                                value={formData[field.name] || ''}
-                                                                onChange={e => setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
-                                                                readOnly={
-                                                                    (field.name === 'area' && !!formData['centro_costo']) ||
-                                                                    (field.name === 'negocio' && selectedMotivo?.codigo === 'aumento_plaza')
-                                                                }
-                                                                className={`border-gray-200 h-9 text-sm ${
-                                                                    (field.name === 'area' && formData['centro_costo']) ||
-                                                                    (field.name === 'negocio' && selectedMotivo?.codigo === 'aumento_plaza')
-                                                                        ? 'bg-gray-50 text-gray-500 cursor-not-allowed'
-                                                                        : 'bg-white focus:border-cyan-400 focus:ring-cyan-100'
-                                                                }`}
-                                                                placeholder={field.name === 'area' && !formData['centro_costo'] ? 'Se autocompleta al elegir centro de costo' : field.label}
-                                                            />
-                                                        )}
+                                                        {field.type === 'text' && (() => {
+                                                            const isReadOnlyText =
+                                                                (field.name === 'area' && !!formData['centro_costo']) ||
+                                                                (field.name === 'negocio' && selectedMotivo?.codigo === 'aumento_plaza') ||
+                                                                field.name === 'tiempo_antiguedad' ||
+                                                                field.name === 'tipo_contratacion';
+                                                            return (
+                                                                <Input
+                                                                    value={formData[field.name] || ''}
+                                                                    onChange={e => !isReadOnlyText && setFormData(prev => ({ ...prev, [field.name]: e.target.value }))}
+                                                                    readOnly={isReadOnlyText}
+                                                                    className={`border-gray-200 h-9 text-sm ${
+                                                                        isReadOnlyText
+                                                                            ? 'bg-gray-50 text-gray-500 cursor-not-allowed'
+                                                                            : 'bg-white focus:border-cyan-400 focus:ring-cyan-100'
+                                                                    }`}
+                                                                    placeholder={
+                                                                        field.name === 'area' && !formData['centro_costo']
+                                                                            ? 'Se autocompleta al elegir centro de costo'
+                                                                            : field.label
+                                                                    }
+                                                                />
+                                                            );
+                                                        })()}
                                                         {field.type === 'number' && (
                                                             CURRENCY_FIELDS.has(field.name) ? (
                                                                 <CurrencyInput
@@ -1757,7 +2031,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                         </div>
                                         <div className="p-4 space-y-3">
                                             <p className="text-sm text-amber-700">
-                                                Esta solicitud requiere aprobación de comité. Al guardar, se notificará automáticamente por correo al aprobador designado para que gestione su aprobación.
+                                                Esta solicitud requiere aprobación de comité. Al guardar, se notificará automáticamente por correo al aprobador designado para que gestione su aprobación. El tiempo de respuesta es de 8 días hábiles.
                                             </p>
                                         </div>
                                     </div>
@@ -1975,33 +2249,10 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                 </>
                             )}
 
-                            {/* Botones de acción según estado */}
                             <Separator />
-                            <div className="flex flex-wrap gap-2">
-                                {(TRANSICIONES_VALIDAS[selectedSolicitud.estado || ''] || []).map(nextEstado => {
-                                    const soloViernes = nextEstado === 'aprobado_comite' && !esViernes();
-                                    return (
-                                        <Button
-                                            key={nextEstado}
-                                            variant="outline"
-                                            size="sm"
-                                            className="text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                                            disabled={soloViernes}
-                                            title={soloViernes ? 'La aprobación solo está permitida los viernes' : undefined}
-                                            onClick={() => {
-                                                cambiarEstadoMutation.mutate({ id: selectedSolicitud.id!, estado: nextEstado });
-                                                setShowDetailModal(false);
-                                            }}
-                                        >
-                                            {nextEstado === 'rechazada' && <XCircle className="h-3 w-3 mr-1 text-red-500" />}
-                                            {nextEstado === 'aprobado_comite' && <CheckCircle className="h-3 w-3 mr-1 text-green-500" />}
-                                            {nextEstado === 'congelada' && <Pause className="h-3 w-3 mr-1 text-gray-500" />}
-                                            {ESTADO_LABELS[nextEstado]}
-                                        </Button>
-                                    );
-                                })}
+                            <div className="flex justify-end">
                                 <Button variant="ghost" size="sm" onClick={() => handleViewTimeline(selectedSolicitud.id!)}>
-                                    <Clock className="h-3 w-3 mr-1" /> Ver Timeline
+                                    <Clock className="h-3 w-3 mr-1" /> Ver timeline
                                 </Button>
                             </div>
                         </div>

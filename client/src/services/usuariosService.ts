@@ -18,101 +18,94 @@ export interface UsuarioData {
   updatedAt?: string;
 }
 
+export interface ListUsuariosParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  activo?: 'all' | boolean;
+  rolId?: 'all' | number;
+}
+
+export interface ListUsuariosResult {
+  data: any[];
+  total: number;
+}
+
 export const usuariosService = {
-  // Listar usuarios con sus roles y empresas (optimizado para evitar timeouts)
-  // Usa consultas separadas para evitar producto cartesiano grande
-  // NO incluye foto_base64 por defecto (es muy grande y causa timeouts)
-  async listUsuarios() {
+  async listUsuarios(params: ListUsuariosParams = {}): Promise<ListUsuariosResult> {
     try {
-      // Primero obtener solo los usuarios básicos (sin relaciones anidadas)
-      // Incluir foto_base64 (ahora es URL de Storage, no base64 completo, así que es seguro)
-      const selectFields = `id, identificacion, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, telefono, email, username, activo, created_at`;
+      const { page = 1, pageSize = 100, search = '', activo = 'all', rolId = 'all' } = params;
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
 
-      const { data: usuarios, error: usuariosError } = await supabase
+      const selectFields = `id, identificacion, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, telefono, email, username, activo, password, created_at`;
+
+      // Si hay filtro por rol, obtener los IDs de usuarios con ese rol
+      let rolUserIds: number[] | null = null;
+      if (rolId !== 'all') {
+        const { data: rolUsers } = await supabase
+          .from('gen_usuario_roles')
+          .select('usuario_id')
+          .eq('rol_id', rolId)
+          .range(0, 9999);
+        rolUserIds = (rolUsers || []).map((r: any) => r.usuario_id);
+        if (rolUserIds.length === 0) return { data: [], total: 0 };
+      }
+
+      let query = supabase
         .from('gen_usuarios')
-        .select(selectFields)
-        .order('created_at', { ascending: false });
-      
-      if (usuariosError) throw usuariosError;
-      if (!usuarios || usuarios.length === 0) return [];
+        .select(selectFields, { count: 'exact' })
+        .order('primer_apellido', { ascending: true })
+        .order('primer_nombre', { ascending: true });
 
-      // Obtener IDs de usuarios
+      if (search) {
+        query = query.or(
+          `primer_nombre.ilike.%${search}%,primer_apellido.ilike.%${search}%,email.ilike.%${search}%,username.ilike.%${search}%,identificacion.ilike.%${search}%`
+        );
+      }
+
+      if (activo !== 'all') {
+        query = query.eq('activo', activo);
+      }
+
+      if (rolUserIds !== null) {
+        query = query.in('id', rolUserIds);
+      }
+
+      const { data: usuarios, error: usuariosError, count } = await query.range(from, to);
+
+      if (usuariosError) throw usuariosError;
+      if (!usuarios || usuarios.length === 0) return { data: [], total: count || 0 };
+
       const usuarioIds = usuarios.map((u: any) => u.id);
 
-      // Para evitar URLs enormes (502), consultar por lotes
-      const chunkSize = 150;
-      const chunk = <T,>(arr: T[], size: number): T[][] => {
-        const out: T[][] = [];
-        for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
-        return out;
-      };
+      const { data: usuarioRoles, error: rolesError } = await supabase
+        .from('gen_usuario_roles')
+        .select(`id, usuario_id, rol_id, created_at, gen_roles ( id, nombre )`)
+        .in('usuario_id', usuarioIds)
+        .range(0, 9999);
 
-      // Obtener roles de usuarios en consultas separadas (por lotes)
-      const usuarioRoles: any[] = [];
-      for (const ids of chunk(usuarioIds, chunkSize)) {
-        const { data, error } = await supabase
-          .from('gen_usuario_roles')
-          .select(`
-            id,
-            usuario_id,
-            rol_id,
-            created_at,
-            gen_roles ( id, nombre )
-          `)
-          .in('usuario_id', ids);
+      if (rolesError) console.error('Error al obtener roles:', rolesError);
 
-        if (error) {
-          console.error('Error al obtener roles de usuarios:', error);
-          // continuar para no bloquear todo el listado
-        } else if (data?.length) {
-          usuarioRoles.push(...data);
-        }
-      }
+      const { data: usuarioEmpresas, error: empresasError } = await supabase
+        .from('gen_usuario_empresas')
+        .select(`id, usuario_id, empresa_id, created_at, empresas ( id, razon_social )`)
+        .in('usuario_id', usuarioIds)
+        .range(0, 9999);
 
-      // Obtener empresas de usuarios en consultas separadas (por lotes)
-      const usuarioEmpresas: any[] = [];
-      for (const ids of chunk(usuarioIds, chunkSize)) {
-        const { data, error } = await supabase
-          .from('gen_usuario_empresas')
-          .select(`
-            id,
-            usuario_id,
-            empresa_id,
-            created_at,
-            empresas ( id, razon_social )
-          `)
-          .in('usuario_id', ids);
+      if (empresasError) console.error('Error al obtener empresas:', empresasError);
 
-        if (error) {
-          console.error('Error al obtener empresas de usuarios:', error);
-          // continuar para no bloquear todo el listado
-        } else if (data?.length) {
-          usuarioEmpresas.push(...data);
-        }
-      }
-
-      // Combinar los datos
-      const usuariosConRelaciones = usuarios.map((usuario: any) => ({
+      const data = usuarios.map((usuario: any) => ({
         ...usuario,
         gen_usuario_roles: (usuarioRoles || [])
           .filter((ur: any) => ur.usuario_id === usuario.id)
-          .map((ur: any) => ({
-            id: ur.id,
-            rol_id: ur.rol_id,
-            created_at: ur.created_at,
-            gen_roles: ur.gen_roles
-          })),
+          .map((ur: any) => ({ id: ur.id, rol_id: ur.rol_id, created_at: ur.created_at, gen_roles: ur.gen_roles })),
         gen_usuario_empresas: (usuarioEmpresas || [])
           .filter((ue: any) => ue.usuario_id === usuario.id)
-          .map((ue: any) => ({
-            id: ue.id,
-            empresa_id: ue.empresa_id,
-            created_at: ue.created_at,
-            empresas: ue.empresas
-          }))
+          .map((ue: any) => ({ id: ue.id, empresa_id: ue.empresa_id, created_at: ue.created_at, empresas: ue.empresas })),
       }));
 
-      return usuariosConRelaciones;
+      return { data, total: count || 0 };
     } catch (error) {
       console.error('Error en listUsuarios:', error);
       throw error;
@@ -153,26 +146,18 @@ export const usuariosService = {
       throw new Error(`El email '${usuarioData.email}' ya está en uso por: ${existingEmails[0].primer_nombre} ${existingEmails[0].primer_apellido} (ID: ${existingEmails[0].id})`);
     }
     
-    // 1. Insertar usuario sin contraseña (se establece luego via RPC)
-    // Evitar enviar "password" en el insert.
-    const { password: _ignoredPassword, ...usuarioSinPassword } = usuarioData as any;
-    const { data: newUser, error: userError } = await supabase
-      .from('gen_usuarios')
-      .insert(usuarioSinPassword)
-      .select()
-      .single();
-    if (userError) throw userError;
-
-    // 2. Hashear y guardar contraseña via RPC (nunca en texto plano)
-    // Nota: el insert puede requerir un placeholder si la columna password es NOT NULL.
-    const { error: passwordError } = await supabase.rpc('update_user_password_by_id', {
-      p_id: newUser.id,
-      p_new_password: password
-    });
-    if (passwordError) {
-      console.error('❌ Error actualizando contraseña vía RPC:', passwordError);
-      throw new Error(`Error actualizando contraseña: ${passwordError.message}`);
-    }
+    // 1. Guardar la contraseña como texto plano
+    const userDataWithPassword = {
+      ...usuarioData,
+      password: password
+    };
+      
+      const { data: newUser, error: userError } = await supabase
+        .from('gen_usuarios')
+        .insert(userDataWithPassword)
+        .select()
+        .single();
+      if (userError) throw userError;
 
       // 2. Asignar roles
       if (rolesIds.length > 0) {
@@ -229,20 +214,11 @@ export const usuariosService = {
       }
     }
     
-    // Excluir password del update normal, se maneja por RPC
-    const { password: _pw, ...restData } = usuarioData as any;
-    let finalUsuarioData = { ...restData };
+    let finalUsuarioData = { ...usuarioData };
     
-    // Si se proporciona una nueva contraseña, hashearla via RPC
+    // Si se proporciona una nueva contraseña, guardarla como texto plano
     if (password && password.trim() !== '') {
-      const { error: passwordError } = await supabase.rpc('update_user_password_by_id', {
-        p_id: id,
-        p_new_password: password
-      });
-      if (passwordError) {
-        console.error('❌ Error actualizando contraseña vía RPC:', passwordError);
-        throw new Error(`Error actualizando contraseña: ${passwordError.message}`);
-      }
+      finalUsuarioData.password = password;
     }
     
     // 1. Actualizar datos del usuario

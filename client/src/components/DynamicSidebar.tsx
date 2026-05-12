@@ -124,6 +124,14 @@ const menuItems: SidebarMenuItem[] = [
     subItems: [],
   },
   {
+    title: "Analistas",
+    icon: <Users className="h-5 w-5" />,
+    subItems: [
+      { title: "Analistas Contratación", path: "/analistas", icon: <Users className="h-4 w-4" /> },
+      { title: "Analistas Selección", path: "/analistas-seleccion", icon: <Users className="h-4 w-4" /> },
+    ],
+  },
+  {
     title: "Información Personal",
     icon: <User className="h-5 w-5" />,
     path: "/perfil-candidato",
@@ -261,6 +269,10 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
     // Comité de Aprobación (módulo independiente)
     '/comite_aprob': ['vista-comite'],
 
+    // Módulo Analistas
+    '/analistas': ['vista-analistas'],
+    '/analistas-seleccion': ['vista-analistas'],
+
     // Analista Gestión Humana
     '/analista/novedades': ['vista-analista-novedades', 'vista-novedades'],
     '/analista/solicitudes': ['vista-analista-solicitudes', 'vista-solicitudes-analista'],
@@ -356,6 +368,24 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
       return typeof path === 'string' && path.startsWith('/analista/');
     });
   }, [accionesSet, vistasDinamicas]);
+
+  // Auto-expandir el menú padre cuando la ruta actual corresponde a un subítem
+  useEffect(() => {
+    filteredMenus.forEach((menu, index) => {
+      if (menu.subItems && menu.subItems.length > 0) {
+        const hasActiveChild = menu.subItems.some((sub: any) =>
+          sub.path && location.pathname.startsWith(sub.path)
+        );
+        if (hasActiveChild) {
+          setExpandedMenus(prev => {
+            const next = new Set(prev);
+            next.add(index.toString());
+            return next;
+          });
+        }
+      }
+    });
+  }, [location.pathname, filteredMenus]);
 
   const getRoleColor = (role: string) => {
     switch (role) {
@@ -617,7 +647,7 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
 
       {/* Sistema de navegación con filtrado por permisos */}
       <div className="sidebar-scroll">
-        <nav className="space-y-1">
+        <nav className="space-y-0.5">
 
           {filteredMenus.map((menu, index) => {
             const hasChildren = menu.subItems && menu.subItems.length > 0;
@@ -625,18 +655,18 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
             const isMenuActive = isActive((menu as any).path);
 
             return (
-              <div key={index} className="mb-1">
+              <div key={index}>
                 {hasChildren ? (
                   <button
                     onClick={() => toggleMenu(index)}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 text-sm text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-700 transition-all duration-200 font-medium menu-item-animation sidebar-menu-item ${isMenuActive ? 'menu-item-active' : ''
+                    className={`w-full flex items-center justify-between px-3 py-1.5 text-sm text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-700 transition-all duration-200 font-medium menu-item-animation sidebar-menu-item ${isMenuActive ? 'menu-item-active' : ''
                       }`}
                   >
-                    <div className="flex items-center space-x-3">
+                    <div className="flex items-center space-x-2">
                       {menu.icon}
                       {menu.subtitle ? (
                         <span className="flex flex-col leading-tight">
-                          <span className="text-[14px] text-gray-400 font-normal">{menu.subtitle}</span>
+                          <span className="text-[12px] text-gray-400 font-normal">{menu.subtitle}</span>
                           <span>{menu.title}</span>
                         </span>
                       ) : (
@@ -644,19 +674,19 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
                       )}
                     </div>
                     {isExpanded ? (
-                      <ChevronDown className="w-4 h-4" />
+                      <ChevronDown className="w-4 h-4 shrink-0" />
                     ) : (
-                      <ChevronRight className="w-4 h-4" />
+                      <ChevronRight className="w-4 h-4 shrink-0" />
                     )}
                   </button>
                 ) : (
                   <NavLink
                     to={(menu as any).path || '#'}
                     onClick={() => handleNavigate((menu as any).path || '#')}
-                    className={({ isActive: active }) => `w-full block text-left px-3 py-2.5 text-sm rounded-lg transition-all duration-200 font-medium menu-item-animation sidebar-menu-item ${active ? 'menu-item-active' : 'text-gray-700 hover:bg-blue-50 hover:text-blue-700'
+                    className={({ isActive: active }) => `w-full block text-left px-3 py-1.5 text-sm rounded-lg transition-all duration-200 font-medium menu-item-animation sidebar-menu-item ${active ? 'menu-item-active' : 'text-gray-700 hover:bg-blue-50 hover:text-blue-700'
                       }`}
                   >
-                    <div className="flex items-center space-x-3">
+                    <div className="flex items-center space-x-2">
                       {menu.icon}
                       {menu.subtitle ? (
                         <span className="flex flex-col leading-tight">
@@ -672,7 +702,7 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
 
                 {/* Submenús */}
                 {hasChildren && isExpanded && (
-                  <div className="ml-6 mt-2 space-y-1 border-l-2 border-gray-200 pl-4">
+                  <div className="ml-2 mt-0.5 space-y-0.5 border-l-2 border-gray-200 pl-2">
                     {menu.subItems?.map((subItem: any, subIndex: number) => {
                       const isSubItemActive = isActive(subItem.path);
                       return (
@@ -680,12 +710,12 @@ export function DynamicSidebar({ onNavigate }: DynamicSidebarProps) {
                           key={subIndex}
                           to={subItem.path || '#'}
                           onClick={() => handleNavigate(subItem.path || '#')}
-                          className={({ isActive: active }) => `w-full block text-left px-3 py-2 text-sm rounded-lg transition-all duration-200 menu-item-animation sidebar-menu-item ${active ? 'menu-item-active' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'
+                          className={({ isActive: active }) => `w-full block text-left px-2 py-1.5 text-sm rounded-lg transition-all duration-200 menu-item-animation sidebar-menu-item ${active ? 'menu-item-active' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'
                             }`}
                         >
-                          <div className="flex items-center space-x-3">
-                            {subItem.icon}
-                            <span>{subItem.title}</span>
+                          <div className="flex items-center space-x-2 min-w-0">
+                            <span className="shrink-0">{subItem.icon}</span>
+                            <span className="whitespace-nowrap">{subItem.title}</span>
                           </div>
                         </NavLink>
                       );

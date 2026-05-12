@@ -226,6 +226,80 @@ export const analistaAsignacionService = {
   },
 
   /**
+   * Igual que asignarAnalistaAutomatico pero para analistas de Selección (rol_analista_seleccion)
+   */
+  asignarAnalistaSeleccionAutomatico: async (
+    empresaId: number | null | undefined,
+    sucursalId?: number
+  ): Promise<AnalistaAsignado | null> => {
+    try {
+      const analistas = await asociacionPrioridadService.getAnalistasSeleccionWithPriorities();
+      if (!analistas || analistas.length === 0) return null;
+
+      const cumpleTodasLasPrioridades = (analista: AnalistaPrioridad): boolean => {
+        const empresaIds = analista.empresa_ids || [];
+        const sucursalIds = analista.sucursal_ids || [];
+        const coincideEmpresa = empresaId != null
+          ? (empresaIds.includes(empresaId) || analista.empresa_id === empresaId)
+          : true;
+        const coincideSucursal = sucursalId
+          ? (sucursalIds.includes(sucursalId) || analista.sucursal_id === sucursalId)
+          : false;
+
+        const p1 = analista.nivel_prioridad_1;
+        // Sin prioridad configurada → no elegible
+        if (!p1) return false;
+
+        if (p1 === 'cliente') {
+          if (!coincideEmpresa) return false;
+        } else if (p1 === 'sucursal') {
+          if (!coincideEmpresa || !sucursalId || !coincideSucursal) return false;
+        } else {
+          return false;
+        }
+
+        const revisarNivel = (tipo: string | null | undefined): boolean => {
+          if (!tipo) return true;
+          if (tipo === 'cliente') return coincideEmpresa;
+          if (tipo === 'sucursal') return !!sucursalId && coincideEmpresa && coincideSucursal;
+          if (tipo === 'solicitudes') return coincideEmpresa;
+          return false;
+        };
+
+        return revisarNivel(analista.nivel_prioridad_2) && revisarNivel(analista.nivel_prioridad_3);
+      };
+
+      const elegibles = analistas
+        .filter(a => (a.nivel_prioridad_1 || a.nivel_prioridad_2 || a.nivel_prioridad_3) && cumpleTodasLasPrioridades(a))
+        .filter(a => {
+          const asignadas = a.cantidad_asignadas ?? a.cantidad_solicitudes ?? 0;
+          const limite = a.cantidad_configurada ?? 0;
+          return limite === 0 || asignadas < limite;
+        })
+        .sort((a, b) => {
+          const asignadasA = a.cantidad_asignadas ?? a.cantidad_solicitudes ?? 0;
+          const asignadasB = b.cantidad_asignadas ?? b.cantidad_solicitudes ?? 0;
+          return asignadasA - asignadasB;
+        });
+
+      if (elegibles.length === 0) return null;
+
+      const mejor = elegibles[0];
+      return {
+        analista_id: mejor.usuario_id,
+        analista_nombre: mejor.usuario_nombre,
+        prioridad_nivel: 1,
+        prioridad_tipo: mejor.nivel_prioridad_1 || '',
+        empresa_id: mejor.empresa_id,
+        sucursal_id: mejor.sucursal_id,
+      };
+    } catch (error) {
+      console.error('❌ Error en asignación automática de analista selección:', error);
+      return null;
+    }
+  },
+
+  /**
    * Obtiene el analista asignado a una solicitud específica
    */
   getAnalistaAsignado: async (solicitudId: number): Promise<AnalistaAsignado | null> => {

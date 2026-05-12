@@ -118,6 +118,7 @@ export default function ContratacionSeleccionPage() {
               hideInternalTabs
               headerTitle="Gestión de Novedades"
               headerDescription="Administración y seguimiento de solicitudes de novedades"
+              collapseFiltersSignal={currentTab}
             />
           </TabsContent>
         )}
@@ -128,7 +129,7 @@ export default function ContratacionSeleccionPage() {
         )}
         {canSeleccion && (
           <TabsContent value="seleccion" className="mt-4">
-            <SeleccionPage />
+            <SeleccionPage collapseFiltersSignal={currentTab} />
           </TabsContent>
         )}
         {canEmpleados && (
@@ -136,6 +137,7 @@ export default function ContratacionSeleccionPage() {
             <NovedadesPage
               forcedTab="empleados"
               hideInternalTabs
+              collapseFiltersSignal={currentTab}
               headerTitle="Listado de Empleados"
               headerDescription="Consulta consolidada de empleados para el flujo de novedades"
             />

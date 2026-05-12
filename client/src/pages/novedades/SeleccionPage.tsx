@@ -1,12 +1,14 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { supabase } from '@/services/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
@@ -18,15 +20,17 @@ import {
   Search, Filter, Upload, Download, Loader2, Users, FileText, Clock,
   CheckCircle, XCircle, Pause, Play, Eye, ChevronRight, Building,
   MapPin, Calendar, Briefcase, UserPlus, AlertCircle, TrendingUp,
-  ClipboardList, FileUp, Star, ArrowRight, UserCheck, Sparkles, MoreHorizontal,
+  ClipboardList, FileUp, Star, UserCheck, Sparkles, MoreHorizontal,
+  ChevronDown, ChevronUp, ChevronsUpDown, Snowflake, ArrowRightCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import ExcelJS from 'exceljs';
 import {
   novedadesService, novedadesLogsService,
   ESTADOS_NOVEDAD, ESTADO_LABELS, ESTADO_COLORS, TRANSICIONES_VALIDAS,
-  type NovedadSolicitud, type NovedadFiltros,
+  type NovedadSolicitud, type NovedadFiltros, type NovedadMotivo, type NovedadLog,
 } from '@/services/novedadesService';
+import { usePermissions } from '@/contexts/PermissionsContext';
 
 // ============================================================
 // CONSTANTES
@@ -41,8 +45,6 @@ const ESTADOS_SELECCION = [
   ESTADOS_NOVEDAD.CONGELADA,
   ESTADOS_NOVEDAD.EJECUTADA,
 ];
-
-const MOTIVOS_SELECCION = ['vacaciones', 'renuncias', 'retiros', 'licencias', 'aumento_plaza'];
 
 const CATEGORIAS = [
   { value: 'ordinario', label: 'Ordinario' },
@@ -89,6 +91,23 @@ const calcularDiasHabiles = (fechaInicio: string): number => {
   return dias;
 };
 
+const esViernes = () => new Date().getDay() === 5;
+
+/** Mismos textos/iconos que en Gestión de Novedades (menú cambio de estado). */
+const getLabelAccionCambioEstado = (estadoDestino: string): string => {
+  if (estadoDestino === ESTADOS_NOVEDAD.CONGELADA) return 'Congelar';
+  if (estadoDestino === ESTADOS_NOVEDAD.CANCELADA) return 'Cancelar';
+  if (estadoDestino === ESTADOS_NOVEDAD.EN_RECLUTAMIENTO) return 'En Reclutamiento';
+  return ESTADO_LABELS[estadoDestino] || estadoDestino;
+};
+
+const iconAccionCambioEstado = (estadoDestino: string) => {
+  if (estadoDestino === ESTADOS_NOVEDAD.CONGELADA) return Snowflake;
+  if (estadoDestino === ESTADOS_NOVEDAD.CANCELADA) return XCircle;
+  if (estadoDestino === ESTADOS_NOVEDAD.EN_RECLUTAMIENTO) return Briefcase;
+  return ArrowRightCircle;
+};
+
 // ============================================================
 // HELPERS UI
 // ============================================================
@@ -129,20 +148,96 @@ const EtapaStepper = ({ estadoActual }: { estadoActual: string }) => {
 // COMPONENTE PRINCIPAL
 // ============================================================
 
-export default function SeleccionPage() {
+interface SeleccionPageProps {
+  collapseFiltersSignal?: string;
+}
+
+export default function SeleccionPage({ collapseFiltersSignal }: SeleccionPageProps) {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { hasAction } = usePermissions();
+  const esAnalistaSeleccion = hasAction('rol_analista_seleccion');
+  const currentUserId = useMemo(() => {
+    try {
+      const raw = localStorage.getItem('userData');
+      return raw ? (JSON.parse(raw).id as number | null) : null;
+    } catch { return null; }
+  }, []);
 
-  // Estado de filtros
-  const [busqueda, setBusqueda] = useState('');
-  const [filtroEstado, setFiltroEstado] = useState<string>('todos');
-  const [filtroEmpresa, setFiltroEmpresa] = useState<string>('todas');
+  // Estado de filtros (misma forma que Gestión de Novedades — solo aplica dentro del subset de selección)
+  const [filtrosSeleccion, setFiltrosSeleccion] = useState<NovedadFiltros>({});
+  const [busquedaNombreLista, setBusquedaNombreLista] = useState('');
+  const [filtroCargoSeleccion, setFiltroCargoSeleccion] = useState('');
+  const [filtroJornadaSeleccion, setFiltroJornadaSeleccion] = useState('');
+  const [filtrosPanelAbierto, setFiltrosPanelAbierto] = useState(false);
+  const [sortEstado, setSortEstado] = useState<null | 'asc' | 'desc'>(null);
+  const [sortMotivo, setSortMotivo] = useState<null | 'asc' | 'desc'>(null);
+  const [sortPolitica, setSortPolitica] = useState<null | 'asc' | 'desc'>(null);
+
+  useEffect(() => {
+    if (collapseFiltersSignal === 'seleccion') {
+      setFiltrosPanelAbierto(false);
+    }
+  }, [collapseFiltersSignal]);
+
+  const [empresasFiltroSeleccion, setEmpresasFiltroSeleccion] = useState<{ id: number; razon_social: string }[]>([]);
+  const [analistasFilterSeleccion, setAnalistasFilterSeleccion] = useState<{ id: number; nombre: string }[]>([]);
+
+  useEffect(() => {
+    supabase.from('empresas').select('id, razon_social').order('razon_social')
+      .then(({ data }) => { if (data) setEmpresasFiltroSeleccion(data); });
+  }, []);
+
+  useEffect(() => {
+    if (esAnalistaSeleccion && currentUserId) {
+      // Analista de selección: solo se ve a sí mismo
+      try {
+        const raw = localStorage.getItem('userData');
+        if (raw) {
+          const u = JSON.parse(raw);
+          setAnalistasFilterSeleccion([{ id: u.id, nombre: `${u.primer_nombre || ''} ${u.primer_apellido || ''}`.trim() || u.username }]);
+        }
+      } catch {}
+      setFiltrosSeleccion(prev => ({ ...prev, analista_id: currentUserId }));
+      return;
+    }
+    // Otros roles: todos los analistas de selección
+    supabase
+      .from('gen_usuario_roles')
+      .select('usuario_id, gen_usuarios!inner(id, primer_nombre, primer_apellido, activo)')
+      .eq('rol_id', 20)
+      .then(({ data }) => {
+        if (!data) return;
+        const vistos = new Set<number>();
+        const lista: { id: number; nombre: string }[] = [];
+        data.forEach((row: Record<string, unknown>) => {
+          const u = row.gen_usuarios as { id: number; primer_nombre: string; primer_apellido: string; activo: boolean };
+          if (u?.activo && !vistos.has(u.id)) {
+            vistos.add(u.id);
+            lista.push({ id: u.id, nombre: `${u.primer_nombre} ${u.primer_apellido}`.trim() });
+          }
+        });
+        setAnalistasFilterSeleccion(lista.sort((a, b) => a.nombre.localeCompare(b.nombre)));
+      });
+  }, [esAnalistaSeleccion, currentUserId]);
+
+  const { data: motivosSeleccion = [] } = useQuery<NovedadMotivo[]>({
+    queryKey: ['novedades-motivos-seleccion'],
+    queryFn: () => novedadesService.getMotivos(),
+  });
+
+  const { data: sucursalesSeleccion = [] } = useQuery<string[]>({
+    queryKey: ['novedades-sucursales-seleccion'],
+    queryFn: () => novedadesService.getSucursales(),
+  });
 
   // Dialogs
   const [solicitudDetalle, setSolicitudDetalle] = useState<NovedadSolicitud | null>(null);
   const [showCambiarEstado, setShowCambiarEstado] = useState(false);
   const [showCargaMasiva, setShowCargaMasiva] = useState(false);
   const [showSolicitudIngreso, setShowSolicitudIngreso] = useState(false);
+  const [showTimelineSeleccionModal, setShowTimelineSeleccionModal] = useState(false);
+  const [timelineSeleccionId, setTimelineSeleccionId] = useState<number | null>(null);
 
   // Formulario cambio de estado
   const [nuevoEstado, setNuevoEstado] = useState('');
@@ -170,30 +265,78 @@ export default function SeleccionPage() {
     );
   }, [todasSolicitudes]);
 
-  // Empresas únicas para el filtro
-  const empresas = useMemo(() => {
-    const map = new Map<number, string>();
-    solicitudesSeleccion.forEach(s => {
-      if (s.empresa_id && s.empresa?.razon_social) {
-        map.set(s.empresa_id, s.empresa.razon_social);
-      }
-    });
-    return Array.from(map.entries()).map(([id, nombre]) => ({ id, nombre }));
+  const cargosEmpleadoOpcionesSeleccion = useMemo(() => {
+    const set = new Set<string>();
+    solicitudesSeleccion.forEach(s => { if (s.empleado?.cargo) set.add(s.empleado.cargo); });
+    return Array.from(set).sort();
   }, [solicitudesSeleccion]);
+
+  const jornadaOpcionesSeleccion = useMemo(() => {
+    const set = new Set<string>();
+    solicitudesSeleccion.forEach(s => { if ((s.empleado as { jornada?: string })?.jornada) set.add((s.empleado as { jornada: string }).jornada); });
+    ['Diurna', 'Nocturna', 'Mixta', 'Flexible'].forEach(j => set.add(j));
+    return Array.from(set).sort();
+  }, [solicitudesSeleccion]);
+
+  const cantidadFiltrosActivosSeleccion = useMemo(() => {
+    let n = 0;
+    if (filtrosSeleccion.empresa_id) n++;
+    if (filtrosSeleccion.motivo_id) n++;
+    if (filtrosSeleccion.sucursal) n++;
+    if (filtrosSeleccion.estado) n++;
+    if (filtrosSeleccion.analista_id) n++;
+    if (filtroCargoSeleccion) n++;
+    if (filtroJornadaSeleccion) n++;
+    if (busquedaNombreLista.trim()) n++;
+    return n;
+  }, [filtrosSeleccion, filtroCargoSeleccion, filtroJornadaSeleccion, busquedaNombreLista]);
 
   // Solicitudes filtradas
   const solicitudesFiltradas = useMemo(() => {
     return solicitudesSeleccion.filter(s => {
-      const matchEstado = filtroEstado === 'todos' || s.estado === filtroEstado;
-      const matchEmpresa = filtroEmpresa === 'todas' || String(s.empresa_id) === filtroEmpresa;
-      const texto = busqueda.toLowerCase();
-      const matchBusqueda = !busqueda || [
-        s.empleado?.nombre, s.empleado?.apellido, s.empleado?.cargo,
-        s.empresa?.razon_social, s.motivo?.nombre,
-      ].some(v => v?.toLowerCase().includes(texto));
-      return matchEstado && matchEmpresa && matchBusqueda;
+      const matchEmpresa = !filtrosSeleccion.empresa_id || s.empresa_id === filtrosSeleccion.empresa_id;
+      const matchMotivo = !filtrosSeleccion.motivo_id || s.motivo_id === filtrosSeleccion.motivo_id;
+      const matchSucursal = !filtrosSeleccion.sucursal || (s.sucursal === filtrosSeleccion.sucursal);
+      const matchEstado = !filtrosSeleccion.estado || s.estado === filtrosSeleccion.estado;
+      const matchAnalista = !filtrosSeleccion.analista_id || s.analista_id === filtrosSeleccion.analista_id;
+      const matchCargo = !filtroCargoSeleccion || s.empleado?.cargo === filtroCargoSeleccion;
+      const matchJornada = !filtroJornadaSeleccion ||
+        ((s.empleado as { jornada?: string })?.jornada === filtroJornadaSeleccion);
+      const bn = busquedaNombreLista.trim().toLowerCase();
+      const matchNombre = !bn || ((s.empleado?.nombre || '').toLowerCase().includes(bn));
+      return matchEmpresa && matchMotivo && matchSucursal && matchEstado && matchAnalista
+        && matchCargo && matchJornada && matchNombre;
+    }).sort((a, b) => {
+      if (sortEstado) {
+        const labelA = ESTADO_LABELS[a.estado || ''] || a.estado || '';
+        const labelB = ESTADO_LABELS[b.estado || ''] || b.estado || '';
+        const cmp = labelA.localeCompare(labelB, 'es');
+        if (cmp !== 0) return sortEstado === 'asc' ? cmp : -cmp;
+      }
+      if (sortMotivo) {
+        const mA = a.motivo?.nombre || '';
+        const mB = b.motivo?.nombre || '';
+        const cmp = mA.localeCompare(mB, 'es');
+        if (cmp !== 0) return sortMotivo === 'asc' ? cmp : -cmp;
+      }
+      if (sortPolitica) {
+        const POLITICA_ORDEN: Record<string, number> = { 'Satisfactorio': 0, 'Regular': 1, 'Insatisfactorio': 2 };
+        const diasA = (a.fecha_inicio_vacante || a.created_at) ? calcularDiasHabiles((a.fecha_inicio_vacante || a.created_at)!) : 0;
+        const diasB = (b.fecha_inicio_vacante || b.created_at) ? calcularDiasHabiles((b.fecha_inicio_vacante || b.created_at)!) : 0;
+        const pA = POLITICA_ORDEN[getPoliticaTiempo(diasA).label] ?? 0;
+        const pB = POLITICA_ORDEN[getPoliticaTiempo(diasB).label] ?? 0;
+        const cmp = pA - pB;
+        if (cmp !== 0) return sortPolitica === 'asc' ? cmp : -cmp;
+      }
+      return 0;
     });
-  }, [solicitudesSeleccion, filtroEstado, filtroEmpresa, busqueda]);
+  }, [solicitudesSeleccion, filtrosSeleccion, filtroCargoSeleccion, filtroJornadaSeleccion, busquedaNombreLista, sortEstado, sortMotivo, sortPolitica]);
+
+  const { data: timelineSeleccionLogs = [] } = useQuery<NovedadLog[]>({
+    queryKey: ['novedades-timeline-seleccion', timelineSeleccionId],
+    queryFn: () => timelineSeleccionId ? novedadesLogsService.getLogsBySolicitud(timelineSeleccionId) : Promise.resolve([]),
+    enabled: !!timelineSeleccionId && showTimelineSeleccionModal,
+  });
 
   // Stats
   const stats = useMemo(() => ({
@@ -312,6 +455,11 @@ export default function SeleccionPage() {
     return TRANSICIONES_VALIDAS[solicitudDetalle.estado] || [];
   }, [solicitudDetalle]);
 
+  const handleViewTimelineSeleccion = (id: number) => {
+    setTimelineSeleccionId(id);
+    setShowTimelineSeleccionModal(true);
+  };
+
   // ============================================================
   // RENDER
   // ============================================================
@@ -338,76 +486,219 @@ export default function SeleccionPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleDescargarPlantilla} className="gap-2">
-            <Download className="w-4 h-4" /> Plantilla Excel
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDescargarPlantilla}
+            className="h-9 gap-2 rounded-md border-emerald-200 bg-emerald-50 px-4 text-emerald-900 shadow-sm hover:bg-emerald-100 hover:text-emerald-950"
+          >
+            <Download className="h-4 w-4 text-emerald-700 shrink-0" /> Plantilla Excel
           </Button>
-          <Button size="sm" onClick={() => setShowCargaMasiva(true)} className="gap-2 bg-teal-400 hover:bg-teal-500 text-white">
-            <FileUp className="w-4 h-4" /> Carga Masiva
+          <Button
+            size="sm"
+            onClick={() => setShowCargaMasiva(true)}
+            className="h-9 gap-2 rounded-md bg-cyan-600 px-4 font-medium text-white shadow-md hover:bg-cyan-700"
+          >
+            <FileUp className="h-4 w-4 shrink-0" /> Carga Masiva
           </Button>
         </div>
       </div>
 
-      {/* Tabla de solicitudes */}
-      <Card className="bg-white rounded-lg border mt-4">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg font-semibold text-gray-700 flex items-center gap-3">
-            <div className="w-8 h-8 bg-orange-100 rounded flex items-center justify-center">
+      {/* Lista de solicitudes — mismo layout de contenedor que Gestión de Novedades */}
+      <div className="bg-white rounded-lg border overflow-hidden mt-4">
+        <div className="flex items-center justify-between p-4 border-b gap-3">
+          <div className="flex items-center space-x-3 min-w-0">
+            <div className="w-8 h-8 bg-orange-100 rounded flex items-center justify-center shrink-0">
               <FileText className="w-5 h-5 text-orange-600" />
             </div>
-            <span>SOLICITUDES DE SELECCIÓN</span>
-            <Badge variant="secondary" className="ml-1">{solicitudesFiltradas.length}</Badge>
-          </CardTitle>
-          <div className="mt-3 p-3 border rounded-md bg-gray-50">
-            <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap pb-1">
-            <div className="relative w-[220px]">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-              <Input
-                placeholder="Buscar..."
-                value={busqueda}
-                onChange={e => setBusqueda(e.target.value)}
-                className="h-8 pl-8 text-xs border-gray-200"
-              />
-            </div>
-            <Select value={filtroEstado} onValueChange={setFiltroEstado}>
-              <SelectTrigger className="h-8 w-[170px] text-xs border-gray-200">
-                <SelectValue placeholder="Estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos los estados</SelectItem>
-                {ESTADOS_SELECCION.map(e => (
-                  <SelectItem key={e} value={e}>{ESTADO_LABELS[e]}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={filtroEmpresa} onValueChange={setFiltroEmpresa}>
-              <SelectTrigger className="h-8 w-[170px] text-xs border-gray-200">
-                <SelectValue placeholder="Empresa" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todas">Todas las empresas</SelectItem>
-                {empresas.map(e => (
-                  <SelectItem key={e.id} value={String(e.id)}>{e.nombre}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {(busqueda || filtroEstado !== 'todos' || filtroEmpresa !== 'todas') && (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setBusqueda('');
-                  setFiltroEstado('todos');
-                  setFiltroEmpresa('todas');
-                }}
-                className="h-8 px-2 text-xs flex items-center gap-1.5"
-              >
-                <Filter className="w-3.5 h-3.5" />
-                Limpiar
-              </Button>
+            <span className="text-lg font-semibold text-gray-700 truncate">SOLICITUDES DE SELECCIÓN</span>
+            <Badge variant="secondary" className="ml-1 shrink-0">{solicitudesFiltradas.length}</Badge>
+          </div>
+        </div>
+
+        {/* Filtros a ancho completo del panel */}
+        <div className="border-b bg-gray-50">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left hover:bg-gray-100/70 transition-colors"
+            onClick={() => setFiltrosPanelAbierto(v => !v)}
+            aria-expanded={filtrosPanelAbierto}
+          >
+            <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+              <Filter className="h-3.5 w-3.5 text-cyan-600 shrink-0" />
+              Filtros
+              {cantidadFiltrosActivosSeleccion > 0 && (
+                <span className="rounded-full bg-gray-200 px-1.5 py-0 text-[10px] font-semibold tabular-nums text-gray-600">
+                  {cantidadFiltrosActivosSeleccion}
+                </span>
+              )}
+            </span>
+            {filtrosPanelAbierto ? (
+              <ChevronUp className="h-4 w-4 text-gray-500 shrink-0" aria-hidden />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-gray-500 shrink-0" aria-hidden />
             )}
-          </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
+          </button>
+          {filtrosPanelAbierto && (
+            <div className="border-t border-gray-100 px-4 py-4 space-y-4">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
+                <div className="min-w-0 space-y-1">
+                  <Label className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">Buscar nombre empleado</Label>
+                  <div className="relative">
+                    <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                    <Input
+                      placeholder="Únicamente primer nombre..."
+                      value={busquedaNombreLista}
+                      onChange={e => setBusquedaNombreLista(e.target.value)}
+                      className="h-7 pl-8 text-xs bg-white border-gray-200"
+                    />
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setFiltrosSeleccion({});
+                    setBusquedaNombreLista('');
+                    setFiltroCargoSeleccion('');
+                    setFiltroJornadaSeleccion('');
+                  }}
+                  className="h-7 w-full shrink-0 gap-1.5 rounded-md border border-gray-300 bg-white px-3 text-xs text-gray-800 shadow-sm hover:bg-gray-50 sm:w-auto"
+                >
+                  <Filter className="h-3.5 w-3.5 text-gray-500 shrink-0" />
+                  Limpiar filtros
+                </Button>
+              </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="space-y-1 min-w-0">
+                    <Label className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">Empresa</Label>
+                    <Select
+                      value={filtrosSeleccion.empresa_id?.toString() || 'all'}
+                      onValueChange={(v) => setFiltrosSeleccion(prev => ({ ...prev, empresa_id: v === 'all' ? undefined : parseInt(v, 10) }))}
+                    >
+                      <SelectTrigger className="h-7 w-full text-xs bg-white">
+                        <SelectValue placeholder="Empresa" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas las empresas</SelectItem>
+                        {empresasFiltroSeleccion.map(e => (
+                          <SelectItem key={e.id} value={e.id.toString()}>{e.razon_social}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1 min-w-0">
+                    <Label className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">Motivo</Label>
+                    <Select
+                      value={filtrosSeleccion.motivo_id?.toString() || 'all'}
+                      onValueChange={(v) => setFiltrosSeleccion(prev => ({ ...prev, motivo_id: v === 'all' ? undefined : parseInt(v, 10) }))}
+                    >
+                      <SelectTrigger className="h-7 w-full text-xs bg-white">
+                        <SelectValue placeholder="Motivo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos los motivos</SelectItem>
+                        {motivosSeleccion.map(m => (
+                          <SelectItem key={m.id} value={m.id.toString()}>{m.nombre}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1 min-w-0">
+                    <Label className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">Sucursal</Label>
+                    <Select
+                      value={filtrosSeleccion.sucursal || 'all'}
+                      onValueChange={(v) => setFiltrosSeleccion(prev => ({ ...prev, sucursal: v === 'all' ? undefined : v }))}
+                    >
+                      <SelectTrigger className="h-7 w-full text-xs bg-white">
+                        <SelectValue placeholder="Sucursal" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas las sucursales</SelectItem>
+                        {sucursalesSeleccion.map(sv => (
+                          <SelectItem key={sv} value={sv}>{sv}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1 min-w-0">
+                    <Label className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">Estado</Label>
+                    <Select
+                      value={filtrosSeleccion.estado || 'all'}
+                      onValueChange={(v) => setFiltrosSeleccion(prev => ({ ...prev, estado: v === 'all' ? undefined : v }))}
+                    >
+                      <SelectTrigger className="h-7 w-full text-xs bg-white">
+                        <SelectValue placeholder="Estado" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos los estados</SelectItem>
+                        {Object.entries(ESTADO_LABELS).map(([key, label]) => (
+                          <SelectItem key={key} value={key}>{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="space-y-1 min-w-0">
+                    <Label className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">Analista</Label>
+                    <Select
+                      value={filtrosSeleccion.analista_id?.toString() || 'all'}
+                      onValueChange={(v) => setFiltrosSeleccion(prev => ({ ...prev, analista_id: v === 'all' ? undefined : parseInt(v, 10) }))}
+                      disabled={esAnalistaSeleccion}
+                    >
+                      <SelectTrigger className="h-7 w-full text-xs bg-white">
+                        <SelectValue placeholder="Analista" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {!esAnalistaSeleccion && <SelectItem value="all">Todos los analistas</SelectItem>}
+                        {analistasFilterSeleccion.map(a => (
+                          <SelectItem key={a.id} value={a.id.toString()}>{a.nombre}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1 min-w-0">
+                    <Label className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">Cargo empleado</Label>
+                    <Select
+                      value={filtroCargoSeleccion || 'all'}
+                      onValueChange={(v) => setFiltroCargoSeleccion(v === 'all' ? '' : v)}
+                    >
+                      <SelectTrigger className="h-7 w-full text-xs bg-white">
+                        <SelectValue placeholder="Cargo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos los cargos</SelectItem>
+                        {cargosEmpleadoOpcionesSeleccion.map(c => (
+                          <SelectItem key={c} value={c}>{c}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1 min-w-0">
+                    <Label className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">Jornada</Label>
+                    <Select
+                      value={filtroJornadaSeleccion || 'all'}
+                      onValueChange={(v) => setFiltroJornadaSeleccion(v === 'all' ? '' : v)}
+                    >
+                      <SelectTrigger className="h-7 w-full text-xs bg-white">
+                        <SelectValue placeholder="Jornada" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas las jornadas</SelectItem>
+                        {jornadaOpcionesSeleccion.map(j => (
+                          <SelectItem key={j} value={j}>{j}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            )}
+        </div>
+
+        <div className="p-0">
           {isLoading ? (
             <div className="flex items-center justify-center h-32">
               <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
@@ -419,17 +710,50 @@ export default function SeleccionPage() {
             </div>
           ) : (
             <div className="overflow-x-auto rounded-lg shadow-sm">
-              <table className="min-w-[900px] w-full text-[11px]">
+              <table className="min-w-[920px] w-full text-[11px]">
                 <thead className="bg-cyan-50">
                   <tr className="text-left font-semibold text-gray-700">
+                    <th className="w-11 px-1 py-2" aria-label="Menú de acciones" />
                     <th className="text-left px-3 py-2 font-medium text-gray-600">#</th>
-                    <th className="text-left px-3 py-2 font-medium text-gray-600">Empleado / Cargo</th>
+                    <th className="text-left px-4 py-2 font-medium text-gray-600 min-w-[240px] w-[28%]">Empleado / Cargo</th>
                     <th className="text-left px-3 py-2 font-medium text-gray-600">Empresa</th>
-                    <th className="text-left px-3 py-2 font-medium text-gray-600">Motivo</th>
-                    <th className="text-left px-3 py-2 font-medium text-gray-600">Estado</th>
+                    <th className="text-left px-3 py-2 font-medium text-gray-600">
+                      <button
+                        type="button"
+                        onClick={() => setSortMotivo(s => s === null ? 'asc' : s === 'asc' ? 'desc' : null)}
+                        className="flex items-center gap-1 hover:text-cyan-700 transition-colors"
+                      >
+                        Motivo
+                        {sortMotivo === 'asc' && <ChevronUp className="h-3.5 w-3.5 text-cyan-600" />}
+                        {sortMotivo === 'desc' && <ChevronDown className="h-3.5 w-3.5 text-cyan-600" />}
+                        {sortMotivo === null && <ChevronsUpDown className="h-3.5 w-3.5 text-gray-400" />}
+                      </button>
+                    </th>
+                    <th className="text-left px-3 py-2 font-medium text-gray-600">
+                      <button
+                        type="button"
+                        onClick={() => setSortEstado(s => s === null ? 'asc' : s === 'asc' ? 'desc' : null)}
+                        className="flex items-center gap-1 hover:text-cyan-700 transition-colors"
+                      >
+                        Estado
+                        {sortEstado === 'asc' && <ChevronUp className="h-3.5 w-3.5 text-cyan-600" />}
+                        {sortEstado === 'desc' && <ChevronDown className="h-3.5 w-3.5 text-cyan-600" />}
+                        {sortEstado === null && <ChevronsUpDown className="h-3.5 w-3.5 text-gray-400" />}
+                      </button>
+                    </th>
                     <th className="text-left px-3 py-2 font-medium text-gray-600">Días</th>
-                    <th className="text-left px-3 py-2 font-medium text-gray-600">Política</th>
-                    <th className="text-left px-3 py-2 font-medium text-gray-600 w-24">Acciones</th>
+                    <th className="text-left px-3 py-2 font-medium text-gray-600">
+                      <button
+                        type="button"
+                        onClick={() => setSortPolitica(s => s === null ? 'asc' : s === 'asc' ? 'desc' : null)}
+                        className="flex items-center gap-1 hover:text-cyan-700 transition-colors"
+                      >
+                        Política
+                        {sortPolitica === 'asc' && <ChevronUp className="h-3.5 w-3.5 text-cyan-600" />}
+                        {sortPolitica === 'desc' && <ChevronDown className="h-3.5 w-3.5 text-cyan-600" />}
+                        {sortPolitica === null && <ChevronsUpDown className="h-3.5 w-3.5 text-gray-400" />}
+                      </button>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -439,12 +763,70 @@ export default function SeleccionPage() {
                     const rowTransitions = TRANSICIONES_VALIDAS[s.estado || ''] || [];
                     return (
                       <tr key={s.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="w-11 px-1 py-2 text-center align-middle">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label="Más acciones">
+                                <MoreHorizontal className="h-4 w-4 text-gray-600" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" className="w-56 max-h-[min(70vh,24rem)] overflow-y-auto">
+                              {hasAction('accion-ver-detalle-novedad') && (
+                                <DropdownMenuItem onClick={() => setSolicitudDetalle(s)} className="cursor-pointer">
+                                  <Eye className="mr-2 h-4 w-4 text-cyan-600" />
+                                  Ver detalle
+                                </DropdownMenuItem>
+                              )}
+                              {hasAction('accion-ver-timeline-novedad') && (
+                                <DropdownMenuItem onClick={() => handleViewTimelineSeleccion(s.id!)} className="cursor-pointer">
+                                  <Clock className="mr-2 h-4 w-4 text-indigo-600" />
+                                  Ver timeline
+                                </DropdownMenuItem>
+                              )}
+                              {(() => {
+                                const puedeCambiarEstado = hasAction('accion-cambiar-estado-novedad');
+                                const puedeCancelar = hasAction('accion-cancelar-novedad');
+                                const transicionesVisibles = rowTransitions.filter((est) => {
+                                  if (est === ESTADOS_NOVEDAD.CANCELADA) return puedeCancelar || puedeCambiarEstado;
+                                  return puedeCambiarEstado;
+                                });
+                                if (!transicionesVisibles.length) return null;
+                                return (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    {transicionesVisibles.map(estadoDestino => {
+                                      const soloViernes = estadoDestino === 'aprobado_comite' && !esViernes();
+                                      const IconTrans = iconAccionCambioEstado(estadoDestino);
+                                      const destructive = estadoDestino === ESTADOS_NOVEDAD.CANCELADA;
+                                      return (
+                                        <DropdownMenuItem
+                                          key={estadoDestino}
+                                          disabled={soloViernes || cambiarEstadoMutation.isPending}
+                                          title={soloViernes ? 'La aprobación solo está permitida los viernes' : undefined}
+                                          onClick={() => {
+                                            setSolicitudDetalle(s);
+                                            setNuevoEstado(estadoDestino);
+                                            setShowCambiarEstado(true);
+                                          }}
+                                          className={destructive ? 'cursor-pointer text-red-600 focus:text-red-700' : 'cursor-pointer'}
+                                        >
+                                          <IconTrans className={`mr-2 h-4 w-4 shrink-0 ${destructive ? 'text-red-500' : 'text-gray-600'}`} />
+                                          {getLabelAccionCambioEstado(estadoDestino)}
+                                        </DropdownMenuItem>
+                                      );
+                                    })}
+                                  </>
+                                );
+                              })()}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </td>
                         <td className="px-3 py-2 text-gray-500 font-mono text-xs">#{s.id}</td>
-                        <td className="px-3 py-2">
-                          <p className="font-medium text-gray-900">
+                        <td className="min-w-[240px] px-4 py-3 align-top">
+                          <p className="font-medium leading-snug text-gray-900 text-[13px]">
                             {s.empleado ? `${s.empleado.nombre} ${s.empleado.apellido || ''}` : '—'}
                           </p>
-                          <p className="text-xs text-gray-500">{s.empleado?.cargo || '—'}</p>
+                          <p className="mt-0.5 text-xs text-gray-500">{s.empleado?.cargo || '—'}</p>
                         </td>
                         <td className="px-3 py-2 text-gray-600">{s.empresa?.razon_social || '—'}</td>
                         <td className="px-3 py-2 text-gray-600">{s.motivo?.nombre || '—'}</td>
@@ -457,35 +839,6 @@ export default function SeleccionPage() {
                         <td className="px-3 py-2">
                           <Badge className={`text-xs ${politica.color}`}>{politica.label}</Badge>
                         </td>
-                        <td className="px-3 py-2">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-7 w-7">
-                                <MoreHorizontal className="h-4 w-4 text-gray-600" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="start" className="w-40">
-                              <DropdownMenuItem onClick={() => setSolicitudDetalle(s)} className="cursor-pointer">
-                                <Eye className="mr-2 h-4 w-4 text-cyan-600" />
-                                Ver detalle
-                              </DropdownMenuItem>
-                              {rowTransitions.map((estadoDestino) => (
-                                <DropdownMenuItem
-                                  key={estadoDestino}
-                                  onClick={() => {
-                                    setSolicitudDetalle(s);
-                                    setNuevoEstado(estadoDestino);
-                                    setShowCambiarEstado(true);
-                                  }}
-                                  className="cursor-pointer"
-                                >
-                                  <ArrowRight className="mr-2 h-4 w-4 text-indigo-600" />
-                                  {ESTADO_LABELS[estadoDestino] || estadoDestino}
-                                </DropdownMenuItem>
-                              ))}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </td>
                       </tr>
                     );
                   })}
@@ -493,8 +846,65 @@ export default function SeleccionPage() {
               </table>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+
+      {/* Timeline (misma presentación que Gestión de Novedades) */}
+      <Dialog open={showTimelineSeleccionModal} onOpenChange={(open) => { setShowTimelineSeleccionModal(open); if (!open) setTimelineSeleccionId(null); }}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 shadow-sm">
+                <Clock className="h-4 w-4 text-white" />
+              </div>
+              <div>
+                <span className="text-lg">Timeline</span>
+                <p className="text-xs font-normal text-gray-500 mt-0.5">Historial de solicitud #{timelineSeleccionId}</p>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-0">
+            {timelineSeleccionLogs.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <div className="p-3 rounded-full bg-gray-50 mb-3">
+                  <Clock className="h-8 w-8 text-gray-300" />
+                </div>
+                <p className="text-sm font-medium text-gray-500">No hay registros en el timeline</p>
+              </div>
+            ) : (
+              <div className="relative pl-6 space-y-4">
+                <div className="absolute left-2 top-2 bottom-2 w-0.5 bg-gradient-to-b from-indigo-300 via-purple-300 to-gray-200"></div>
+                {timelineSeleccionLogs.map((log, index) => (
+                  <div key={log.id || index} className="relative">
+                    <div className={`absolute -left-4 top-1 w-3 h-3 rounded-full border-2 border-white shadow ${index === 0 ? 'bg-gradient-to-br from-indigo-500 to-purple-500' : 'bg-gray-300'}`}></div>
+                    <div className={`rounded-lg p-3 ${index === 0 ? 'bg-indigo-50/50 border border-indigo-100' : 'bg-gray-50'}`}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium capitalize">{log.accion?.replace(/_/g, ' ')}</span>
+                        <span className="text-xs text-gray-400">
+                          {log.fecha_accion ? new Date(log.fecha_accion).toLocaleString('es-CO') : '-'}
+                        </span>
+                      </div>
+                      {log.estado_anterior && log.estado_nuevo && (
+                        <div className="flex items-center gap-2 mt-1 text-xs">
+                          <Badge variant="outline" className="text-[10px]">{ESTADO_LABELS[log.estado_anterior] || log.estado_anterior}</Badge>
+                          <span>→</span>
+                          <Badge className={`text-[10px] ${ESTADO_COLORS[log.estado_nuevo]}`}>{ESTADO_LABELS[log.estado_nuevo] || log.estado_nuevo}</Badge>
+                        </div>
+                      )}
+                      {log.observacion && <p className="text-xs text-gray-500 mt-1">{log.observacion}</p>}
+                      {log.usuario && (
+                        <p className="text-xs text-gray-400 mt-1">
+                          Por: {log.usuario.primer_nombre} {log.usuario.primer_apellido}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ============================================================ */}
       {/* DIALOG: DETALLE SOLICITUD */}

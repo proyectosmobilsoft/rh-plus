@@ -312,8 +312,9 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
         toast.success('Analista creado exitosamente');
       }
       
-      // Invalidar la consulta del listado de analistas para refrescar los datos
+      // Invalidar ambas listas (contratación y selección) para refrescar los datos
       await queryClient.invalidateQueries({ queryKey: ['analistas-prioridades'] });
+      await queryClient.invalidateQueries({ queryKey: ['analistas-seleccion-prioridades'] });
       
       form.reset();
       onSuccess?.();
@@ -413,10 +414,7 @@ export function AnalistaForm({ analistaSeleccionado, onSuccess }: AnalistaFormPr
        // Asignar los arrays de IDs
        prioridadData.empresa_ids = empresaIdsSeleccionadas;
        prioridadData.sucursal_ids = sucursalIdsSeleccionadas;
-       
-       // Eliminar prioridades existentes del analista (el upsert lo hace automáticamente)
-       await asociacionPrioridadService.deleteByUsuarioId(usuarioId);
-       
+
        // Guardar el registro único
        await asociacionPrioridadService.upsert(prioridadData);
      } catch (error) {

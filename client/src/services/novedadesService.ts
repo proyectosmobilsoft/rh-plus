@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { analistaAsignacionService } from './analistaAsignacionService';
 
 // ============================================================
 // TIPOS E INTERFACES
@@ -74,6 +75,7 @@ export interface NovedadSolicitud {
     fecha_inicio_vacante?: string;
     fecha_congelamiento?: string;
     empleados_ids?: number[];
+    analista_id?: number;
     created_at?: string;
     updated_at?: string;
     // Joins
@@ -81,6 +83,7 @@ export interface NovedadSolicitud {
     motivo?: NovedadMotivo;
     empresa?: { id: number; razon_social: string };
     creador?: { id: number; primer_nombre: string; primer_apellido: string; username: string };
+    analista?: { id: number; primer_nombre: string; primer_apellido: string; username: string };
 }
 
 export interface NovedadFiltros {
@@ -433,12 +436,13 @@ export const novedadesService = {
             let query = supabase
                 .from('novedades_solicitudes')
                 .select(`
-          *,
-          empleado:novedades_empleados(*, lider:gen_usuarios(id, email, primer_nombre, primer_apellido)),
-          motivo:novedades_motivos(id, nombre, codigo, requiere_comite, tipo),
-          empresa:empresas(id, razon_social),
-          creador:gen_usuarios!novedades_solicitudes_created_by_fkey(id, primer_nombre, primer_apellido, username)
-        `);
+                    *,
+                    empleado:novedades_empleados(*, lider:gen_usuarios(id, email, primer_nombre, primer_apellido)),
+                    motivo:novedades_motivos(id, nombre, codigo, requiere_comite, tipo),
+                    empresa:empresas(id, razon_social),
+                    creador:gen_usuarios!novedades_solicitudes_created_by_fkey(id, primer_nombre, primer_apellido, username),
+                    analista:gen_usuarios!novedades_solicitudes_analista_id_fkey(id, primer_nombre, primer_apellido, username)
+                `);
 
             if (filtros?.motivo_id) {
                 query = query.eq('motivo_id', filtros.motivo_id);
@@ -456,7 +460,7 @@ export const novedadesService = {
                 query = query.eq('created_by', filtros.created_by);
             }
             if (filtros?.analista_id) {
-                query = query.eq('created_by', filtros.analista_id);
+                query = query.eq('analista_id', filtros.analista_id);
             }
             if (filtros?.fecha_desde) {
                 query = query.gte('created_at', filtros.fecha_desde);
@@ -506,21 +510,50 @@ export const novedadesService = {
     createSolicitud: async (solicitud: Omit<NovedadSolicitud, 'id' | 'created_at' | 'updated_at'>): Promise<NovedadSolicitud | null> => {
         try {
             const userId = getUsuarioActualId();
+
+            // Asignación automática de analista de selección
+            let analistaId: number | undefined = solicitud.analista_id;
+            if (!analistaId) {
+                const sucursalId = solicitud.sucursal
+                    ? await (async () => {
+                        const { data } = await supabase
+                            .from('gen_sucursales')
+                            .select('id')
+                            .eq('nombre', solicitud.sucursal)
+                            .maybeSingle();
+                        return data?.id as number | undefined;
+                    })()
+                    : undefined;
+
+                const analistaAsignado = await analistaAsignacionService.asignarAnalistaSeleccionAutomatico(
+                    solicitud.empresa_id,
+                    sucursalId
+                );
+                if (analistaAsignado) {
+                    analistaId = analistaAsignado.analista_id;
+                    console.log('✅ Analista de selección asignado automáticamente:', analistaAsignado.analista_nombre);
+                } else {
+                    console.log('⚠️ No se encontró analista de selección elegible, la novedad queda sin analista asignado');
+                }
+            }
+
             const dataToInsert = {
                 ...solicitud,
                 created_by: userId,
                 estado: 'solicitada',
                 fecha_inicio_vacante: new Date().toISOString(),
+                analista_id: analistaId ?? null,
             };
 
             const { data, error } = await supabase
                 .from('novedades_solicitudes')
                 .insert(dataToInsert)
                 .select(`
-          *,
-          empleado:novedades_empleados(id, nombre, apellido, cargo),
-          motivo:novedades_motivos(id, nombre, codigo)
-        `)
+                    *,
+                    empleado:novedades_empleados(id, nombre, apellido, cargo),
+                    motivo:novedades_motivos(id, nombre, codigo),
+                    analista:gen_usuarios!novedades_solicitudes_analista_id_fkey(id, primer_nombre, primer_apellido, username)
+                `)
                 .single();
 
             if (error) {
@@ -528,14 +561,13 @@ export const novedadesService = {
                 return null;
             }
 
-            // Crear log de creación
             if (data) {
                 await novedadesLogsService.crearLog({
                     solicitud_id: data.id!,
                     usuario_id: userId || undefined,
                     accion: ACCIONES_NOVEDADES.CREAR,
                     estado_nuevo: 'solicitada',
-                    observacion: `Solicitud de ${data.motivo?.nombre || 'novedad'} creada`,
+                    observacion: `Solicitud de ${data.motivo?.nombre || 'novedad'} creada${analistaId ? ` — analista asignado automáticamente` : ''}`,
                 });
             }
 

@@ -84,6 +84,7 @@ import ResetPasswordEmpresa from './pages/empresa/ResetPasswordEmpresa';
 
 // Páginas de analistas
 import AnalistasPage from './pages/analistas/AnalistasPage';
+import AnalistasSeleccionPage from './pages/analistas/AnalistasSeleccionPage';
 import CrearAnalistaPage from './pages/analistas/CrearAnalistaPage';
 import EditarAnalistaPage from './pages/analistas/EditarAnalistaPage';
 
@@ -518,6 +519,18 @@ function App() {
             <Route path="/analistas/editar/:id" element={
               <ProtectedRoute>
                 <EditarAnalistaPage />
+              </ProtectedRoute>
+            } />
+
+            {/* Rutas de analistas selección */}
+            <Route path="/analistas-seleccion" element={
+              <ProtectedRoute>
+                <AnalistasSeleccionPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/analistas-seleccion/lista" element={
+              <ProtectedRoute>
+                <AnalistasSeleccionPage />
               </ProtectedRoute>
             } />
 

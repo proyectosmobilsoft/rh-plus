@@ -255,6 +255,109 @@ export const asociacionPrioridadService = {
     }
   },
 
+  // Igual que getAnalistasWithPriorities pero filtra por 'rol_analista_seleccion'
+  getAnalistasSeleccionWithPriorities: async (): Promise<AnalistaPrioridad[]> => {
+    try {
+      const { data: rolesConPermiso, error: rolesError } = await supabase
+        .from('gen_roles_modulos')
+        .select('rol_id, selected_actions_codes')
+        .contains('selected_actions_codes', '["rol_analista_seleccion"]');
+
+      if (rolesError) {
+        console.error('Error al obtener roles con permiso rol_analista_seleccion:', rolesError);
+        return [];
+      }
+
+      const rolIds = rolesConPermiso?.map((r: any) => r.rol_id) || [];
+      if (rolIds.length === 0) return [];
+
+      const { data: todosUsuarios, error: usuariosError } = await supabase
+        .from('gen_usuarios')
+        .select(`
+          id, username, email, primer_nombre, primer_apellido, activo, rol_id,
+          gen_usuario_roles(gen_roles(id, nombre))
+        `)
+        .eq('activo', true);
+
+      if (usuariosError) return [];
+
+      const analistas = todosUsuarios?.filter((usuario: any) => {
+        const tieneRolPrincipal = usuario.rol_id && rolIds.includes(usuario.rol_id);
+        const tieneRolesAdicionales = usuario.gen_usuario_roles?.some((ur: any) =>
+          rolIds.includes(ur.gen_roles.id)
+        );
+        return tieneRolPrincipal || tieneRolesAdicionales;
+      }) || [];
+
+      const analistaIds: number[] = analistas.map((u: any) => u.id);
+
+      const { data: prioridadesAll } = await supabase
+        .from('analista_prioridades')
+        .select('usuario_id, empresa_ids, sucursal_ids, nivel_prioridad_1, nivel_prioridad_2, nivel_prioridad_3, cantidad_solicitudes')
+        .in('usuario_id', analistaIds);
+
+      const usuarioIdToPrioridad = new Map<number, any>();
+      (prioridadesAll || []).forEach((p: any) => {
+        const prev = usuarioIdToPrioridad.get(p.usuario_id);
+        if (!prev) {
+          usuarioIdToPrioridad.set(p.usuario_id, { ...p });
+        } else {
+          prev.empresa_ids = Array.from(new Set([...(prev.empresa_ids || []), ...(p.empresa_ids || [])]));
+          prev.sucursal_ids = Array.from(new Set([...(prev.sucursal_ids || []), ...(p.sucursal_ids || [])]));
+          prev.cantidad_solicitudes = Math.max(prev.cantidad_solicitudes || 0, p.cantidad_solicitudes || 0);
+          prev.nivel_prioridad_1 = prev.nivel_prioridad_1 || p.nivel_prioridad_1;
+          prev.nivel_prioridad_2 = prev.nivel_prioridad_2 || p.nivel_prioridad_2;
+          prev.nivel_prioridad_3 = prev.nivel_prioridad_3 || p.nivel_prioridad_3;
+        }
+      });
+
+      const { data: solicitudesRows } = await supabase
+        .from('novedades_solicitudes')
+        .select('analista_id')
+        .in('analista_id', analistaIds)
+        .not('estado', 'in', '(ejecutada,cancelada,rechazada)');
+
+      const countByAnalistaId = new Map<number, number>();
+      (solicitudesRows || []).forEach((row: any) => {
+        const id = row.analista_id;
+        countByAnalistaId.set(id, (countByAnalistaId.get(id) || 0) + 1);
+      });
+
+      return analistas.map((analista: any) => {
+        // Analysts without analista_prioridades entries are included with no empresa restriction
+        const p = usuarioIdToPrioridad.get(analista.id) || {};
+        const empresaIds = p.empresa_ids || [];
+        const sucursalIds = p.sucursal_ids || [];
+        const asignadas = countByAnalistaId.get(analista.id) || 0;
+        return {
+          usuario_id: analista.id,
+          usuario_nombre: `${analista.primer_nombre || ''} ${analista.primer_apellido || ''}`.trim() || analista.username,
+          usuario_email: analista.email,
+          empresa_id: empresaIds[0],
+          empresa_ids: empresaIds,
+          empresa_nombre: '',
+          empresa_nit: '',
+          empresa_direccion: '',
+          sucursal_id: sucursalIds[0],
+          sucursal_ids: sucursalIds,
+          sucursal_nombre: '',
+          nivel_prioridad_1: p.nivel_prioridad_1 || null,
+          nivel_prioridad_2: p.nivel_prioridad_2 || null,
+          nivel_prioridad_3: p.nivel_prioridad_3 || null,
+          cantidad_configurada: p.cantidad_solicitudes || 0,
+          cantidad_asignadas: asignadas,
+          cantidad_solicitudes: asignadas,
+          roles: [],
+        } as AnalistaPrioridad;
+      }).sort((a: AnalistaPrioridad, b: AnalistaPrioridad) =>
+        (b.cantidad_asignadas || 0) - (a.cantidad_asignadas || 0)
+      );
+    } catch (error) {
+      console.error('Error en getAnalistasSeleccionWithPriorities:', error);
+      return [];
+    }
+  },
+
   // Crear o actualizar asociación de prioridad
   upsert: async (asociacion: Omit<AsociacionPrioridad, 'id' | 'created_at' | 'updated_at'>): Promise<AsociacionPrioridad | null> => {
     try {

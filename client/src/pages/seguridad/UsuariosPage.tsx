@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,7 @@ import { MultiSelect } from "@/components/ui/multi-select";
 import { PasswordStrength } from "@/components/ui/password-strength";
 import { rolesService } from "@/services/rolesService";
 import { empresasService, Empresa } from "@/services/empresasService";
-import { usuariosService, UsuarioData } from "@/services/usuariosService";
+import { usuariosService, UsuarioData, ListUsuariosParams } from "@/services/usuariosService";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLoading } from "@/contexts/LoadingContext";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
@@ -379,8 +379,11 @@ interface Usuario {
 
 const UsuariosPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("active");
   const [perfilFilter, setPerfilFilter] = useState<"all" | number>("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 100;
   const [activeTab, setActiveTab] = useState("usuarios");
   const [editingUser, setEditingUser] = useState<Usuario | null>(null);
   const [showPassword, setShowPassword] = useState<boolean>(false);
@@ -395,6 +398,17 @@ const UsuariosPage = () => {
   const [candidatosRelacionados, setCandidatosRelacionados] = useState<any[]>([]);
   const { startLoading, stopLoading } = useLoading();
   const queryClient = useQueryClient();
+
+  // Debounce del search (300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Resetear página al cambiar filtros
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, statusFilter, perfilFilter]);
 
   // Efecto para cargar la foto cuando se edita un usuario
   useEffect(() => {
@@ -451,13 +465,23 @@ const UsuariosPage = () => {
     return colors[perfilId % colors.length];
   };
 
-  // Query para obtener usuarios desde Supabase
-  const { data: usuarios = [], isLoading, refetch } = useQuery<any[]>({
-    queryKey: ["usuarios"],
-    queryFn: usuariosService.listUsuarios,
+  // Query para obtener usuarios desde Supabase con paginación server-side
+  const { data: queryResult = { data: [], total: 0 }, isLoading, refetch } = useQuery({
+    queryKey: ["usuarios", currentPage, debouncedSearch, statusFilter, perfilFilter],
+    queryFn: () => usuariosService.listUsuarios({
+      page: currentPage,
+      pageSize: PAGE_SIZE,
+      search: debouncedSearch,
+      activo: statusFilter === 'all' ? 'all' : statusFilter === 'active' ? true : false,
+      rolId: perfilFilter,
+    }),
     staleTime: 0,
     refetchOnWindowFocus: true,
   });
+
+  const usuarios = queryResult.data ?? [];
+  const totalUsuarios = queryResult.total;
+  const totalPages = Math.ceil(totalUsuarios / PAGE_SIZE);
 
   // Query para obtener perfiles activos
   const { data: perfilesActivos = [], isLoading: perfilesLoading } = useQuery<Perfil[]>({
@@ -602,29 +626,8 @@ const UsuariosPage = () => {
     },
   });
 
-  // Filtrado de usuarios
-  const usuariosFiltrados = useMemo(() => {
-    return usuarios.filter(usuario => {
-      const term = (searchTerm || "").toLowerCase();
-      const matchesSearch =
-        (usuario.primer_nombre || "").toLowerCase().includes(term) ||
-        (usuario.primer_apellido || "").toLowerCase().includes(term) ||
-        (usuario.email || "").toLowerCase().includes(term) ||
-        (usuario.username || "").toLowerCase().includes(term) ||
-        (usuario.identificacion || "").toLowerCase().includes(term);
-
-      const matchesStatus =
-        statusFilter === "all" ? true :
-          statusFilter === "active" ? usuario.activo :
-            !usuario.activo;
-
-      const matchesPerfil =
-        perfilFilter === "all" ? true :
-          usuario.gen_usuario_roles?.some(rol => rol.rol_id === perfilFilter);
-
-      return matchesSearch && matchesStatus && matchesPerfil;
-    });
-  }, [usuarios, searchTerm, statusFilter, perfilFilter]);
+  // Filtrado manejado server-side; usuarios ya viene filtrado y paginado
+  const usuariosFiltrados = usuarios;
 
   // Handlers
   const handleEliminarUsuario = async (id: number) => {
@@ -818,8 +821,8 @@ const UsuariosPage = () => {
       telefono: usuario.telefono || "",
       email: usuario.email,
       username: usuario.username,
-      password: "",
-      confirmPassword: "",
+      password: usuario.password || "",
+      confirmPassword: usuario.password || "",
       perfilIds: usuario.gen_usuario_roles?.map(r => r.rol_id) || [],
       empresaIds: usuario.gen_usuario_empresas?.map(e => e.empresa_id) || [],
       foto_base64: fotoUrlValue,
@@ -1313,6 +1316,49 @@ const UsuariosPage = () => {
                   ))}
                 </TableBody>
               </Table>
+            {/* Paginación */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t bg-gray-50">
+                <span className="text-sm text-gray-500">
+                  {totalUsuarios} usuarios &nbsp;·&nbsp; Página <strong>{currentPage}</strong> de <strong>{totalPages}</strong>
+                  &nbsp;·&nbsp; Mostrando {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, totalUsuarios)}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(1)}
+                    disabled={currentPage === 1}
+                  >
+                    «
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => p - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    Anterior
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => p + 1)}
+                    disabled={currentPage >= totalPages}
+                  >
+                    Siguiente
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={currentPage >= totalPages}
+                  >
+                    »
+                  </Button>
+                </div>
+              </div>
+            )}
             </div>
           </div>
         </TabsContent>
