@@ -474,7 +474,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
         queryFn: () => novedadesService.getAllEmpleados({
             busqueda: busquedaEmpleado || undefined,
             empresa_id: filtros.empresa_id,
-            sucursal: filtros.sucursal,
+            sucursal_id: sucursalesFormSelect.find(s => s.nombre === filtros.sucursal)?.id,
         }),
     });
 
@@ -616,16 +616,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
     const asignarAnalistaMutation = useMutation({
         mutationFn: async (sol: NovedadSolicitud) => {
             startLoading('Asignando analista...');
-            const sucursalId = sol.sucursal
-                ? await (async () => {
-                    const { data } = await supabase
-                        .from('gen_sucursales')
-                        .select('id')
-                        .eq('nombre', sol.sucursal)
-                        .maybeSingle();
-                    return data?.id as number | undefined;
-                })()
-                : undefined;
+            const sucursalId = sol.empleado?.sucursal_id;
             const analistaAsignado = await analistaAsignacionService.asignarAnalistaSeleccionAutomatico(
                 sol.empresa_id, sucursalId
             );
@@ -759,9 +750,6 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
             motivo_id: selectedMotivo.id,
             empleado_id: selectedEmpleado?.id,
             empresa_id: selectedEmpleado?.empresa_id || filtros.empresa_id,
-            sucursal: selectedMotivo.codigo === 'aumento_plaza'
-                ? (sucursalesFormSelect.find(s => String(s.id) === String(formData.sucursal))?.nombre || undefined)
-                : selectedEmpleado?.sucursal,
             datos_formulario: {
                 ...datosForm,
                 ...(adjuntoFiles.length > 0 ? {
@@ -878,6 +866,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
 
     const solicitudesMostradas = useMemo(() => {
         let result = solicitudes;
+        if (filtros.sucursal) result = result.filter(s => s.empleado?.sucursal?.nombre === filtros.sucursal);
         if (filtroCargoEmp) result = result.filter(s => s.empleado?.cargo === filtroCargoEmp);
         if (filtroJornada) result = result.filter(s => (s.empleado as any)?.jornada === filtroJornada);
         const bn = busquedaNombreListaSolicitudes.trim().toLowerCase();
@@ -886,7 +875,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                 (s.empleado?.nombre || '').toLowerCase().includes(bn));
         }
         return result;
-    }, [solicitudes, filtroCargoEmp, filtroJornada, busquedaNombreListaSolicitudes]);
+    }, [solicitudes, filtros.sucursal, filtroCargoEmp, filtroJornada, busquedaNombreListaSolicitudes]);
 
     const cantidadFiltrosActivosLista = useMemo(() => {
         let n = 0;
@@ -1036,7 +1025,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                 Estado: ESTADO_LABELS[s.estado || 'solicitada'] || s.estado,
                                                 'Inicio vacante': formatDate(s.fecha_inicio_vacante),
                                                 'Fecha Solicitud': formatDate(s.created_at),
-                                                Sucursal: s.sucursal || 'N/A',
+                                                Sucursal: s.empleado?.sucursal?.nombre || 'N/A',
                                                 'Creado Por': s.creador ? `${s.creador.primer_nombre} ${s.creador.primer_apellido}`.trim() : 'Sistema',
                                                 Observaciones: s.observaciones || '',
                                                 'Requiere Reemplazo': s.requiere_reemplazo ? 'Sí' : 'No',
@@ -1442,7 +1431,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                     </TableCell>
                                                     <TableCell className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
                                                         <p>{formatDate(sol.created_at)}</p>
-                                                        {sol.sucursal && <p className="text-[11px] text-gray-400 mt-0.5 max-w-[130px] truncate" title={sol.sucursal}>{sol.sucursal}</p>}
+                                                        {sol.empleado?.sucursal?.nombre && <p className="text-[11px] text-gray-400 mt-0.5 max-w-[130px] truncate" title={sol.empleado.sucursal.nombre}>{sol.empleado.sucursal.nombre}</p>}
                                                     </TableCell>
                                                     <TableCell className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
                                                         {sol.analista
@@ -1604,7 +1593,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                     if (selectedMotivo?.codigo === 'cambio_centro_costo') {
                                                         setFormData(prev => ({
                                                             ...prev,
-                                                            sucursal_anterior: emp.sucursal || '',
+                                                            sucursal_anterior: emp.sucursal_id ? String(emp.sucursal_id) : '',
                                                         }));
                                                     }
 
@@ -1879,11 +1868,9 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                                     <SelectValue placeholder="Sucursal actual del empleado" />
                                                                 </SelectTrigger>
                                                                 <SelectContent>
-                                                                    {(selectedEmpleado?.sucursal || formData[field.name]) && (
-                                                                        <SelectItem value={formData[field.name] || selectedEmpleado?.sucursal || ''}>
-                                                                            {formData[field.name] || selectedEmpleado?.sucursal}
-                                                                        </SelectItem>
-                                                                    )}
+                                                                    {sucursalesFormSelect.map(s => (
+                                                                        <SelectItem key={s.id} value={String(s.id)}>{s.nombre}</SelectItem>
+                                                                    ))}
                                                                 </SelectContent>
                                                             </Select>
                                                         )}
@@ -2215,7 +2202,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                 </div>
                                 <div>
                                     <Label className="text-xs text-gray-500">Sucursal</Label>
-                                    <p className="text-sm">{selectedSolicitud.sucursal || '-'}</p>
+                                    <p className="text-sm">{selectedSolicitud.empleado?.sucursal?.nombre || '-'}</p>
                                 </div>
                                 <div>
                                     <Label className="text-xs text-gray-500">Requiere Reemplazo</Label>

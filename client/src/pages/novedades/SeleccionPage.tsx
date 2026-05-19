@@ -296,7 +296,7 @@ export default function SeleccionPage({ collapseFiltersSignal }: SeleccionPagePr
     return solicitudesSeleccion.filter(s => {
       const matchEmpresa = !filtrosSeleccion.empresa_id || s.empresa_id === filtrosSeleccion.empresa_id;
       const matchMotivo = !filtrosSeleccion.motivo_id || s.motivo_id === filtrosSeleccion.motivo_id;
-      const matchSucursal = !filtrosSeleccion.sucursal || (s.sucursal === filtrosSeleccion.sucursal);
+      const matchSucursal = !filtrosSeleccion.sucursal || (s.empleado?.sucursal?.nombre === filtrosSeleccion.sucursal);
       const matchEstado = !filtrosSeleccion.estado || s.estado === filtrosSeleccion.estado;
       const matchAnalista = !filtrosSeleccion.analista_id || s.analista_id === filtrosSeleccion.analista_id;
       const matchCargo = !filtroCargoSeleccion || s.empleado?.cargo === filtroCargoSeleccion;
@@ -953,7 +953,7 @@ export default function SeleccionPage({ collapseFiltersSignal }: SeleccionPagePr
                   <div className="flex items-center gap-2 text-gray-600">
                     <MapPin className="w-4 h-4" />
                     <span className="font-medium">Sucursal:</span>
-                    <span>{solicitudDetalle?.sucursal || solicitudDetalle?.empleado?.sucursal || '—'}</span>
+                    <span>{solicitudDetalle?.empleado?.sucursal?.nombre || '—'}</span>
                   </div>
                   <div className="flex items-center gap-2 text-gray-600">
                     <Calendar className="w-4 h-4" />

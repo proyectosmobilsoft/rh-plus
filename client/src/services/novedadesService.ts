@@ -14,7 +14,7 @@ export interface NovedadEmpleado {
     tipo_documento?: string;
     cargo?: string;
     empresa_id?: number;
-    sucursal?: string;
+    sucursal_id?: number;
     centro_costo_id?: number;
     fecha_ingreso?: string;
     lider_id?: number;
@@ -35,6 +35,7 @@ export interface NovedadEmpleado {
     // Joins
     empresa?: { id: number; razon_social: string };
     lider?: { id: number; primer_nombre: string; primer_apellido: string };
+    sucursal?: { id: number; nombre: string };
 }
 
 export interface NovedadMotivo {
@@ -63,7 +64,6 @@ export interface NovedadSolicitud {
     datos_formulario: Record<string, any>;
     estado?: string;
     estado_anterior?: string;
-    sucursal?: string;
     requiere_reemplazo?: boolean;
     observaciones?: string;
     documentos_soporte?: string[];
@@ -231,7 +231,7 @@ export const novedadesService = {
 
     getEmpleadosByLider: async (
         liderId: number,
-        filtros?: { empresa_id?: number; sucursal?: string; busqueda?: string }
+        filtros?: { empresa_id?: number; sucursal_id?: number; busqueda?: string }
     ): Promise<NovedadEmpleado[]> => {
         try {
             let query = supabase
@@ -248,8 +248,8 @@ export const novedadesService = {
             if (filtros?.empresa_id) {
                 query = query.eq('empresa_id', filtros.empresa_id);
             }
-            if (filtros?.sucursal) {
-                query = query.ilike('sucursal', `%${filtros.sucursal}%`);
+            if (filtros?.sucursal_id) {
+                query = query.eq('sucursal_id', filtros.sucursal_id);
             }
             if (filtros?.busqueda) {
                 query = query.or(
@@ -271,7 +271,7 @@ export const novedadesService = {
     },
 
     getAllEmpleados: async (
-        filtros?: { empresa_id?: number; sucursal?: string; busqueda?: string }
+        filtros?: { empresa_id?: number; sucursal_id?: number; busqueda?: string }
     ): Promise<NovedadEmpleado[]> => {
         try {
             let query = supabase
@@ -287,8 +287,8 @@ export const novedadesService = {
             if (filtros?.empresa_id) {
                 query = query.eq('empresa_id', filtros.empresa_id);
             }
-            if (filtros?.sucursal) {
-                query = query.ilike('sucursal', `%${filtros.sucursal}%`);
+            if (filtros?.sucursal_id) {
+                query = query.eq('sucursal_id', filtros.sucursal_id);
             }
             if (filtros?.busqueda) {
                 query = query.or(
@@ -437,7 +437,7 @@ export const novedadesService = {
                 .from('novedades_solicitudes')
                 .select(`
                     *,
-                    empleado:novedades_empleados(*, lider:gen_usuarios(id, email, primer_nombre, primer_apellido)),
+                    empleado:novedades_empleados(*, sucursal:gen_sucursales(id, nombre), lider:gen_usuarios(id, email, primer_nombre, primer_apellido)),
                     motivo:novedades_motivos(id, nombre, codigo, requiere_comite, tipo),
                     empresa:empresas(id, razon_social),
                     creador:gen_usuarios!novedades_solicitudes_created_by_fkey(id, primer_nombre, primer_apellido, username),
@@ -449,9 +449,6 @@ export const novedadesService = {
             }
             if (filtros?.empresa_id) {
                 query = query.eq('empresa_id', filtros.empresa_id);
-            }
-            if (filtros?.sucursal) {
-                query = query.ilike('sucursal', `%${filtros.sucursal}%`);
             }
             if (filtros?.estado) {
                 query = query.eq('estado', filtros.estado);
@@ -514,14 +511,14 @@ export const novedadesService = {
             // Asignación automática de analista de selección
             let analistaId: number | undefined = solicitud.analista_id;
             if (!analistaId) {
-                const sucursalId = solicitud.sucursal
+                const sucursalId = solicitud.empleado_id
                     ? await (async () => {
                         const { data } = await supabase
-                            .from('gen_sucursales')
-                            .select('id')
-                            .eq('nombre', solicitud.sucursal)
+                            .from('novedades_empleados')
+                            .select('sucursal_id')
+                            .eq('id', solicitud.empleado_id)
                             .maybeSingle();
-                        return data?.id as number | undefined;
+                        return data?.sucursal_id as number | undefined;
                     })()
                     : undefined;
 
