@@ -6,10 +6,13 @@ import {
   BarChart3,
   UserCheck,
   UserX,
-  Clock
+  Clock,
+  Download
 } from 'lucide-react';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 interface DashboardStats {
   totalCandidatos: number;
@@ -71,6 +74,46 @@ export default function DashboardEmpresa() {
     fetchData();
   }, []);
 
+  const handleExport = async () => {
+    if (!empresa && !stats) {
+      toast.error('No hay datos para exportar');
+      return;
+    }
+
+    const plantillasTexto = PLANTILLAS_MOCK
+      .filter(p => plantillasAsignadas.includes(p.id))
+      .map(p => `${p.name} (${p.description})`)
+      .join(' | ');
+
+    const rows = [
+      { Seccion: 'Empresa', Campo: 'Razón social', Valor: empresa?.razon_social || '—' },
+      { Seccion: 'Empresa', Campo: 'NIT', Valor: empresa?.nit || '—' },
+      { Seccion: 'Empresa', Campo: 'Email', Valor: empresa?.email || '—' },
+      { Seccion: 'Empresa', Campo: 'Ciudad', Valor: empresa?.ciudad || '—' },
+      { Seccion: 'Empresa', Campo: 'Teléfono', Valor: empresa?.telefono || '—' },
+      { Seccion: 'Empresa', Campo: 'Contacto Principal', Valor: empresa?.contactoPrincipal || '—' },
+      { Seccion: 'Empresa', Campo: 'Cargo Contacto', Valor: empresa?.cargoContacto || '—' },
+      { Seccion: 'Empresa', Campo: 'Plantillas asignadas', Valor: plantillasTexto || '—' },
+      { Seccion: 'Estadísticas', Campo: 'Total Candidatos', Valor: stats?.totalCandidatos ?? 0 },
+      { Seccion: 'Estadísticas', Campo: 'Pendientes', Valor: stats?.candidatosPendientes ?? 0 },
+      { Seccion: 'Estadísticas', Campo: 'Aprobados', Valor: stats?.candidatosAprobados ?? 0 },
+      { Seccion: 'Estadísticas', Campo: 'Rechazados', Valor: stats?.candidatosRechazados ?? 0 },
+    ];
+
+    try {
+      const { exportToExcel } = await import('@/utils/exportUtils');
+      await exportToExcel(
+        rows,
+        `Dashboard_Empresa_${new Date().toISOString().split('T')[0]}`,
+        'Dashboard'
+      );
+      toast.success('Exportación generada exitosamente');
+    } catch (error) {
+      console.error('Error exportando dashboard empresa:', error);
+      toast.error('Error al generar el archivo Excel');
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="p-6 flex items-center justify-center">
@@ -85,11 +128,17 @@ export default function DashboardEmpresa() {
   return (
     <div className="p-6 space-y-6">
       {/* Welcome section */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-gray-600">
-          Bienvenido/a, {empresa?.contactoPrincipal || empresa?.razon_social}
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-gray-600">
+            Bienvenido/a, {empresa?.contactoPrincipal || empresa?.razon_social}
+          </p>
+        </div>
+        <Button variant="outline" className="gap-2" onClick={handleExport}>
+          <Download className="w-4 h-4" />
+          Exportar Excel
+        </Button>
       </div>
 
       {/* Stats Cards */}
@@ -196,4 +245,3 @@ export default function DashboardEmpresa() {
     </div>
   );
 }
-

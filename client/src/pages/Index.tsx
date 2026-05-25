@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   ResponsiveContainer,
   BarChart,
@@ -31,7 +32,9 @@ import {
   XCircle,
   AlertTriangle,
   TrendingUp,
+  Download,
 } from "lucide-react";
+import { toast } from "sonner";
 
 interface DashboardStats {
   totalSolicitudes: number;
@@ -246,6 +249,38 @@ const Dashboard = () => {
     return [a.primer_nombre, a.primer_apellido].filter(Boolean).join(" ");
   };
 
+  const buildExportRows = (rows: any[]) =>
+    rows.map((s) => ({
+      ID: s.id ?? "—",
+      Estado: s.estado ?? "—",
+      Empresa: (s.empresas as any)?.razon_social ?? "—",
+      Analista: nombreAnalista(s),
+      Candidato: nombreCandidato(s),
+      Documento: s.candidatos?.numero_documento ?? "—",
+      "Fecha Creación": s.created_at ? new Date(s.created_at).toLocaleDateString("es-ES") : "—",
+      "Última Actualización": s.updated_at ? new Date(s.updated_at).toLocaleDateString("es-ES") : "—",
+    }));
+
+  const handleExportSolicitudes = async (rows?: any[]) => {
+    const source = rows ?? stats?.solicitudes ?? [];
+    if (!source.length) {
+      toast.error("No hay datos para exportar");
+      return;
+    }
+    try {
+      const { exportToExcel } = await import("@/utils/exportUtils");
+      await exportToExcel(
+        buildExportRows(source),
+        `Dashboard_Solicitudes_${new Date().toISOString().split("T")[0]}`,
+        "Solicitudes"
+      );
+      toast.success("Exportación generada exitosamente");
+    } catch (error) {
+      console.error("Error exportando solicitudes:", error);
+      toast.error("Error al generar el archivo Excel");
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="p-6 space-y-6">
@@ -357,6 +392,15 @@ const Dashboard = () => {
               })),
             ]}
           />
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => handleExportSolicitudes()}
+            disabled={!stats?.solicitudes?.length}
+          >
+            <Download className="w-4 h-4" />
+            Exportar Excel
+          </Button>
         </div>
 
         {/* Stat cards */}

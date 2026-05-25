@@ -11,6 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useCompanies } from '@/hooks/useCompanies';
 import { useAnalistas } from '@/hooks/useAnalistas';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from "sonner";
 
 interface DashboardData {
   ordenesTotales: number;
@@ -182,6 +183,96 @@ export default function DashboardReportes() {
     }
   };
 
+  const buildExportRows = () => {
+    const rows: Array<{
+      Seccion: string;
+      Detalle: string;
+      Valor: string | number;
+      Extra1: string | number;
+      Extra2: string | number;
+      Extra3: string | number;
+    }> = [];
+
+    const pushRow = (row: Partial<(typeof rows)[number]>) => {
+      rows.push({
+        Seccion: "",
+        Detalle: "",
+        Valor: "",
+        Extra1: "",
+        Extra2: "",
+        Extra3: "",
+        ...row,
+      });
+    };
+
+    pushRow({ Seccion: "Filtros", Detalle: "Fecha Inicio", Valor: fechaInicio || "—" });
+    pushRow({ Seccion: "Filtros", Detalle: "Fecha Fin", Valor: fechaFin || "—" });
+    pushRow({
+      Seccion: "Filtros",
+      Detalle: "Empresa",
+      Valor:
+        empresaFiltro && empresaFiltro !== "todas"
+          ? empresas.find((e) => e.id.toString() === empresaFiltro)?.razon_social || "Seleccionada"
+          : "Todas",
+    });
+    pushRow({
+      Seccion: "Filtros",
+      Detalle: "Analista",
+      Valor:
+        analistaFiltro && analistaFiltro !== "todos"
+          ? analistas.find((a) => a.id?.toString() === analistaFiltro)?.primer_nombre || "Seleccionado"
+          : "Todos",
+    });
+
+    pushRow({ Seccion: "Resumen", Detalle: "Órdenes Totales", Valor: ordenesTotales || 0 });
+    pushRow({ Seccion: "Resumen", Detalle: "Órdenes Hoy", Valor: ordenesHoy || 0 });
+    pushRow({ Seccion: "Resumen", Detalle: "En Proceso", Valor: ordenesEnProceso || 0 });
+    pushRow({ Seccion: "Resumen", Detalle: "Alertas Activas", Valor: alertasActivas || 0 });
+    pushRow({ Seccion: "Resumen", Detalle: "Lead Time Promedio (días)", Valor: leadTimePromedio || 0 });
+
+    ordenesPorEstado.forEach((item) => {
+      const porcentaje = ordenesTotales > 0 ? Math.round((item.cantidad / ordenesTotales) * 100) : 0;
+      pushRow({
+        Seccion: "Órdenes por Estado",
+        Detalle: item.estado,
+        Valor: item.cantidad,
+        Extra1: `${porcentaje}%`,
+      });
+    });
+
+    (leadTimeData || []).forEach((analista) => {
+      pushRow({
+        Seccion: "Performance por Analista",
+        Detalle: analista.nombre,
+        Valor: analista.ordenesAbiertas,
+        Extra1: analista.ordenesCerradas,
+        Extra2: analista.leadTimePromedio,
+      });
+    });
+
+    return rows;
+  };
+
+  const handleExportReporte = async () => {
+    const rows = buildExportRows();
+    if (!rows.length) {
+      toast.error("No hay datos para exportar");
+      return;
+    }
+    try {
+      const { exportToExcel } = await import("@/utils/exportUtils");
+      await exportToExcel(
+        rows,
+        `Reporte_Ordenes_${new Date().toISOString().split("T")[0]}`,
+        "Reporte"
+      );
+      toast.success("Exportación generada exitosamente");
+    } catch (error) {
+      console.error("Error exportando reporte:", error);
+      toast.error("Error al generar el archivo Excel");
+    }
+  };
+
   if (loadingOrdenes || loadingLeadTime || loadingEmpresas || loadingAnalistas) {
     return (
       <div className="p-6 space-y-6">
@@ -214,7 +305,7 @@ export default function DashboardReportes() {
           <h1 className="text-3xl font-bold text-gray-900">Dashboard de Reportes</h1>
           <p className="text-gray-600">Métricas y seguimiento de órdenes de ingreso</p>
         </div>
-        <Button variant="outline">
+        <Button variant="outline" onClick={handleExportReporte}>
           <FileText className="mr-2 h-4 w-4" />
           Exportar Reporte
         </Button>
@@ -560,4 +651,3 @@ export default function DashboardReportes() {
     </div>
   );
 }
-
