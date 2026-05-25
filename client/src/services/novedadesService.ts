@@ -310,19 +310,30 @@ export const novedadesService = {
     },
 
     getEmpleadosKaptus: async (
-        params?: { page?: number; pageSize?: number }
+        params?: { page?: number; pageSize?: number; all?: boolean }
     ): Promise<NovedadEmpleado[]> => {
         try {
-            const token = (import.meta as any).env?.VITE_KAPTUS_API_TOKEN || '14bf055ff3a38813f8fc9724c281e1588b2d6ff133e8f0f44f2dfe16c63b6175';
+            const token = import.meta.env.VITE_KAPTUS_API_TOKEN
+                || '14bf055ff3a38813f8fc9724c281e1588b2d6ff133e8f0f44f2dfe16c63b6175';
             const page = params?.page ?? 1;
             const pageSize = params?.pageSize ?? 20;
-            const isProd = (import.meta as any).env?.PROD;
-            const baseUrl = isProd
-                ? ((import.meta as any).env?.VITE_KAPTUS_API_URL || 'https://apicorehuman.mobilsoft.co')
-                : '/kaptus-api';
+            const all = params?.all ?? false;
+            // Por defecto usa proxy /kaptus-api (dev/preview). En IIS prod definir VITE_KAPTUS_API_URL.
+            const baseUrl = (import.meta.env.VITE_KAPTUS_API_URL || '/kaptus-api').replace(/\/$/, '');
+            const isAbsolute = /^https?:\/\//i.test(baseUrl);
+            const url = isAbsolute
+                ? new URL(`${baseUrl}/api/empleados_kaptus`)
+                : new URL(`${baseUrl}/api/empleados_kaptus`, window.location.origin);
+            url.searchParams.set('page', String(page));
+            url.searchParams.set('pageSize', String(pageSize));
+            url.searchParams.set('all', String(all));
 
-            const response = await fetch(`${baseUrl}/api/empleados_kaptus?page=${page}&pageSize=${pageSize}`, {
-                headers: { 'api_token': token },
+            const response = await fetch(url.toString(), {
+                method: 'GET',
+                headers: {
+                    Accept: 'application/json',
+                    api_token: token,
+                },
             });
 
             if (!response.ok) {

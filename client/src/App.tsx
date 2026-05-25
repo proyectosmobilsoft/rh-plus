@@ -112,6 +112,7 @@ import ConfiguracionesGlobalesPage from './pages/configuraciones/Configuraciones
 import EmailMasivoPage from './pages/maestro/EmailMasivoPage';
 import CentrosCostoPage from './pages/maestro/CentrosCostoPage';
 import ActividadesEconomicasPage from './pages/maestro/ActividadesEconomicasPage';
+import MotivosRenunciaPage from './pages/maestro/MotivosRenunciaPage';
 import ProyectosPage from './pages/maestro/ProyectosPage';
 import AreasNegociosPage from './pages/maestro/AreasNegociosPage';
 import JornadasLaboralesPage from './pages/maestro/JornadasLaboralesPage';
@@ -472,6 +473,11 @@ function App() {
             <Route path="/maestro/actividades-economicas" element={
               <ProtectedRoute>
                 <ActividadesEconomicasPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/maestro/motivos-renuncia" element={
+              <ProtectedRoute>
+                <MotivosRenunciaPage />
               </ProtectedRoute>
             } />
             <Route path="/maestro/proyectos" element={

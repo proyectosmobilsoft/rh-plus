@@ -128,7 +128,7 @@ const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type:
     ],
     renuncias: [
         { label: 'Fecha de solicitud', name: 'fecha_renuncia', type: 'date', required: true, defaultToday: true },
-        { label: 'Motivo de la renuncia', name: 'motivo_renuncia', type: 'textarea', required: true, rowSpan: true },
+        { label: 'Motivo de la renuncia', name: 'motivo_renuncia', type: 'motivo-renuncia-select', required: true },
         { label: 'Último día de trabajo', name: 'fecha_finalizacion', type: 'date', required: true },
         { label: '¿Requiere reemplazo?', name: 'requiere_reemplazo', type: 'checkbox' },
     ],
@@ -285,6 +285,12 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
     useEffect(() => {
         supabase.from('jornadas_laborales').select('id, nombre_jornada, horas_laborales').eq('activo', true).order('nombre_jornada')
             .then(({ data }) => { if (data) setJornadasLaborales(data); });
+    }, []);
+
+    const [motivosRenunciaSelect, setMotivosRenunciaSelect] = useState<{ id: number; nombre: string }[]>([]);
+    useEffect(() => {
+        supabase.from('gen_motivos_renuncia').select('id, nombre').eq('activo', true).order('nombre')
+            .then(({ data }) => { if (data) setMotivosRenunciaSelect(data); });
     }, []);
 
     // Datos para selects del formulario
@@ -1716,6 +1722,23 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                                 rows={field.rowSpan ? undefined : 3}
                                                                 placeholder={field.label}
                                                             />
+                                                        )}
+                                                        {field.type === 'motivo-renuncia-select' && (
+                                                            <Select
+                                                                value={formData[field.name] || ''}
+                                                                onValueChange={v => setFormData(prev => ({ ...prev, [field.name]: v }))}
+                                                            >
+                                                                <SelectTrigger className="h-9 text-sm bg-white border-gray-200 focus:border-cyan-400 focus:ring-cyan-100">
+                                                                    <SelectValue placeholder="Seleccionar motivo de renuncia..." />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {motivosRenunciaSelect.length === 0
+                                                                        ? <SelectItem value="__none__" disabled>Sin motivos registrados</SelectItem>
+                                                                        : motivosRenunciaSelect.map(m => (
+                                                                            <SelectItem key={m.id} value={m.nombre}>{m.nombre}</SelectItem>
+                                                                        ))}
+                                                                </SelectContent>
+                                                            </Select>
                                                         )}
                                                         {field.type === 'select' && (
                                                             <Select
