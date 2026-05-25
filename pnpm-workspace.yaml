@@ -1,0 +1,7 @@
+allowBuilds:
+  bcrypt: set this to true or false
+  bufferutil: set this to true or false
+  core-js: set this to true or false
+  es5-ext: set this to true or false
+  esbuild: set this to true or false
+  react-vertical-timeline-component: set this to true or false
