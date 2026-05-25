@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FileText, CheckCircle, XCircle, Search, Filter, Eye, Save, X, Upload } from "lucide-react";
+import { FileText, CheckCircle, XCircle, Search, Filter, Eye, Save, X, Upload, History } from "lucide-react";
 import { toast } from 'sonner';
 
 import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogFooter } from "@/components/ui/dialog";
@@ -28,6 +28,34 @@ import { supabase } from '@/services/supabaseClient';
 import { emailService } from '@/services/emailService';
 import { Can, usePermissions } from '@/contexts/PermissionsContext';
 
+
+interface CertificadoHistorial {
+  id: number;
+  solicitud_id: number;
+  candidato_id: number;
+  concepto_medico: 'apto' | 'no-apto' | 'apto-con-restricciones';
+  observaciones?: string;
+  restriccion_macro?: string;
+  resumen_restriccion?: string;
+  remision: boolean;
+  requiere_medicacion: boolean;
+  created_at: string;
+  candidatos?: {
+    primer_nombre: string;
+    segundo_nombre?: string;
+    primer_apellido: string;
+    segundo_apellido?: string;
+    numero_documento?: string;
+  };
+  hum_solicitudes?: {
+    id: number;
+    estado: string;
+    fecha_solicitud: string;
+    estructura_datos?: Record<string, any>;
+    empresa_id?: number;
+    empresas?: { razon_social: string };
+  };
+}
 
 const CertificadosMedicosPage = () => {
   const { hasAction } = usePermissions();
@@ -70,6 +98,14 @@ const CertificadosMedicosPage = () => {
   const [documentoPreview, setDocumentoPreview] = useState<string | null>(null);
   const [isUploadingDocumento, setIsUploadingDocumento] = useState(false);
   const [acordeonAbierto, setAcordeonAbierto] = useState<string[]>(['documento-medico']);
+
+  // Estados para el historial
+  const [historialCertificados, setHistorialCertificados] = useState<CertificadoHistorial[]>([]);
+  const [isLoadingHistorial, setIsLoadingHistorial] = useState(false);
+  const [historialSearch, setHistorialSearch] = useState('');
+  const [historialConceptoFilter, setHistorialConceptoFilter] = useState('all');
+  const [selectedHistorialCert, setSelectedHistorialCert] = useState<CertificadoHistorial | null>(null);
+  const [isHistorialModalOpen, setIsHistorialModalOpen] = useState(false);
 
   // Función para convertir archivo a Base64 (igual que en perfil candidato)
   const convertFileToBase64 = (file: File): Promise<string> => {
@@ -171,10 +207,45 @@ const CertificadosMedicosPage = () => {
     if (fileInput) fileInput.value = '';
   };
 
+  const fetchHistorial = async () => {
+    setIsLoadingHistorial(true);
+    try {
+      const { data, error } = await supabase
+        .from('certificados_medicos')
+        .select(`
+          id, solicitud_id, candidato_id, concepto_medico, observaciones,
+          restriccion_macro, resumen_restriccion, remision, requiere_medicacion, created_at,
+          candidatos!candidato_id (
+            primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, numero_documento
+          ),
+          hum_solicitudes!solicitud_id (
+            id, estado, fecha_solicitud, estructura_datos, empresa_id,
+            empresas!empresa_id ( razon_social )
+          )
+        `)
+        .in('concepto_medico', ['apto', 'no-apto', 'apto-con-restricciones'])
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setHistorialCertificados((data as unknown as CertificadoHistorial[]) || []);
+    } catch (error) {
+      console.error('Error fetching historial:', error);
+      toast.error('Error al cargar el historial de certificados');
+    } finally {
+      setIsLoadingHistorial(false);
+    }
+  };
+
   // Fetch solicitudes when component mounts
   useEffect(() => {
     fetchSolicitudes();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'historial' && historialCertificados.length === 0) {
+      fetchHistorial();
+    }
+  }, [activeTab]);
 
   // Filtrar solicitudes
   const filteredSolicitudes = solicitudes
@@ -650,6 +721,39 @@ const CertificadosMedicosPage = () => {
     return 'bg-white hover:bg-gray-50';
   };
 
+  const getConceptoBadgeClass = (concepto: string) => {
+    if (concepto === 'apto') return 'bg-green-100 text-green-800 border-green-200';
+    if (concepto === 'no-apto') return 'bg-red-100 text-red-800 border-red-200';
+    if (concepto === 'apto-con-restricciones') return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    return 'bg-gray-100 text-gray-800 border-gray-200';
+  };
+
+  const getConceptoBadgeText = (concepto: string) => {
+    if (concepto === 'apto') return 'Apto';
+    if (concepto === 'no-apto') return 'No Apto';
+    if (concepto === 'apto-con-restricciones') return 'Apto con Restricciones';
+    return concepto;
+  };
+
+  const filteredHistorial = historialCertificados.filter(cert => {
+    const candidato = cert.candidatos;
+    const nombreCompleto = candidato
+      ? `${candidato.primer_nombre} ${candidato.segundo_nombre || ''} ${candidato.primer_apellido} ${candidato.segundo_apellido || ''}`.trim()
+      : '';
+    const empresa = (cert.hum_solicitudes as any)?.empresas?.razon_social || '';
+    const documento = candidato?.numero_documento || '';
+
+    const matchesSearch = !historialSearch ||
+      nombreCompleto.toLowerCase().includes(historialSearch.toLowerCase()) ||
+      documento.includes(historialSearch) ||
+      empresa.toLowerCase().includes(historialSearch.toLowerCase()) ||
+      cert.solicitud_id?.toString().includes(historialSearch);
+
+    const matchesConcepto = historialConceptoFilter === 'all' || cert.concepto_medico === historialConceptoFilter;
+
+    return matchesSearch && matchesConcepto;
+  });
+
   return (
     <div className="p-4 max-w-full mx-auto">
       <div className="flex items-center justify-between mb-4">
@@ -660,7 +764,7 @@ const CertificadosMedicosPage = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 bg-cyan-100/60 p-1 rounded-lg">
+        <TabsList className="grid w-full grid-cols-3 bg-cyan-100/60 p-1 rounded-lg">
           <TabsTrigger
             value="listado"
             className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
@@ -672,6 +776,13 @@ const CertificadosMedicosPage = () => {
             className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
           >
             Registro de Certificado
+          </TabsTrigger>
+          <TabsTrigger
+            value="historial"
+            className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300 flex items-center gap-2"
+          >
+            <History className="w-4 h-4" />
+            Historial
           </TabsTrigger>
         </TabsList>
 
@@ -1223,6 +1334,140 @@ const CertificadosMedicosPage = () => {
             </div>
           )}
         </TabsContent>
+        <TabsContent value="historial" className="mt-6">
+          <div className="bg-white rounded-lg border">
+            <div className="flex items-center justify-between p-4 border-b">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-cyan-100 rounded flex items-center justify-center">
+                  <History className="w-5 h-5 text-cyan-600" />
+                </div>
+                <span className="text-lg font-semibold text-gray-700">HISTORIAL DE CERTIFICADOS MÉDICOS</span>
+              </div>
+              <Button variant="outline" size="sm" onClick={fetchHistorial} disabled={isLoadingHistorial} className="flex items-center gap-2">
+                <Search className="w-4 h-4" />
+                Actualizar
+              </Button>
+            </div>
+
+            {/* Filtros */}
+            <div className="p-4 border-b bg-gray-50">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="relative md:col-span-2">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    placeholder="Buscar por nombre, documento, empresa, consecutivo..."
+                    value={historialSearch}
+                    onChange={(e) => setHistorialSearch(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <Select value={historialConceptoFilter} onValueChange={setHistorialConceptoFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filtrar por concepto" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos los conceptos</SelectItem>
+                    <SelectItem value="apto">Apto</SelectItem>
+                    <SelectItem value="no-apto">No Apto</SelectItem>
+                    <SelectItem value="apto-con-restricciones">Apto con Restricciones</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  onClick={() => { setHistorialSearch(''); setHistorialConceptoFilter('all'); }}
+                  className="flex items-center gap-2"
+                >
+                  <Filter className="w-4 h-4" />
+                  Limpiar filtros
+                </Button>
+              </div>
+            </div>
+
+            {/* Contador */}
+            <div className="px-4 py-2 bg-gray-50 border-b text-sm text-gray-500">
+              {!isLoadingHistorial && (
+                <span>{filteredHistorial.length} certificado{filteredHistorial.length !== 1 ? 's' : ''} encontrado{filteredHistorial.length !== 1 ? 's' : ''}</span>
+              )}
+            </div>
+
+            {/* Tabla */}
+            <div className="overflow-x-auto rounded-b-lg shadow-sm">
+              <Table className="min-w-[900px] w-full text-xs">
+                <TableHeader className="bg-cyan-50">
+                  <TableRow className="text-left font-semibold text-gray-700">
+                    <TableHead className="px-2 py-1 text-teal-600">Acciones</TableHead>
+                    <TableHead className="px-4 py-3 text-teal-600">Consecutivo</TableHead>
+                    <TableHead className="px-4 py-3">Candidato</TableHead>
+                    <TableHead className="px-4 py-3">Documento</TableHead>
+                    <TableHead className="px-4 py-3">Empresa</TableHead>
+                    <TableHead className="px-4 py-3">Fecha Certificado</TableHead>
+                    <TableHead className="px-4 py-3">Concepto Médico</TableHead>
+                    <TableHead className="px-4 py-3">Observaciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLoadingHistorial ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="h-24 text-center">
+                        Cargando historial...
+                      </TableCell>
+                    </TableRow>
+                  ) : filteredHistorial.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="h-24 text-center">
+                        No se encontraron certificados en el historial.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredHistorial.map((cert) => {
+                      const candidato = cert.candidatos;
+                      const solicitud = cert.hum_solicitudes as any;
+                      const nombreCompleto = candidato
+                        ? `${candidato.primer_nombre} ${candidato.segundo_nombre || ''} ${candidato.primer_apellido} ${candidato.segundo_apellido || ''}`.replace(/\s+/g, ' ').trim()
+                        : 'N/A';
+                      const empresa = solicitud?.empresas?.razon_social || 'N/A';
+
+                      return (
+                        <TableRow key={cert.id} className="hover:bg-gray-50">
+                          <TableCell className="px-2 py-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => { setSelectedHistorialCert(cert); setIsHistorialModalOpen(true); }}
+                              className="h-8 w-8 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                              title="Ver detalle"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                          <TableCell className="px-4 py-3 font-medium text-gray-900">
+                            #{cert.solicitud_id || 'N/A'}
+                          </TableCell>
+                          <TableCell className="px-4 py-3 text-gray-900">{nombreCompleto}</TableCell>
+                          <TableCell className="px-4 py-3 text-gray-500">
+                            {candidato?.numero_documento || 'N/A'}
+                          </TableCell>
+                          <TableCell className="px-4 py-3 text-gray-500">{empresa}</TableCell>
+                          <TableCell className="px-4 py-3 text-gray-500">
+                            {formatDate(cert.created_at)}
+                          </TableCell>
+                          <TableCell className="px-4 py-3">
+                            <Badge className={getConceptoBadgeClass(cert.concepto_medico)}>
+                              {getConceptoBadgeText(cert.concepto_medico)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="px-4 py-3 text-gray-500 max-w-[200px] truncate" title={cert.observaciones || ''}>
+                            {cert.observaciones || '—'}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </TabsContent>
       </Tabs>
 
       {/* Modal de Confirmación */}
@@ -1440,6 +1685,108 @@ const CertificadosMedicosPage = () => {
                       modalType === 'no-aprobar' ? 'Confirmar Descarte' :
                         'Confirmar'
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal detalle de certificado del historial */}
+      <Dialog open={isHistorialModalOpen} onOpenChange={setIsHistorialModalOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5 text-cyan-600" />
+              Detalle del Certificado Médico
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedHistorialCert && (() => {
+            const cert = selectedHistorialCert;
+            const candidato = cert.candidatos;
+            const solicitud = cert.hum_solicitudes as any;
+            const nombreCompleto = candidato
+              ? `${candidato.primer_nombre} ${candidato.segundo_nombre || ''} ${candidato.primer_apellido} ${candidato.segundo_apellido || ''}`.replace(/\s+/g, ' ').trim()
+              : 'N/A';
+
+            return (
+              <div className="space-y-4 text-sm">
+                {/* Encabezado concepto */}
+                <div className="flex items-center justify-center py-2">
+                  <Badge className={`text-sm px-4 py-1 ${getConceptoBadgeClass(cert.concepto_medico)}`}>
+                    {getConceptoBadgeText(cert.concepto_medico)}
+                  </Badge>
+                </div>
+
+                {/* Datos del candidato */}
+                <div className="bg-cyan-50 p-4 rounded-lg border border-cyan-200">
+                  <h4 className="font-semibold text-cyan-800 mb-3">INFORMACIÓN DEL CANDIDATO</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <span className="text-gray-500 font-medium">Consecutivo:</span>
+                      <p className="text-gray-900 font-semibold">#{cert.solicitud_id}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500 font-medium">Fecha certificado:</span>
+                      <p className="text-gray-900">{formatDate(cert.created_at)}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-gray-500 font-medium">Nombre:</span>
+                      <p className="text-gray-900">{nombreCompleto}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500 font-medium">Documento:</span>
+                      <p className="text-gray-900">{candidato?.numero_documento || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500 font-medium">Empresa:</span>
+                      <p className="text-gray-900">{solicitud?.empresas?.razon_social || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500 font-medium">Estado solicitud:</span>
+                      <p className="text-gray-900 capitalize">{solicitud?.estado || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Detalles médicos */}
+                <div className="bg-orange-50 p-4 rounded-lg border border-orange-200 space-y-3">
+                  <h4 className="font-semibold text-orange-800">DETALLES MÉDICOS</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <span className="text-gray-500 font-medium">Remisión:</span>
+                      <p className="text-gray-900">{cert.remision ? 'Sí' : 'No'}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500 font-medium">Requiere medicación:</span>
+                      <p className="text-gray-900">{cert.requiere_medicacion ? 'Sí' : 'No'}</p>
+                    </div>
+                  </div>
+                  {cert.restriccion_macro && (
+                    <div>
+                      <span className="text-gray-500 font-medium">Recomendación macro:</span>
+                      <p className="text-gray-900 mt-1 bg-white p-2 rounded border whitespace-pre-wrap">{cert.restriccion_macro}</p>
+                    </div>
+                  )}
+                  {cert.resumen_restriccion && (
+                    <div>
+                      <span className="text-gray-500 font-medium">Resumen recomendación:</span>
+                      <p className="text-gray-900 mt-1 bg-white p-2 rounded border whitespace-pre-wrap">{cert.resumen_restriccion}</p>
+                    </div>
+                  )}
+                  {cert.observaciones && (
+                    <div>
+                      <span className="text-gray-500 font-medium">Observaciones:</span>
+                      <p className="text-gray-900 mt-1 bg-white p-2 rounded border whitespace-pre-wrap">{cert.observaciones}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsHistorialModalOpen(false)}>
+              Cerrar
             </Button>
           </DialogFooter>
         </DialogContent>

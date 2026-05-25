@@ -453,7 +453,7 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
     const puedeStandBy = !isStandBy(s.estado) && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-standby-solicitud');
     const puedeDeserto = !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-deserto-solicitud');
     const puedeCancelar = !isCancelada(s.estado) && hasAction('accion-cancelar-solicitud');
-    const puedeValidarDocumentos = s.estado?.toLowerCase() === 'documentos entregados' && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-validar-documentos-solicitud');
+    const puedeValidarDocumentos = (s.estado?.toLowerCase() === 'documentos entregados' || s.estado?.toLowerCase() === 'documentos devueltos') && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-validar-documentos-solicitud');
     const puedeDevolverDocumentos = s.estado?.toLowerCase() === 'documentos entregados' && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-devolver-documentos-solicitud');
     const puedeContratar = s.estado?.toLowerCase() === 'firma contrato' && !isDeserto(s.estado) && !isCancelada(s.estado) && hasAction('accion-contratar-solicitud');
     const puedeVisualizarContratado = s.estado?.toLowerCase() === 'contratado' && hasAction('accion-visualizar-solicitud');
@@ -1419,11 +1419,11 @@ const SolicitudesList: React.FC<SolicitudesListProps> = ({
                               </Can>
                             )}
 
-                            {/* Botón Documentos Validados - solo visible en estado DOCUMENTOS ENTREGADOS */}
-                            {solicitud.estado?.toLowerCase() === 'documentos entregados' && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
+                            {/* Botón Documentos Validados - visible en DOCUMENTOS ENTREGADOS y DOCUMENTOS DEVUELTOS */}
+                            {(solicitud.estado?.toLowerCase() === 'documentos entregados' || solicitud.estado?.toLowerCase() === 'documentos devueltos') && !isDeserto(solicitud.estado) && !isCancelada(solicitud.estado) && (
                               <Can action="accion-validar-documentos-solicitud">
-                                <DropdownMenuItem 
-                                  onClick={() => handleValidateDocumentsClick(solicitud.id)} 
+                                <DropdownMenuItem
+                                  onClick={() => handleValidateDocumentsClick(solicitud.id)}
                                   className="cursor-pointer"
                                 >
                                   <CheckCircle className="h-4 w-4 mr-2 text-orange-600" />

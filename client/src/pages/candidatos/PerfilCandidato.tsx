@@ -187,7 +187,7 @@ export default function PerfilCandidato() {
   const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState<number | null>(null);
   const [modalDocumento, setModalDocumento] = useState<{ isOpen: boolean, documento: any }>({ isOpen: false, documento: null });
   const [acordeonesAbiertos, setAcordeonesAbiertos] = useState<string[]>([]);
-  const [documentoACambiar, setDocumentoACambiar] = useState<{ id: number, progressKey: string } | null>(null);
+  const [documentoACambiar, setDocumentoACambiar] = useState<{ id: number, progressKey: string, solicitudId?: number } | null>(null);
   const [ciudadesDisponibles, setCiudadesDisponibles] = useState<any[]>([]);
   const [solicitudesCandidato, setSolicitudesCandidato] = useState<any[]>([]);
   const [isLoadingSolicitudes, setIsLoadingSolicitudes] = useState(false);
@@ -1264,6 +1264,17 @@ export default function PerfilCandidato() {
 
       // Completar progreso
       setUploadProgress(prev => ({ ...prev, [progressKey]: 100 }));
+
+      // Si el documento pertenece a una solicitud en "documentos devueltos",
+      // revertir automáticamente a "documentos entregados" para que el
+      // reclutador pueda volver a validarlos.
+      if (documentoACambiar?.solicitudId) {
+        await supabase
+          .from('hum_solicitudes')
+          .update({ estado: 'documentos entregados', updated_at: new Date().toISOString() })
+          .eq('id', documentoACambiar.solicitudId)
+          .eq('estado', 'documentos devueltos');
+      }
 
       toast.success(`${file.name} ha sido actualizado correctamente.`);
 
@@ -2713,7 +2724,7 @@ export default function PerfilCandidato() {
                                                                     type="button"
                                                                     variant="ghost"
                                                                     size="sm"
-                                                                    onClick={() => setDocumentoACambiar({ id: documentoExistente.id, progressKey })}
+                                                                    onClick={() => setDocumentoACambiar({ id: documentoExistente.id, progressKey, solicitudId: solicitud.id })}
                                                                     className="h-7 w-7 p-0 hover:bg-gray-50 rounded-full"
                                                                     title="Cambiar documento"
                                                                   >
