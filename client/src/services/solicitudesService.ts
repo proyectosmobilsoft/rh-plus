@@ -153,6 +153,109 @@ const obtenerCiudadId = (datos: Record<string, any>): number | undefined => {
   return undefined;
 };
 
+const normalizarEstructuraDatos = (estructuraDatos: Record<string, any>) => {
+  const datosNormalizados = { ...estructuraDatos };
+  Object.keys(datosNormalizados).forEach((key) => {
+    if (typeof datosNormalizados[key] === 'string') {
+      datosNormalizados[normalizeCampo(key)] = datosNormalizados[key];
+    }
+  });
+  return datosNormalizados;
+};
+
+const extraerNombresCandidato = (data: Record<string, any>) => {
+  const nombreCompleto = data.nombre_completo || data.nombrecompleto ||
+    data.nombres || data.nombre || data.nombres_completos ||
+    data.nombre_y_apellidos || data.nombre_apellidos ||
+    data.nombre_completo_candidato || data.nombre_candidato ||
+    data.nombrecompleto || data.nombrescompletos ||
+    data.nombreyapellidos || data.nombreapellidos;
+
+  if (nombreCompleto && typeof nombreCompleto === 'string' && nombreCompleto.trim()) {
+    const partes = nombreCompleto.trim().split(/\s+/).filter(parte => parte.length > 0);
+
+    if (partes.length >= 2) {
+      if (partes.length === 2) {
+        return {
+          primer_nombre: partes[0],
+          segundo_nombre: '',
+          primer_apellido: partes[1],
+          segundo_apellido: ''
+        };
+      } else if (partes.length === 3) {
+        return {
+          primer_nombre: partes[0],
+          segundo_nombre: '',
+          primer_apellido: partes[1],
+          segundo_apellido: partes[2]
+        };
+      } else if (partes.length === 4) {
+        return {
+          primer_nombre: partes[0],
+          segundo_nombre: partes[1],
+          primer_apellido: partes[2],
+          segundo_apellido: partes[3]
+        };
+      }
+      return {
+        primer_nombre: partes[0],
+        segundo_nombre: partes[1],
+        primer_apellido: partes[partes.length - 2],
+        segundo_apellido: partes[partes.length - 1]
+      };
+    }
+  }
+
+  return {
+    primer_nombre: data.primer_nombre || data.primer_nombre_candidato || data.nombre || data.nombres || '',
+    segundo_nombre: data.segundo_nombre || data.segundo_nombre_candidato || '',
+    primer_apellido: data.primer_apellido || data.primer_apellido_candidato || data.apellido || data.apellidos || '',
+    segundo_apellido: data.segundo_apellido || data.segundo_apellido_candidato || ''
+  };
+};
+
+const extraerTelefonoCandidato = (data: Record<string, any>) => {
+  return data.telefono || data.celular || data.phone || data.movil ||
+    data.numero_telefono || data.numero_celular || data.contacto ||
+    data.telefono_candidato || data.celular_candidato || data.telefono_contacto;
+};
+
+const construirPayloadCandidato = (estructuraDatos: Record<string, any>) => {
+  const datosNormalizados = normalizarEstructuraDatos(estructuraDatos);
+
+  const numeroDocumento =
+    datosNormalizados.numero_documento ||
+    datosNormalizados.documento ||
+    datosNormalizados.cedula ||
+    datosNormalizados.cedula_ciudadania ||
+    datosNormalizados.cedulaciudadania ||
+    datosNormalizados.identificacion;
+  const email = datosNormalizados.email || datosNormalizados.correo_electronico || datosNormalizados.correo;
+  const telefono = extraerTelefonoCandidato(datosNormalizados);
+
+  const payload: Partial<Candidato> = {};
+  if (numeroDocumento) payload.numero_documento = String(numeroDocumento);
+  if (email) payload.email = String(email);
+  if (telefono) payload.telefono = String(telefono);
+
+  const nombres = extraerNombresCandidato(datosNormalizados);
+  if (nombres.primer_nombre) payload.primer_nombre = nombres.primer_nombre;
+  if (nombres.segundo_nombre) payload.segundo_nombre = nombres.segundo_nombre;
+  if (nombres.primer_apellido) payload.primer_apellido = nombres.primer_apellido;
+  if (nombres.segundo_apellido) payload.segundo_apellido = nombres.segundo_apellido;
+
+  const tipoDocumento = datosNormalizados.tipo_documento || datosNormalizados.tipo_documento_candidato;
+  if (tipoDocumento) payload.tipo_documento = normalizeTipoDocumento(String(tipoDocumento));
+
+  const direccion = datosNormalizados.direccion || datosNormalizados.direccion_candidato;
+  if (direccion) payload.direccion = String(direccion);
+
+  const ciudadId = obtenerCiudadId(datosNormalizados);
+  if (ciudadId !== undefined) payload.ciudad_id = ciudadId;
+
+  return { payload, numeroDocumento, email, datosNormalizados };
+};
+
 // Función auxiliar para crear candidato de manera segura
 const crearCandidatoSeguro = async (datosNormalizados: Record<string, any>, solicitud: any): Promise<number | null> => {
   const numeroDocumento = datosNormalizados.numero_documento ||
@@ -167,68 +270,18 @@ const crearCandidatoSeguro = async (datosNormalizados: Record<string, any>, soli
     throw new Error("❌ ERROR: Faltan datos obligatorios del candidato (documento y email)");
   }
 
-  // Función para extraer nombres de manera inteligente
-  const extractNames = (data: Record<string, any>) => {
-    const nombreCompleto = data.nombre_completo || data.nombrecompleto ||
-      data.nombres || data.nombre || data.nombres_completos ||
-      data.nombre_y_apellidos || data.nombre_apellidos ||
-      data.nombre_completo_candidato || data.nombre_candidato ||
-      data.nombrecompleto || data.nombrescompletos ||
-      data.nombreyapellidos || data.nombreapellidos;
-
-    if (nombreCompleto && typeof nombreCompleto === 'string' && nombreCompleto.trim()) {
-      const partes = nombreCompleto.trim().split(/\s+/).filter(parte => parte.length > 0);
-
-      if (partes.length >= 2) {
-        if (partes.length === 2) {
-          return {
-            primer_nombre: partes[0],
-            segundo_nombre: '',
-            primer_apellido: partes[1],
-            segundo_apellido: ''
-          };
-        } else if (partes.length === 3) {
-          return {
-            primer_nombre: partes[0],
-            segundo_nombre: '',
-            primer_apellido: partes[1],
-            segundo_apellido: partes[2]
-          };
-        } else if (partes.length === 4) {
-          return {
-            primer_nombre: partes[0],
-            segundo_nombre: partes[1],
-            primer_apellido: partes[2],
-            segundo_apellido: partes[3]
-          };
-        } else {
-          return {
-            primer_nombre: partes[0],
-            segundo_nombre: partes[1],
-            primer_apellido: partes[partes.length - 2],
-            segundo_apellido: partes[partes.length - 1]
-          };
-        }
-      }
-    }
-
-    return {
-      primer_nombre: data.primer_nombre || data.nombre || data.nombres || '',
-      segundo_nombre: data.segundo_nombre || '',
-      primer_apellido: data.primer_apellido || data.apellido || data.apellidos || '',
-      segundo_apellido: data.segundo_apellido || ''
-    };
-  };
-
   const candidatoPayload: Partial<Candidato> = {
     numero_documento: String(numeroDocumento),
     email: String(email),
-    telefono: datosNormalizados.telefono || datosNormalizados.celular || datosNormalizados.phone || datosNormalizados.movil ? String(datosNormalizados.telefono || datosNormalizados.celular || datosNormalizados.phone || datosNormalizados.movil) : undefined,
   };
 
   // Extraer nombres
-  const nombresExtraidos = extractNames(datosNormalizados);
+  const nombresExtraidos = extraerNombresCandidato(datosNormalizados);
   Object.assign(candidatoPayload, nombresExtraidos);
+  const telefono = extraerTelefonoCandidato(datosNormalizados);
+  if (telefono) {
+    candidatoPayload.telefono = String(telefono);
+  }
 
   // Mapear otros campos
   const map: Record<string, string> = {
@@ -2359,7 +2412,7 @@ export const solicitudesService = {
       // Obtener el estado anterior para el log
       const solicitudAnterior = await supabase
         .from("hum_solicitudes")
-        .select("estado, estructura_datos")
+        .select("estado, estructura_datos, candidato_id, empresa_id")
         .eq("id", id)
         .single();
 
@@ -2376,6 +2429,29 @@ export const solicitudesService = {
       if (error) {
         console.error("Error updating solicitud with template:", error);
         throw error;
+      }
+
+      const estructuraDatosSafe = estructuraDatos ?? {};
+      const { payload, numeroDocumento, email, datosNormalizados } =
+        construirPayloadCandidato(estructuraDatosSafe);
+      const candidatoIdActual = data.candidato_id ?? solicitudAnterior.data?.candidato_id;
+      if (candidatoIdActual) {
+        if (Object.keys(payload).length > 0) {
+          await candidatosService.update(candidatoIdActual, payload);
+        }
+      } else if (numeroDocumento && email) {
+        const candidatoIdNuevo = await crearCandidatoSeguro(datosNormalizados, {
+          empresa_id: data.empresa_id ?? solicitudAnterior.data?.empresa_id,
+        });
+        if (candidatoIdNuevo) {
+          const { error: updateCandidatoIdError } = await supabase
+            .from("hum_solicitudes")
+            .update({ candidato_id: candidatoIdNuevo })
+            .eq("id", id);
+          if (updateCandidatoIdError) {
+            throw updateCandidatoIdError;
+          }
+        }
       }
 
       // Crear log de la acción
@@ -3014,4 +3090,3 @@ export const solicitudesService = {
     }
   },
 };
-

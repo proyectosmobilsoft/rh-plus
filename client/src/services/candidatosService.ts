@@ -159,7 +159,7 @@ export const candidatosService = {
       // Obtener el candidato actual para saber el usuario_id
       const { data: candidatoActual, error: fetchError } = await supabase
         .from('candidatos')
-        .select('usuario_id')
+        .select('usuario_id, email, numero_documento')
         .eq('id', id)
         .single();
 
@@ -176,17 +176,35 @@ export const candidatosService = {
       if (updateError) throw updateError;
 
       // Si hay cambios en datos básicos, actualizar también gen_usuarios
-      if (candidatoActual?.usuario_id && (candidato.email || candidato.primer_nombre || candidato.primer_apellido)) {
+      if (
+        candidatoActual?.usuario_id &&
+        (candidato.email || candidato.primer_nombre || candidato.primer_apellido || candidato.numero_documento)
+      ) {
         const usuarioUpdates: any = {};
-        if (candidato.email) usuarioUpdates.email = candidato.email;
+        if (candidato.email) {
+          usuarioUpdates.email = candidato.email;
+          usuarioUpdates.username = candidato.email;
+        }
         if (candidato.primer_nombre) usuarioUpdates.primer_nombre = candidato.primer_nombre;
         if (candidato.primer_apellido) usuarioUpdates.primer_apellido = candidato.primer_apellido;
+        if (candidato.numero_documento) usuarioUpdates.identificacion = candidato.numero_documento;
 
         if (Object.keys(usuarioUpdates).length > 0) {
           await supabase
             .from('gen_usuarios')
             .update(usuarioUpdates)
             .eq('id', candidatoActual.usuario_id);
+        }
+
+        const numeroDocumentoNuevo = candidato.numero_documento ? String(candidato.numero_documento) : undefined;
+        const numeroDocumentoActual = candidatoActual.numero_documento ? String(candidatoActual.numero_documento) : undefined;
+        const emailParaPassword = candidato.email || candidatoActual.email;
+        if (numeroDocumentoNuevo && emailParaPassword && numeroDocumentoNuevo !== numeroDocumentoActual) {
+          const { error: passwordError } = await supabase.rpc('update_user_password', {
+            p_email: emailParaPassword,
+            p_new_password: numeroDocumentoNuevo
+          });
+          if (passwordError) throw passwordError;
         }
       }
 
@@ -302,4 +320,3 @@ export const candidatosService = {
     return true;
   },
 };
-
