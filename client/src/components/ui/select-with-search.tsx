@@ -28,6 +28,7 @@ interface SelectWithSearchProps {
     searchText?: string
   }>
   emptyText?: string
+  maxItems?: number
 }
 
 export function SelectWithSearch({
@@ -37,14 +38,36 @@ export function SelectWithSearch({
   disabled = false,
   className,
   options,
-  emptyText = "No se encontraron resultados"
+  emptyText = "No se encontraron resultados",
+  maxItems = 100
 }: SelectWithSearchProps) {
   const [open, setOpen] = React.useState(false)
+  const [searchValue, setSearchValue] = React.useState("")
 
   const selectedOption = options.find((option) => option.value === value)
 
+  const displayedOptions = React.useMemo(() => {
+    if (!searchValue) {
+      return options.slice(0, maxItems)
+    }
+    const term = searchValue.toLowerCase()
+    return options.filter(o =>
+      o.label.toLowerCase().includes(term) ||
+      (o.searchText && o.searchText.toLowerCase().includes(term))
+    )
+  }, [options, searchValue, maxItems])
+
+  const totalFiltered = React.useMemo(() => {
+    if (!searchValue) return options.length
+    const term = searchValue.toLowerCase()
+    return options.filter(o =>
+      o.label.toLowerCase().includes(term) ||
+      (o.searchText && o.searchText.toLowerCase().includes(term))
+    ).length
+  }, [options, searchValue])
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(newOpen) => { setOpen(newOpen); if (!newOpen) setSearchValue("") }}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -67,16 +90,20 @@ export function SelectWithSearch({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-        <Command>
-          <CommandInput placeholder={`Buscar ${placeholder.toLowerCase()}...`} />
+        <Command shouldFilter={false}>
+          <CommandInput
+            placeholder={`Buscar ${placeholder.toLowerCase()}...`}
+            value={searchValue}
+            onValueChange={setSearchValue}
+          />
           <CommandList>
             <CommandEmpty>{emptyText}</CommandEmpty>
             <CommandGroup>
-              {options.map((option) => (
+              {displayedOptions.map((option) => (
                 <CommandItem
                   key={option.value}
-                  value={option.searchText || option.label}
-                  onSelect={(currentValue) => {
+                  value={option.value}
+                  onSelect={() => {
                     onValueChange(option.value)
                     setOpen(false)
                   }}
@@ -91,6 +118,16 @@ export function SelectWithSearch({
                 </CommandItem>
               ))}
             </CommandGroup>
+            {!searchValue && options.length > maxItems && (
+              <div className="px-2 py-1.5 text-xs text-center text-muted-foreground border-t">
+                Mostrando {maxItems} de {options.length} — escriba para filtrar
+              </div>
+            )}
+            {!!searchValue && totalFiltered > displayedOptions.length && (
+              <div className="px-2 py-1.5 text-xs text-center text-muted-foreground border-t">
+                {totalFiltered} resultado(s) — refine su búsqueda
+              </div>
+            )}
           </CommandList>
         </Command>
       </PopoverContent>

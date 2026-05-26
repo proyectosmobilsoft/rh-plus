@@ -13,10 +13,14 @@ export interface NovedadEmpleado {
     numero_documento?: string;
     tipo_documento?: string;
     cargo?: string;
+    codigo_cargo?: string;
     empresa_id?: number;
     sucursal_id?: number;
+    sucursal?: string;
     centro_costo_id?: number;
     fecha_ingreso?: string;
+    fecha_nacimiento?: string;
+    fecha_expedicion?: string;
     lider_id?: number;
     estado?: string;
     horas_laborales?: number;
@@ -25,6 +29,11 @@ export interface NovedadEmpleado {
     salario?: number;
     auxilio_no_prestacional?: number;
     duracion_contrato?: string;
+    tipo_contrato?: string;
+    numero_contrato?: string;
+    direccion?: string;
+    telefono?: string;
+    sexo?: string;
     area?: string;
     negocio?: string;
     ciudad?: string;
@@ -35,7 +44,6 @@ export interface NovedadEmpleado {
     // Joins
     empresa?: { id: number; razon_social: string };
     lider?: { id: number; primer_nombre: string; primer_apellido: string };
-    sucursal?: { id: number; nombre: string };
 }
 
 export interface NovedadMotivo {
@@ -76,6 +84,7 @@ export interface NovedadSolicitud {
     fecha_congelamiento?: string;
     empleados_ids?: number[];
     analista_id?: number;
+    sede_labor_id?: number;
     created_at?: string;
     updated_at?: string;
     // Joins
@@ -140,6 +149,23 @@ export const ESTADO_COLORS: Record<string, string> = {
     ejecutada: 'bg-teal-100 text-teal-800',
     cancelada: 'bg-orange-100 text-orange-800',
 };
+
+export interface SolicitudCandidato {
+    id: number;
+    solicitud_id: number;
+    identificacion: string;
+    nombre_completo: string;
+    celular?: string;
+    correo?: string;
+    estado?: string;
+    fecha_entrevista?: string;
+    hora_entrevista?: string;
+    lugar_entrevista?: string;
+    cargo_aspirado?: string;
+    observacion_entrevista?: string;
+    created_at?: string;
+    updated_at?: string;
+}
 
 export interface NovedadAprobador {
     id: number;
@@ -351,12 +377,21 @@ export const novedadesService = {
                 numero_documento: String(k['Numero documento Identidad'] || ''),
                 tipo_documento: k['Tipo Documento'] || undefined,
                 cargo: (k['Nombre Cargo'] || '').trim() || undefined,
+                codigo_cargo: (k['Codigo Cargo'] || '').trim() || undefined,
                 sucursal: k['Codigo Sucursal'] != null ? String(k['Codigo Sucursal']) : undefined,
                 fecha_ingreso: k['Fecha Ingresos'] || undefined,
+                fecha_nacimiento: k['Fecha Nacimiento'] || undefined,
+                fecha_expedicion: k['Fecha Expedicion'] || undefined,
                 salario: k['Sueldo Basico'] || undefined,
                 auxilio_no_prestacional: k['Aux No prestacional'] || undefined,
                 estado: k['Indicador de Actividad'] === 'A' ? 'activo' : 'inactivo',
                 lider_id: k['Lider'] || undefined,
+                tipo_contrato: k['Tipo Contrato'] || undefined,
+                duracion_contrato: k['Tipo Contrato'] === 'I' ? 'Indefinido' : k['Tipo Contrato'] === 'F' ? 'Fijo' : k['Tipo Contrato'] === 'T' ? 'Temporal' : k['Tipo Contrato'] || undefined,
+                numero_contrato: (k['Numero de contrato'] || '').trim() || undefined,
+                direccion: k['Direccion Residencia'] || undefined,
+                telefono: k['Telefono Movil'] || undefined,
+                sexo: k['Sexo Empleado'] || undefined,
                 empresa: {
                     id: k['Codigo Empresa'],
                     razon_social: (k['Nombre Empresa'] || '').trim(),
@@ -519,15 +554,34 @@ export const novedadesService = {
         try {
             const userId = getUsuarioActualId();
 
+            // Resolve empleado_id: Kaptus devuelve numero_documento como id; convertir al id real de novedades_empleados
+            let resolvedEmpleadoId = solicitud.empleado_id;
+            if (resolvedEmpleadoId != null) {
+                const { data: empById } = await supabase
+                    .from('novedades_empleados')
+                    .select('id')
+                    .eq('id', resolvedEmpleadoId)
+                    .maybeSingle();
+                if (!empById) {
+                    const { data: empByDoc } = await supabase
+                        .from('novedades_empleados')
+                        .select('id')
+                        .eq('numero_documento', String(resolvedEmpleadoId))
+                        .maybeSingle();
+                    if (empByDoc) resolvedEmpleadoId = empByDoc.id;
+                }
+            }
+            solicitud = { ...solicitud, empleado_id: resolvedEmpleadoId };
+
             // Asignación automática de analista de selección
             let analistaId: number | undefined = solicitud.analista_id;
             if (!analistaId) {
-                const sucursalId = solicitud.empleado_id
+                const sucursalId = resolvedEmpleadoId
                     ? await (async () => {
                         const { data } = await supabase
                             .from('novedades_empleados')
                             .select('sucursal_id')
-                            .eq('id', solicitud.empleado_id)
+                            .eq('id', resolvedEmpleadoId)
                             .maybeSingle();
                         return data?.sucursal_id as number | undefined;
                     })()
@@ -777,6 +831,19 @@ export const novedadesService = {
         );
     },
 
+    getCongelamientoConfig: async (): Promise<number> => {
+        try {
+            const { data } = await supabase
+                .from('config_empresa')
+                .select('congelamiento')
+                .eq('estado', 'activo')
+                .maybeSingle();
+            return typeof data?.congelamiento === 'number' ? data.congelamiento : 30;
+        } catch {
+            return 30;
+        }
+    },
+
     // Guardar datos de reemplazo
     guardarDatosReemplazo: async (id: number, datosReemplazo: Record<string, any>): Promise<boolean> => {
         try {
@@ -863,6 +930,186 @@ export const novedadesService = {
         } catch (error) {
             console.error('Error en getSucursales:', error);
             return [];
+        }
+    },
+
+    // ----------------------------------------------------------
+    // APROBADORES (MAESTRO)
+    // ----------------------------------------------------------
+
+    getAprobadores: async (): Promise<NovedadAprobador[]> => {
+        try {
+            const { data, error } = await supabase
+                .from('novedades_aprobadores')
+                .select(`
+                    *,
+                    usuario:gen_usuarios(id, primer_nombre, primer_apellido, username),
+                    novedades_aprobadores_cargos(cargo_nombre)
+                `)
+                .eq('activo', true);
+
+            if (error) throw error;
+
+            return (data || []).map(a => ({
+                ...a,
+                cargos: a.novedades_aprobadores_cargos?.map((c: any) => c.cargo_nombre) || []
+            }));
+        } catch (error) {
+            console.error('Error getAprobadores:', error);
+            return [];
+        }
+    },
+
+    addAprobador: async (usuarioId: number, cargos: string[]): Promise<boolean> => {
+        try {
+            const { data, error } = await supabase
+                .from('novedades_aprobadores')
+                .insert({ usuario_id: usuarioId })
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            if (cargos.length > 0) {
+                const cargosInsert = cargos.map(c => ({
+                    aprobador_id: data.id,
+                    cargo_nombre: c
+                }));
+                await supabase.from('novedades_aprobadores_cargos').insert(cargosInsert);
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Error addAprobador:', error);
+            return false;
+        }
+    },
+
+    removeAprobador: async (id: number): Promise<boolean> => {
+        try {
+            const { error } = await supabase
+                .from('novedades_aprobadores')
+                .update({ activo: false })
+                .eq('id', id);
+
+            if (error) throw error;
+            return true;
+        } catch (error) {
+            console.error('Error removeAprobador:', error);
+            return false;
+        }
+    },
+
+    updateAprobadorCargos: async (aprobadorId: number, cargos: string[]): Promise<boolean> => {
+        try {
+            await supabase.from('novedades_aprobadores_cargos').delete().eq('aprobador_id', aprobadorId);
+
+            if (cargos.length > 0) {
+                const cargosInsert = cargos.map(c => ({
+                    aprobador_id: aprobadorId,
+                    cargo_nombre: c
+                }));
+                await supabase.from('novedades_aprobadores_cargos').insert(cargosInsert);
+            }
+            return true;
+        } catch (error) {
+            console.error('Error updateAprobadorCargos:', error);
+            return false;
+        }
+    },
+
+    // ----------------------------------------------------------
+    // CANDIDATOS POR SOLICITUD (Módulo de Selección)
+    // ----------------------------------------------------------
+
+    getCandidatosBySolicitud: async (solicitudId: number): Promise<SolicitudCandidato[]> => {
+        try {
+            const { data, error } = await supabase
+                .from('novedades_solicitudes_candidatos')
+                .select('*')
+                .eq('solicitud_id', solicitudId)
+                .order('created_at', { ascending: true });
+            if (error) {
+                console.error('Error getCandidatosBySolicitud:', error);
+                return [];
+            }
+            return data || [];
+        } catch (error) {
+            console.error('Error getCandidatosBySolicitud:', error);
+            return [];
+        }
+    },
+
+    addCandidatoToSolicitud: async (data: Omit<SolicitudCandidato, 'id' | 'created_at' | 'updated_at'>): Promise<SolicitudCandidato | null> => {
+        try {
+            const { data: result, error } = await supabase
+                .from('novedades_solicitudes_candidatos')
+                .insert(data)
+                .select()
+                .single();
+            if (error) {
+                console.error('Error addCandidatoToSolicitud:', error);
+                return null;
+            }
+            return result;
+        } catch (error) {
+            console.error('Error addCandidatoToSolicitud:', error);
+            return null;
+        }
+    },
+
+    updateCandidato: async (id: number, data: Partial<SolicitudCandidato>): Promise<SolicitudCandidato | null> => {
+        try {
+            const { data: result, error } = await supabase
+                .from('novedades_solicitudes_candidatos')
+                .update(data)
+                .eq('id', id)
+                .select()
+                .single();
+            if (error) {
+                console.error('Error updateCandidato:', error);
+                return null;
+            }
+            return result;
+        } catch (error) {
+            console.error('Error updateCandidato:', error);
+            return null;
+        }
+    },
+
+    updateCandidatoEstado: async (id: number, estado: string): Promise<SolicitudCandidato | null> => {
+        try {
+            const { data, error } = await supabase
+                .from('novedades_solicitudes_candidatos')
+                .update({ estado })
+                .eq('id', id)
+                .select()
+                .single();
+            if (error) {
+                console.error('Error updateCandidatoEstado:', error);
+                return null;
+            }
+            return data;
+        } catch (error) {
+            console.error('Error updateCandidatoEstado:', error);
+            return null;
+        }
+    },
+
+    deleteCandidato: async (id: number): Promise<boolean> => {
+        try {
+            const { error } = await supabase
+                .from('novedades_solicitudes_candidatos')
+                .delete()
+                .eq('id', id);
+            if (error) {
+                console.error('Error deleteCandidato:', error);
+                return false;
+            }
+            return true;
+        } catch (error) {
+            console.error('Error deleteCandidato:', error);
+            return false;
         }
     },
 };
@@ -958,90 +1205,4 @@ export const novedadesLogsService = {
             return [];
         }
     },
-
-    // ============================================================
-    // MÉTODOS DE APROBADORES (MAESTRO)
-    // ============================================================
-    getAprobadores: async (): Promise<NovedadAprobador[]> => {
-        try {
-            const { data, error } = await supabase
-                .from('novedades_aprobadores')
-                .select(`
-                    *,
-                    usuario:gen_usuarios(id, primer_nombre, primer_apellido, username),
-                    novedades_aprobadores_cargos(cargo_nombre)
-                `)
-                .eq('activo', true);
-
-            if (error) throw error;
-
-            return (data || []).map(a => ({
-                ...a,
-                cargos: a.novedades_aprobadores_cargos?.map((c: any) => c.cargo_nombre) || []
-            }));
-        } catch (error) {
-            console.error('Error getAprobadores:', error);
-            return [];
-        }
-    },
-
-    addAprobador: async (usuarioId: number, cargos: string[]): Promise<boolean> => {
-        try {
-            const { data, error } = await supabase
-                .from('novedades_aprobadores')
-                .insert({ usuario_id: usuarioId })
-                .select()
-                .single();
-
-            if (error) throw error;
-
-            if (cargos.length > 0) {
-                const cargosInsert = cargos.map(c => ({
-                    aprobador_id: data.id,
-                    cargo_nombre: c
-                }));
-                await supabase.from('novedades_aprobadores_cargos').insert(cargosInsert);
-            }
-
-            return true;
-        } catch (error) {
-            console.error('Error addAprobador:', error);
-            return false;
-        }
-    },
-
-    removeAprobador: async (id: number): Promise<boolean> => {
-        try {
-            const { error } = await supabase
-                .from('novedades_aprobadores')
-                .update({ activo: false })
-                .eq('id', id);
-
-            if (error) throw error;
-            return true;
-        } catch (error) {
-            console.error('Error removeAprobador:', error);
-            return false;
-        }
-    },
-
-    updateAprobadorCargos: async (aprobadorId: number, cargos: string[]): Promise<boolean> => {
-        try {
-            // Eliminar cargos actuales
-            await supabase.from('novedades_aprobadores_cargos').delete().eq('aprobador_id', aprobadorId);
-
-            // Insertar nuevos
-            if (cargos.length > 0) {
-                const cargosInsert = cargos.map(c => ({
-                    aprobador_id: aprobadorId,
-                    cargo_nombre: c
-                }));
-                await supabase.from('novedades_aprobadores_cargos').insert(cargosInsert);
-            }
-            return true;
-        } catch (error) {
-            console.error('Error updateAprobadorCargos:', error);
-            return false;
-        }
-    }
 };

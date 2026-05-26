@@ -19,6 +19,7 @@ import { ESTADO_COLORS, ESTADO_LABELS, ESTADOS_NOVEDAD, novedadesService, type N
 const ComiteAprobacionPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [filtros, setFiltros] = useState<NovedadFiltros>({});
+  const [filtroLiderId, setFiltroLiderId] = useState<number | undefined>(undefined);
   const [busqueda, setBusqueda] = useState('');
   const [busquedaHistorial, setBusquedaHistorial] = useState('');
   const [selectedSolicitud, setSelectedSolicitud] = useState<NovedadSolicitud | null>(null);
@@ -82,9 +83,10 @@ const ComiteAprobacionPage: React.FC = () => {
         s.motivo?.nombre,
         String(s.id || ''),
       ].some(v => v?.toLowerCase().includes(busqueda.toLowerCase()));
-      return matchesEstado && matchesBusqueda;
+      const matchesLider = !filtroLiderId || s.creador?.id === filtroLiderId;
+      return matchesEstado && matchesBusqueda && matchesLider;
     });
-  }, [solicitudes, filtros.estado, busqueda]);
+  }, [solicitudes, filtros.estado, busqueda, filtroLiderId]);
 
   const historialSolicitudes = useMemo(() => {
     const texto = busquedaHistorial.trim().toLowerCase();
@@ -250,7 +252,7 @@ const ComiteAprobacionPage: React.FC = () => {
                       {empresas.map(e => <SelectItem key={e.id} value={e.id.toString()}>{e.razon_social}</SelectItem>)}
                     </SelectContent>
                   </Select>
-                  <Select value={filtros.analista_id?.toString() || 'all'} onValueChange={(v) => setFiltros(prev => ({ ...prev, analista_id: v === 'all' ? undefined : parseInt(v, 10) }))}>
+                  <Select value={filtroLiderId?.toString() || 'all'} onValueChange={(v) => setFiltroLiderId(v === 'all' ? undefined : parseInt(v, 10))}>
                     <SelectTrigger className="h-8 w-[200px] text-xs border-gray-200"><SelectValue placeholder="Líder solicitante" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todos los líderes</SelectItem>
@@ -267,22 +269,22 @@ const ComiteAprobacionPage: React.FC = () => {
                 <div className="flex flex-col items-center justify-center h-32 text-gray-400"><FileText className="w-10 h-10 mb-2" /><p className="text-sm">No hay solicitudes para comité</p></div>
               ) : (
                 <div className="overflow-x-auto rounded-lg shadow-sm">
-                  <table className="min-w-[1000px] w-full text-[11px]">
+                  <table className="min-w-[1000px] w-full text-[11px] table-fixed">
                     <thead className="bg-cyan-50">
                       <tr className="text-left font-semibold text-gray-700">
-                        <th className="px-3 py-2"><Checkbox checked={allVisibleSelected} onCheckedChange={(v) => handleToggleAllVisible(Boolean(v))} /></th>
-                        <th className="px-3 py-2">#</th>
-                        <th className="px-3 py-2">Empleado / Cargo</th>
-                        <th className="px-3 py-2">Motivo</th>
-                        <th className="px-3 py-2">Estado</th>
-                        <th className="px-3 py-2">Fecha</th>
-                        <th className="px-3 py-2 w-24">Acciones</th>
+                        <th className="px-3 py-2 w-10 align-middle"><Checkbox checked={allVisibleSelected} onCheckedChange={(v) => handleToggleAllVisible(Boolean(v))} /></th>
+                        <th className="px-3 py-2 w-16 align-middle whitespace-nowrap">#</th>
+                        <th className="px-3 py-2 align-middle whitespace-nowrap">Empleado / Cargo</th>
+                        <th className="px-3 py-2 w-44 align-middle whitespace-nowrap">Motivo</th>
+                        <th className="px-3 py-2 w-32 align-middle whitespace-nowrap">Estado</th>
+                        <th className="px-3 py-2 w-28 align-middle whitespace-nowrap">Fecha</th>
+                        <th className="px-3 py-2 w-20 align-middle whitespace-nowrap">Acciones</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
                       {filteredSolicitudes.map(s => (
-                        <tr key={s.id} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-3 py-2">
+                        <tr key={s.id} className="hover:bg-gray-50 transition-colors text-left">
+                          <td className="px-3 py-2 align-middle text-left">
                             <Checkbox
                               disabled={s.estado !== ESTADOS_NOVEDAD.SOLICITADA}
                               checked={selectedIds.includes(s.id!)}
@@ -292,15 +294,15 @@ const ComiteAprobacionPage: React.FC = () => {
                               }}
                             />
                           </td>
-                          <td className="px-3 py-2 text-gray-500 font-mono">#{s.id}</td>
-                          <td className="px-3 py-2">
-                            <p className="font-medium text-gray-900">{s.empleado ? `${s.empleado.nombre} ${s.empleado.apellido || ''}` : '—'}</p>
-                            <p className="text-xs text-gray-500">{s.empleado?.cargo || '—'}</p>
+                          <td className="px-3 py-2 align-middle text-left text-gray-500 font-mono">#{s.id}</td>
+                          <td className="px-3 py-2 align-middle text-left">
+                            <p className="font-medium text-gray-900 truncate">{s.empleado ? `${s.empleado.nombre} ${s.empleado.apellido || ''}` : '—'}</p>
+                            <p className="text-[10px] text-gray-500 truncate">{s.empleado?.cargo || '—'}</p>
                           </td>
-                          <td className="px-3 py-2 text-gray-600">{s.motivo?.nombre || '—'}</td>
-                          <td className="px-3 py-2"><Badge className={`text-xs ${ESTADO_COLORS[s.estado || ''] || 'bg-gray-100 text-gray-800'}`}>{ESTADO_LABELS[s.estado || ''] || s.estado}</Badge></td>
-                          <td className="px-3 py-2 text-gray-600">{s.created_at ? new Date(s.created_at).toLocaleDateString('es-CO') : '—'}</td>
-                          <td className="px-3 py-2">
+                          <td className="px-3 py-2 align-middle text-left text-gray-600 truncate">{s.motivo?.nombre || '—'}</td>
+                          <td className="px-3 py-2 align-middle text-left"><Badge className={`text-xs ${ESTADO_COLORS[s.estado || ''] || 'bg-gray-100 text-gray-800'}`}>{ESTADO_LABELS[s.estado || ''] || s.estado}</Badge></td>
+                          <td className="px-3 py-2 align-middle text-left text-gray-600 whitespace-nowrap">{s.created_at ? new Date(s.created_at).toLocaleDateString('es-CO') : '—'}</td>
+                          <td className="px-3 py-2 align-middle text-left">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4 text-gray-600" /></Button></DropdownMenuTrigger>
                               <DropdownMenuContent align="start" className="w-40">
@@ -363,23 +365,127 @@ const ComiteAprobacionPage: React.FC = () => {
       </Tabs>
 
       <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Solicitud #{selectedSolicitud?.id}</DialogTitle>
-            <DialogDescription>{selectedSolicitud?.motivo?.nombre}</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2 text-sm">
-            <p><strong>Empleado:</strong> {selectedSolicitud?.empleado?.nombre} {selectedSolicitud?.empleado?.apellido || ''}</p>
-            <p><strong>Cargo:</strong> {selectedSolicitud?.empleado?.cargo || '—'}</p>
-            <p><strong># contratos en todas las empresas:</strong> {contratosCount === null ? '...' : contratosCount}</p>
-            <p><strong>Observaciones:</strong> {selectedSolicitud?.observaciones || '—'}</p>
-            <div className="grid grid-cols-2 gap-2">
-              {Object.entries(selectedSolicitud?.datos_formulario || {}).map(([k, v]) => (
-                <div key={k} className="border rounded p-2"><p className="text-xs text-gray-500">{k}</p><p className="font-medium">{String(v)}</p></div>
-              ))}
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+          {/* Header */}
+          <div className="flex items-start justify-between px-5 pt-5 pb-3 border-b bg-gradient-to-r from-cyan-50 to-white">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono text-gray-400">#{selectedSolicitud?.id}</span>
+                <Badge className={`text-[10px] px-2 py-0 ${ESTADO_COLORS[selectedSolicitud?.estado || ''] || 'bg-gray-100 text-gray-700'}`}>
+                  {ESTADO_LABELS[selectedSolicitud?.estado || ''] || selectedSolicitud?.estado}
+                </Badge>
+              </div>
+              <h2 className="text-base font-bold text-cyan-800">{selectedSolicitud?.motivo?.nombre || '—'}</h2>
+              <p className="text-[11px] text-gray-500">
+                Creado: {selectedSolicitud?.created_at ? new Date(selectedSolicitud.created_at).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}
+              </p>
             </div>
+            {selectedSolicitud?.estado === ESTADOS_NOVEDAD.SOLICITADA && (
+              <div className="flex gap-2 mt-1">
+                <Button size="sm" variant="outline" className="h-7 text-xs text-green-700 border-green-300 hover:bg-green-50"
+                  onClick={() => { setShowDetailModal(false); openSingleAction(selectedSolicitud!, 'aprobar'); }}>
+                  <CheckCircle className="w-3.5 h-3.5 mr-1" /> Aprobar
+                </Button>
+                <Button size="sm" variant="outline" className="h-7 text-xs text-red-700 border-red-300 hover:bg-red-50"
+                  onClick={() => { setShowDetailModal(false); openSingleAction(selectedSolicitud!, 'rechazar'); }}>
+                  <XCircle className="w-3.5 h-3.5 mr-1" /> Rechazar
+                </Button>
+              </div>
+            )}
           </div>
-          <DialogFooter><Button variant="ghost" onClick={() => setShowDetailModal(false)}>Cerrar</Button></DialogFooter>
+
+          {/* Scrollable body */}
+          <div className="overflow-y-auto flex-1 px-5 py-3 space-y-3 text-[12px]">
+
+            {/* Sección empleado */}
+            <section>
+              <p className="text-[10px] font-semibold text-cyan-700 uppercase tracking-widest mb-1.5">Empleado</p>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+                {[
+                  { label: 'Nombre', value: selectedSolicitud?.empleado ? `${selectedSolicitud.empleado.nombre} ${selectedSolicitud.empleado.apellido || ''}`.trim() : '—' },
+                  { label: 'Cargo', value: selectedSolicitud?.empleado?.cargo || '—' },
+                  { label: 'N° documento', value: selectedSolicitud?.empleado?.numero_documento || '—' },
+                  { label: 'Empresa', value: selectedSolicitud?.empresa?.razon_social || '—' },
+                  { label: 'Contratos en empresas', value: contratosCount === null ? '...' : String(contratosCount) },
+                ].map(({ label, value }) => (
+                  <div key={label} className="flex items-baseline gap-1.5 min-w-0">
+                    <span className="text-gray-400 whitespace-nowrap shrink-0">{label}:</span>
+                    <span className="text-gray-800 font-medium truncate">{value}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <div className="border-t border-gray-100" />
+
+            {/* Sección gestión */}
+            <section>
+              <p className="text-[10px] font-semibold text-cyan-700 uppercase tracking-widest mb-1.5">Gestión</p>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+                {[
+                  { label: 'Solicitado por', value: selectedSolicitud?.creador ? `${selectedSolicitud.creador.primer_nombre} ${selectedSolicitud.creador.primer_apellido}` : '—' },
+                  { label: 'Analista asignado', value: selectedSolicitud?.analista ? `${selectedSolicitud.analista.primer_nombre} ${selectedSolicitud.analista.primer_apellido}` : 'Sin asignar' },
+                  { label: 'Requiere reemplazo', value: selectedSolicitud?.requiere_reemplazo ? 'Sí' : 'No' },
+                ].map(({ label, value }) => (
+                  <div key={label} className="flex items-baseline gap-1.5 min-w-0">
+                    <span className="text-gray-400 whitespace-nowrap shrink-0">{label}:</span>
+                    <span className="text-gray-800 font-medium truncate">{value}</span>
+                  </div>
+                ))}
+              </div>
+              {selectedSolicitud?.observaciones && (
+                <div className="mt-2 flex gap-1.5">
+                  <span className="text-gray-400 whitespace-nowrap shrink-0">Observaciones:</span>
+                  <span className="text-gray-700 leading-relaxed">{selectedSolicitud.observaciones}</span>
+                </div>
+              )}
+            </section>
+
+            {/* Sección datos del formulario */}
+            {Object.keys(selectedSolicitud?.datos_formulario || {}).length > 0 && (() => {
+              const labelMap: Record<string, string> = {
+                cargo: 'Cargo', salario: 'Salario', auxilio: 'Auxilio no prest.',
+                horas: 'Horas laborales', jornada: 'Jornada', negocio: 'Unidad negocio',
+                centro_costo: 'Centro de costo', area: 'Área', proyecto: 'Proyecto',
+                sucursal: 'Sucursal', sede_labor: 'Sede labor', ciudad: 'Ciudad',
+                fecha_ingreso: 'Fecha ingreso', tipo_contratacion: 'Tipo contratación',
+                tiempo_antiguedad: 'Antigüedad', motivo_retiro: 'Motivo retiro',
+                fecha_inicio: 'Fecha inicio', fecha_fin: 'Fecha fin',
+                tipo_licencia: 'Tipo licencia', duracion: 'Duración',
+                fecha_inicio_cambio: 'Fecha cambio', sucursal_anterior: 'Sucursal anterior',
+                sucursal_nueva: 'Sucursal nueva', fecha_renuncia: 'Fecha renuncia',
+              };
+              const entries = Object.entries(selectedSolicitud?.datos_formulario || {})
+                .filter(([k, v]) => v !== null && v !== undefined && v !== '' && !Array.isArray(v)
+                  && !['cedula_aprobador', 'nombre_aprobador', 'requiere_aprobacion_comite', 'adjunto_nombres', 'adjunto_tipos'].includes(k));
+              if (!entries.length) return null;
+              return (
+                <>
+                  <div className="border-t border-gray-100" />
+                  <section>
+                    <p className="text-[10px] font-semibold text-cyan-700 uppercase tracking-widest mb-1.5">Datos del formulario</p>
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+                      {entries.map(([k, v]) => {
+                        const label = labelMap[k] || k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                        const display = typeof v === 'boolean' ? (v ? 'Sí' : 'No') : String(v);
+                        return (
+                          <div key={k} className="flex items-baseline gap-1.5 min-w-0">
+                            <span className="text-gray-400 whitespace-nowrap shrink-0">{label}:</span>
+                            <span className="text-gray-800 font-medium truncate">{display}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </section>
+                </>
+              );
+            })()}
+          </div>
+
+          {/* Footer */}
+          <div className="px-5 py-3 border-t bg-gray-50 flex justify-end">
+            <Button size="sm" variant="ghost" className="text-xs text-gray-600" onClick={() => setShowDetailModal(false)}>Cerrar</Button>
+          </div>
         </DialogContent>
       </Dialog>
 

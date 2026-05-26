@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
     PieChart, Pie, Cell, Legend,
@@ -57,6 +58,8 @@ import {
     Briefcase,
     ArrowRightCircle,
     UserPlus,
+    Upload,
+    UserCheck,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -72,12 +75,15 @@ import {
     type NovedadMotivo,
     type NovedadFiltros,
     type NovedadLog,
+    type SolicitudCandidato,
 } from '@/services/novedadesService';
 import { supabase } from '@/services/supabaseClient';
 import { analistaAsignacionService } from '@/services/analistaAsignacionService';
 import { emailService } from '@/services/emailService';
 import { Can, usePermissions } from '@/contexts/PermissionsContext';
 import { useLoading } from '@/contexts/LoadingContext';
+import { useRegisterView } from '@/hooks/useRegisterView';
+import { NOVEDADES_PERMISOS } from '@/constants/novedadesPermisos';
 import { SelectWithSearch } from '@/components/ui/select-with-search';
 
 // ============================================================
@@ -108,6 +114,7 @@ const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type:
         { label: 'Área', name: 'area', type: 'area-select', required: true },
         { label: 'Proyecto', name: 'proyecto', type: 'proyecto-select', required: true },
         { label: 'Sucursal', name: 'sucursal', type: 'sucursal-select', required: true },
+        { label: 'Sede Labor', name: 'sede_labor', type: 'sede-labor-select', required: true },
         { label: 'Ciudad', name: 'ciudad', type: 'ciudad-select', required: true },
         { label: 'Fecha de ingreso', name: 'fecha_ingreso', type: 'date', required: true, minToday: true },
     ],
@@ -140,9 +147,8 @@ const FORM_FIELDS_BY_MOTIVO: Record<string, { label: string; name: string; type:
     ],
 };
 
-// Aprobador de comité (quemado por ahora; luego se hará la relación con usuario/aprobador)
-const CEDULA_APROBADOR_COMITE = '123456789';
-const NOMBRE_APROBADOR_COMITE = 'Aprobador Comité';
+// ID del módulo de Comité en gen_modulos
+const MODULO_COMITE_ID = 33;
 
 // Aliases en singular para compatibilidad con códigos de BD
 FORM_FIELDS_BY_MOTIVO.incapacidad = FORM_FIELDS_BY_MOTIVO.incapacidades;
@@ -246,6 +252,49 @@ const CurrencyInput = React.memo(({ value, onChange, className }: { value: strin
 });
 
 // ============================================================
+// ETAPA STEPPER — pipeline de selección
+// ============================================================
+
+const ETAPAS_PIPELINE = [
+    { key: ESTADOS_NOVEDAD.EN_RECLUTAMIENTO, label: 'En Reclutamiento', icon: Search },
+    { key: ESTADOS_NOVEDAD.ENTREVISTA_CLIENTE, label: 'Entrevista Cliente', icon: Users },
+    { key: ESTADOS_NOVEDAD.SELECCIONADO, label: 'Seleccionado', icon: UserCheck },
+    { key: ESTADOS_NOVEDAD.EJECUTADA, label: 'Contratado', icon: CheckCircle },
+];
+
+const EtapaStepper = ({ estadoActual }: { estadoActual: string }) => {
+    const etapaActualIdx = ETAPAS_PIPELINE.findIndex(e => e.key === estadoActual);
+    return (
+        <div className="flex items-center gap-1 w-full py-2">
+            {ETAPAS_PIPELINE.map((etapa, idx) => {
+                const completada = idx < etapaActualIdx || estadoActual === ESTADOS_NOVEDAD.EJECUTADA;
+                const activa = etapa.key === estadoActual;
+                const Icon = etapa.icon;
+                return (
+                    <React.Fragment key={etapa.key}>
+                        <div className="flex flex-col items-center flex-1">
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center border-2 transition-colors ${
+                                completada ? 'bg-emerald-500 border-emerald-500 text-white' :
+                                activa ? 'bg-blue-500 border-blue-500 text-white' :
+                                'bg-gray-100 border-gray-300 text-gray-400'
+                            }`}>
+                                {completada ? <CheckCircle className="w-3 h-3" /> : <Icon className="w-3 h-3" />}
+                            </div>
+                            <span className={`text-[10px] mt-0.5 text-center font-medium leading-tight ${
+                                activa ? 'text-blue-600' : completada ? 'text-emerald-600' : 'text-gray-400'
+                            }`}>{etapa.label}</span>
+                        </div>
+                        {idx < ETAPAS_PIPELINE.length - 1 && (
+                            <div className={`h-0.5 flex-1 mb-3.5 ${idx < etapaActualIdx ? 'bg-emerald-400' : 'bg-gray-200'}`} />
+                        )}
+                    </React.Fragment>
+                );
+            })}
+        </div>
+    );
+};
+
+// ============================================================
 // COMPONENTE PRINCIPAL
 // ============================================================
 
@@ -260,6 +309,7 @@ interface NovedadesPageProps {
 
 const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTabs = false, headerTitle, headerDescription, collapseFiltersSignal }) => {
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
 
     // Empresa del usuario actual
     const empresaId: number | undefined = (() => {
@@ -283,7 +333,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
     // Jornadas laborales para el select de horas
     const [jornadasLaborales, setJornadasLaborales] = useState<{ id: number; nombre_jornada: string; horas_laborales: number }[]>([]);
     useEffect(() => {
-        supabase.from('jornadas_laborales').select('id, nombre_jornada, horas_laborales').eq('activo', true).order('nombre_jornada')
+        supabase.from('jornadas_laborales').select('id, nombre_jornada, horas_laborales').order('nombre_jornada')
             .then(({ data }) => { if (data) setJornadasLaborales(data); });
     }, []);
 
@@ -353,6 +403,32 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
 
     const { hasAction } = usePermissions();
     const { startLoading, stopLoading } = useLoading();
+    const { addAction: addListadoNovedades } = useRegisterView('Gestión de Novedades', 'listado', 'Listado de Gestión de Novedades');
+
+    useEffect(() => {
+        addListadoNovedades('tab-novedades', 'Pestaña solicitudes');
+        addListadoNovedades('tab-empleados', 'Pestaña empleados');
+        addListadoNovedades('exportar-novedades', 'Exportar novedades');
+        addListadoNovedades('crear-novedad', 'Crear novedad');
+        addListadoNovedades('ver-detalle-novedad', 'Ver detalle de solicitud');
+        addListadoNovedades('ver-timeline-novedad', 'Ver timeline de solicitud');
+        addListadoNovedades('asignar-solicitud', 'Asignar analista');
+        addListadoNovedades('cambiar-estado-novedad', 'Cambiar estado de solicitud');
+        addListadoNovedades('cancelar-novedad', 'Cancelar solicitud');
+    }, [addListadoNovedades]);
+
+    const puedeVerMenuAccionesFila = useCallback((sol: NovedadSolicitud) => {
+        if (hasAction(NOVEDADES_PERMISOS.VER_DETALLE)) return true;
+        if (hasAction(NOVEDADES_PERMISOS.VER_TIMELINE)) return true;
+        if (hasAction(NOVEDADES_PERMISOS.ASIGNAR_ANALISTA) && !sol.analista_id) return true;
+        const transiciones = TRANSICIONES_VALIDAS[sol.estado || ''] || [];
+        const puedeCambiar = hasAction(NOVEDADES_PERMISOS.CAMBIAR_ESTADO);
+        const puedeCancelar = hasAction(NOVEDADES_PERMISOS.CANCELAR);
+        return transiciones.some((est) =>
+            est === ESTADOS_NOVEDAD.CANCELADA ? (puedeCancelar || puedeCambiar) : puedeCambiar
+        );
+    }, [hasAction]);
+
     const esAnalistaSeleccion = hasAction('rol_analista_seleccion');
     const currentUserId = useMemo(() => {
         try {
@@ -378,7 +454,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
     const [busquedaNombreListaSolicitudes, setBusquedaNombreListaSolicitudes] = useState('');
     const [filtroJornada, setFiltroJornada] = useState('');
 
-    const defaultTab = forcedTab || (hasAction('accion-tab-novedades') ? 'solicitudes' : hasAction('accion-tab-empleados') ? 'empleados' : 'solicitudes');
+    const defaultTab = forcedTab || (hasAction(NOVEDADES_PERMISOS.TAB_SOLICITUDES) ? 'solicitudes' : hasAction(NOVEDADES_PERMISOS.TAB_EMPLEADOS) ? 'empleados' : 'solicitudes');
 
     // Empresas para el filtro
     const [empresasFiltro, setEmpresasFiltro] = useState<{ id: number; razon_social: string }[]>([]);
@@ -441,6 +517,24 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
     const [showDetailModal, setShowDetailModal] = useState(false);
     const [selectedSolicitud, setSelectedSolicitud] = useState<NovedadSolicitud | null>(null);
 
+    // Candidatos de la solicitud (visible cuando estado === EN_RECLUTAMIENTO)
+    const [candidatosSolicitud, setCandidatosSolicitud] = useState<SolicitudCandidato[]>([]);
+    const [candidatoForm, setCandidatoForm] = useState({ identificacion: '', nombre_completo: '', celular: '', correo: '' });
+    const [editandoCandidatoId, setEditandoCandidatoId] = useState<number | null>(null);
+    const [cargandoCandidatos, setCargandoCandidatos] = useState(false);
+
+    useEffect(() => {
+        if (!selectedSolicitud?.id || selectedSolicitud.estado !== ESTADOS_NOVEDAD.EN_RECLUTAMIENTO) {
+            setCandidatosSolicitud([]);
+            return;
+        }
+        setCargandoCandidatos(true);
+        novedadesService.getCandidatosBySolicitud(selectedSolicitud.id).then(data => {
+            setCandidatosSolicitud(data);
+            setCargandoCandidatos(false);
+        });
+    }, [selectedSolicitud?.id, selectedSolicitud?.estado]);
+
     // Modal de timeline
     const [showTimelineModal, setShowTimelineModal] = useState(false);
     const [timelineSolicitudId, setTimelineSolicitudId] = useState<number | null>(null);
@@ -465,6 +559,19 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
     // QUERIES
     // ============================================================
 
+    const { data: diasCongelamiento = 30 } = useQuery({
+        queryKey: ['config-congelamiento'],
+        queryFn: () => novedadesService.getCongelamientoConfig(),
+        staleTime: 5 * 60_000,
+    });
+
+    const puedeCongelarSolicitud = (s: NovedadSolicitud): boolean => {
+        const fecha = s.created_at;
+        if (!fecha) return true;
+        const dias = Math.floor((Date.now() - new Date(fecha).getTime()) / 86_400_000);
+        return dias <= diasCongelamiento;
+    };
+
     const { data: motivos = [], isLoading: motivosLoading } = useQuery<NovedadMotivo[]>({
         queryKey: ['novedades-motivos', empresaId],
         queryFn: () => novedadesService.getMotivos(empresaId),
@@ -475,14 +582,20 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
         queryFn: () => novedadesService.getSolicitudes(filtros),
     });
 
-    const { data: empleados = [], isLoading: empleadosLoading } = useQuery<NovedadEmpleado[]>({
-        queryKey: ['novedades-empleados', busquedaEmpleado, filtros.empresa_id, filtros.sucursal],
-        queryFn: () => novedadesService.getAllEmpleados({
-            busqueda: busquedaEmpleado || undefined,
-            empresa_id: filtros.empresa_id,
-            sucursal_id: sucursalesFormSelect.find(s => s.nombre === filtros.sucursal)?.id,
-        }),
+    const { data: empleadosRaw = [], isLoading: empleadosLoading } = useQuery<NovedadEmpleado[]>({
+        queryKey: ['novedades-empleados-kaptus'],
+        queryFn: () => novedadesService.getEmpleadosKaptus({ all: true }),
     });
+
+    const empleados = useMemo(() => {
+        const seen = new Set<string | number>();
+        return empleadosRaw.filter(emp => {
+            const key = emp.numero_documento || emp.id;
+            if (!key || seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+    }, [empleadosRaw]);
 
     const { data: empleadosKaptusRaw = [], isLoading: kaptusLoading } = useQuery<NovedadEmpleado[]>({
         queryKey: ['empleados-kaptus', kaptusPage],
@@ -762,50 +875,85 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                     adjunto_nombres: adjuntoFiles.map(file => file.name),
                     adjunto_tipos: adjuntoFiles.map(file => file.type),
                 } : {}),
-                ...(selectedMotivo.requiere_comite ? { cedula_aprobador: CEDULA_APROBADOR_COMITE, nombre_aprobador: NOMBRE_APROBADOR_COMITE } : {}),
+                ...(selectedMotivo.requiere_comite ? { requiere_aprobacion_comite: true } : {}),
             },
             observaciones,
             requiere_reemplazo: formData.requiere_reemplazo || formData.genera_reemplazo || false,
             empleados_ids: selectedMotivo.permite_seleccion_multiple ? selectedEmpleados : [],
+            ...(selectedMotivo.codigo === 'aumento_plaza' && formData.sede_labor
+                ? { sede_labor_id: parseInt(formData.sede_labor, 10) }
+                : {}),
         };
 
         createMutation.mutate(solicitudData, {
             onSuccess: async (nuevaSolicitud) => {
-                // Si requiere comité, buscar aprobador y enviar correo (cédula asignada automáticamente)
+                // Si requiere comité, buscar dinámicamente usuarios con permiso accion-aprobar-comite
                 if (selectedMotivo.requiere_comite) {
                     try {
-                        const { data: aprobador } = await supabase
-                            .from('gen_usuarios')
-                            .select('email, primer_nombre, primer_apellido')
-                            .eq('identificacion', CEDULA_APROBADOR_COMITE)
-                            .eq('activo', true)
-                            .single();
+                        // 1. Roles que tienen el permiso en el módulo comité
+                        // Se excluye el rol Administrador (id=1) porque tiene todos los permisos
+                        // por defecto y no es un aprobador designado de comité.
+                        // .filter con JSON.stringify porque selected_actions_codes es jsonb, no array nativo
+                        const { data: rolesConPermiso } = await supabase
+                            .from('gen_roles_modulos')
+                            .select('rol_id')
+                            .eq('modulo_id', MODULO_COMITE_ID)
+                            .filter('selected_actions_codes', 'cs', JSON.stringify(['accion-aprobar-comite']))
+                            .neq('rol_id', 1);
 
-                        if (aprobador?.email) {
+                        const roleIds = (rolesConPermiso || []).map((r: any) => r.rol_id);
+
+                        let aprobadores: { email: string; primer_nombre: string; primer_apellido: string }[] = [];
+                        if (roleIds.length > 0) {
+                            // 2. Usuarios asignados a esos roles
+                            const { data: usuariosConRol } = await supabase
+                                .from('gen_usuario_roles')
+                                .select('usuario_id')
+                                .in('rol_id', roleIds);
+
+                            const usuarioIds = (usuariosConRol || []).map((u: any) => u.usuario_id);
+
+                            if (usuarioIds.length > 0) {
+                                // 3. Datos de contacto de esos usuarios
+                                // Se excluyen emails de sistema/placeholder (ej: @sistema.com)
+                                const { data: usuarios } = await supabase
+                                    .from('gen_usuarios')
+                                    .select('email, primer_nombre, primer_apellido')
+                                    .in('id', usuarioIds)
+                                    .eq('activo', true)
+                                    .not('email', 'is', null)
+                                    .not('email', 'ilike', '%@sistema%');
+                                aprobadores = usuarios || [];
+                            }
+                        }
+
+                        if (aprobadores.length > 0) {
                             const empleadoNombre = selectedEmpleado
                                 ? escapeHtml(`${selectedEmpleado.nombre} ${selectedEmpleado.apellido || ''}`.trim())
                                 : 'Empleado';
-                            await emailService.sendEmail({
-                                to: aprobador.email,
-                                from: (import.meta as any).env?.VITE_GMAIL_USER || 'noreply@rhplus.co',
-                                subject: `Solicitud de comité: ${selectedMotivo.nombre}`,
-                                html: `
-                                    <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
-                                        <h2 style="color:#0e7490">Solicitud requiere su aprobación de comité</h2>
-                                        <p>Estimado/a <strong>${escapeHtml(aprobador.primer_nombre)} ${escapeHtml(aprobador.primer_apellido)}</strong>,</p>
-                                        <p>Se ha creado una solicitud de novedad que requiere su aprobación:</p>
-                                        <table style="border-collapse:collapse;width:100%;margin:16px 0">
-                                            <tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:600;background:#f9fafb">Motivo</td><td style="padding:8px;border:1px solid #e5e7eb">${escapeHtml(selectedMotivo.nombre)}</td></tr>
-                                            <tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:600;background:#f9fafb">Empleado</td><td style="padding:8px;border:1px solid #e5e7eb">${empleadoNombre}</td></tr>
-                                            ${observaciones ? `<tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:600;background:#f9fafb">Observaciones</td><td style="padding:8px;border:1px solid #e5e7eb">${escapeHtml(observaciones)}</td></tr>` : ''}
-                                        </table>
-                                        <p>Ingrese al sistema para <strong>aprobar o rechazar</strong> esta solicitud en el módulo de Comité de Aprobación.</p>
-                                    </div>
-                                `,
-                            });
-                            toast.info(`Notificación enviada al aprobador ${aprobador.primer_nombre}`);
+                            for (const aprobador of aprobadores) {
+                                await emailService.sendEmail({
+                                    to: aprobador.email,
+                                    from: (import.meta as any).env?.VITE_GMAIL_USER || 'noreply@rhplus.co',
+                                    subject: `Solicitud de comité: ${selectedMotivo.nombre}`,
+                                    html: `
+                                        <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
+                                            <h2 style="color:#0e7490">Solicitud requiere su aprobación de comité</h2>
+                                            <p>Estimado/a <strong>${escapeHtml(aprobador.primer_nombre)} ${escapeHtml(aprobador.primer_apellido)}</strong>,</p>
+                                            <p>Se ha creado una solicitud de novedad que requiere su aprobación:</p>
+                                            <table style="border-collapse:collapse;width:100%;margin:16px 0">
+                                                <tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:600;background:#f9fafb">Motivo</td><td style="padding:8px;border:1px solid #e5e7eb">${escapeHtml(selectedMotivo.nombre)}</td></tr>
+                                                <tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:600;background:#f9fafb">Empleado</td><td style="padding:8px;border:1px solid #e5e7eb">${empleadoNombre}</td></tr>
+                                                ${observaciones ? `<tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:600;background:#f9fafb">Observaciones</td><td style="padding:8px;border:1px solid #e5e7eb">${escapeHtml(observaciones)}</td></tr>` : ''}
+                                            </table>
+                                            <p>Ingrese al sistema para <strong>aprobar o rechazar</strong> esta solicitud en el módulo de Comité de Aprobación.</p>
+                                        </div>
+                                    `,
+                                });
+                            }
+                            toast.info(`Notificación enviada a ${aprobadores.length} aprobador(es) de comité`);
                         } else {
-                            toast.warning('Solicitud creada, pero no se encontró el aprobador con esa cédula');
+                            toast.warning('Solicitud creada, pero no se encontraron aprobadores con permiso de comité');
                         }
                     } catch (_) {
                         toast.warning('Solicitud creada, pero no se pudo enviar el correo al aprobador');
@@ -826,6 +974,53 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
         setShowTimelineModal(true);
     };
 
+    const handleAgregarCandidatoNovedades = async () => {
+        if (!selectedSolicitud?.id) return;
+        if (!candidatoForm.identificacion.trim() || !candidatoForm.nombre_completo.trim()) {
+            toast.error('Identificación y nombre completo son obligatorios');
+            return;
+        }
+        if (editandoCandidatoId) {
+            const result = await novedadesService.updateCandidato(editandoCandidatoId, {
+                solicitud_id: selectedSolicitud.id,
+                ...candidatoForm,
+            });
+            if (result) {
+                setCandidatosSolicitud(prev => prev.map(c => c.id === editandoCandidatoId ? { ...c, ...candidatoForm } : c));
+                toast.success('Candidato actualizado');
+            } else toast.error('Error al actualizar candidato');
+        } else {
+            const result = await novedadesService.addCandidatoToSolicitud({
+                solicitud_id: selectedSolicitud.id,
+                ...candidatoForm,
+            });
+            if (result) {
+                setCandidatosSolicitud(prev => [...prev, result]);
+                toast.success('Candidato agregado');
+            } else toast.error('Error al agregar candidato');
+        }
+        setCandidatoForm({ identificacion: '', nombre_completo: '', celular: '', correo: '' });
+        setEditandoCandidatoId(null);
+    };
+
+    const handleEditarCandidatoNovedades = (c: SolicitudCandidato) => {
+        setCandidatoForm({
+            identificacion: c.identificacion,
+            nombre_completo: c.nombre_completo,
+            celular: c.celular || '',
+            correo: c.correo || '',
+        });
+        setEditandoCandidatoId(c.id);
+    };
+
+    const handleEliminarCandidatoNovedades = async (id: number) => {
+        const ok = await novedadesService.deleteCandidato(id);
+        if (ok) {
+            setCandidatosSolicitud(prev => prev.filter(c => c.id !== id));
+            toast.success('Candidato eliminado');
+        } else toast.error('Error al eliminar candidato');
+    };
+
     const toggleEmpleadoSelection = (empId: number) => {
         setSelectedEmpleados(prev =>
             prev.includes(empId) ? prev.filter(id => id !== empId) : [...prev, empId]
@@ -836,17 +1031,33 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
     // ESTADÍSTICAS
     // ============================================================
 
+    // Motivos que pertenecen al Módulo de Selección — se excluyen de esta vista
+    const MOTIVOS_SELECCION = [
+        'retiros',
+        'cambio_centro_costo',
+        'postulaciones_internas',
+        'vacaciones',
+        'renuncias',
+        'licencias',
+    ];
+
+    // Base filtrada: solo motivos de Gestión de Novedades (excluye los de Selección)
+    const solicitudesGestion = useMemo(() =>
+        solicitudes.filter(s => !MOTIVOS_SELECCION.includes(s.motivo?.codigo ?? '')),
+        [solicitudes],
+    );
+
     const stats = useMemo(() => {
         const s: Record<string, number> = {};
-        solicitudes.forEach(sol => {
+        solicitudesGestion.forEach(sol => {
             s[sol.estado || 'solicitada'] = (s[sol.estado || 'solicitada'] || 0) + 1;
         });
         return s;
-    }, [solicitudes]);
+    }, [solicitudesGestion]);
 
     const chartMotivos = useMemo(() => {
         const m: Record<string, number> = {};
-        solicitudes.forEach(s => {
+        solicitudesGestion.forEach(s => {
             const nombre = s.motivo?.nombre || 'Sin motivo';
             m[nombre] = (m[nombre] || 0) + 1;
         });
@@ -854,24 +1065,24 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
             .map(([nombre, total]) => ({ nombre: nombre.length > 14 ? nombre.slice(0, 13) + '…' : nombre, total }))
             .sort((a, b) => b.total - a.total)
             .slice(0, 7);
-    }, [solicitudes]);
+    }, [solicitudesGestion]);
 
     // Filtros cliente: cargo y política de tiempo
     const cargosEmpleadoOpciones = useMemo(() => {
         const set = new Set<string>();
-        solicitudes.forEach(s => { if (s.empleado?.cargo) set.add(s.empleado.cargo); });
+        solicitudesGestion.forEach(s => { if (s.empleado?.cargo) set.add(s.empleado.cargo); });
         return Array.from(set).sort();
-    }, [solicitudes]);
+    }, [solicitudesGestion]);
 
     const jornadaOpciones = useMemo(() => {
         const set = new Set<string>();
-        solicitudes.forEach(s => { if ((s.empleado as any)?.jornada) set.add((s.empleado as any).jornada); });
+        solicitudesGestion.forEach(s => { if ((s.empleado as any)?.jornada) set.add((s.empleado as any).jornada); });
         ['Diurna', 'Nocturna', 'Mixta', 'Flexible'].forEach(j => set.add(j));
         return Array.from(set).sort();
-    }, [solicitudes]);
+    }, [solicitudesGestion]);
 
     const solicitudesMostradas = useMemo(() => {
-        let result = solicitudes;
+        let result = solicitudesGestion;
         if (filtros.sucursal) result = result.filter(s => s.empleado?.sucursal?.nombre === filtros.sucursal);
         if (filtroCargoEmp) result = result.filter(s => s.empleado?.cargo === filtroCargoEmp);
         if (filtroJornada) result = result.filter(s => (s.empleado as any)?.jornada === filtroJornada);
@@ -881,7 +1092,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                 (s.empleado?.nombre || '').toLowerCase().includes(bn));
         }
         return result;
-    }, [solicitudes, filtros.sucursal, filtroCargoEmp, filtroJornada, busquedaNombreListaSolicitudes]);
+    }, [solicitudesGestion, filtros.sucursal, filtroCargoEmp, filtroJornada, busquedaNombreListaSolicitudes]);
 
     const cantidadFiltrosActivosLista = useMemo(() => {
         let n = 0;
@@ -982,9 +1193,9 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
             )}
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                {!hideInternalTabs && activeTab !== 'nueva_novedad' && (hasAction('accion-tab-novedades') || hasAction('accion-tab-empleados')) && (
-                    <TabsList className={`grid w-full bg-cyan-100/60 p-1 rounded-lg ${hasAction('accion-tab-novedades') && hasAction('accion-tab-empleados') ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                        {hasAction('accion-tab-novedades') && (
+                {!hideInternalTabs && activeTab !== 'nueva_novedad' && (hasAction(NOVEDADES_PERMISOS.TAB_SOLICITUDES) || hasAction(NOVEDADES_PERMISOS.TAB_EMPLEADOS)) && (
+                    <TabsList className={`grid w-full bg-cyan-100/60 p-1 rounded-lg ${hasAction(NOVEDADES_PERMISOS.TAB_SOLICITUDES) && hasAction(NOVEDADES_PERMISOS.TAB_EMPLEADOS) ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                        {hasAction(NOVEDADES_PERMISOS.TAB_SOLICITUDES) && (
                             <TabsTrigger
                                 value="solicitudes"
                                 className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
@@ -992,7 +1203,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                 Listado de Solicitudes
                             </TabsTrigger>
                         )}
-                        {hasAction('accion-tab-empleados') && (
+                        {hasAction(NOVEDADES_PERMISOS.TAB_EMPLEADOS) && (
                             <TabsTrigger
                                 value="empleados"
                                 className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-md transition-all duration-300"
@@ -1016,7 +1227,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                 <Badge variant="secondary" className="ml-1">{solicitudesMostradas.length}</Badge>
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
-                                <Can action="accion-exportar-novedades">
+                                <Can action={NOVEDADES_PERMISOS.EXPORTAR}>
                                     <Button
                                         variant="outline"
                                         size="sm"
@@ -1048,7 +1259,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                         Exportar Excel
                                     </Button>
                                 </Can>
-                                <Can action="accion-crear-novedad">
+                                <Can action={NOVEDADES_PERMISOS.CREAR}>
                                     <Button
                                         onClick={goToRegistro}
                                         size="sm"
@@ -1257,7 +1468,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                     </div>
                                     <p className="text-lg font-semibold text-gray-600">No hay solicitudes</p>
                                     <p className="text-sm text-gray-400 mt-1">Crea una nueva novedad para comenzar</p>
-                                    <Can action="accion-crear-novedad">
+                                    <Can action={NOVEDADES_PERMISOS.CREAR}>
                                         <Button
                                             size="sm"
                                             onClick={goToRegistro}
@@ -1340,6 +1551,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                             return (
                                                 <TableRow key={sol.id} className="hover:bg-gray-50 border-b border-gray-100">
                                                     <TableCell className="w-11 px-1 py-2 align-middle text-center">
+                                                        {puedeVerMenuAccionesFila(sol) ? (
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
                                                                 <Button
@@ -1352,19 +1564,26 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                                 </Button>
                                                             </DropdownMenuTrigger>
                                                             <DropdownMenuContent align="start" className="w-56 max-h-[min(70vh,24rem)] overflow-y-auto">
-                                                                {hasAction('accion-ver-detalle-novedad') && (
-                                                                    <DropdownMenuItem onClick={() => handleViewDetail(sol)} className="cursor-pointer">
-                                                                        <Eye className="mr-2 h-4 w-4 text-cyan-600" />
-                                                                        Ver detalle
-                                                                    </DropdownMenuItem>
+                                                                {hasAction(NOVEDADES_PERMISOS.VER_DETALLE) && (
+                                                                    sol.estado === ESTADOS_NOVEDAD.ENTREVISTA_CLIENTE ? (
+                                                                        <DropdownMenuItem onClick={() => navigate('/novedades/entrevista', { state: { solicitudEntrevista: sol } })} className="cursor-pointer">
+                                                                            <Users className="mr-2 h-4 w-4 text-purple-600" />
+                                                                            Entrevistas
+                                                                        </DropdownMenuItem>
+                                                                    ) : (
+                                                                        <DropdownMenuItem onClick={() => handleViewDetail(sol)} className="cursor-pointer">
+                                                                            <Eye className="mr-2 h-4 w-4 text-cyan-600" />
+                                                                            Ver detalle
+                                                                        </DropdownMenuItem>
+                                                                    )
                                                                 )}
-                                                                {hasAction('accion-ver-timeline-novedad') && (
+                                                                {hasAction(NOVEDADES_PERMISOS.VER_TIMELINE) && (
                                                                     <DropdownMenuItem onClick={() => handleViewTimeline(sol.id!)} className="cursor-pointer">
                                                                         <Clock className="mr-2 h-4 w-4 text-indigo-600" />
                                                                         Ver timeline
                                                                     </DropdownMenuItem>
                                                                 )}
-                                                                {hasAction('accion-asignar-solicitud') && !sol.analista_id && (
+                                                                {hasAction(NOVEDADES_PERMISOS.ASIGNAR_ANALISTA) && !sol.analista_id && (
                                                                     <>
                                                                         <DropdownMenuSeparator />
                                                                         <DropdownMenuItem
@@ -1378,8 +1597,8 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                                     </>
                                                                 )}
                                                                 {(() => {
-                                                                    const puedeCambiarEstado = hasAction('accion-cambiar-estado-novedad');
-                                                                    const puedeCancelar = hasAction('accion-cancelar-novedad');
+                                                                    const puedeCambiarEstado = hasAction(NOVEDADES_PERMISOS.CAMBIAR_ESTADO);
+                                                                    const puedeCancelar = hasAction(NOVEDADES_PERMISOS.CANCELAR);
                                                                     const transicionesVisibles = rowTransitions.filter((est) => {
                                                                         if (est === ESTADOS_NOVEDAD.CANCELADA) return puedeCancelar || puedeCambiarEstado;
                                                                         return puedeCambiarEstado;
@@ -1395,8 +1614,13 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                                                 return (
                                                                                     <DropdownMenuItem
                                                                                         key={nextEstado}
-                                                                                        disabled={soloViernes || cambiarEstadoMutation.isPending}
-                                                                                        title={soloViernes ? 'La aprobación solo está permitida los viernes' : undefined}
+                                                                                        disabled={soloViernes || cambiarEstadoMutation.isPending || (nextEstado === ESTADOS_NOVEDAD.CONGELADA && !puedeCongelarSolicitud(sol))}
+                                                                                        title={
+                                                                                            soloViernes ? 'La aprobación solo está permitida los viernes'
+                                                                                            : nextEstado === ESTADOS_NOVEDAD.CONGELADA && !puedeCongelarSolicitud(sol)
+                                                                                                ? `No se puede congelar: han transcurrido más de ${diasCongelamiento} días desde la creación de la solicitud`
+                                                                                            : undefined
+                                                                                        }
                                                                                         onClick={() => cambiarEstadoMutation.mutate({ id: sol.id!, estado: nextEstado })}
                                                                                         className={destructive ? 'cursor-pointer text-red-600 focus:text-red-700' : 'cursor-pointer'}
                                                                                     >
@@ -1410,6 +1634,9 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                                 })()}
                                                             </DropdownMenuContent>
                                                         </DropdownMenu>
+                                                        ) : (
+                                                            <span className="text-gray-300 text-xs">—</span>
+                                                        )}
                                                     </TableCell>
                                                     <TableCell className="px-3 py-3 text-sm text-gray-900 font-mono whitespace-nowrap">#{sol.id}</TableCell>
                                                     <TableCell className="min-w-[240px] px-4 py-3 text-sm">
@@ -1586,7 +1813,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                 {empleados.length === 0 && <p className="text-xs text-gray-400 py-2">No hay empleados disponibles</p>}
                                             </div>
                                         ) : (
-                                            <Select
+                                            <SelectWithSearch
                                                 value={selectedEmpleado?.id?.toString() || ''}
                                                 onValueChange={(v) => {
                                                     const emp = empleados.find(e => e.id === parseInt(v));
@@ -1611,18 +1838,14 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                         }));
                                                     }
                                                 }}
-                                            >
-                                                <SelectTrigger className="mt-1.5 bg-white">
-                                                    <SelectValue placeholder="Seleccionar empleado..." />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {empleados.map(emp => (
-                                                        <SelectItem key={emp.id} value={emp.id!.toString()}>
-                                                            {emp.nombre} {emp.apellido} — {emp.cargo || 'Sin cargo'}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
+                                                placeholder="Seleccionar empleado..."
+                                                options={empleados.map(emp => ({
+                                                    value: emp.id!.toString(),
+                                                    label: `${emp.nombre} ${emp.apellido || ''} — ${emp.cargo || 'Sin cargo'}`,
+                                                    searchText: `${emp.nombre} ${emp.apellido || ''} ${emp.cargo || ''} ${emp.numero_documento || ''}`,
+                                                }))}
+                                                maxItems={100}
+                                            />
                                         )}
                                     </div>
                                 )}
@@ -1756,10 +1979,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                             </Select>
                                                         )}
                                                         {field.type === 'jornada-select' && (() => {
-                                                            const JORNADAS_AUMENTO_PLAZA = ['AM', 'PM', 'COMPLETA'];
-                                                            const jornadasVisibles = selectedMotivo?.codigo === 'aumento_plaza'
-                                                                ? jornadasLaborales.filter(j => JORNADAS_AUMENTO_PLAZA.includes(j.nombre_jornada.toUpperCase()))
-                                                                : jornadasLaborales;
+                                                            const jornadasVisibles = jornadasLaborales;
                                                             return (
                                                             <Select
                                                                 value={formData[field.name] || ''}
@@ -1880,6 +2100,20 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                                     {sucursalesDisponiblesCentro.length === 0
                                                                         ? <SelectItem value="__none__" disabled>Sin sucursales registradas</SelectItem>
                                                                         : sucursalesDisponiblesCentro.map(s => (
+                                                                            <SelectItem key={s.id} value={String(s.id)}>{s.nombre}</SelectItem>
+                                                                        ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        )}
+                                                        {field.type === 'sede-labor-select' && (
+                                                            <Select value={formData[field.name] || ''} onValueChange={v => setFormData(prev => ({ ...prev, [field.name]: v }))}>
+                                                                <SelectTrigger className="h-9 text-sm bg-white border-gray-200 focus:border-cyan-400 focus:ring-cyan-100">
+                                                                    <SelectValue placeholder="Seleccionar sede labor..." />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {sucursalesFormSelect.length === 0
+                                                                        ? <SelectItem value="__none__" disabled>Sin sedes registradas</SelectItem>
+                                                                        : sucursalesFormSelect.map(s => (
                                                                             <SelectItem key={s.id} value={String(s.id)}>{s.nombre}</SelectItem>
                                                                         ))}
                                                                 </SelectContent>
@@ -2185,87 +2419,206 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
             {/* ================================================================ */}
             {/* MODAL: Detalle de Solicitud */}
             {/* ================================================================ */}
-            <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
-                <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 shadow-sm">
-                                <Eye className="h-4 w-4 text-white" />
+            <Dialog open={showDetailModal} onOpenChange={(open) => { setShowDetailModal(open); if (!open) { setCandidatoForm({ identificacion: '', nombre_completo: '', celular: '', correo: '' }); setEditandoCandidatoId(null); } }}>
+                <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+                    <DialogHeader className="shrink-0">
+                        <DialogTitle className="flex items-center gap-2">
+                            <div className="p-1.5 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 shadow-sm">
+                                <Eye className="h-3.5 w-3.5 text-white" />
                             </div>
                             <div>
-                                <span className="text-lg">Detalle de Solicitud</span>
-                                <p className="text-xs font-normal text-gray-500 mt-0.5">Solicitud #{selectedSolicitud?.id}</p>
+                                <span className="text-base">Solicitud #{selectedSolicitud?.id} — {selectedSolicitud?.motivo?.nombre}</span>
+                                <p className="text-[11px] font-normal text-gray-500 mt-0">{selectedSolicitud?.empresa?.razon_social} · {selectedSolicitud?.empleado?.cargo}</p>
                             </div>
                         </DialogTitle>
                     </DialogHeader>
+
                     {selectedSolicitud && (
-                        <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <Label className="text-xs text-gray-500">Empleado</Label>
-                                    <p className="font-medium text-sm">
-                                        {selectedSolicitud.empleado
-                                            ? `${selectedSolicitud.empleado.nombre} ${selectedSolicitud.empleado.apellido || ''}`
-                                            : '-'}
-                                    </p>
-                                </div>
-                                <div>
-                                    <Label className="text-xs text-gray-500">Motivo</Label>
-                                    <p className="font-medium text-sm">{selectedSolicitud.motivo?.nombre || '-'}</p>
-                                </div>
-                                <div>
-                                    <Label className="text-xs text-gray-500">Estado</Label>
-                                    <Badge className={`text-xs ${ESTADO_COLORS[selectedSolicitud.estado || 'solicitada']}`}>
-                                        {ESTADO_LABELS[selectedSolicitud.estado || 'solicitada']}
-                                    </Badge>
-                                </div>
-                                <div>
-                                    <Label className="text-xs text-gray-500">Fecha de Creación</Label>
-                                    <p className="text-sm">{formatDate(selectedSolicitud.created_at)}</p>
-                                </div>
-                                <div>
-                                    <Label className="text-xs text-gray-500">Sucursal</Label>
-                                    <p className="text-sm">{selectedSolicitud.empleado?.sucursal?.nombre || '-'}</p>
-                                </div>
-                                <div>
-                                    <Label className="text-xs text-gray-500">Requiere Reemplazo</Label>
-                                    <p className="text-sm">{selectedSolicitud.requiere_reemplazo ? 'Sí' : 'No'}</p>
-                                </div>
-                            </div>
+                        <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+                            <div className="space-y-3 p-1">
+                                {/* Stepper de etapas */}
+                                <EtapaStepper estadoActual={selectedSolicitud.estado || ''} />
 
-                            {/* Datos del formulario */}
-                            {selectedSolicitud.datos_formulario && Object.keys(selectedSolicitud.datos_formulario).length > 0 && (
-                                <>
-                                    <Separator />
-                                    <div>
-                                        <h4 className="text-sm font-semibold text-gray-700 mb-2">Datos del Formulario</h4>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            {Object.entries(selectedSolicitud.datos_formulario).map(([key, value]) => (
-                                                <div key={key}>
-                                                    <Label className="text-xs text-gray-500 capitalize">{key.replace(/_/g, ' ')}</Label>
-                                                    <p className="text-sm">{typeof value === 'boolean' ? (value ? 'Sí' : 'No') : String(value || '-')}</p>
-                                                </div>
-                                            ))}
+                                <Separator />
+
+                                {/* Info principal compacta */}
+                                <div className="grid grid-cols-3 gap-x-4 gap-y-1.5">
+                                    <div className="col-span-2 min-w-0">
+                                        <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Empleado</p>
+                                        <p className="text-xs font-semibold text-gray-800 truncate">
+                                            {selectedSolicitud.empleado ? `${selectedSolicitud.empleado.nombre} ${selectedSolicitud.empleado.apellido || ''}` : '-'}
+                                        </p>
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Estado</p>
+                                        <Badge className={`text-[10px] px-1.5 py-0 ${ESTADO_COLORS[selectedSolicitud.estado || 'solicitada']}`}>
+                                            {ESTADO_LABELS[selectedSolicitud.estado || 'solicitada']}
+                                        </Badge>
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Motivo</p>
+                                        <p className="text-xs text-gray-700 truncate">{selectedSolicitud.motivo?.nombre || '-'}</p>
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Sucursal</p>
+                                        <p className="text-xs text-gray-700 truncate">{selectedSolicitud.empleado?.sucursal?.nombre || '-'}</p>
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Fecha creación</p>
+                                        <p className="text-xs text-gray-700">{formatDate(selectedSolicitud.created_at)}</p>
+                                    </div>
+                                    {selectedSolicitud.empleado?.cargo && (
+                                        <div className="min-w-0">
+                                            <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Cargo</p>
+                                            <p className="text-xs text-gray-700 truncate">{selectedSolicitud.empleado.cargo}</p>
                                         </div>
+                                    )}
+                                    <div className="min-w-0">
+                                        <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Reemplazo</p>
+                                        <p className="text-xs text-gray-700">{selectedSolicitud.requiere_reemplazo ? 'Sí' : 'No'}</p>
                                     </div>
-                                </>
-                            )}
+                                </div>
 
-                            {selectedSolicitud.observaciones && (
-                                <>
-                                    <Separator />
-                                    <div>
-                                        <Label className="text-xs text-gray-500">Observaciones</Label>
-                                        <p className="text-sm mt-1">{selectedSolicitud.observaciones}</p>
-                                    </div>
-                                </>
-                            )}
+                                <Separator />
 
-                            <Separator />
-                            <div className="flex justify-end">
-                                <Button variant="ghost" size="sm" onClick={() => handleViewTimeline(selectedSolicitud.id!)}>
-                                    <Clock className="h-3 w-3 mr-1" /> Ver timeline
-                                </Button>
+                                {/* Tabs: Candidatos (si EN_RECLUTAMIENTO) + Información */}
+                                <Tabs defaultValue="candidatos">
+                                    <TabsList>
+                                        <TabsTrigger value="candidatos">Candidatos</TabsTrigger>
+                                        <TabsTrigger value="informacion">Información</TabsTrigger>
+                                    </TabsList>
+
+                                    {/* Tab Candidatos */}
+                                    <TabsContent value="candidatos" className="pt-2">
+                                            <div className="space-y-2">
+                                                {/* Fila campos + botón */}
+                                                <div className="flex items-end gap-1.5">
+                                                    <div className="w-28 shrink-0">
+                                                        <Label className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">Identificación *</Label>
+                                                        <Input value={candidatoForm.identificacion} onChange={e => setCandidatoForm(f => ({ ...f, identificacion: e.target.value }))} className="h-7 text-xs" />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <Label className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">Nombre completo *</Label>
+                                                        <Input value={candidatoForm.nombre_completo} onChange={e => setCandidatoForm(f => ({ ...f, nombre_completo: e.target.value }))} className="h-7 text-xs" />
+                                                    </div>
+                                                    <div className="w-28 shrink-0">
+                                                        <Label className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">Celular</Label>
+                                                        <Input value={candidatoForm.celular} onChange={e => setCandidatoForm(f => ({ ...f, celular: e.target.value }))} className="h-7 text-xs" />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <Label className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">Correo</Label>
+                                                        <Input value={candidatoForm.correo} onChange={e => setCandidatoForm(f => ({ ...f, correo: e.target.value }))} className="h-7 text-xs" />
+                                                    </div>
+                                                    <div className="flex items-center gap-1 shrink-0">
+                                                        {editandoCandidatoId && (
+                                                            <Button variant="outline" size="icon" className="h-7 w-7 border-gray-300 text-gray-500 hover:bg-gray-100" onClick={() => { setCandidatoForm({ identificacion: '', nombre_completo: '', celular: '', correo: '' }); setEditandoCandidatoId(null); }} title="Cancelar edición">
+                                                                <XCircle className="w-3.5 h-3.5" />
+                                                            </Button>
+                                                        )}
+                                                        <Button size="icon" className="h-7 w-7 bg-cyan-600 hover:bg-cyan-700 shadow-sm" onClick={handleAgregarCandidatoNovedades} title={editandoCandidatoId ? 'Guardar cambios' : 'Agregar candidato'}>
+                                                            {editandoCandidatoId
+                                                                ? <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                                                : <UserPlus className="w-3.5 h-3.5" />
+                                                            }
+                                                        </Button>
+                                                    </div>
+                                                </div>
+
+                                                {/* Tabla */}
+                                                <div className="border rounded-md overflow-hidden">
+                                                    <table className="w-full text-xs">
+                                                        <thead className="bg-cyan-50">
+                                                            <tr>
+                                                                <th className="px-2 py-1.5 text-left font-medium text-gray-600">Identificación</th>
+                                                                <th className="px-2 py-1.5 text-left font-medium text-gray-600">Nombre</th>
+                                                                <th className="px-2 py-1.5 text-left font-medium text-gray-600">Celular</th>
+                                                                <th className="px-2 py-1.5 text-left font-medium text-gray-600">Correo</th>
+                                                                <th className="px-2 py-1.5 text-left font-medium text-gray-600">Estado</th>
+                                                                <th className="px-2 py-1.5 text-center font-medium text-gray-600 w-14">Docs</th>
+                                                                <th className="px-2 py-1.5 text-center font-medium text-gray-600 w-16">Acciones</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-gray-100">
+                                                            {cargandoCandidatos ? (
+                                                                <tr><td colSpan={7} className="px-3 py-4 text-center text-gray-400"><Loader2 className="inline animate-spin h-3 w-3 mr-1" /> Cargando...</td></tr>
+                                                            ) : candidatosSolicitud.length === 0 ? (
+                                                                <tr><td colSpan={7} className="px-3 py-4 text-center text-gray-400">No hay candidatos registrados</td></tr>
+                                                            ) : candidatosSolicitud.map(c => (
+                                                                <tr key={c.id} className="hover:bg-gray-50">
+                                                                    <td className="px-2 py-1.5 font-mono">{c.identificacion}</td>
+                                                                    <td className="px-2 py-1.5 font-medium">{c.nombre_completo}</td>
+                                                                    <td className="px-2 py-1.5 text-gray-500">{c.celular || '—'}</td>
+                                                                    <td className="px-2 py-1.5 text-gray-500">{c.correo || '—'}</td>
+                                                                    <td className="px-2 py-1.5">
+                                                                        {(() => {
+                                                                            const est = c.estado || 'activo';
+                                                                            const cfg: Record<string, string> = {
+                                                                                activo: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+                                                                                entrevista: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+                                                                                seleccionado: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+                                                                                descartado: 'bg-red-100 text-red-800 border-red-200',
+                                                                                en_espera: 'bg-amber-100 text-amber-800 border-amber-200',
+                                                                            };
+                                                                            const labels: Record<string, string> = {
+                                                                                activo: 'Activo', entrevista: 'Entrevista',
+                                                                                seleccionado: 'Seleccionado', descartado: 'Descartado', en_espera: 'En Espera',
+                                                                            };
+                                                                            return (
+                                                                                <Badge className={`text-[10px] font-semibold border ${cfg[est] || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
+                                                                                    {labels[est] || est}
+                                                                                </Badge>
+                                                                            );
+                                                                        })()}
+                                                                    </td>
+                                                                    <td className="px-2 py-1.5 text-center">
+                                                                        <button type="button" className="inline-flex items-center justify-center rounded p-0.5 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 transition-colors" title="Adjuntar documento">
+                                                                            <Upload className="w-3.5 h-3.5" />
+                                                                        </button>
+                                                                    </td>
+                                                                    <td className="px-2 py-1.5 text-center">
+                                                                        <div className="flex justify-center gap-0.5">
+                                                                            <button type="button" onClick={() => handleEditarCandidatoNovedades(c)} className="rounded p-0.5 text-cyan-600 hover:text-cyan-800 hover:bg-cyan-50 transition-colors" title="Editar">
+                                                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                                            </button>
+                                                                            <button type="button" onClick={() => handleEliminarCandidatoNovedades(c.id)} className="rounded p-0.5 text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors" title="Eliminar">
+                                                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                                            </button>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </TabsContent>
+
+                                    {/* Tab Información */}
+                                    <TabsContent value="informacion" className="pt-2 space-y-3">
+                                        {selectedSolicitud.datos_formulario && Object.keys(selectedSolicitud.datos_formulario).length > 0 && (
+                                            <div>
+                                                <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Datos del Formulario</p>
+                                                <div className="grid grid-cols-3 gap-x-4 gap-y-1.5">
+                                                    {Object.entries(selectedSolicitud.datos_formulario).map(([key, value]) => (
+                                                        <div key={key} className="min-w-0">
+                                                            <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide capitalize">{key.replace(/_/g, ' ')}</p>
+                                                            <p className="text-xs text-gray-700 truncate">{typeof value === 'boolean' ? (value ? 'Sí' : 'No') : String(value || '-')}</p>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                        {selectedSolicitud.observaciones && (
+                                            <div>
+                                                <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-0.5">Observaciones</p>
+                                                <p className="text-xs text-gray-700 leading-relaxed">{selectedSolicitud.observaciones}</p>
+                                            </div>
+                                        )}
+                                        {!selectedSolicitud.datos_formulario && !selectedSolicitud.observaciones && (
+                                            <p className="text-xs text-gray-400 text-center py-4">Sin información adicional</p>
+                                        )}
+                                    </TabsContent>
+                                </Tabs>
                             </div>
                         </div>
                     )}

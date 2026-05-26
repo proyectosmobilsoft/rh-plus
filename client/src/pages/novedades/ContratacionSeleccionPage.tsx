@@ -6,6 +6,7 @@ import NovedadesPage from './NovedadesPage';
 import EntrevistasPage from './EntrevistasPage';
 import SeleccionPage from './SeleccionPage';
 import { usePermissions } from '@/contexts/PermissionsContext';
+import { type NovedadSolicitud } from '@/services/novedadesService';
 
 export default function ContratacionSeleccionPage() {
   const location = useLocation();
@@ -20,6 +21,8 @@ export default function ContratacionSeleccionPage() {
         : location.pathname === '/novedades/empleados'
           ? 'empleados'
         : 'novedades';
+
+  const solicitudEntrevista = ((location.state as { solicitudEntrevista?: NovedadSolicitud } | null)?.solicitudEntrevista) ?? null;
 
   const canNovedades = hasAction('accion-tab-contratacion-novedades') || hasAction('accion-tab-novedades');
   const canEntrevistas = hasAction('accion-tab-contratacion-entrevistas') || hasAction('vista-entrevistas');
@@ -57,8 +60,10 @@ export default function ContratacionSeleccionPage() {
       <Tabs
         value={currentTab}
         onValueChange={(value) => {
-          if (value === 'entrevistas') navigate('/novedades/entrevista');
-          else if (value === 'seleccion') navigate('/seleccion');
+          if (value === 'entrevistas') {
+            if (!solicitudEntrevista) return;
+            navigate('/novedades/entrevista', { state: location.state });
+          } else if (value === 'seleccion') navigate('/seleccion');
           else if (value === 'empleados') navigate('/novedades/empleados');
           else navigate('/novedades');
         }}
@@ -79,7 +84,8 @@ export default function ContratacionSeleccionPage() {
           {canEntrevistas && (
             <TabsTrigger
               value="entrevistas"
-              className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-sm rounded-md transition-all duration-200 text-sm"
+              disabled={!solicitudEntrevista}
+              className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-sm rounded-md transition-all duration-200 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <span className="inline-flex items-center gap-2">
                 <UserCheck className="w-4 h-4" />
@@ -124,7 +130,7 @@ export default function ContratacionSeleccionPage() {
         )}
         {canEntrevistas && (
           <TabsContent value="entrevistas" className="mt-4">
-            <EntrevistasPage />
+            <EntrevistasPage solicitudEntrevista={solicitudEntrevista} />
           </TabsContent>
         )}
         {canSeleccion && (

@@ -20,6 +20,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import {
   CalendarCheck,
   Users,
+  Building,
   FileText,
   Search,
   Filter,
@@ -59,6 +60,7 @@ import { candidatosService, type Candidato } from '@/services/candidatosService'
 import { candidatosDocumentosService, type CandidatoDocumentoConDetalles } from '@/services/candidatosDocumentosService';
 import { usePermissions } from '@/contexts/PermissionsContext';
 import { entrevistasHistorialService, type EntrevistaHistorial, type AccionEntrevista } from '@/services/entrevistasHistorialService';
+import { novedadesService, ESTADOS_NOVEDAD, ESTADO_LABELS, type NovedadSolicitud, type SolicitudCandidato } from '@/services/novedadesService';
 
 // ============================================================
 // CONSTANTES
@@ -68,6 +70,7 @@ const DEFAULT_PAGE_SIZE = 5;
 
 /** Posibles estados de un candidato en el flujo de entrevistas */
 const ESTADOS_CANDIDATO: Record<string, { label: string; color: string }> = {
+  activo: { label: 'Activo', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
   nuevo: { label: 'Nuevo', color: 'bg-sky-100 text-sky-800 border-sky-200' },
   en_proceso: { label: 'En Proceso', color: 'bg-purple-100 text-purple-800 border-purple-200' },
   entrevista: { label: 'Entrevista', color: 'bg-indigo-100 text-indigo-800 border-indigo-200' },
@@ -130,11 +133,37 @@ const getEstadoBadge = (estado?: string) => {
   return <Badge className={`text-xs font-semibold border ${conf.color}`}>{conf.label}</Badge>;
 };
 
+// Convierte un SolicitudCandidato al shape de Candidato para reutilizar el mismo render de filas
+const adaptarSolicitudCandidato = (c: SolicitudCandidato): Candidato => {
+  const partes = c.nombre_completo.trim().split(/\s+/);
+  return {
+    id: c.id,
+    tipo_documento: '',
+    numero_documento: c.identificacion,
+    primer_nombre: partes[0] || '',
+    segundo_nombre: partes.length === 4 ? partes[1] : undefined,
+    primer_apellido: partes.length >= 3 ? partes[partes.length - 2] : (partes[1] || ''),
+    segundo_apellido: partes.length > 2 ? partes[partes.length - 1] : undefined,
+    email: c.correo || '',
+    telefono: c.celular,
+    estado: c.estado || 'activo',
+    fecha_entrevista: c.fecha_entrevista,
+    hora_entrevista: c.hora_entrevista,
+    lugar_entrevista: c.lugar_entrevista,
+    cargo_aspirado: c.cargo_aspirado,
+    observacion_entrevista: c.observacion_entrevista,
+  };
+};
+
 // ============================================================
 // COMPONENTE PRINCIPAL
 // ============================================================
 
-export default function EntrevistasPage() {
+interface EntrevistasPageProps {
+  solicitudEntrevista?: NovedadSolicitud | null;
+}
+
+export default function EntrevistasPage({ solicitudEntrevista }: EntrevistasPageProps) {
   const queryClient = useQueryClient();
   const { hasAction } = usePermissions();
 
@@ -174,6 +203,19 @@ export default function EntrevistasPage() {
   const [nuevaHoraEntrevista, setNuevaHoraEntrevista] = useState('');
   const [nuevoLugarEntrevista, setNuevoLugarEntrevista] = useState('');
 
+  // ── Candidatos de la solicitud (novedades_solicitudes_candidatos) ──
+  const [candidatosSolicitud, setCandidatosSolicitud] = useState<SolicitudCandidato[]>([]);
+  const [cargandoCandSol, setCargandoCandSol] = useState(false);
+
+  useEffect(() => {
+    if (!solicitudEntrevista?.id) { setCandidatosSolicitud([]); return; }
+    setCargandoCandSol(true);
+    novedadesService.getCandidatosBySolicitud(solicitudEntrevista.id).then(data => {
+      setCandidatosSolicitud(data);
+      setCargandoCandSol(false);
+    });
+  }, [solicitudEntrevista?.id]);
+
   // ── Empresa activa ──
   const empresaId = useMemo(() => {
     try {
@@ -209,6 +251,13 @@ export default function EntrevistasPage() {
   const candidatos = candidatosResult?.data ?? [];
   const totalCandidatos = candidatosResult?.total ?? 0;
   const totalPages = Math.ceil(totalCandidatos / pageSize);
+
+  // Alias para el panel izquierdo: usa candidatos de la solicitud si viene de una solicitud
+  const listaCandidatos = useMemo(
+    () => solicitudEntrevista ? candidatosSolicitud.map(adaptarSolicitudCandidato) : candidatos,
+    [solicitudEntrevista, candidatosSolicitud, candidatos],
+  );
+  const listaCargando = solicitudEntrevista ? cargandoCandSol : candidatosLoading;
 
   /** Conteo rápido por estados — solo cuando no hay filtros activos */
   const { data: statsData } = useQuery({
@@ -276,12 +325,32 @@ export default function EntrevistasPage() {
 
   /** Cambiar estado del candidato (calificación) */
   const calificarMutation = useMutation({
-    mutationFn: ({ id, estado, obs }: { id: number; estado: string; obs?: string }) =>
-      candidatosService.updateEstado(id, estado, obs),
-    onSuccess: () => {
+    mutationFn: async ({ id, estado, obs }: { id: number; estado: string; obs?: string }) => {
+      if (solicitudEntrevista) {
+        // Candidato viene de novedades_solicitudes_candidatos
+        const result = await novedadesService.updateCandidatoEstado(id, estado);
+        if (!result) throw new Error('Error al actualizar estado del candidato');
+        if (estado === 'seleccionado' && solicitudEntrevista.id) {
+          await novedadesService.cambiarEstado(
+            solicitudEntrevista.id,
+            ESTADOS_NOVEDAD.SELECCIONADO,
+            obs || 'Candidato seleccionado desde módulo de entrevistas',
+          );
+        }
+        return result;
+      }
+      return candidatosService.updateEstado(id, estado, obs);
+    },
+    onSuccess: (result, { id, estado }) => {
       toast.success('Candidato calificado exitosamente');
       queryClient.invalidateQueries({ queryKey: ['entrevistas-candidatos'] });
       queryClient.invalidateQueries({ queryKey: ['entrevistas-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['solicitudes-seleccion'] });
+      queryClient.invalidateQueries({ queryKey: ['novedades-solicitudes'] });
+      // Actualiza el estado en la lista local inmediatamente
+      if (solicitudEntrevista) {
+        setCandidatosSolicitud(prev => prev.map(c => c.id === id ? { ...c, estado } : c));
+      }
       setShowCalificarModal(false);
       setCalificacion('');
       setObsCalificacion('');
@@ -295,6 +364,25 @@ export default function EntrevistasPage() {
   const programarMutation = useMutation({
     mutationFn: async ({ id }: { id: number }) => {
       const { supabase: sb } = await import('@/services/supabaseClient');
+      if (solicitudEntrevista) {
+        // Candidato de novedades_solicitudes_candidatos — sin FK a entrevistas_historial
+        const { error } = await sb
+          .from('novedades_solicitudes_candidatos')
+          .update({
+            estado: 'entrevista',
+            fecha_entrevista: fechaEntrevista || null,
+            hora_entrevista: horaEntrevista || null,
+            lugar_entrevista: lugarEntrevista || null,
+            cargo_aspirado: cargoEntrevista || null,
+            observacion_entrevista: obsEntrevista || null,
+          })
+          .eq('id', id);
+        if (error) throw error;
+        setCandidatosSolicitud(prev => prev.map(c =>
+          c.id === id ? { ...c, estado: 'entrevista', fecha_entrevista: fechaEntrevista || undefined, hora_entrevista: horaEntrevista || undefined, lugar_entrevista: lugarEntrevista || undefined, cargo_aspirado: cargoEntrevista || undefined, observacion_entrevista: obsEntrevista || undefined } : c
+        ));
+        return;
+      }
       const { error } = await sb
         .from('candidatos')
         .update({
@@ -333,13 +421,23 @@ export default function EntrevistasPage() {
   const aplazarMutation = useMutation({
     mutationFn: async ({ id }: { id: number }) => {
       const { supabase: sb } = await import('@/services/supabaseClient');
+      const nuevaFecha = nuevaFechaEntrevista || null;
+      const nuevaHora = nuevaHoraEntrevista || null;
+      const nuevoLugar = nuevoLugarEntrevista || selectedCandidato?.lugar_entrevista || null;
+      if (solicitudEntrevista) {
+        const { error } = await sb
+          .from('novedades_solicitudes_candidatos')
+          .update({ fecha_entrevista: nuevaFecha, hora_entrevista: nuevaHora, lugar_entrevista: nuevoLugar })
+          .eq('id', id);
+        if (error) throw error;
+        setCandidatosSolicitud(prev => prev.map(c =>
+          c.id === id ? { ...c, fecha_entrevista: nuevaFecha || undefined, hora_entrevista: nuevaHora || undefined, lugar_entrevista: nuevoLugar || undefined } : c
+        ));
+        return;
+      }
       const { error } = await sb
         .from('candidatos')
-        .update({
-          fecha_entrevista: nuevaFechaEntrevista || null,
-          hora_entrevista: nuevaHoraEntrevista || null,
-          lugar_entrevista: nuevoLugarEntrevista || selectedCandidato?.lugar_entrevista || null,
-        })
+        .update({ fecha_entrevista: nuevaFecha, hora_entrevista: nuevaHora, lugar_entrevista: nuevoLugar })
         .eq('id', id);
       if (error) throw error;
 
@@ -348,7 +446,7 @@ export default function EntrevistasPage() {
         accion: 'aplazada',
         fecha_entrevista: nuevaFechaEntrevista || undefined,
         hora_entrevista: nuevaHoraEntrevista || undefined,
-        lugar_entrevista: nuevoLugarEntrevista || selectedCandidato?.lugar_entrevista || undefined,
+        lugar_entrevista: nuevoLugar || undefined,
         motivo: motivoAccion || undefined,
       });
     },
@@ -369,15 +467,20 @@ export default function EntrevistasPage() {
   const cancelarMutation = useMutation({
     mutationFn: async ({ id }: { id: number }) => {
       const { supabase: sb } = await import('@/services/supabaseClient');
+      if (solicitudEntrevista) {
+        const { error } = await sb
+          .from('novedades_solicitudes_candidatos')
+          .update({ estado: 'activo', fecha_entrevista: null, hora_entrevista: null, lugar_entrevista: null, observacion_entrevista: null })
+          .eq('id', id);
+        if (error) throw error;
+        setCandidatosSolicitud(prev => prev.map(c =>
+          c.id === id ? { ...c, estado: 'activo', fecha_entrevista: undefined, hora_entrevista: undefined, lugar_entrevista: undefined } : c
+        ));
+        return;
+      }
       const { error } = await sb
         .from('candidatos')
-        .update({
-          estado: 'en_proceso',
-          fecha_entrevista: null,
-          hora_entrevista: null,
-          lugar_entrevista: null,
-          observacion_entrevista: null,
-        })
+        .update({ estado: 'en_proceso', fecha_entrevista: null, hora_entrevista: null, lugar_entrevista: null, observacion_entrevista: null })
         .eq('id', id);
       if (error) throw error;
 
@@ -594,6 +697,45 @@ export default function EntrevistasPage() {
         </div>
       </div>
 
+      {/* ───── Solicitud info banner ───── */}
+      {solicitudEntrevista && (
+        <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+          <p className="text-[10px] font-semibold text-purple-600 uppercase tracking-wide mb-1.5">Solicitud #{solicitudEntrevista.id} — {ESTADO_LABELS[solicitudEntrevista.estado || ''] || solicitudEntrevista.estado}</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 text-xs">
+            <div className="flex items-center gap-1.5 text-gray-600 min-w-0">
+              <Building className="w-3 h-3 shrink-0 text-purple-400" />
+              <span className="font-medium shrink-0">Empresa:</span>
+              <span className="truncate">{solicitudEntrevista.empresa?.razon_social || '—'}</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-gray-600 min-w-0">
+              <Briefcase className="w-3 h-3 shrink-0 text-purple-400" />
+              <span className="font-medium shrink-0">Cargo:</span>
+              <span className="truncate">{solicitudEntrevista.empleado?.cargo || '—'}</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-gray-600 min-w-0">
+              <FileText className="w-3 h-3 shrink-0 text-purple-400" />
+              <span className="font-medium shrink-0">Motivo:</span>
+              <span className="truncate">{solicitudEntrevista.motivo?.nombre || '—'}</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-gray-600 min-w-0">
+              <Users className="w-3 h-3 shrink-0 text-purple-400" />
+              <span className="font-medium shrink-0">Empleado:</span>
+              <span className="truncate">{solicitudEntrevista.empleado?.nombre} {solicitudEntrevista.empleado?.apellido}</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-gray-600 min-w-0">
+              <MapPin className="w-3 h-3 shrink-0 text-purple-400" />
+              <span className="font-medium shrink-0">Sucursal:</span>
+              <span className="truncate">{solicitudEntrevista.empleado?.sucursal?.nombre || '—'}</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-gray-600 min-w-0">
+              <Calendar className="w-3 h-3 shrink-0 text-purple-400" />
+              <span className="font-medium shrink-0">Fecha:</span>
+              <span>{(solicitudEntrevista.fecha_inicio_vacante || solicitudEntrevista.created_at) ? new Date((solicitudEntrevista.fecha_inicio_vacante || solicitudEntrevista.created_at)!).toLocaleDateString('es-CO') : '—'}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ───── Main Content ───── */}
       <div className="grid grid-cols-12 gap-6 mt-4">
         {/* ─── Lista de Candidatos ─── */}
@@ -632,7 +774,7 @@ export default function EntrevistasPage() {
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              {candidatosLoading ? (
+              {listaCargando ? (
                 <div className="flex flex-col items-center justify-center py-20">
                   <div className="relative">
                     <div className="h-12 w-12 rounded-full border-4 border-gray-100" />
@@ -640,7 +782,7 @@ export default function EntrevistasPage() {
                   </div>
                   <span className="mt-4 text-sm text-gray-500 font-medium">Cargando candidatos...</span>
                 </div>
-              ) : candidatos.length === 0 ? (
+              ) : listaCandidatos.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20">
                   <div className="p-4 rounded-full bg-gray-50 mb-4">
                     <Users className="h-10 w-10 text-gray-300" />
@@ -658,7 +800,7 @@ export default function EntrevistasPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {candidatos.map(c => (
+                        {listaCandidatos.map(c => (
                           <TableRow
                             key={c.id}
                             onClick={() => handleSelectCandidato(c)}
@@ -694,7 +836,7 @@ export default function EntrevistasPage() {
                   </div>
 
                   {/* Paginación */}
-                  {candidatos.length > 0 && (
+                  {listaCandidatos.length > 0 && (
                     <div className="flex items-center justify-between px-3 py-2 border-t border-gray-100 bg-gray-50/50">
                       <div className="flex items-center gap-2">
                         <span className="text-[11px] text-gray-500">Mostrar</span>
