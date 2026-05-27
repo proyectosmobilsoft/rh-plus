@@ -26,7 +26,8 @@ import {
   Briefcase,
   Shield,
   Palette,
-  Clock
+  Clock,
+  Snowflake,
 } from 'lucide-react';
 import { supabase } from '@/services/supabaseClient';
 import { toast } from "sonner";
@@ -45,6 +46,7 @@ interface ConfigEmpresa {
   ciudad: string;
   departamento: string;
   estado: string;
+  congelamiento: number;
   created_at: string;
   updated_at: string;
 }
@@ -73,6 +75,7 @@ export default function ConfiguracionesGlobalesPage() {
   const [ciudades, setCiudades] = useState<Ciudad[]>([]);
   const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState<string>('');
   const [activeTab, setActiveTab] = useState<string>('configuracion');
+  const [congelamientoConfig, setCongelamientoConfig] = useState<number>(30);
   const [sessionTimeout, setSessionTimeout] = useState<string>(
     localStorage.getItem('app_session_timeout_hours') || '8'
   );
@@ -135,7 +138,7 @@ export default function ConfiguracionesGlobalesPage() {
 
       const { data, error: dbError } = await supabase
         .from('config_empresa')
-        .select('id, razon_social, nit, direccion, telefono, email, representante_legal, cargo_representante, ciudad, departamento, estado, created_at, updated_at')
+        .select('id, razon_social, nit, direccion, telefono, email, representante_legal, cargo_representante, ciudad, departamento, estado, congelamiento, created_at, updated_at')
         .eq('estado', 'activo')
         .single();
 
@@ -152,7 +155,8 @@ export default function ConfiguracionesGlobalesPage() {
 
       setConfigEmpresa(data);
       setFormData(data);
-      
+      setCongelamientoConfig(typeof data.congelamiento === 'number' ? data.congelamiento : 30);
+
       if (data.departamento) {
         const dept = departamentos.find(d => d.nombre === data.departamento);
         if (dept) {
@@ -212,6 +216,7 @@ export default function ConfiguracionesGlobalesPage() {
           departamento: formData.departamento,
           representante_legal: formData.representante_legal,
           cargo_representante: formData.cargo_representante,
+          congelamiento: congelamientoConfig,
           updated_at: new Date().toISOString()
         })
         .eq('id', configEmpresa.id);
@@ -235,6 +240,7 @@ export default function ConfiguracionesGlobalesPage() {
 
   const handleCancel = () => {
     setFormData(configEmpresa || {});
+    setCongelamientoConfig(typeof configEmpresa?.congelamiento === 'number' ? configEmpresa.congelamiento : 30);
     setEditing(false);
   };
 
@@ -623,6 +629,37 @@ export default function ConfiguracionesGlobalesPage() {
                     <div className="w-full bg-gray-50 border border-gray-200 rounded-md px-3 py-2 text-sm font-mono font-medium text-gray-900">
                       #{configEmpresa.id}
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              <hr className="border-gray-300 my-8" />
+
+              {/* Parametrización de Novedades */}
+              <div className="mb-8">
+                <div className="flex items-center space-x-2 mb-6">
+                  <Snowflake className="h-5 w-5 text-cyan-600" />
+                  <h3 className="text-lg font-semibold text-gray-900">Parametrización de Novedades</h3>
+                </div>
+                <div className="grid grid-cols-4 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="congelamiento" className="text-sm font-medium text-gray-700">
+                      Días máximos para congelar
+                    </Label>
+                    <p className="text-xs text-gray-400 leading-snug">
+                      Número de días desde la creación de la solicitud a partir del cual se deshabilita la acción de congelar.
+                    </p>
+                    <Input
+                      id="congelamiento"
+                      type="number"
+                      min={1}
+                      max={365}
+                      value={congelamientoConfig}
+                      onChange={(e) => setCongelamientoConfig(parseInt(e.target.value, 10) || 1)}
+                      disabled={!editing}
+                      className="w-full border-gray-200 focus:border-cyan-500 focus:ring-cyan-500 text-gray-900 bg-white"
+                      placeholder="30"
+                    />
                   </div>
                 </div>
               </div>

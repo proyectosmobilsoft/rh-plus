@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/services/supabaseClient';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { useNavigate } from 'react-router-dom';
 import {
   Search, Filter, Upload, Download, Loader2, Users, FileText, Clock,
   CheckCircle, XCircle, Pause, Play, Eye, ChevronRight, Building,
@@ -29,21 +29,30 @@ import {
   novedadesService, novedadesLogsService,
   ESTADOS_NOVEDAD, ESTADO_LABELS, ESTADO_COLORS, TRANSICIONES_VALIDAS,
   type NovedadSolicitud, type NovedadFiltros, type NovedadMotivo, type NovedadLog,
+  type SolicitudCandidato,
 } from '@/services/novedadesService';
-import { usePermissions } from '@/contexts/PermissionsContext';
+import { Can, usePermissions } from '@/contexts/PermissionsContext';
+import { useRegisterView } from '@/hooks/useRegisterView';
+import {
+  SELECCION_PERMISOS,
+  puedeSeleccionVerDetalle,
+  puedeSeleccionVerTimeline,
+  puedeSeleccionCambiarEstado,
+  puedeSeleccionCancelar,
+} from '@/constants/novedadesPermisos';
 
 // ============================================================
 // CONSTANTES
 // ============================================================
 
-const ESTADOS_SELECCION = [
-  ESTADOS_NOVEDAD.APROBADO_COMITE,
-  ESTADOS_NOVEDAD.EN_PROCESO,
-  ESTADOS_NOVEDAD.EN_RECLUTAMIENTO,
-  ESTADOS_NOVEDAD.ENTREVISTA_CLIENTE,
-  ESTADOS_NOVEDAD.SELECCIONADO,
-  ESTADOS_NOVEDAD.CONGELADA,
-  ESTADOS_NOVEDAD.EJECUTADA,
+// Motivos que pertenecen al módulo de Selección
+const MOTIVOS_SELECCION = [
+  'retiros',
+  'cambio_centro_costo',
+  'postulaciones_internas',
+  'vacaciones',
+  'renuncias',
+  'licencias',
 ];
 
 const CATEGORIAS = [
@@ -115,7 +124,7 @@ const iconAccionCambioEstado = (estadoDestino: string) => {
 const EtapaStepper = ({ estadoActual }: { estadoActual: string }) => {
   const etapaActualIdx = ETAPAS.findIndex(e => e.key === estadoActual);
   return (
-    <div className="flex items-center gap-1 w-full py-4">
+    <div className="flex items-center gap-1 w-full py-2">
       {ETAPAS.map((etapa, idx) => {
         const completada = idx < etapaActualIdx || (estadoActual === ESTADOS_NOVEDAD.EJECUTADA);
         const activa = etapa.key === estadoActual;
@@ -123,19 +132,19 @@ const EtapaStepper = ({ estadoActual }: { estadoActual: string }) => {
         return (
           <React.Fragment key={etapa.key}>
             <div className="flex flex-col items-center flex-1">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-colors ${
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center border-2 transition-colors ${
                 completada ? 'bg-emerald-500 border-emerald-500 text-white' :
                 activa ? 'bg-blue-500 border-blue-500 text-white' :
                 'bg-gray-100 border-gray-300 text-gray-400'
               }`}>
-                {completada ? <CheckCircle className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
+                {completada ? <CheckCircle className="w-3 h-3" /> : <Icon className="w-3 h-3" />}
               </div>
-              <span className={`text-xs mt-1 text-center font-medium ${
+              <span className={`text-[10px] mt-0.5 text-center font-medium leading-tight ${
                 activa ? 'text-blue-600' : completada ? 'text-emerald-600' : 'text-gray-400'
               }`}>{etapa.label}</span>
             </div>
             {idx < ETAPAS.length - 1 && (
-              <div className={`h-0.5 flex-1 mb-4 ${idx < etapaActualIdx ? 'bg-emerald-400' : 'bg-gray-200'}`} />
+              <div className={`h-0.5 flex-1 mb-3.5 ${idx < etapaActualIdx ? 'bg-emerald-400' : 'bg-gray-200'}`} />
             )}
           </React.Fragment>
         );
@@ -154,8 +163,38 @@ interface SeleccionPageProps {
 
 export default function SeleccionPage({ collapseFiltersSignal }: SeleccionPageProps) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { hasAction } = usePermissions();
+  const { addAction: addListadoSeleccion } = useRegisterView('Módulo de Selección', 'listado', 'Listado de Módulo de Selección');
+
+  useEffect(() => {
+    addListadoSeleccion('ver-detalle-seleccion', 'Ver detalle de solicitud');
+    addListadoSeleccion('ver-timeline-seleccion', 'Ver timeline de solicitud');
+    addListadoSeleccion('cambiar-estado-seleccion', 'Cambiar estado de solicitud');
+    addListadoSeleccion('cancelar-seleccion', 'Cancelar solicitud');
+    addListadoSeleccion('descargar-plantilla-seleccion', 'Descargar plantilla Excel');
+    addListadoSeleccion('carga-masiva-seleccion', 'Abrir carga masiva');
+    addListadoSeleccion('procesar-carga-masiva-seleccion', 'Importar carga masiva');
+    addListadoSeleccion('solicitud-ingreso-seleccion', 'Solicitud de ingreso');
+    addListadoSeleccion('agregar-candidato-seleccion', 'Agregar candidato');
+    addListadoSeleccion('editar-candidato-seleccion', 'Editar candidato');
+    addListadoSeleccion('eliminar-candidato-seleccion', 'Eliminar candidato');
+    addListadoSeleccion('adjuntar-doc-candidato-seleccion', 'Adjuntar documento candidato');
+    addListadoSeleccion('confirmar-cambio-estado-seleccion', 'Confirmar cambio de estado');
+  }, [addListadoSeleccion]);
+
+  const puedeVerMenuAccionesFila = useCallback((s: NovedadSolicitud) => {
+    if (puedeSeleccionVerDetalle(hasAction)) return true;
+    if (puedeSeleccionVerTimeline(hasAction)) return true;
+    const transiciones = TRANSICIONES_VALIDAS[s.estado || ''] || [];
+    const puedeCambiar = puedeSeleccionCambiarEstado(hasAction);
+    const puedeCancelar = puedeSeleccionCancelar(hasAction);
+    return transiciones.some((est) =>
+      est === ESTADOS_NOVEDAD.CANCELADA ? (puedeCancelar || puedeCambiar) : puedeCambiar
+    );
+  }, [hasAction]);
+
   const esAnalistaSeleccion = hasAction('rol_analista_seleccion');
   const currentUserId = useMemo(() => {
     try {
@@ -221,6 +260,19 @@ export default function SeleccionPage({ collapseFiltersSignal }: SeleccionPagePr
       });
   }, [esAnalistaSeleccion, currentUserId]);
 
+  const { data: diasCongelamiento = 30 } = useQuery({
+    queryKey: ['config-congelamiento'],
+    queryFn: () => novedadesService.getCongelamientoConfig(),
+    staleTime: 5 * 60_000,
+  });
+
+  const puedeCongelarSolicitud = (s: NovedadSolicitud): boolean => {
+    const fecha = s.created_at;
+    if (!fecha) return true;
+    const dias = Math.floor((Date.now() - new Date(fecha).getTime()) / 86_400_000);
+    return dias <= diasCongelamiento;
+  };
+
   const { data: motivosSeleccion = [] } = useQuery<NovedadMotivo[]>({
     queryKey: ['novedades-motivos-seleccion'],
     queryFn: () => novedadesService.getMotivos(),
@@ -238,6 +290,12 @@ export default function SeleccionPage({ collapseFiltersSignal }: SeleccionPagePr
   const [showSolicitudIngreso, setShowSolicitudIngreso] = useState(false);
   const [showTimelineSeleccionModal, setShowTimelineSeleccionModal] = useState(false);
   const [timelineSeleccionId, setTimelineSeleccionId] = useState<number | null>(null);
+
+  // Candidatos de la solicitud (maestro-detalle)
+  const [candidatosSolicitud, setCandidatosSolicitud] = useState<SolicitudCandidato[]>([]);
+  const [candidatoForm, setCandidatoForm] = useState({ identificacion: '', nombre_completo: '', celular: '', correo: '' });
+  const [editandoCandidatoId, setEditandoCandidatoId] = useState<number | null>(null);
+  const [cargandoCandidatos, setCargandoCandidatos] = useState(false);
 
   // Formulario cambio de estado
   const [nuevoEstado, setNuevoEstado] = useState('');
@@ -261,7 +319,7 @@ export default function SeleccionPage({ collapseFiltersSignal }: SeleccionPagePr
   // Filtrar solo solicitudes del módulo de selección
   const solicitudesSeleccion = useMemo(() => {
     return todasSolicitudes.filter(s =>
-      ESTADOS_SELECCION.includes(s.estado as any)
+      MOTIVOS_SELECCION.includes(s.motivo?.codigo ?? '')
     );
   }, [todasSolicitudes]);
 
@@ -366,6 +424,63 @@ export default function SeleccionPage({ collapseFiltersSignal }: SeleccionPagePr
     },
     onError: () => toast.error('Error al cambiar el estado'),
   });
+
+  // Candidatos de la solicitud
+  useEffect(() => {
+    if (!solicitudDetalle?.id) { setCandidatosSolicitud([]); return; }
+    setCargandoCandidatos(true);
+    novedadesService.getCandidatosBySolicitud(solicitudDetalle.id).then(data => {
+      setCandidatosSolicitud(data);
+      setCargandoCandidatos(false);
+    });
+  }, [solicitudDetalle?.id]);
+
+  const handleAgregarCandidato = async () => {
+    if (!solicitudDetalle?.id) return;
+    if (!candidatoForm.identificacion.trim() || !candidatoForm.nombre_completo.trim()) {
+      toast.error('Identificación y nombre completo son obligatorios');
+      return;
+    }
+    if (editandoCandidatoId) {
+      const result = await novedadesService.updateCandidato(editandoCandidatoId, {
+        solicitud_id: solicitudDetalle.id,
+        ...candidatoForm,
+      });
+      if (result) {
+        setCandidatosSolicitud(prev => prev.map(c => c.id === editandoCandidatoId ? { ...c, ...candidatoForm } : c));
+        toast.success('Candidato actualizado');
+      } else toast.error('Error al actualizar candidato');
+    } else {
+      const result = await novedadesService.addCandidatoToSolicitud({
+        solicitud_id: solicitudDetalle.id,
+        ...candidatoForm,
+      });
+      if (result) {
+        setCandidatosSolicitud(prev => [...prev, result]);
+        toast.success('Candidato agregado');
+      } else toast.error('Error al agregar candidato');
+    }
+    setCandidatoForm({ identificacion: '', nombre_completo: '', celular: '', correo: '' });
+    setEditandoCandidatoId(null);
+  };
+
+  const handleEditarCandidato = (c: SolicitudCandidato) => {
+    setCandidatoForm({
+      identificacion: c.identificacion,
+      nombre_completo: c.nombre_completo,
+      celular: c.celular || '',
+      correo: c.correo || '',
+    });
+    setEditandoCandidatoId(c.id);
+  };
+
+  const handleEliminarCandidato = async (id: number) => {
+    const ok = await novedadesService.deleteCandidato(id);
+    if (ok) {
+      setCandidatosSolicitud(prev => prev.filter(c => c.id !== id));
+      toast.success('Candidato eliminado');
+    } else toast.error('Error al eliminar candidato');
+  };
 
   // ============================================================
   // HANDLERS
@@ -486,21 +601,25 @@ export default function SeleccionPage({ collapseFiltersSignal }: SeleccionPagePr
           </div>
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleDescargarPlantilla}
-            className="h-9 gap-2 rounded-md border-emerald-200 bg-emerald-50 px-4 text-emerald-900 shadow-sm hover:bg-emerald-100 hover:text-emerald-950"
-          >
-            <Download className="h-4 w-4 text-emerald-700 shrink-0" /> Plantilla Excel
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => setShowCargaMasiva(true)}
-            className="h-9 gap-2 rounded-md bg-cyan-600 px-4 font-medium text-white shadow-md hover:bg-cyan-700"
-          >
-            <FileUp className="h-4 w-4 shrink-0" /> Carga Masiva
-          </Button>
+          <Can action={SELECCION_PERMISOS.DESCARGAR_PLANTILLA}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDescargarPlantilla}
+              className="h-9 gap-2 rounded-md border-emerald-200 bg-emerald-50 px-4 text-emerald-900 shadow-sm hover:bg-emerald-100 hover:text-emerald-950"
+            >
+              <Download className="h-4 w-4 text-emerald-700 shrink-0" /> Plantilla Excel
+            </Button>
+          </Can>
+          <Can action={SELECCION_PERMISOS.CARGA_MASIVA}>
+            <Button
+              size="sm"
+              onClick={() => setShowCargaMasiva(true)}
+              className="h-9 gap-2 rounded-md bg-cyan-600 px-4 font-medium text-white shadow-md hover:bg-cyan-700"
+            >
+              <FileUp className="h-4 w-4 shrink-0" /> Carga Masiva
+            </Button>
+          </Can>
         </div>
       </div>
 
@@ -764,6 +883,7 @@ export default function SeleccionPage({ collapseFiltersSignal }: SeleccionPagePr
                     return (
                       <tr key={s.id} className="hover:bg-gray-50 transition-colors">
                         <td className="w-11 px-1 py-2 text-center align-middle">
+                          {puedeVerMenuAccionesFila(s) ? (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label="Más acciones">
@@ -771,22 +891,31 @@ export default function SeleccionPage({ collapseFiltersSignal }: SeleccionPagePr
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="start" className="w-56 max-h-[min(70vh,24rem)] overflow-y-auto">
-                              {hasAction('accion-ver-detalle-novedad') && (
-                                <DropdownMenuItem onClick={() => setSolicitudDetalle(s)} className="cursor-pointer">
-                                  <Eye className="mr-2 h-4 w-4 text-cyan-600" />
-                                  Ver detalle
-                                </DropdownMenuItem>
+                              {puedeSeleccionVerDetalle(hasAction) && (
+                                s.estado === ESTADOS_NOVEDAD.ENTREVISTA_CLIENTE ? (
+                                  <DropdownMenuItem onClick={() => navigate('/novedades/entrevista', { state: { solicitudEntrevista: s } })} className="cursor-pointer">
+                                    <Users className="mr-2 h-4 w-4 text-purple-600" />
+                                    Entrevistas
+                                  </DropdownMenuItem>
+                                ) : (
+                                  <DropdownMenuItem onClick={() => setSolicitudDetalle(s)} className="cursor-pointer">
+                                    <Eye className="mr-2 h-4 w-4 text-cyan-600" />
+                                    Ver detalle
+                                  </DropdownMenuItem>
+                                )
                               )}
-                              {hasAction('accion-ver-timeline-novedad') && (
+                              {puedeSeleccionVerTimeline(hasAction) && (
                                 <DropdownMenuItem onClick={() => handleViewTimelineSeleccion(s.id!)} className="cursor-pointer">
                                   <Clock className="mr-2 h-4 w-4 text-indigo-600" />
                                   Ver timeline
                                 </DropdownMenuItem>
                               )}
                               {(() => {
-                                const puedeCambiarEstado = hasAction('accion-cambiar-estado-novedad');
-                                const puedeCancelar = hasAction('accion-cancelar-novedad');
+                                const puedeCambiarEstado = puedeSeleccionCambiarEstado(hasAction);
+                                const puedeCancelar = puedeSeleccionCancelar(hasAction);
                                 const transicionesVisibles = rowTransitions.filter((est) => {
+                                  // Desde Entrevista Cliente no se puede pasar directamente a Seleccionado
+                                  if (est === ESTADOS_NOVEDAD.SELECCIONADO && s.estado === ESTADOS_NOVEDAD.ENTREVISTA_CLIENTE) return false;
                                   if (est === ESTADOS_NOVEDAD.CANCELADA) return puedeCancelar || puedeCambiarEstado;
                                   return puedeCambiarEstado;
                                 });
@@ -801,8 +930,13 @@ export default function SeleccionPage({ collapseFiltersSignal }: SeleccionPagePr
                                       return (
                                         <DropdownMenuItem
                                           key={estadoDestino}
-                                          disabled={soloViernes || cambiarEstadoMutation.isPending}
-                                          title={soloViernes ? 'La aprobación solo está permitida los viernes' : undefined}
+                                          disabled={soloViernes || cambiarEstadoMutation.isPending || (estadoDestino === ESTADOS_NOVEDAD.CONGELADA && !puedeCongelarSolicitud(s))}
+                                          title={
+                                            soloViernes ? 'La aprobación solo está permitida los viernes'
+                                            : estadoDestino === ESTADOS_NOVEDAD.CONGELADA && !puedeCongelarSolicitud(s)
+                                              ? `No se puede congelar: han transcurrido más de ${diasCongelamiento} días desde la creación de la solicitud`
+                                            : undefined
+                                          }
                                           onClick={() => {
                                             setSolicitudDetalle(s);
                                             setNuevoEstado(estadoDestino);
@@ -820,6 +954,9 @@ export default function SeleccionPage({ collapseFiltersSignal }: SeleccionPagePr
                               })()}
                             </DropdownMenuContent>
                           </DropdownMenu>
+                          ) : (
+                            <span className="text-gray-300 text-xs">—</span>
+                          )}
                         </td>
                         <td className="px-3 py-2 text-gray-500 font-mono text-xs">#{s.id}</td>
                         <td className="min-w-[240px] px-4 py-3 align-top">
@@ -909,9 +1046,9 @@ export default function SeleccionPage({ collapseFiltersSignal }: SeleccionPagePr
       {/* ============================================================ */}
       {/* DIALOG: DETALLE SOLICITUD */}
       {/* ============================================================ */}
-      <Dialog open={!!solicitudDetalle} onOpenChange={() => setSolicitudDetalle(null)}>
+      <Dialog open={!!solicitudDetalle} onOpenChange={(open) => { if (!open) { setSolicitudDetalle(null); setCandidatoForm({ identificacion: '', nombre_completo: '', celular: '', correo: '' }); setEditandoCandidatoId(null); } }}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader>
+          <DialogHeader className="shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <ClipboardList className="w-5 h-5 text-blue-600" />
               Solicitud #{solicitudDetalle?.id} — {solicitudDetalle?.motivo?.nombre}
@@ -921,7 +1058,7 @@ export default function SeleccionPage({ collapseFiltersSignal }: SeleccionPagePr
             </DialogDescription>
           </DialogHeader>
 
-          <ScrollArea className="flex-1">
+          <div className="flex-1 min-h-0 overflow-y-auto pr-1">
             <div className="space-y-4 p-1">
               {/* Etapas */}
               {solicitudDetalle && (
@@ -931,70 +1068,201 @@ export default function SeleccionPage({ collapseFiltersSignal }: SeleccionPagePr
               <Separator />
 
               {/* Info empleado */}
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Users className="w-4 h-4" />
-                    <span className="font-medium">Empleado:</span>
-                    <span>{solicitudDetalle?.empleado?.nombre} {solicitudDetalle?.empleado?.apellido}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Briefcase className="w-4 h-4" />
-                    <span className="font-medium">Cargo:</span>
-                    <span>{solicitudDetalle?.empleado?.cargo || '—'}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Building className="w-4 h-4" />
-                    <span className="font-medium">Empresa:</span>
-                    <span>{solicitudDetalle?.empresa?.razon_social || '—'}</span>
-                  </div>
+              <div className="grid grid-cols-3 gap-x-4 gap-y-1 text-xs">
+                <div className="flex items-center gap-1.5 text-gray-600 min-w-0">
+                  <Users className="w-3 h-3 shrink-0 text-gray-400" />
+                  <span className="font-medium shrink-0">Empleado:</span>
+                  <span className="truncate">{solicitudDetalle?.empleado?.nombre} {solicitudDetalle?.empleado?.apellido}</span>
                 </div>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <MapPin className="w-4 h-4" />
-                    <span className="font-medium">Sucursal:</span>
-                    <span>{solicitudDetalle?.empleado?.sucursal?.nombre || '—'}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Calendar className="w-4 h-4" />
-                    <span className="font-medium">Fecha:</span>
-                    <span>{(solicitudDetalle?.fecha_inicio_vacante || solicitudDetalle?.created_at) ? new Date((solicitudDetalle.fecha_inicio_vacante || solicitudDetalle.created_at)!).toLocaleDateString('es-CO') : '—'}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Clock className="w-4 h-4" />
-                    <span className="font-medium">Días hábiles:</span>
-                    <span>{(solicitudDetalle?.fecha_inicio_vacante || solicitudDetalle?.created_at) ? calcularDiasHabiles((solicitudDetalle.fecha_inicio_vacante || solicitudDetalle.created_at)!) : 0} días</span>
-                  </div>
+                <div className="flex items-center gap-1.5 text-gray-600 min-w-0">
+                  <Briefcase className="w-3 h-3 shrink-0 text-gray-400" />
+                  <span className="font-medium shrink-0">Cargo:</span>
+                  <span className="truncate">{solicitudDetalle?.empleado?.cargo || '—'}</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-gray-600 min-w-0">
+                  <Building className="w-3 h-3 shrink-0 text-gray-400" />
+                  <span className="font-medium shrink-0">Empresa:</span>
+                  <span className="truncate">{solicitudDetalle?.empresa?.razon_social || '—'}</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-gray-600 min-w-0">
+                  <MapPin className="w-3 h-3 shrink-0 text-gray-400" />
+                  <span className="font-medium shrink-0">Sucursal:</span>
+                  <span className="truncate">{solicitudDetalle?.empleado?.sucursal?.nombre || '—'}</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-gray-600 min-w-0">
+                  <Calendar className="w-3 h-3 shrink-0 text-gray-400" />
+                  <span className="font-medium shrink-0">Fecha:</span>
+                  <span>{(solicitudDetalle?.fecha_inicio_vacante || solicitudDetalle?.created_at) ? new Date((solicitudDetalle.fecha_inicio_vacante || solicitudDetalle.created_at)!).toLocaleDateString('es-CO') : '—'}</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-gray-600 min-w-0">
+                  <Clock className="w-3 h-3 shrink-0 text-gray-400" />
+                  <span className="font-medium shrink-0">Días hábiles:</span>
+                  <span>{(solicitudDetalle?.fecha_inicio_vacante || solicitudDetalle?.created_at) ? calcularDiasHabiles((solicitudDetalle.fecha_inicio_vacante || solicitudDetalle.created_at)!) : 0}d</span>
                 </div>
               </div>
 
               <Separator />
 
-              {/* Tabs: Candidatos / Documentos / Timeline */}
+              {/* Tabs: Candidatos / Timeline */}
               <Tabs defaultValue="candidatos">
                 <TabsList>
                   <TabsTrigger value="candidatos">Candidatos</TabsTrigger>
-                  <TabsTrigger value="documentos">Documentos</TabsTrigger>
                   <TabsTrigger value="timeline">Timeline</TabsTrigger>
                 </TabsList>
-                <TabsContent value="candidatos" className="pt-3">
-                  <div className="flex flex-col items-center justify-center h-24 text-gray-400 border border-dashed rounded-lg">
-                    <UserPlus className="w-8 h-8 mb-1" />
-                    <p className="text-sm">Asociar candidatos a esta vacante</p>
-                    <Button variant="outline" size="sm" className="mt-2 gap-1">
-                      <UserPlus className="w-3 h-3" /> Buscar Candidatos
-                    </Button>
+
+                <TabsContent value="candidatos" className="pt-2">
+                  <div className="space-y-2">
+                    {/* Fila de campos + botón */}
+                    <div className="flex items-end gap-1.5">
+                      <div className="w-28 shrink-0">
+                        <Label className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">Identificación *</Label>
+                        <Input
+                          value={candidatoForm.identificacion}
+                          onChange={e => setCandidatoForm(f => ({ ...f, identificacion: e.target.value }))}
+                          className="h-7 text-xs"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <Label className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">Nombre completo *</Label>
+                        <Input
+                          value={candidatoForm.nombre_completo}
+                          onChange={e => setCandidatoForm(f => ({ ...f, nombre_completo: e.target.value }))}
+                          className="h-7 text-xs"
+                        />
+                      </div>
+                      <div className="w-28 shrink-0">
+                        <Label className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">Celular</Label>
+                        <Input
+                          value={candidatoForm.celular}
+                          onChange={e => setCandidatoForm(f => ({ ...f, celular: e.target.value }))}
+                          className="h-7 text-xs"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <Label className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">Correo</Label>
+                        <Input
+                          value={candidatoForm.correo}
+                          onChange={e => setCandidatoForm(f => ({ ...f, correo: e.target.value }))}
+                          className="h-7 text-xs"
+                        />
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0 pb-0">
+                        {editandoCandidatoId && (
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-7 w-7 border-gray-300 text-gray-500 hover:bg-gray-100"
+                            onClick={() => { setCandidatoForm({ identificacion: '', nombre_completo: '', celular: '', correo: '' }); setEditandoCandidatoId(null); }}
+                            title="Cancelar edición"
+                          >
+                            <XCircle className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
+                        <Can action={editandoCandidatoId ? SELECCION_PERMISOS.EDITAR_CANDIDATO : SELECCION_PERMISOS.AGREGAR_CANDIDATO}>
+                        <Button
+                          size="icon"
+                          className="h-7 w-7 bg-cyan-600 hover:bg-cyan-700 shadow-sm"
+                          onClick={handleAgregarCandidato}
+                          title={editandoCandidatoId ? 'Guardar cambios' : 'Agregar candidato'}
+                        >
+                          {editandoCandidatoId
+                            ? <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                            : <UserPlus className="w-3.5 h-3.5" />
+                          }
+                        </Button>
+                        </Can>
+                      </div>
+                    </div>
+
+                    {/* Tabla de candidatos */}
+                    <div className="border rounded-md overflow-hidden">
+                      <table className="w-full text-xs">
+                        <thead className="bg-cyan-50">
+                          <tr>
+                            <th className="px-2 py-1.5 text-left font-medium text-gray-600">Identificación</th>
+                            <th className="px-2 py-1.5 text-left font-medium text-gray-600">Nombre</th>
+                            <th className="px-2 py-1.5 text-left font-medium text-gray-600">Celular</th>
+                            <th className="px-2 py-1.5 text-left font-medium text-gray-600">Correo</th>
+                            <th className="px-2 py-1.5 text-left font-medium text-gray-600">Estado</th>
+                            <th className="px-2 py-1.5 text-center font-medium text-gray-600 w-14">Docs</th>
+                            <th className="px-2 py-1.5 text-center font-medium text-gray-600 w-16">Acciones</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {cargandoCandidatos ? (
+                            <tr>
+                              <td colSpan={7} className="px-3 py-4 text-center text-gray-400">
+                                <Loader2 className="inline animate-spin h-3 w-3 mr-1" /> Cargando...
+                              </td>
+                            </tr>
+                          ) : candidatosSolicitud.length === 0 ? (
+                            <tr>
+                              <td colSpan={7} className="px-3 py-4 text-center text-gray-400">
+                                No hay candidatos registrados
+                              </td>
+                            </tr>
+                          ) : candidatosSolicitud.map(c => (
+                            <tr key={c.id} className="hover:bg-gray-50">
+                              <td className="px-2 py-1.5 font-mono">{c.identificacion}</td>
+                              <td className="px-2 py-1.5 font-medium">{c.nombre_completo}</td>
+                              <td className="px-2 py-1.5 text-gray-500">{c.celular || '—'}</td>
+                              <td className="px-2 py-1.5 text-gray-500">{c.correo || '—'}</td>
+                              <td className="px-2 py-1.5">
+                                {(() => {
+                                  const est = c.estado || 'activo';
+                                  const cfg: Record<string, string> = {
+                                    activo: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+                                    entrevista: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+                                    seleccionado: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+                                    descartado: 'bg-red-100 text-red-800 border-red-200',
+                                    en_espera: 'bg-amber-100 text-amber-800 border-amber-200',
+                                  };
+                                  const labels: Record<string, string> = {
+                                    activo: 'Activo', entrevista: 'Entrevista',
+                                    seleccionado: 'Seleccionado', descartado: 'Descartado', en_espera: 'En Espera',
+                                  };
+                                  return (
+                                    <Badge className={`text-[10px] font-semibold border ${cfg[est] || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
+                                      {labels[est] || est}
+                                    </Badge>
+                                  );
+                                })()}
+                              </td>
+                              <td className="px-2 py-1.5 text-center">
+                                {hasAction(SELECCION_PERMISOS.ADJUNTAR_DOC_CANDIDATO) ? (
+                                  <button
+                                    type="button"
+                                    className="inline-flex items-center justify-center rounded p-0.5 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 transition-colors"
+                                    title="Adjuntar documento"
+                                  >
+                                    <Upload className="w-3.5 h-3.5" />
+                                  </button>
+                                ) : (
+                                  <span className="text-gray-300">—</span>
+                                )}
+                              </td>
+                              <td className="px-2 py-1.5 text-center">
+                                <div className="flex justify-center gap-0.5">
+                                  {hasAction(SELECCION_PERMISOS.EDITAR_CANDIDATO) && (
+                                    <button type="button" onClick={() => handleEditarCandidato(c)} className="rounded p-0.5 text-cyan-600 hover:text-cyan-800 hover:bg-cyan-50 transition-colors" title="Editar">
+                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                    </button>
+                                  )}
+                                  {hasAction(SELECCION_PERMISOS.ELIMINAR_CANDIDATO) && (
+                                    <button type="button" onClick={() => handleEliminarCandidato(c.id)} className="rounded p-0.5 text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors" title="Eliminar">
+                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </TabsContent>
-                <TabsContent value="documentos" className="pt-3">
-                  <div className="flex flex-col items-center justify-center h-24 text-gray-400 border border-dashed rounded-lg">
-                    <FileText className="w-8 h-8 mb-1" />
-                    <p className="text-sm">Adjuntar hojas de vida, pruebas, antecedentes</p>
-                    <Button variant="outline" size="sm" className="mt-2 gap-1">
-                      <Upload className="w-3 h-3" /> Subir Documento
-                    </Button>
-                  </div>
-                </TabsContent>
+
                 <TabsContent value="timeline" className="pt-3">
                   <div className="flex flex-col items-center justify-center h-24 text-gray-400">
                     <Clock className="w-8 h-8 mb-1" />
@@ -1003,16 +1271,18 @@ export default function SeleccionPage({ collapseFiltersSignal }: SeleccionPagePr
                 </TabsContent>
               </Tabs>
             </div>
-          </ScrollArea>
+          </div>
 
           <DialogFooter className="flex gap-2 pt-4 border-t">
             {solicitudDetalle?.estado === ESTADOS_NOVEDAD.SELECCIONADO && (
-              <Button
-                className="gap-2 bg-emerald-600 hover:bg-emerald-700"
-                onClick={() => setShowSolicitudIngreso(true)}
-              >
-                <CheckCircle className="w-4 h-4" /> Solicitud de Ingreso
-              </Button>
+              <Can action={SELECCION_PERMISOS.SOLICITUD_INGRESO}>
+                <Button
+                  className="gap-2 bg-emerald-600 hover:bg-emerald-700"
+                  onClick={() => setShowSolicitudIngreso(true)}
+                >
+                  <CheckCircle className="w-4 h-4" /> Solicitud de Ingreso
+                </Button>
+              </Can>
             )}
             <Button variant="ghost" onClick={() => setSolicitudDetalle(null)}>Cerrar</Button>
           </DialogFooter>
@@ -1073,14 +1343,16 @@ export default function SeleccionPage({ collapseFiltersSignal }: SeleccionPagePr
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setShowCambiarEstado(false)}>Cancelar</Button>
-            <Button
-              disabled={!nuevoEstado || cambiarEstadoMutation.isPending}
-              onClick={handleCambiarEstado}
-              className="gap-2"
-            >
-              {cambiarEstadoMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-              Confirmar Cambio
-            </Button>
+            <Can action={SELECCION_PERMISOS.CONFIRMAR_CAMBIO_ESTADO}>
+              <Button
+                disabled={!nuevoEstado || cambiarEstadoMutation.isPending}
+                onClick={handleCambiarEstado}
+                className="gap-2"
+              >
+                {cambiarEstadoMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                Confirmar Cambio
+              </Button>
+            </Can>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1164,17 +1436,21 @@ export default function SeleccionPage({ collapseFiltersSignal }: SeleccionPagePr
           </div>
 
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={handleDescargarPlantilla} className="gap-2">
-              <Download className="w-4 h-4" /> Descargar Plantilla
-            </Button>
+            <Can action={SELECCION_PERMISOS.DESCARGAR_PLANTILLA}>
+              <Button variant="outline" onClick={handleDescargarPlantilla} className="gap-2">
+                <Download className="w-4 h-4" /> Descargar Plantilla
+              </Button>
+            </Can>
             <Button variant="ghost" onClick={() => { setShowCargaMasiva(false); setDatosCargaMasiva([]); }}>Cancelar</Button>
-            <Button
-              disabled={!datosCargaMasiva.length}
-              onClick={handleProcesarCargaMasiva}
-              className="gap-2"
-            >
-              <CheckCircle className="w-4 h-4" /> Importar {datosCargaMasiva.length > 0 ? `(${datosCargaMasiva.length})` : ''}
-            </Button>
+            <Can action={SELECCION_PERMISOS.PROCESAR_CARGA_MASIVA}>
+              <Button
+                disabled={!datosCargaMasiva.length}
+                onClick={handleProcesarCargaMasiva}
+                className="gap-2"
+              >
+                <CheckCircle className="w-4 h-4" /> Importar {datosCargaMasiva.length > 0 ? `(${datosCargaMasiva.length})` : ''}
+              </Button>
+            </Can>
           </DialogFooter>
         </DialogContent>
       </Dialog>
