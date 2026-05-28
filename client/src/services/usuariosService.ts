@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import bcryptjs from 'bcryptjs';
 
 export interface UsuarioData {
   id?: number;
@@ -146,10 +147,11 @@ export const usuariosService = {
       throw new Error(`El email '${usuarioData.email}' ya está en uso por: ${existingEmails[0].primer_nombre} ${existingEmails[0].primer_apellido} (ID: ${existingEmails[0].id})`);
     }
     
-    // 1. Guardar la contraseña como texto plano
+    // 1. Hashear la contraseña con bcrypt antes de guardar
+    const hashedPassword = await bcryptjs.hash(password, 10);
     const userDataWithPassword = {
       ...usuarioData,
-      password: password
+      password: hashedPassword
     };
       
       const { data: newUser, error: userError } = await supabase
@@ -216,9 +218,9 @@ export const usuariosService = {
     
     let finalUsuarioData = { ...usuarioData };
     
-    // Si se proporciona una nueva contraseña, guardarla como texto plano
+    // Si se proporciona una nueva contraseña, hashearla con bcrypt antes de guardar
     if (password && password.trim() !== '') {
-      finalUsuarioData.password = password;
+      finalUsuarioData.password = await bcryptjs.hash(password, 10);
     }
     
     // 1. Actualizar datos del usuario
