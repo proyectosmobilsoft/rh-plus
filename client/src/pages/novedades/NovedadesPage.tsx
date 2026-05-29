@@ -510,6 +510,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
     // Formulario de nueva solicitud
     const [selectedMotivo, setSelectedMotivo] = useState<NovedadMotivo | null>(null);
     const [selectedEmpleado, setSelectedEmpleado] = useState<NovedadEmpleado | null>(null);
+    const [sucursalEmpleadoNoEncontrada, setSucursalEmpleadoNoEncontrada] = useState<string | null>(null);
     const [formData, setFormData] = useState<Record<string, any>>({});
     const [observaciones, setObservaciones] = useState('');
 
@@ -780,6 +781,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
         setPrevTab(activeTab);
         setSelectedMotivo(null);
         setSelectedEmpleado(null);
+        setSucursalEmpleadoNoEncontrada(null);
         setFormData({});
         setObservaciones('');
         setSelectedEmpleados([]);
@@ -791,6 +793,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
     const resetForm = () => {
         setSelectedMotivo(null);
         setSelectedEmpleado(null);
+        setSucursalEmpleadoNoEncontrada(null);
         setFormData({});
         setObservaciones('');
         setSelectedEmpleados([]);
@@ -1762,6 +1765,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                             setSelectedMotivo(motivo);
                                             setFormData(buildDefaultFormData(motivo));
                                             setSelectedEmpleado(null);
+                                            setSucursalEmpleadoNoEncontrada(null);
                                             setSelectedEmpleados([]);
                                             setObservaciones('');
                                             setAdjuntoFiles([]);
@@ -1818,16 +1822,30 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                 onValueChange={(v) => {
                                                     const emp = empleados.find(e => e.id === parseInt(v));
                                                     setSelectedEmpleado(emp || null);
+                                                    setSucursalEmpleadoNoEncontrada(null);
 
                                                     if (!emp) {
                                                         return;
                                                     }
 
                                                     if (selectedMotivo?.codigo === 'cambio_centro_costo') {
-                                                        setFormData(prev => ({
-                                                            ...prev,
-                                                            sucursal_anterior: emp.sucursal_id ? String(emp.sucursal_id) : '',
-                                                        }));
+                                                        const nombreSucursal = emp.nombre_sucursal;
+                                                        if (nombreSucursal) {
+                                                            const matched = sucursalesFormSelect.find(
+                                                                s => s.nombre.toLowerCase().trim() === nombreSucursal.toLowerCase().trim()
+                                                            );
+                                                            if (matched) {
+                                                                setFormData(prev => ({ ...prev, sucursal_anterior: String(matched.id) }));
+                                                            } else {
+                                                                setSucursalEmpleadoNoEncontrada(nombreSucursal);
+                                                                setFormData(prev => ({ ...prev, sucursal_anterior: '' }));
+                                                            }
+                                                        } else {
+                                                            setFormData(prev => ({
+                                                                ...prev,
+                                                                sucursal_anterior: emp.sucursal_id ? String(emp.sucursal_id) : '',
+                                                            }));
+                                                        }
                                                     }
 
                                                     if (selectedMotivo?.codigo === 'retiros' || selectedMotivo?.codigo === 'retiro') {
@@ -1845,6 +1863,7 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                     searchText: `${emp.nombre} ${emp.apellido || ''} ${emp.cargo || ''} ${emp.numero_documento || ''}`,
                                                 }))}
                                                 maxItems={100}
+                                                className="text-xs"
                                             />
                                         )}
                                     </div>
@@ -2120,16 +2139,29 @@ const NovedadesPage: React.FC<NovedadesPageProps> = ({ forcedTab, hideInternalTa
                                                             </Select>
                                                         )}
                                                         {field.type === 'sucursal-anterior-select' && (
-                                                            <Select value={formData[field.name] || ''} disabled>
-                                                                <SelectTrigger className="h-9 text-sm bg-gray-50 border-gray-200 text-gray-500">
-                                                                    <SelectValue placeholder="Sucursal actual del empleado" />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    {sucursalesFormSelect.map(s => (
-                                                                        <SelectItem key={s.id} value={String(s.id)}>{s.nombre}</SelectItem>
-                                                                    ))}
-                                                                </SelectContent>
-                                                            </Select>
+                                                            <div className="flex flex-col gap-1">
+                                                                <Select value={formData[field.name] || ''} disabled>
+                                                                    <SelectTrigger className="h-9 text-sm bg-gray-50 border-gray-200 text-gray-500">
+                                                                        <SelectValue placeholder="Sucursal actual del empleado" />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        {sucursalesFormSelect.map(s => (
+                                                                            <SelectItem key={s.id} value={String(s.id)}>{s.nombre}</SelectItem>
+                                                                        ))}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                                {sucursalEmpleadoNoEncontrada && (
+                                                                    <p className="text-xs text-amber-600 flex items-start gap-1.5 mt-0.5">
+                                                                        <span className="mt-px shrink-0">⚠</span>
+                                                                        <span>
+                                                                            La sucursal del empleado no está creada en el sistema:{' '}
+                                                                            <span className="font-semibold bg-amber-100 text-amber-800 px-1 py-0.5 rounded">
+                                                                                {sucursalEmpleadoNoEncontrada}
+                                                                            </span>
+                                                                        </span>
+                                                                    </p>
+                                                                )}
+                                                            </div>
                                                         )}
                                                         {field.type === 'checkbox' && (
                                                             <div className="flex items-center gap-2.5 rounded-lg border border-gray-200 bg-white px-3 py-2.5">

@@ -17,6 +17,7 @@ export interface NovedadEmpleado {
     empresa_id?: number;
     sucursal_id?: number;
     sucursal?: string;
+    nombre_sucursal?: string;
     centro_costo_id?: number;
     fecha_ingreso?: string;
     fecha_nacimiento?: string;
@@ -379,6 +380,7 @@ export const novedadesService = {
                 cargo: (k['Nombre Cargo'] || '').trim() || undefined,
                 codigo_cargo: (k['Codigo Cargo'] || '').trim() || undefined,
                 sucursal: k['Codigo Sucursal'] != null ? String(k['Codigo Sucursal']) : undefined,
+                nombre_sucursal: (k['Nombre Sucursal'] || '').trim() || undefined,
                 fecha_ingreso: k['Fecha Ingresos'] || undefined,
                 fecha_nacimiento: k['Fecha Nacimiento'] || undefined,
                 fecha_expedicion: k['Fecha Expedicion'] || undefined,
